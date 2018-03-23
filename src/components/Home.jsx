@@ -32,7 +32,7 @@ export default class Home extends React.Component {
         const cube = new THREE.Mesh(geometry, material);
 
         const controls = new THREE.FirstPersonControls( camera );
-        controls.movementSpeed = 1000;
+        controls.movementSpeed = 5;
         controls.lookSpeed = 0.125;
         controls.lookVertical = true;
 
