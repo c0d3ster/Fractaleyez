@@ -5,6 +5,6 @@ Fractaleyez puts you in control of your musical journey with the arrow keys cont
 The interactive visualizer will run automatically without any music behind it.
 Once you drop in an mp3 file and the file is analyzed, playback will begin and the visualizer responds to the beat of the music.
 
-#Resources Utilized
+## Resources Utilized
 
 Audio Visualization Starter Pack by bcrespy: https://github.com/bcrespy/audio-visualization-starter
