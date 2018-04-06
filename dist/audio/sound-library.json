@@ -1,0 +1,17 @@
+[
+  {
+    "artist": "Owl Vision",
+    "name": "Warhogz",
+    "directory": "owl-vision_warhogz",
+    "filename": "owl-vision_warhogz.mp3",
+    "cover": "cover.jpg"
+  },
+
+  {
+    "artist": "GosT",
+    "name": "Arise",
+    "directory": "gost-arise",
+    "filename": "gost-arise.mp3",
+    "cover": "cover.jpg"
+  }
+]

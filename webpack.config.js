@@ -1,66 +1,36 @@
-const webpack = require( 'webpack' );
-const path = require( 'path' );
+const webpack = require('webpack');
+const path = require('path');
 
-
-const BUILD_DIR = path.join( __dirname, 'public' );
+const BUILD_DIR = path.join( __dirname, 'dist' );
 const APP_DIR = path.join( __dirname, 'src' );
 
-module.exports = {
-  devtool: "source-map",
-  entry: APP_DIR + '/index.jsx',
-  output: {
-    devtoolLineToLine: true,
-    sourceMapFilename: "./bundle.js.map",
-    pathinfo: true,
+module.exports =
+{
+  //with webpack 4 entry and output configuration is optional
+  entry: APP_DIR + '/main.js',
+  output:
+  {
     path: BUILD_DIR,
-    filename: 'bundle.js',
+    filename: 'app.js',
     publicPath: '/'
   },
+  //must include modules for webpack to integrate with babel for es6 syntax
   module: {
-    rules: [ {
-        test: /\.(js|jsx)$/,
+    rules: [
+      {
+        test: /\.js?$/,
         use: {
           loader: 'babel-loader',
           options: {
-            presets: [ 'react', 'env', 'stage-2' ]
+            presets: ['env']
           }
         },
         exclude: /node_modules/
-      },
-      {
-        test: /\.(css|less)$/,
-        use: [ {
-            loader: 'style-loader'
-          },
-          {
-            loader: 'css-loader',
-            options: {
-              importLoaders: 1
-            }
-          },
-          {
-            loader: 'postcss-loader'
-          }
-        ]
-      },
-      {
-        test: /\.json$/,
-        use: [ {
-          loader: 'json-loader'
-        } ]
-      },
-      {
-        test: /\.(png|jpg)$/,
-        use: [ {
-          loader: 'file-loader?name=[name].[ext]'
-        } ]
-      },
-      {
-        test: /\.(png|woff|woff2|eot|ttf|svg)$/,
-        use: [ {
-          loader: 'url-loader?limit=100000'
-        } ]
       }
     ]
+  },
+  //resolves directory to look for modules
+  resolve: {
+    modules: ['node_modules']
   }
 };

@@ -1,2 +1,8 @@
+# Build files
+dist/app.js*
+
+# Dependency directory
 node_modules/
-public/bundle.js*
+
+# In Case iOS makes these extra files, ignore them
+.DS_Store
