@@ -1,5 +1,6 @@
 # Build files
 dist/app.js*
+dist/index.html
 
 # Dependency directory
 node_modules/

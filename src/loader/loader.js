@@ -1,3 +1,5 @@
+import css from './loader.css';
+
 /**
  * This class provides a simple loader screen
  */

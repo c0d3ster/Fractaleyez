@@ -1,5 +1,6 @@
 import AppConfig from '../config/app.config';
 import { Loader } from '../loader/loader';
+import css from './user-selection.css';
 
 /**
  * Creates a pre-selection screen, handles its dom elements
@@ -8,7 +9,7 @@ import { Loader } from '../loader/loader';
 export class UserSelection
 {
   /**
-   * Callback param 1: type of 
+   * Callback param 1: type of
    * @param {*} callback The method to be called once the user has selected an option
    */
   constructor( callback )
@@ -22,7 +23,7 @@ export class UserSelection
     this.microphoneImg.src = './dist/img/microphone.svg';
 
     this.loadLibraryFile().then( (library) => {
-      
+
       library.forEach( (soundfile) => {
         this.files.push( new SoundFile(soundfile) );
       });
@@ -56,9 +57,9 @@ export class UserSelection
     this.domElement.ondrop = (e) => {
       e.stopPropagation();
       e.preventDefault();
-      this.dropHandler(e); 
+      this.dropHandler(e);
     };
-    
+
     this.files.forEach( (file) => {
       let tracks = this.domElement.getElementsByClassName("tracks")[0];
       let track = document.createElement("div");
@@ -86,7 +87,7 @@ export class UserSelection
   }
 
 
-  /** 
+  /**
    * Hides the user selection and removes then elements from the DOM
    * @returns {Promise} resolves when the elements are hidden
    */
@@ -128,7 +129,7 @@ export class UserSelection
 
 
   /**
-   * Called when user dropped an audio file 
+   * Called when user dropped an audio file
    * Calls the callback method sending the file data to be read
    * @param {File} file The file buffer to be read
    */
@@ -142,7 +143,7 @@ export class UserSelection
 
   /**
    * Handles the drop event trigger
-   * @param {DragEvent} event 
+   * @param {DragEvent} event
    */
   dropHandler( event )
   {
@@ -157,7 +158,7 @@ export class UserSelection
         fLoaded = true;
       }
     }
-    else 
+    else
     {
       file = event.dataTransfer.files[0];
       fLoaded = true;
@@ -175,7 +176,7 @@ export class UserSelection
 
 
   /**
-   * Loads the library file 
+   * Loads the library file
    */
   loadLibraryFile()
   {
@@ -212,7 +213,7 @@ export class UserSelection
           if( loaded == this.files.length )
             resolve();
         }
-        image.onerror = () => { 
+        image.onerror = () => {
           loaded++;
           file.image = '';
           if( AppConfig.showerrors ) console.error( `Couldn't load the cover /${file.directory}/${file.cover}` );

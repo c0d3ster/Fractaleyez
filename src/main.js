@@ -23,6 +23,7 @@ import { Stats } from './tools/stats';
 import { GUI } from './tools/gui';
 import UserControls from './user-controls';
 import AppConfig from './config/app.config';
+import css from './main.css';
 
 
 // Size of the fft transform performed on audio stream
@@ -33,7 +34,6 @@ let userSelection = new UserSelection( (selectionType, info) => {
 
   // we start to load everything
   let loader = new Loader();
-  console.log('starting');
 
   // 1- we create the audio components required for analysis
   let audiosource = new AudioSource();

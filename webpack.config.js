@@ -1,8 +1,15 @@
 const webpack = require('webpack');
 const path = require('path');
+const HtmlWebPackPlugin = require('html-webpack-plugin');
 
 const BUILD_DIR = path.join( __dirname, 'dist' );
 const APP_DIR = path.join( __dirname, 'src' );
+
+//dynamically generates html file with correct references
+const htmlPlugin = new HtmlWebPackPlugin({
+  template: './src/index.html',
+  filename: './index.html'
+});
 
 module.exports =
 {
@@ -26,11 +33,28 @@ module.exports =
           }
         },
         exclude: /node_modules/
+      },
+      {
+        test: /\.css$/,
+        use: [{
+            loader: 'style-loader'
+          },
+          {
+            loader: 'css-loader',
+            options: {
+              importLoaders: 1
+            }
+          },
+          {
+            loader: 'postcss-loader'
+          }]
       }
     ]
   },
   //resolves directory to look for modules
   resolve: {
     modules: ['node_modules']
-  }
+  },
+  //manages plugins specified above configuration
+  plugins: [htmlPlugin]
 };

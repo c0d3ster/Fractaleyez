@@ -1,65 +1,3 @@
-body 
-{
-  margin: 0;
-  padding: 0;
-  overflow: hidden;
-  background-color: #000;
-  -webkit-touch-callout: none; /* iOS Safari */
-    -webkit-user-select: none; /* Safari */
-     -khtml-user-select: none; /* Konqueror HTML */
-       -moz-user-select: none; /* Firefox */
-        -ms-user-select: none; /* Internet Explorer/Edge */
-            user-select: none;
-}
-
-#loader 
-{
-  position: absolute;
-  top: 0; bottom: 0;
-  left: 0; right: 0;
-  background-color: rgba(0,0,0,1);
-  z-index: 100;
-}
-
-#loader.loaded 
-{
-  background-color: rgba(0,0,0,0);
-  transition: background-color 2s;
-}
-
-#loader .loading-text
-{
-  color: #fff;
-  font-family: 'Lato', Arial, Helvetica, sans-serif;
-  font-size: 50px;
-  font-weight: 300;
-  position: absolute;
-  top: 50%; left: 50%;
-  -webkit-transform: translate(-50%, -50%);
-      -ms-transform: translate(-50%, -50%);
-          transform: translate(-50%, -50%);
-  cursor: default;
-  letter-spacing: 20px;
-  transition: letter-spacing 10s;
-  opacity: 1;
-  text-align: center;
-  line-height: 80px;
-}
-
-#loader.loading .loading-text
-{
-  letter-spacing: 60px;
-  transition: letter-spacing 10s;
-}
-
-#loader.loaded .loading-text
-{
-  letter-spacing: 200px;
-  opacity: 0;
-  transition: letter-spacing 1s, opacity 1s;
-}
-
-
 #user-selection
 {
   text-align: center;
@@ -118,7 +56,7 @@ body
   transition: transform 1s ease-out, opacity 1s;
 }
 
-#user-selection .track-selection .tracks .track 
+#user-selection .track-selection .tracks .track
 {
   display: inline-block;
   cursor: pointer;
@@ -164,7 +102,7 @@ body
   max-width: 200px;
 }
 
-#user-selection .track-selection .tracks .track .track-infos .artist, #user-selection .tracks .track .track-infos .track-name 
+#user-selection .track-selection .tracks .track .track-infos .artist, #user-selection .tracks .track .track-infos .track-name
 {
   color: #ffffff;
 }
@@ -186,7 +124,7 @@ body
   margin-top: 10px;
 }
 
-#user-selection .track-selection .tracks .track.microphone .icon 
+#user-selection .track-selection .tracks .track.microphone .icon
 {
   background-size: 50px 50px;
   background-position: center center;
