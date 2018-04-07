@@ -8,7 +8,7 @@ import { AudioAnalysedData } from '../audio-analysed-data';
  * This values are used to set the position/size of the differents
  * pannels
  */
-const 
+const
 PANNEL_SIGNAL = {
   pos_x: 0, pos_y: 0, size_x: 256, size_y: 128
 },
@@ -30,8 +30,8 @@ PANNEL_ALGO_2 = {
 
 
 /**
- * Provides a visual guidance to what the analysis is doing 
- * This should only be used in development since this is only 
+ * Provides a visual guidance to what the analysis is doing
+ * This should only be used in development since this is only
  * non-optimized helper
  */
 export class AnalysedDataVisualizer
@@ -54,14 +54,14 @@ export class AnalysedDataVisualizer
     this.canvas = document.createElement( "canvas" );
     this.canvas.setAttribute( "width", 1025 );
     this.canvas.setAttribute( "height", 1024 );
-    document.body.appendChild( this.canvas );
+    $('body').append( this.canvas );
     this.context = this.canvas.getContext( "2d" );
     if( AppConfig.showloginfos ) console.log( `Visualizer initialized\n------------` );
   }
 
 
   /**
-   * This method needs to be called each frame 
+   * This method needs to be called each frame
    * @param {AudioAnalysedData} analysedData Data processed by the AudioAnalyser
    * @param {*} startTimer Start timer of the visualization
    */
@@ -74,59 +74,15 @@ export class AnalysedDataVisualizer
     this.context.fillStyle = "black";
     this.context.fillRect( 0, 0, this.canvas.width, this.canvas.height );
 
-    this.drawSignal( analysedData.getTimedomainData() );
     this.drawSpectrum( analysedData.getFrequenciesData() );
-    this.drawEnergyHistogram( analysedData.getEnergyHistory(), analysedData.getEnergyAverage() );
     this.drawPeakDetection( analysedData.peak, analysedData.peakHistory, startTimer );
-    this.drawMultibandHistogram( analysedData.getMultibandEnergyHistory() );
     this.drawMultibandPeakDetection( analysedData.multibandPeak, analysedData.multibandPeakHistory, startTimer );
-
-    this.context.strokeStyle = "red";
-    this.context.lineWidth = 1;
-    this.context.strokeRect(0,0,1024,1024);
-  }
-
-
-  /**
-   * Draws the audio signal,
-   * using time domain data
-   * @param {Uint8Array} timedomaindata
-   */
-  drawSignal( timedomaindata )
-  {
-    // first we draw the interface
-    this.context.strokeStyle = 'white';
-    this.context.strokeRect( PANNEL_SIGNAL.pos_x+0.5, PANNEL_SIGNAL.pos_y+0.5, PANNEL_SIGNAL.size_x, PANNEL_SIGNAL.size_y );
-    this.context.font = '12px Lucida Console';
-    this.context.fillStyle = 'white';
-    this.context.fillText( 'Unprocessed signal', PANNEL_SIGNAL.pos_x+5, PANNEL_SIGNAL.pos_y + 13 );
-
-    // x axis
-    this.context.beginPath();
-    this.context.moveTo( PANNEL_SIGNAL.pos_x, PANNEL_SIGNAL.pos_y + PANNEL_SIGNAL.size_y/2 );
-    this.context.lineTo( PANNEL_SIGNAL.pos_x + PANNEL_SIGNAL.size_x, PANNEL_SIGNAL.pos_y + PANNEL_SIGNAL.size_y/2 );
-    this.context.strokeStyle = 'blue';
-    this.context.stroke();
-    this.context.closePath();
-
-    // drawing the signal
-    this.context.beginPath();
-
-    let aspectRatio_x = PANNEL_SIGNAL.size_x / timedomaindata.length,
-        aspectRatio_y = PANNEL_SIGNAL.size_y / 256;
-    
-    for( let i = 0; i < timedomaindata.length; i++ )
-      this.context.lineTo( i * aspectRatio_x + PANNEL_SIGNAL.pos_x, (PANNEL_SIGNAL.pos_y+PANNEL_SIGNAL.size_y-timedomaindata[i]*aspectRatio_y) );
-
-    this.context.strokeStyle = 'white';
-    this.context.stroke();
-    this.context.closePath();
   }
 
 
   /**
    * Draws the frequencies data
-   * @param {Uint8Array} frequencyData 
+   * @param {Uint8Array} frequencyData
    */
   drawSpectrum( frequencyData )
   {
@@ -171,7 +127,7 @@ export class AnalysedDataVisualizer
     this.context.fillStyle = '#00ff00';
     this.context.fillText( 'local average energy', rect.pos_x+5, rect.pos_y + 27 );
 
-    // average of the histogram 
+    // average of the histogram
     this.context.beginPath();
     this.context.moveTo( rect.pos_x+rect.size_x, rect.pos_y+rect.size_y - energyAverage );
     this.context.lineTo( rect.pos_x+rect.size_x - energyHistory.length*2, rect.pos_y+rect.size_y - energyAverage );
@@ -179,9 +135,9 @@ export class AnalysedDataVisualizer
     this.context.stroke();
     this.context.closePath();
 
-    // we draw it 
+    // we draw it
     this.context.beginPath();
-    
+
     for( let i = 0; i < energyHistory.length; i++ )
       this.context.lineTo( rect.pos_x+rect.size_x - i*2, rect.pos_y+rect.size_y - energyHistory[energyHistory.length-i-1] );
     this.context.strokeStyle = 'red';
@@ -206,7 +162,7 @@ export class AnalysedDataVisualizer
     this.context.fillStyle = 'white';
     this.context.fillText( `ALGO1 / threshold: ${AnalyserConfig.options.peakDetection.options.threshold} / ignoreTime: ${AnalyserConfig.options.peakDetection.options.ignoreTime} / results: ${peakHistory.length}`, rect.pos_x+5, rect.pos_y - 2 );
 
-    
+
     for( let i = 0; i < peakHistory.length; i++ )
     {
       this.context.beginPath();
@@ -225,7 +181,7 @@ export class AnalysedDataVisualizer
     this.context.stroke();
     this.context.closePath();
 
-    // on a un beat 
+    // on a un beat
     let beatPower = peak.value;
     this.context.beginPath();
     this.context.arc( rect.pos_x + rect.size_x - 20, rect.pos_y + rect.size_y / 2, 10, 0 , 2*Math.PI );
@@ -266,10 +222,10 @@ export class AnalysedDataVisualizer
         bands_y+= margin+band_histogram_height;
       }
 
-      // on dessine le cadre de la bande 
+      // on dessine le cadre de la bande
       this.context.strokeStyle = 'white';
       this.context.strokeRect( pannel.pos_x + bands_x + 0.5, pannel.pos_y + bands_y + 0.5, band_histogram_width, band_histogram_height );
-    
+
       // on va seulement parcourir une valeur sur 2 de chaque histogramme
       this.context.beginPath();
       for( let i = 0; i < energiesHistory.length; i++ )
@@ -308,7 +264,7 @@ export class AnalysedDataVisualizer
     let band_height = 20,
         margin = 5;
     let currentTimer = new Date();
-    
+
     for( let b = 0; b < AnalyserConfig.options.multibandPeakDetection.options.bands; b++ )
     {
       for( let i = 0; i < peaksHistory[b].length; i++ )
@@ -322,7 +278,7 @@ export class AnalysedDataVisualizer
       }
 
       // détection de beat
-      
+
       let beatPower = peaks[b].value;
       this.context.beginPath();
       this.context.arc( rect.pos_x + rect.size_x - 20, rect.pos_y + b*band_height + margin*(b+1) + band_height/2, 7, 0 , 2*Math.PI );
@@ -342,5 +298,5 @@ export class AnalysedDataVisualizer
       this.context.strokeRect( rect.pos_x + margin + 0.5, rect.pos_y +band_height*b + (b+1)*margin + 0.5, rect.size_x-margin*2, band_height );
     }
   }
-  
+
 };

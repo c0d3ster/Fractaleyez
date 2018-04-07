@@ -11,6 +11,12 @@ const htmlPlugin = new HtmlWebPackPlugin({
   filename: './index.html'
 });
 
+//prepends all instances of $ with var $ = require('jquery')
+const jQuery = new webpack.ProvidePlugin({
+     $: 'jquery',
+     jQuery: 'jquery'
+ })
+
 module.exports =
 {
   //with webpack 4 entry and output configuration is optional
@@ -56,5 +62,5 @@ module.exports =
     modules: ['node_modules']
   },
   //manages plugins specified above configuration
-  plugins: [htmlPlugin]
+  plugins: [htmlPlugin, jQuery]
 };

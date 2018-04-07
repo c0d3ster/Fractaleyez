@@ -8,3 +8,5 @@ Once you drop in an mp3 file and the file is analyzed, playback will begin and t
 ## Resources Utilized
 
 Audio Visualization Starter Pack by bcrespy: https://github.com/bcrespy/audio-visualization-starter
+
+Barry Martin's Hopalong Orbits Visualizer by Iacopo Sassarini: http://iacopoapps.appspot.com/hopalongwebgl/
