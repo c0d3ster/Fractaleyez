@@ -16,9 +16,9 @@ var NUM_SUBSETS = 7;
 var NUM_POINTS = NUM_POINTS_SUBSET * NUM_SUBSETS;
 
 var NUM_LEVELS = 7;
-var LEVEL_DEPTH = 1000;
+var LEVEL_DEPTH = 600;
 
-var DEF_BRIGHTNESS = .5;
+var DEF_BRIGHTNESS = .6;
 var DEF_SATURATION = .7;
 
 var SPRITE_SIZE = 5;
@@ -48,6 +48,14 @@ var orbit = {
   scaleX: 0,
   scaleY: 0
 }
+
+var geometry = new THREE.Geometry();
+geometry.vertices.push(
+new THREE.Vector3( -10,  10, 0 ),
+new THREE.Vector3( -10, -10, 0 ),
+new THREE.Vector3(  10, -10, 0 ));
+var vertex = geometry.vertices.push(new THREE.Vector3(0,0,0));
+
 // Initialize data points
 for (var i = 0; i < NUM_SUBSETS; i++) {
   var subsetPoints = [];
@@ -70,7 +78,7 @@ var mouseX = 0,
 var windowHalfX = window.innerWidth / 2;
 var windowHalfY = window.innerHeight / 2;
 
-var speed = 3;
+var speed = 6;
 var rotationSpeed = 0.002;
 
 init();
@@ -110,7 +118,7 @@ function init() {
         depthTest: false,
         transparent: true
       });
-      console.log(materials.color);
+      //console.log(materials.color);
       materials.color = new THREE.Color(`hsl(${hueValues[s]}, ${ (DEF_SATURATION*100).toFixed(0)}%, ${(DEF_BRIGHTNESS*100).toFixed(0)}%)`);
       //materials.color = new THREE.Color( 'skyblue' );
 
@@ -149,7 +157,7 @@ function init() {
   window.addEventListener('resize', onWindowResize, false);
 
   // Schedule orbit regeneration
-  setInterval(updateOrbit, 5000);
+  setInterval(updateOrbit, 3000);
 }
 
 function animate() {
@@ -158,7 +166,6 @@ function animate() {
 }
 
 function render() {
-
   if (camera.position.x >= -CAMERA_BOUND && camera.position.x <= CAMERA_BOUND) {
     camera.position.x += (mouseX - camera.position.x) * 0.05;
     if (camera.position.x < -CAMERA_BOUND) camera.position.x = -CAMERA_BOUND;
@@ -176,10 +183,12 @@ function render() {
     let child = scene.children[i];
     child.position.z += speed;
     child.rotation.z += rotationSpeed;
+
     if (child.position.z > camera.position.z) {
       child.position.z = -(NUM_LEVELS - 1) * LEVEL_DEPTH;
+
       if (child.needsUpdate == 1) {
-        child.geometry.__dirtyVertices = true;
+        child.geometry.verticesNeedUpdate  = true;
         //console.log(child.myMaterial.color);
         //console.log('new color');
         //console.log(new THREE.Color(`hsl(${hueValues[child.mySubset]}, ${ (DEF_SATURATION*100).toFixed(0)}%, ${(DEF_BRIGHTNESS*100).toFixed(0)}%)`));
@@ -196,9 +205,10 @@ function render() {
 // Hopalong Orbit Generator
 ///////////////////////////////////////////////
 function updateOrbit() {
+  console.log("Updating Orbit...");
   generateOrbit();
   for (var s = 0; s < NUM_SUBSETS; s++) {
-    hueValues[s] = Math.round(Math.random()*360);
+    hueValues[s] = Math.round(Math.random() * 360);
   }
   for (i = 0; i < scene.children.length; i++) {
     scene.children[i].needsUpdate = 1;
@@ -206,6 +216,7 @@ function updateOrbit() {
 }
 
 function generateOrbit() {
+  console.log("Generating Orbit...")
   var x, y, z, x1;
   var idx = 0;
 
@@ -217,6 +228,7 @@ function generateOrbit() {
   let cl = c;
   let dl = d;
   let el = e;
+
   var subsets = orbit.subsets;
   var num_points_subset_l = NUM_POINTS_SUBSET;
   var num_points_l = NUM_POINTS;
@@ -226,8 +238,8 @@ function generateOrbit() {
     xMax = 0,
     yMin = 0,
     yMax = 0;
-  var choice;
-  choice = Math.random();
+
+  var choice = Math.random();
 
   for (var s = 0; s < NUM_SUBSETS; s++) {
 
@@ -238,23 +250,24 @@ function generateOrbit() {
 
     for (var i = 0; i < num_points_subset_l; i++) {
 
-      // Iteration formula (generalization of the Barry Martin's original one)
-
-
+      // Iteration formula
       if (choice < 0.5) {
         z = (dl + (Math.sqrt(Math.abs(bl * x - cl))));
-      } else if (choice < 0.75) {
+      }
+      else if (choice < 0.75) {
         z = (dl + Math.sqrt(Math.sqrt(Math.abs(bl * x - cl))));
-
-      } else {
+      }
+      else {
         z = (dl + Math.log(2 + Math.sqrt(Math.abs(bl * x - cl))));
       }
 
       if (x > 0) {
         x1 = y - z;
-      } else if (x == 0) {
+      }
+      else if (x == 0) {
         x1 = y;
-      } else {
+      }
+      else {
         x1 = y + z;
       }
       y = al - x;
@@ -265,12 +278,15 @@ function generateOrbit() {
 
       if (x < xMin) {
         xMin = x;
-      } else if (x > xMax) {
+      }
+      else if (x > xMax) {
         xMax = x;
       }
+
       if (y < yMin) {
         yMin = y;
-      } else if (y > yMax) {
+      }
+      else if (y > yMax) {
         yMax = y;
       }
 
@@ -296,7 +312,6 @@ function generateOrbit() {
       curSubset[i].vertex.setY(scaleY * (curSubset[i].y - yMin) - scale_factor_l);
     }
   }
-  console.log(subsets[0][0]);
 }
 
 function prepareOrbit() {
@@ -313,6 +328,7 @@ function shuffleParams() {
   c = C_MIN + Math.random() * (C_MAX - C_MIN);
   d = D_MIN + Math.random() * (D_MAX - D_MIN);
   e = E_MIN + Math.random() * (E_MAX - E_MIN);
+
 }
 
 ///////////////////////////////////////////////
@@ -348,6 +364,7 @@ function onWindowResize(event) {
 }
 
 function onKeyDown(event) {
+  //console.log("on key down invoked with key code = " + event.keyCode);
   if (event.keyCode == 38 && speed < 20) speed += .5;
   else if (event.keyCode == 40 && speed > 0) speed -= .5;
   else if (event.keyCode == 37) rotationSpeed += .001;
