@@ -312,7 +312,7 @@ function shuffleParams() {
 // Event listeners
 ///////////////////////////////////////////////
 function onDocumentMouseMove(event) {
-  cameraManager.updateMouseMove(event);
+  cameraManager.updateMousePosition(event);
 }
 
 function onWindowResize(event) {
