@@ -5,11 +5,11 @@ import * as THREE from 'three';
 import {HUD} from './hud/hud-controller';
 import {Stats} from './tools/stats';
 import css from './main.css';
+import {CameraManager} from './visualization/camera-manager.js';
 
 var VISUALS_VISIBLE = true;
 
 var SCALE_FACTOR = 1500;
-var CAMERA_BOUND = 200;
 
 var NUM_POINTS_SUBSET = 32000;
 var NUM_SUBSETS = 7;
@@ -70,10 +70,7 @@ for (var i = 0; i < NUM_SUBSETS; i++) {
 }
 
 var container, stats;
-var camera, scene, renderer, composer, hueValues = [];
-
-var mouseX = 0,
-  mouseY = 0;
+var cameraManager, scene, renderer, composer, hueValues = [];
 
 var windowHalfX = window.innerWidth / 2;
 var windowHalfY = window.innerHeight / 2;
@@ -91,8 +88,8 @@ function init() {
   container = document.createElement('div');
   document.body.appendChild(container);
 
-  camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1, 3 * SCALE_FACTOR);
-  camera.position.z = SCALE_FACTOR / 2;
+  cameraManager = new CameraManager();
+  cameraManager.init(SCALE_FACTOR);
 
   scene = new THREE.Scene();
   scene.fog = new THREE.FogExp2(0x000000, 0.0010);
@@ -151,8 +148,6 @@ function init() {
 
   // Setup listeners
   document.addEventListener('mousemove', onDocumentMouseMove, false);
-  document.addEventListener('touchstart', onDocumentTouchStart, false);
-  document.addEventListener('touchmove', onDocumentTouchMove, false);
   document.addEventListener('keydown', onKeyDown, false);
   window.addEventListener('resize', onWindowResize, false);
 
@@ -166,25 +161,15 @@ function animate() {
 }
 
 function render() {
-  if (camera.position.x >= -CAMERA_BOUND && camera.position.x <= CAMERA_BOUND) {
-    camera.position.x += (mouseX - camera.position.x) * 0.05;
-    if (camera.position.x < -CAMERA_BOUND) camera.position.x = -CAMERA_BOUND;
-    if (camera.position.x > CAMERA_BOUND) camera.position.x = CAMERA_BOUND;
-  }
-  if (camera.position.y >= -CAMERA_BOUND && camera.position.y <= CAMERA_BOUND) {
-    camera.position.y += (-mouseY - camera.position.y) * 0.05;
-    if (camera.position.y < -CAMERA_BOUND) camera.position.y = -CAMERA_BOUND;
-    if (camera.position.y > CAMERA_BOUND) camera.position.y = CAMERA_BOUND;
-  }
-
-  camera.lookAt(scene.position);
+  cameraManager.manageCameraPosition();
+  cameraManager.getCamera().lookAt(scene.position);
 
   for (i = 0; i < scene.children.length; i++) {
     let child = scene.children[i];
     child.position.z += speed;
     child.rotation.z += rotationSpeed;
 
-    if (child.position.z > camera.position.z) {
+    if (child.position.z > cameraManager.getCamera().position.z) {
       child.position.z = -(NUM_LEVELS - 1) * LEVEL_DEPTH;
 
       if (child.needsUpdate == 1) {
@@ -198,14 +183,13 @@ function render() {
     }
   }
 
-  renderer.render(scene, camera);
+  renderer.render(scene, cameraManager.getCamera());
 }
 
 ///////////////////////////////////////////////
 // Hopalong Orbit Generator
 ///////////////////////////////////////////////
 function updateOrbit() {
-  console.log("Updating Orbit...");
   generateOrbit();
   for (var s = 0; s < NUM_SUBSETS; s++) {
     hueValues[s] = Math.round(Math.random() * 360);
@@ -216,7 +200,6 @@ function updateOrbit() {
 }
 
 function generateOrbit() {
-  console.log("Generating Orbit...")
   var x, y, z, x1;
   var idx = 0;
 
@@ -328,38 +311,19 @@ function shuffleParams() {
   c = C_MIN + Math.random() * (C_MAX - C_MIN);
   d = D_MIN + Math.random() * (D_MAX - D_MIN);
   e = E_MIN + Math.random() * (E_MAX - E_MIN);
-
 }
 
 ///////////////////////////////////////////////
 // Event listeners
 ///////////////////////////////////////////////
 function onDocumentMouseMove(event) {
-  mouseX = event.clientX - windowHalfX;
-  mouseY = event.clientY - windowHalfY;
-}
-
-function onDocumentTouchStart(event) {
-  if (event.touches.length == 1) {
-    event.preventDefault();
-    mouseX = event.touches[0].pageX - windowHalfX;
-    mouseY = event.touches[0].pageY - windowHalfY;
-  }
-}
-
-function onDocumentTouchMove(event) {
-  if (event.touches.length == 1) {
-    event.preventDefault();
-    mouseX = event.touches[0].pageX - windowHalfX;
-    mouseY = event.touches[0].pageY - windowHalfY;
-  }
+  cameraManager.updateMouseMove(event);
 }
 
 function onWindowResize(event) {
   windowHalfX = window.innerWidth / 2;
   windowHalfY = window.innerHeight / 2;
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
+  cameraManager.onRezize();
   renderer.setSize(window.innerWidth, window.innerHeight);
 }
 
