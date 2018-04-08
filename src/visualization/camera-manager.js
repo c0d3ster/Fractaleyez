@@ -36,7 +36,7 @@ export class CameraManager {
     }
 
     //for moving the camera around
-    updateMouseMove(event) {
+    updateMousePosition(event) {
         this.mouseX = event.clientX - (window.innerWidth / 2);
         this.mouseY = event.clientY - (window.innerHeight / 2);
     }
