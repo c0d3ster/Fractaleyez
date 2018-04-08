@@ -115,9 +115,7 @@ function init() {
         depthTest: false,
         transparent: true
       });
-      //console.log(materials.color);
       materials.color = new THREE.Color(`hsl(${hueValues[s]}, ${ (DEF_SATURATION*100).toFixed(0)}%, ${(DEF_BRIGHTNESS*100).toFixed(0)}%)`);
-      //materials.color = new THREE.Color( 'skyblue' );
 
       var particles = new THREE.Points(geometry, materials);
       particles.myMaterial = materials;
@@ -174,9 +172,6 @@ function render() {
 
       if (child.needsUpdate == 1) {
         child.geometry.verticesNeedUpdate  = true;
-        //console.log(child.myMaterial.color);
-        //console.log('new color');
-        //console.log(new THREE.Color(`hsl(${hueValues[child.mySubset]}, ${ (DEF_SATURATION*100).toFixed(0)}%, ${(DEF_BRIGHTNESS*100).toFixed(0)}%)`));
         child.myMaterial.color = new THREE.Color(`hsl(${hueValues[child.mySubset]}, ${ (DEF_SATURATION*100).toFixed(0)}%, ${(DEF_BRIGHTNESS*100).toFixed(0)}%)`);
         child.needsUpdate = 0;
       }
@@ -328,7 +323,6 @@ function onWindowResize(event) {
 }
 
 function onKeyDown(event) {
-  //console.log("on key down invoked with key code = " + event.keyCode);
   if (event.keyCode == 38 && speed < 20) speed += .5;
   else if (event.keyCode == 40 && speed > 0) speed -= .5;
   else if (event.keyCode == 37) rotationSpeed += .001;
