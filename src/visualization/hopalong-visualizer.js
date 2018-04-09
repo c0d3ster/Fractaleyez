@@ -10,8 +10,8 @@ var NUM_SUBSETS = 7;
 var NUM_POINTS = NUM_POINTS_SUBSET * NUM_SUBSETS;
 var NUM_LEVELS = 7;
 var LEVEL_DEPTH = 600;
-var DEF_BRIGHTNESS = .6;
-var DEF_SATURATION = .7;
+var DEF_BRIGHTNESS = .5;
+var DEF_SATURATION = 1;
 var SPRITE_SIZE = 5;
 
 // Orbit parameters constraints
@@ -149,7 +149,7 @@ export class HopalongVisualizer {
   getScene() {
     return this.scene;
   }
-  
+
   getSpeed() {
     return this.speed;
   }
