@@ -32,7 +32,7 @@ let startTimer = null,
     deltaTime = null;
 
 //Intiatialize Mic input stream & then set up Audio Anaysis
-audiosource.getStreamFromMicrophone(true).then(init); //set input to be from mic by default
+audiosource.getStreamFromMicrophone(false).then(init); //set input to be from mic by default
 
 //Set up the Audio Analysis
 function init() {
@@ -53,6 +53,12 @@ function analyze() {
   // we send the audio data to the analyser for analysis
   audioAnalyser.analyse( audiostream.getAudioData(), deltaTime, currentTimer )
   let analysedData = audioAnalyser.getAnalysedData(); // we ge the analysed data
+
+  //console.log("Analyzed Data:\nTime Domain Data = " + analysedData.getTimedomainData());
+  //console.log("\nFrequencies Data = " + analysedData.getFrequenciesData());
+  console.log("\nEnergy Data = " + analysedData.getEnergy());
+  console.log("\nEnergy Average = " + analysedData.getEnergyAverage());
+  console.log("\nMultiBand Energy = " + analysedData.getMultibandEnergy());
 
   // we ask the helper to draw the analysed data
   // this is where we can send the data to a proper visualizer
