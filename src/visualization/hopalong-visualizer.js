@@ -33,6 +33,7 @@ export class HopalongVisualizer {
   constructor() {
       this.lights = [];
       this.objects = [];
+      this.hueValues = [];
       this.scene = new THREE.Scene();
       this.scene.fog = new THREE.FogExp2( 0x000000, 0.0013 );
       this.startTimer = null;
@@ -64,9 +65,8 @@ export class HopalongVisualizer {
           }
         }
         this.orbit.subsets.push( subsetPoints );
+        this.hueValues[i] = Math.random();
       }
-
-      this.hueValues = [];
   }
 
 
@@ -105,6 +105,7 @@ export class HopalongVisualizer {
         particles.position.y = 0;
         particles.position.z = -LEVEL_DEPTH * level - (s * LEVEL_DEPTH / NUM_SUBSETS) + SCALE_FACTOR / 2;
         particles.needsUpdate = 0;
+        particles.material.color.setHSL( this.hueValues[s], DEF_SATURATION, DEF_BRIGHTNESS );
         this.objects.push( particles );
         this.scene.add( particles );
       }
