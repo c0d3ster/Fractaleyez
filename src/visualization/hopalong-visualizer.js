@@ -125,10 +125,12 @@ export class HopalongVisualizer {
 
     //Get momentum of the music being played
     let musicSpeed = (audioData.energyAverage + audioData.energy);
-
+    let musicSpeedMultiplier = 1 + musicSpeed/10;
+    //console.log('music speed multiplier: ' + musicSpeedMultiplier);
+    //console.log(this.speed * musicSpeedMultiplier);
     //Process all children in scene and update them
     this.objects.forEach( (obj) => {
-      obj.position.z += this.speed;
+      obj.position.z += this.speed * musicSpeedMultiplier;
       obj.rotation.z += this.rotationSpeed;
 
       if( obj.position.z > SCALE_FACTOR / 2 )
