@@ -59,7 +59,8 @@ function analyze() {
   console.log("\nEnergy Data = " + analysedData.getEnergy());
   console.log("\nEnergy Average = " + analysedData.getEnergyAverage());
   console.log("\nMultiBand Energy = " + analysedData.getMultibandEnergy());
-
+  console.log("\npeak.value = " + analysedData.peak.value);
+  console.log("\npeak.energy = " + analysedData.peak.energy);
   // we ask the helper to draw the analysed data
   // this is where we can send the data to a proper visualizer
   hopalongManager.update( deltaTime, analysedData );
