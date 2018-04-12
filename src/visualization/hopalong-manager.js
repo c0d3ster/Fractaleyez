@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { HopalongVisualizer } from './hopalong-visualizer.js'
 import { CameraManager } from './camera-manager';
-import { EffectComposer, Bloom, ShockWavePass, RenderPass, BloomPass } from 'postprocessing';
+import { EffectComposer, Bloom, ShockWavePass,  RenderPass, BloomPass } from 'postprocessing';
 
 //for whatever reason...if this is made a class property it doesnt work
 var cameraManager;
@@ -67,7 +67,7 @@ export class HopalongManager {
     this.composer.addPass( this.bloomPass );
 
     let fakeCamera = new THREE.PerspectiveCamera( 45, window.innerWidth/window.innerHeight );
-    fakeCamera.position.z = 1500/10;
+    fakeCamera.position.z = 10;
 
     this.shockwavePass = new ShockWavePass( fakeCamera );
     this.shockwavePass.renderToScreen = true;
@@ -92,17 +92,17 @@ export class HopalongManager {
       this.deltaTime = deltaTime;
       this.elapsedTime += deltaTime;
 
-      this.shockwavePass.speed = hopalongVisualizer.getSpeed() * audioData.peak.energy / 10.0;
-      //this.shockwavePass.size = audioData.peak.value / 5.0;
-      this.shockwavePass.extent = audioData.peak.value * 100;
-      //this.shockwavePass.waveSize = audioData.peak.energy;
-      //this.shockwavePass.amplitude = audioData.peak.energy / 25;
+      this.shockwavePass.speed = 1;
+      this.shockwavePass.size = 1;
+      this.shockwavePass.extent = 0.5;
+      this.shockwavePass.waveSize = 1;
+      this.shockwavePass.amplitude = audioData.energy / 25;
 
       hopalongVisualizer.update( deltaTime, audioData, renderer, cameraManager );
 
       this.bloomPass.intensity = audioData.peak.value * audioData.peak.energy;
       if ( audioData.peak.value == 1 ) {
-       this.shockwavePass.explode();
+        this.shockwavePass.explode();
       }
       this.composer.render( this.clock.getDelta() );
   }
