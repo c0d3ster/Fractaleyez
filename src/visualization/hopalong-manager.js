@@ -92,11 +92,11 @@ export class HopalongManager {
     this.deltaTime = deltaTime;
     this.elapsedTime += deltaTime;
 
-    this.shockwavePass.speed = hopalongVisualizer.getSpeed() / 10.0;
-    this.shockwavePass.size = audioData.peak.value * 2;
-    this.shockwavePass.extent = audioData.peak.value * 100;
-    this.shockwavePass.waveSize = (audioData.peak.value / 1) * 2;
-    this.shockwavePass.amplitude = audioData.peak.value * 2;
+    this.shockwavePass.speed = (hopalongVisualizer.getSpeed() / 80) + audioData.peak.value + .25;
+    this.shockwavePass.size = .1;//audioData.peak.value * 2;
+    this.shockwavePass.extent = .01;//audioData.peak.value * 100;
+    this.shockwavePass.waveSize = 2;//(audioData.peak.value / 1) * 2;
+    this.shockwavePass.amplitude = 0.25;
 
     hopalongVisualizer.update( deltaTime, audioData, renderer, cameraManager );
 
@@ -121,8 +121,8 @@ export class HopalongManager {
   }
 
   onKeyDown(event) {
-    if (event.keyCode == 38 && hopalongVisualizer.getSpeed() < 20) hopalongVisualizer.updateSpeed(0.5);
-    else if (event.keyCode == 40 && hopalongVisualizer.getSpeed() > 0) hopalongVisualizer.updateSpeed(-0.5);
+    if (event.keyCode == 38 && hopalongVisualizer.getSpeed() < 40) hopalongVisualizer.updateSpeed(0.25);
+    else if (event.keyCode == 40 && hopalongVisualizer.getSpeed() > 0) hopalongVisualizer.updateSpeed(-0.25);
     else if (event.keyCode == 37) hopalongVisualizer.updateRotationSpeed(0.001);
     else if (event.keyCode == 39) hopalongVisualizer.updateRotationSpeed(-0.001);
     else if (event.keyCode == 72 || event.keyCode == 104) toggleVisuals();

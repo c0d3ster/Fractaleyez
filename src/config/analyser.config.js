@@ -1,17 +1,17 @@
 import { EASINGS } from '../utility/easings';
 
 
-export default 
+export default
 {
   /**
    * These are the options the analyser is checking to see which algorithm is going
-   * to run. 
+   * to run.
    */
   options: {
 
     /**
      * The peak detection algorithm compares the moment energy to the recent average
-     * energy of the signal. 
+     * energy of the signal.
      */
     peakDetection: {
 
@@ -20,13 +20,13 @@ export default
 
       // options used by the peak detection algorithm
       options: {
-        
+
         // the higher the threshold is, the harder a peak has to hit compared to
-        // the rest of the audio 
-        threshold: 1.8,
+        // the rest of the audio
+        threshold: 3,
 
         // time in ms when a peak is not detectable after one has been detected
-        ignoreTime: 300,
+        ignoreTime: 1000,
 
         // time in ms during energies are compared to the real-time energy value
         energyPersistence: 2000,
@@ -45,7 +45,7 @@ export default
      * For each band, it will run the peak detection algorithm to look for a peak, using
      * the options specified below
      */
-    multibandPeakDetection: 
+    multibandPeakDetection:
     {
       // If this boolean is set to true, the analuser will run the algorithm
       enabled: true,
@@ -77,23 +77,23 @@ export default
     },
 
     /**
-     * If one of these values are set to true, the analyser will return them with the 
+     * If one of these values are set to true, the analyser will return them with the
      * getAnalysedDataForVisualization() method. This will not impact the algorithms
      * proccessed on the audio. However, some on these values can't be set to true if
      * the algorithms computing them are not enabled
      */
     returns: {
 
-      // if the analyser returns the time domain data 
+      // if the analyser returns the time domain data
       timedomainData: true,
 
-      // if the analyser returns the frequencies data 
+      // if the analyser returns the frequencies data
       frequenciesData: true,
 
-      // energy of the signal 
+      // energy of the signal
       energy: true,
 
-      // history of the last energies 
+      // history of the last energies
       energyHistory: true,
 
       // average of the energiesHistory
@@ -102,7 +102,7 @@ export default
       // informations on the peak
       peak: true,
 
-      // all the peaks detected 
+      // all the peaks detected
       peakHistory: true,
 
       // energy of each band

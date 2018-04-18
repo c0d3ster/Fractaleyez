@@ -40,7 +40,7 @@ export class HopalongVisualizer {
       this.deltaTime = 0;
       this.elapsedTime = 0;
 
-      this.speed = 6;
+      this.speed = 2;
       this.rotationSpeed = 0.002;
 
       this.orbit = {
