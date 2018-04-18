@@ -87,24 +87,24 @@ export class HopalongManager {
    */
   update( deltaTime, audioData )
   {
-      cameraManager.manageCameraPosition();
+    cameraManager.manageCameraPosition();
 
-      this.deltaTime = deltaTime;
-      this.elapsedTime += deltaTime;
+    this.deltaTime = deltaTime;
+    this.elapsedTime += deltaTime;
 
-      this.shockwavePass.speed = hopalongVisualizer.getSpeed() * audioData.peak.energy / 10.0;
-      //this.shockwavePass.size = audioData.peak.value / 5.0;
-      this.shockwavePass.extent = audioData.peak.value * 100;
-      //this.shockwavePass.waveSize = audioData.peak.energy;
-      //this.shockwavePass.amplitude = audioData.peak.energy / 25;
+    this.shockwavePass.speed = hopalongVisualizer.getSpeed() / 10.0;
+    this.shockwavePass.size = audioData.peak.value * 2;
+    this.shockwavePass.extent = audioData.peak.value * 100;
+    this.shockwavePass.waveSize = (audioData.peak.value / 1) * 2;
+    this.shockwavePass.amplitude = audioData.peak.value * 2;
 
-      hopalongVisualizer.update( deltaTime, audioData, renderer, cameraManager );
+    hopalongVisualizer.update( deltaTime, audioData, renderer, cameraManager );
 
-      this.bloomPass.intensity = audioData.peak.value * audioData.peak.energy;
-      if ( audioData.peak.value == 1 ) {
-       this.shockwavePass.explode();
-      }
-      this.composer.render( this.clock.getDelta() );
+    this.bloomPass.intensity = audioData.peak.value * audioData.peak.energy;
+    if ( audioData.peak.value == 1 && hopalongVisualizer.getSpeed() > 10) {
+     this.shockwavePass.explode();
+    }
+    this.composer.render( this.clock.getDelta() );
   }
 
   ///////////////////////////////////////////////
