@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { HopalongVisualizer } from './hopalong-visualizer.js'
 import { CameraManager } from './camera-manager';
-import { EffectComposer, Bloom, ShockWavePass, RenderPass, BloomPass } from 'postprocessing';
+import { EffectComposer, Bloom, ShockWavePass,  RenderPass, BloomPass } from 'postprocessing';
 
 //for whatever reason...if this is made a class property it doesnt work
 var cameraManager;
@@ -67,7 +67,7 @@ export class HopalongManager {
     this.composer.addPass( this.bloomPass );
 
     let fakeCamera = new THREE.PerspectiveCamera( 45, window.innerWidth/window.innerHeight );
-    fakeCamera.position.z = 1500/10;
+    fakeCamera.position.z = 10;
 
     this.shockwavePass = new ShockWavePass( fakeCamera );
     this.shockwavePass.renderToScreen = true;
@@ -100,11 +100,11 @@ export class HopalongManager {
 
     hopalongVisualizer.update( deltaTime, audioData, renderer, cameraManager );
 
-    this.bloomPass.intensity = audioData.peak.value * audioData.peak.energy;
-    if ( audioData.peak.value == 1 && hopalongVisualizer.getSpeed() > 10) {
-     this.shockwavePass.explode();
-    }
-    this.composer.render( this.clock.getDelta() );
+      this.bloomPass.intensity = audioData.peak.value * audioData.peak.energy;
+      if ( audioData.peak.value == 1 ) {
+        this.shockwavePass.explode();
+      }
+      this.composer.render( this.clock.getDelta() );
   }
 
   ///////////////////////////////////////////////
