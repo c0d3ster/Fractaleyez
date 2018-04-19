@@ -85,8 +85,16 @@ export class HopalongVisualizer {
       for( let s = 0; s < NUM_SUBSETS; s++ ) {
 
         let geometry = new THREE.Geometry();
+        let count = 0;
         for (var i = 0; i < NUM_POINTS_SUBSET; i++) {
+          if (count % 2 == 0) {
+            this.orbit.subsets[s][i].vertex.applyAxisAngle(new THREE.Vector3(0, 1, 0), 0.785398);
+          }
+          else {
+            this.orbit.subsets[s][i].vertex.applyAxisAngle(new THREE.Vector3(0, 1, 0), -0.785398);
+          }
           geometry.vertices.push(this.orbit.subsets[s][i].vertex);
+          count++;
         }
 
         let material = new THREE.PointsMaterial( {
@@ -216,6 +224,17 @@ export class HopalongVisualizer {
         y = la-x;
         x = x1 + le;
 
+        //basically the idea here is to remove all the shit that appears in the focal point of the shockwave // center;
+        if (x < 15 && x > -15) {
+          x = Math.random() * (window.innerWidth + window.innerWidth) + window.innerWidth;
+          x *= Math.floor(Math.random()*2) == 1 ? 1 : -1; // this will add minus sign in 50% of cases
+
+        }
+
+        if (y < 15 && y > -15) {
+          y = Math.random() * (window.innerHeight + window.innerHeight) + window.innerHeight;
+          y *= Math.floor(Math.random()*2) == 1 ? 1 : -1; // this will add minus sign in 50% of cases\
+        }
         currentSubset[i].x = x;
         currentSubset[i].y = y;
 

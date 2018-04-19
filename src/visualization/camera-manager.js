@@ -44,6 +44,9 @@ export class CameraManager {
     updateMousePosition(event) {
         this.mouseX = event.clientX - (window.innerWidth / 2);
         this.mouseY = event.clientY - (window.innerHeight / 2);
+
+        console.log('mouseX = ' + this.mouseX);
+        console.log('mouseY= ' + this.mouseY);
     }
 
     onResize() {
