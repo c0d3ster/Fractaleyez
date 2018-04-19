@@ -42,7 +42,7 @@ export class HopalongManager {
     renderer = new THREE.WebGLRenderer({
       clearColor: 0x000000,
       clearAlpha: 1,
-      antialias: false,
+      antialias: true,
       gammeInput: true,
       gammaOutput: true
     });

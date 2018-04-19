@@ -245,13 +245,13 @@ export class HopalongVisualizer {
       for( let i = 0; i < NUM_POINTS_SUBSET; i++ )
       {
         //basically the idea here is to remove all the shit that appears in the focal point of the shockwave // center;
-        if (scaleX * (currentSubset[i].x - xMin) - scale_factor_l < 5 && scaleX * (currentSubset[i].x - xMin) - scale_factor_l > -5) {
+        if (scaleX * (currentSubset[i].x - xMin) - scale_factor_l < 10 && scaleX * (currentSubset[i].x - xMin) - scale_factor_l > -10) {
           currentSubset[i].x = scaleX * Math.random() * (currentSubset[i].x - xMin) - scale_factor_l;
           currentSubset[i].x *= Math.floor(Math.random()*2) == 1 ? 1 : -1; // this will add minus sign in 50% of cases
 
         }
 
-        if (scaleY * (currentSubset[i].y - yMin) - scale_factor_l < 5 && scaleY * (currentSubset[i].y - yMin) - scale_factor_l > -5) {
+        if (scaleY * (currentSubset[i].y - yMin) - scale_factor_l < 10 && scaleY * (currentSubset[i].y - yMin) - scale_factor_l > -10) {
           currentSubset[i].y = scaleY * Math.random() * (currentSubset[i].y - yMin) -scale_factor_l;
           currentSubset[i].y *= Math.floor(Math.random()*2) == 1 ? 1 : -1; // this will add minus sign in 50% of cases\
         }

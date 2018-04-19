@@ -18,6 +18,7 @@ export class CameraManager {
       this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1, 3 * scaleFactor);
       this.camera.position.z = scaleFactor / 2;
       this.cameraBound = CAMERA_BOUND;
+      this.camera.rotation.y = 3.14;
     }
 
     getCamera() {
