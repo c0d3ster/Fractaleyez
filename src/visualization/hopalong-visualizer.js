@@ -87,12 +87,7 @@ export class HopalongVisualizer {
         let geometry = new THREE.Geometry();
         let count = 0;
         for (var i = 0; i < NUM_POINTS_SUBSET; i++) {
-          if (count % 2 == 0) {
-            this.orbit.subsets[s][i].vertex.applyAxisAngle(new THREE.Vector3(0, 1, 0), 0.785398);
-          }
-          else {
-            this.orbit.subsets[s][i].vertex.applyAxisAngle(new THREE.Vector3(0, 1, 0), -0.785398);
-          }
+
           geometry.vertices.push(this.orbit.subsets[s][i].vertex);
           count++;
         }
@@ -224,17 +219,6 @@ export class HopalongVisualizer {
         y = la-x;
         x = x1 + le;
 
-        //basically the idea here is to remove all the shit that appears in the focal point of the shockwave // center;
-        if (x < 15 && x > -15) {
-          x = Math.random() * (window.innerWidth + window.innerWidth) + window.innerWidth;
-          x *= Math.floor(Math.random()*2) == 1 ? 1 : -1; // this will add minus sign in 50% of cases
-
-        }
-
-        if (y < 15 && y > -15) {
-          y = Math.random() * (window.innerHeight + window.innerHeight) + window.innerHeight;
-          y *= Math.floor(Math.random()*2) == 1 ? 1 : -1; // this will add minus sign in 50% of cases\
-        }
         currentSubset[i].x = x;
         currentSubset[i].y = y;
 
@@ -260,6 +244,17 @@ export class HopalongVisualizer {
       let currentSubset = this.orbit.subsets[s];
       for( let i = 0; i < NUM_POINTS_SUBSET; i++ )
       {
+        //basically the idea here is to remove all the shit that appears in the focal point of the shockwave // center;
+        if (scaleX * (currentSubset[i].x - xMin) - scale_factor_l < 5 && scaleX * (currentSubset[i].x - xMin) - scale_factor_l > -5) {
+          currentSubset[i].x = scaleX * Math.random() * (currentSubset[i].x - xMin) - scale_factor_l;
+          currentSubset[i].x *= Math.floor(Math.random()*2) == 1 ? 1 : -1; // this will add minus sign in 50% of cases
+
+        }
+
+        if (scaleY * (currentSubset[i].y - yMin) - scale_factor_l < 5 && scaleY * (currentSubset[i].y - yMin) - scale_factor_l > -5) {
+          currentSubset[i].y = scaleY * Math.random() * (currentSubset[i].y - yMin) -scale_factor_l;
+          currentSubset[i].y *= Math.floor(Math.random()*2) == 1 ? 1 : -1; // this will add minus sign in 50% of cases\
+        }
         currentSubset[i].vertex.setX( scaleX * (currentSubset[i].x - xMin) - scale_factor_l );
         currentSubset[i].vertex.setY( scaleY * (currentSubset[i].y - yMin) - scale_factor_l );
       }
