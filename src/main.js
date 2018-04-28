@@ -13,6 +13,7 @@ import { AudioAnalyser } from './audioanalysis/audio-analyser';
 import { AnalysedDataVisualizer } from './audioanalysis/utility/analysed-data-visualizer';
 
 import { HopalongManager } from './visualization/hopalong-manager.js';
+import Sidebar from './sidebar/sidebar';
 
 import css from './main.css';
 
@@ -27,6 +28,10 @@ let audioAnalyser = new AudioAnalyser( audiostream.getBufferSize() );
 //Create the Visualization Manager
 let hopalongManager = new HopalongManager();
 
+//Create the Config sidebar
+let sidebar = new Sidebar();
+
+
 let startTimer = null,
     lastFrameTimer = null,
     deltaTime = null;
@@ -40,6 +45,7 @@ function init() {
   startTimer = new Date();
   lastFrameTimer = startTimer;
   hopalongManager.init(startTimer);
+  sidebar.init();
   analyze();
 }
 
@@ -56,9 +62,9 @@ function analyze() {
 
   //console.log("Analyzed Data:\nTime Domain Data = " + analysedData.getTimedomainData());
   //console.log("\nFrequencies Data = " + analysedData.getFrequenciesData());
-  console.log("\nEnergy Data = " + analysedData.getEnergy());
-  console.log("\nEnergy Average = " + analysedData.getEnergyAverage());
-  console.log("\nMultiBand Energy = " + analysedData.getMultibandEnergy());
+  //console.log("\nEnergy Data = " + analysedData.getEnergy());
+  //console.log("\nEnergy Average = " + analysedData.getEnergyAverage());
+  //console.log("\nMultiBand Energy = " + analysedData.getMultibandEnergy());
 
   // we ask the helper to draw the analysed data
   // this is where we can send the data to a proper visualizer

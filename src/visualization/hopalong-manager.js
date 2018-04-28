@@ -3,19 +3,15 @@ import * as THREE from 'three';
 import { HopalongVisualizer } from './hopalong-visualizer.js'
 import { CameraManager } from './camera-manager';
 
-//for whatever reason...if this is made a class property it doesnt work
-var cameraManager;
-var renderer;
-var hopalongVisualizer;
-
 export class HopalongManager {
   constructor() {
     this.startTimer = null;
     this.deltaTime = 0;
     this.elapsedTime = 0;
-    //this.cameraManager = null;
-    //this.hopalongVisualizer = new HopalongVisualizer();
-    this.container = null;
+    this.cameraManager = null;
+    this.hopalongVisualizer = null;
+    this.renderer = null;
+    this.$container = null;
   }
 
 
@@ -26,38 +22,35 @@ export class HopalongManager {
   init( startTimer )
   {
     console.log("Hopalong Manager Initialized\n------------");
-    hopalongVisualizer = new HopalongVisualizer();
+    this.hopalongVisualizer = new HopalongVisualizer();
 
-    this.container = document.createElement('div');
-    document.body.appendChild(this.container);
+    this.$container = $('<div></div>');
+    $( document.body ).append(this.$container);
 
-    cameraManager = new CameraManager();
-    cameraManager.init(1500);
-
-    hopalongVisualizer.init(this.cameraManager);
-
-
-    this.startTimer = startTimer;
+    this.cameraManager = new CameraManager();
+    this.cameraManager.init(1500);
 
     //pass the visualizer the camera manager so the camera can get the SCALE_FACTOR
+    this.hopalongVisualizer.init(this.cameraManager);
 
+    this.startTimer = startTimer;
     this.clock = new THREE.Clock();
 
     // Setup renderer and effects
-    renderer = new THREE.WebGLRenderer({
+    this.renderer = new THREE.WebGLRenderer({
       clearColor: 0x000000,
       clearAlpha: 1,
       antialias: false,
       gammeInput: true,
       gammaOutput: true
     });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    document.body.appendChild(renderer.domElement);
+    this.renderer.setSize(window.innerWidth, window.innerHeight);
+    $( document.body ).append(this.renderer.domElement);
 
     // Setup listeners
-    document.addEventListener('mousemove', this.onDocumentMouseMove, false);
-    document.addEventListener('keydown', this.onKeyDown, false);
-    window.addEventListener('resize', this.onWindowResize, false);
+    $( document ).mousemove(this.onDocumentMouseMove.bind(this));
+    $( document ).keydown(this.onKeyDown.bind(this));
+    $( window ).resize(this.onWindowResize.bind(this));
   }
 
 
@@ -68,32 +61,32 @@ export class HopalongManager {
    */
   update( deltaTime, audioData )
   {
-      cameraManager.manageCameraPosition();
+      this.cameraManager.manageCameraPosition();
 
       this.deltaTime = deltaTime;
       this.elapsedTime += deltaTime;
 
-      hopalongVisualizer.update( deltaTime, audioData, renderer, cameraManager );
+      this.hopalongVisualizer.update( deltaTime, audioData, this.renderer, this.cameraManager );
   }
 
   ///////////////////////////////////////////////
   // Event listeners
   ///////////////////////////////////////////////
   onDocumentMouseMove(event) {
-    cameraManager.updateMousePosition(event);
+    this.cameraManager.updateMousePosition(event);
   }
 
   onWindowResize(event) {
-    renderer.setPixelRatio( window.devicePixelRatio );
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    cameraManager.onResize();
+    this.renderer.setPixelRatio( window.devicePixelRatio );
+    this.renderer.setSize(window.innerWidth, window.innerHeight);
+    this.cameraManager.onResize();
   }
 
   onKeyDown(event) {
-    if (event.keyCode == 38 && hopalongVisualizer.getSpeed() < 20) hopalongVisualizer.updateSpeed(0.5);
-    else if (event.keyCode == 40 && hopalongVisualizer.getSpeed() > 0) hopalongVisualizer.updateSpeed(-0.5);
-    else if (event.keyCode == 37) hopalongVisualizer.updateRotationSpeed(0.001);
-    else if (event.keyCode == 39) hopalongVisualizer.updateRotationSpeed(-0.001);
+    if (event.keyCode == 38 && this.hopalongVisualizer.getSpeed() < 20) this.hopalongVisualizer.updateSpeed(0.5);
+    else if (event.keyCode == 40 && this.hopalongVisualizer.getSpeed() > 0) this.hopalongVisualizer.updateSpeed(-0.5);
+    else if (event.keyCode == 37) this.hopalongVisualizer.updateRotationSpeed(0.001);
+    else if (event.keyCode == 39) this.hopalongVisualizer.updateRotationSpeed(-0.001);
     else if (event.keyCode == 72 || event.keyCode == 104) toggleVisuals();
   }
 };

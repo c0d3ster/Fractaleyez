@@ -15,16 +15,16 @@ var DEF_SATURATION = 1;
 var SPRITE_SIZE = 5;
 
 // Orbit parameters constraints
-var A_MIN = -30;
-var A_MAX = 30;
+var A_MIN = 4;
+var A_MAX = 20;
 var B_MIN = .2;
-var B_MAX = 1.8;
+var B_MAX = .3;
 var C_MIN = 5;
-var C_MAX = 17;
+var C_MAX = 6;
 var D_MIN = 0;
-var D_MAX = 10;
+var D_MAX = 1;
 var E_MIN = 0;
-var E_MAX = 12;
+var E_MAX = 1;
 
 // Orbit parameters
 var a, b, c, d, e;

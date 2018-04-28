@@ -1,0 +1,12 @@
+.sidebar {
+  z-index: 10;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 20vw;
+  height: 100vh;
+  background-color: black;
+  color: rgba(220,220,220, .9);
+  opacity: .8;
+  padding: 10px;
+}
