@@ -1,6 +1,3 @@
-/*
- * AUTHOR: Iacopo Sassarini
- */
 import * as THREE from 'three';
 import {HUD} from './hud/hud-controller';
 import {Stats} from './tools/stats';
@@ -15,7 +12,7 @@ import { AnalysedDataVisualizer } from './audioanalysis/utility/analysed-data-vi
 import { HopalongManager } from './visualization/hopalong-manager.js';
 import Sidebar from './sidebar/sidebar';
 
-import css from './main.css';
+import './main.css';
 
 // Size of the fft transform performed on audio stream
 const FFT_SIZE = 512;
@@ -39,7 +36,7 @@ let startTimer = null,
 //Intiatialize Mic input stream & then set up Audio Anaysis
 audiosource.getStreamFromMicrophone(false).then(init); //set input to be from mic by default
 
-//Set up the Audio Analysis
+//Set up the Audio Analysis, Visualization manager
 function init() {
   audiostream.init();
   startTimer = new Date();

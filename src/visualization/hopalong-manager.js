@@ -4,18 +4,18 @@ import { HopalongVisualizer } from './hopalong-visualizer.js'
 import { CameraManager } from './camera-manager';
 
 /**
- *TODO: lets keep the standard of defining classes up top that we make, good habit to have
+ * The Hopalong Manager class is responsible for creating the camera and visualization for Barry's Hopalong Orbits
  *
  */
 export class HopalongManager {
   constructor() {
+    this.$container = null;
     this.startTimer = null;
     this.deltaTime = 0;
     this.elapsedTime = 0;
     this.cameraManager = null;
     this.hopalongVisualizer = null;
     this.renderer = null;
-    this.$container = null;
   }
 
 

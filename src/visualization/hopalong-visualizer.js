@@ -2,7 +2,9 @@ import * as THREE from 'three';
 import { AudioAnalysedDataForVisualization } from '../audioanalysis/audio-analysed-data';
 import { CameraManager } from './camera-manager.js';
 
-
+/*
+ * AUTHOR: Iacopo Sassarini
+ */
 var VISUALS_VISIBLE = true;
 var SCALE_FACTOR = 1500;
 var NUM_POINTS_SUBSET = 16000;
