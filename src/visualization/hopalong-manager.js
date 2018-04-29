@@ -30,7 +30,7 @@ export class HopalongManager {
     cameraManager = new CameraManager();
     cameraManager.init(1500);
     hopalongVisualizer = new HopalongVisualizer();
-    hopalongVisualizer.init(this.cameraManager);
+    hopalongVisualizer.init();
     this.startTimer = startTimer;
 
     //pass the visualizer the camera manager so the camera can get the SCALE_FACTOR
@@ -66,7 +66,7 @@ export class HopalongManager {
     this.bloomPass.kernelSize = 0;
     this.composer.addPass( this.bloomPass );
 
-    let fakeCamera = new THREE.PerspectiveCamera( 45, window.innerWidth/window.innerHeight );
+    let fakeCamera = new THREE.PerspectiveCamera( 60, window.innerWidth/window.innerHeight );
     fakeCamera.position.z = 10;
 
     this.shockwavePass = new ShockWavePass( fakeCamera );
@@ -97,11 +97,14 @@ export class HopalongManager {
     this.shockwavePass.extent = .01;//audioData.peak.value * 100;
     this.shockwavePass.waveSize = 2;//(audioData.peak.value / 1) * 2;
     this.shockwavePass.amplitude = 0.25;
-
-    hopalongVisualizer.update( deltaTime, audioData, renderer, cameraManager );
+    let peak = false;
+    if (audioData.peak.value == 1) {
+      peak = true;
+    }
+    hopalongVisualizer.update( deltaTime, audioData, renderer, cameraManager, peak );
 
       this.bloomPass.intensity = audioData.peak.value * audioData.peak.energy;
-      if ( audioData.peak.value == 1 ) {
+      if ( peak ) {
         this.shockwavePass.explode();
       }
       this.composer.render( this.clock.getDelta() );

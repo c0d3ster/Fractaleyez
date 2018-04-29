@@ -5,15 +5,15 @@ import { CameraManager } from './camera-manager.js';
 
 var VISUALS_VISIBLE = true;
 var SCALE_FACTOR = 1500;
-var NUM_POINTS_SUBSET = 32000;
-var NUM_SUBSETS = 7;
+var NUM_POINTS_SUBSET = 16000;
+var NUM_SUBSETS = 2;
 var NUM_POINTS = NUM_POINTS_SUBSET * NUM_SUBSETS;
-var NUM_LEVELS = 7;
-var LEVEL_DEPTH = 600;
+var NUM_LEVELS = 100;
+var LEVEL_DEPTH = 50;
 var DEF_BRIGHTNESS = .5;
 var DEF_SATURATION = 1;
 var SPRITE_SIZE = 5;
-
+const CAMERA_BOUND = 50;
 // Orbit parameters constraints
 var A_MIN = -30;
 var A_MAX = 30;
@@ -39,10 +39,8 @@ export class HopalongVisualizer {
       this.startTimer = null;
       this.deltaTime = 0;
       this.elapsedTime = 0;
-
       this.speed = 2;
       this.rotationSpeed = 0.002;
-
       this.orbit = {
         subsets: [],
         xMin: 0,
@@ -71,9 +69,9 @@ export class HopalongVisualizer {
 
 
 
-  init(cameraManager) {
+  init() {
+
     console.log("Hopalong Visualizer Initialized\n------------");
-    //cameraManager.init(SCALE_FACTOR);
 
     let sprite = new THREE.TextureLoader().load( "./dist/img/galaxy.png" );
 
@@ -84,6 +82,7 @@ export class HopalongVisualizer {
     for( let level = 0; level < NUM_LEVELS; level++ ) {
       for( let s = 0; s < NUM_SUBSETS; s++ ) {
 
+
         let geometry = new THREE.Geometry();
         let count = 0;
         for (var i = 0; i < NUM_POINTS_SUBSET; i++) {
@@ -91,6 +90,7 @@ export class HopalongVisualizer {
           geometry.vertices.push(this.orbit.subsets[s][i].vertex);
           count++;
         }
+
 
         let material = new THREE.PointsMaterial( {
          size: SPRITE_SIZE,
@@ -122,7 +122,8 @@ export class HopalongVisualizer {
    * @param {number} deltaTime
    * @param {AudioAnalysedDataForVisualization} audioData
    */
-  update( deltaTime, audioData, renderer, cameraManager ) {
+  update( deltaTime, audioData, renderer, cameraManager, peak) {
+    var time = Date.now() * 0.0015;
     this.deltaTime = deltaTime;
     this.elapsedTime+= deltaTime;
 
@@ -131,14 +132,67 @@ export class HopalongVisualizer {
     let musicSpeedMultiplier = 1 + musicSpeed/10;
     //console.log('music speed multiplier: ' + musicSpeedMultiplier);
     //console.log(this.speed * musicSpeedMultiplier);
+
+
     //Process all children in scene and update them
     this.objects.forEach( (obj) => {
       obj.position.z += this.speed * musicSpeedMultiplier;
       obj.rotation.z += this.rotationSpeed;
 
-      if( obj.position.z > SCALE_FACTOR / 2 )
+
+      //300...far away
+      if (obj.position.z < SCALE_FACTOR / 10 && obj.position.z > SCALE_FACTOR / 5) {
+        obj.position.x += cameraManager.getMouseX() * 0.009;//0.03;
+        obj.position.y += -cameraManager.getMouseY() *0.009;//0.03;
+      }
+      else if (obj.position.z < SCALE_FACTOR / 7) {
+        obj.position.x += cameraManager.getMouseX() * 0.009;
+        obj.position.y += cameraManager.getMouseY() * 0.009;
+      }
+      else {//if (obj.position.z < SCALE_FACTOR / 2) {
+        obj.position.x -= cameraManager.getMouseX() * 0;
+        obj.position.y -= cameraManager.getMouseY() * 0;
+
+       }
+
+      if (obj.position.x.x < -CAMERA_BOUND) obj.position.x.x = -CAMERA_BOUND;
+      if (obj.position.x > CAMERA_BOUND) obj.position.x = CAMERA_BOUND;
+
+
+        if (obj.position.y < -CAMERA_BOUND) obj.position.y = -CAMERA_BOUND;
+        if (obj.position.y > CAMERA_BOUND) obj.position.y = CAMERA_BOUND;
+      cameraManager.getCamera().lookAt(new THREE.Vector3(0, 0, 0));
+
+      //obj.position.x = cameraManager.getMouseX() * 0.6;
+      //obj.position.y = cameraManager.getMouseY() * 0.6;
+
+      //obj.rotation.x = cameraManager.getMouseY() * 0.001;
+      //obj.rotation.y = -cameraManager.getMouseX() * 0.001;
+
+      //cameraManager.getCamera().rotation.x = -obj.rotation.y * 0.001;
+      //cameraManager.getCamera().rotation.y = -obj.rotation.y * 0.001;
+
+      //cameraManager.getCamera().lookAt(new  THREE.Vector3(0,0,0));
+      //obj.geometry.verticesNeedUpdate = true;
+
+      //obj.lookAt(new THREE.Vector3(cameraManager.getMouseX() *1 , cameraManager.getMouseY() * 1,  ));
+      //cameraManager.getCamera().position.x = -obj.position.x;
+      //cameraManager.getCamera().position.y = -obj.position.y;
+      //if( obj.position.z < SCALE_FACTOR / 4 ) {
+
+
+
+
+      //}
+      // Rotate Z & Y axis
+
+      // Rotate Z & Y axis
+
+
+      if( obj.position.z > SCALE_FACTOR / 2 ) //> 750 means it is past the camera
       {
-        obj.position.setZ( -(NUM_LEVELS-1) * LEVEL_DEPTH );
+
+        obj.position.setZ( -(NUM_LEVELS-1) * LEVEL_DEPTH  + 15 * LEVEL_DEPTH );
 
         if( obj.needsUpdate == 1 )
         {
@@ -199,25 +253,32 @@ export class HopalongVisualizer {
 
     for( let s = 0; s < NUM_SUBSETS; s++ )
     {
-      x = s*.005*(0.5-Math.random());
-      y = s*.005*(0.5-Math.random());
+      x = 0.005*(1-Math.random());
+      y = 0.005*(1-Math.random());
 
       let currentSubset = this.orbit.subsets[s];
 
       for( let i = 0; i < NUM_POINTS_SUBSET; i++ )
       {
-        if( choice < 0.5 )
+        z = ((ld + Math.log(2+Math.sqrt(Math.abs(lb * x - lc)))) * .8);
+        /*if( choice < 0.5 )
           z = (ld + (Math.sqrt(Math.abs(lb * x - lc))));
-        else if( choice < 0.75 )
-          z = (ld + Math.sqrt(Math.sqrt(Math.abs( lb * x - lc))));
         else
           z = (ld + Math.log(2+Math.sqrt(Math.abs(lb * x - lc))));
-
+          */
         if( x > 0 ) x1 = y-z;
         else if( x == 0 ) x1 = y;
         else x1 = y+z;
         y = la-x;
         x = x1 + le;
+
+        //lil patch to get shit outta middle, not final
+        /*if (x <= 10 && x >= -10) {
+          x = window.innerWidth;
+        }
+        if (y <= 10 && y >= -10) {
+          y = window.innerHeight;
+        }*/
 
         currentSubset[i].x = x;
         currentSubset[i].y = y;
@@ -244,17 +305,7 @@ export class HopalongVisualizer {
       let currentSubset = this.orbit.subsets[s];
       for( let i = 0; i < NUM_POINTS_SUBSET; i++ )
       {
-        //basically the idea here is to remove all the shit that appears in the focal point of the shockwave // center;
-        if (scaleX * (currentSubset[i].x - xMin) - scale_factor_l < 10 && scaleX * (currentSubset[i].x - xMin) - scale_factor_l > -10) {
-          currentSubset[i].x = scaleX * Math.random() * (currentSubset[i].x - xMin) - scale_factor_l;
-          currentSubset[i].x *= Math.floor(Math.random()*2) == 1 ? 1 : -1; // this will add minus sign in 50% of cases
-
-        }
-
-        if (scaleY * (currentSubset[i].y - yMin) - scale_factor_l < 10 && scaleY * (currentSubset[i].y - yMin) - scale_factor_l > -10) {
-          currentSubset[i].y = scaleY * Math.random() * (currentSubset[i].y - yMin) -scale_factor_l;
-          currentSubset[i].y *= Math.floor(Math.random()*2) == 1 ? 1 : -1; // this will add minus sign in 50% of cases\
-        }
+        //lil patch to get shit outta middle, not final
         currentSubset[i].vertex.setX( scaleX * (currentSubset[i].x - xMin) - scale_factor_l );
         currentSubset[i].vertex.setY( scaleY * (currentSubset[i].y - yMin) - scale_factor_l );
       }
@@ -270,11 +321,11 @@ export class HopalongVisualizer {
   }
 
   shuffleParams() {
-    a = A_MIN + Math.random() * (A_MAX - A_MIN);
-    b = B_MIN + Math.random() * (B_MAX - B_MIN);
-    c = C_MIN + Math.random() * (C_MAX - C_MIN);
-    d = D_MIN + Math.random() * (D_MAX - D_MIN);
-    e = E_MIN + Math.random() * (E_MAX - E_MIN);
+    a = A_MIN + 1 * (A_MAX - A_MIN);
+    b = B_MIN + 1 * (B_MAX - B_MIN);
+    c = C_MIN + 1*(C_MAX - C_MIN);
+    d = D_MIN + 1 * (D_MAX - D_MIN);
+    e = E_MIN +1 *(E_MAX - E_MIN);
   }
 
   setLights() {
