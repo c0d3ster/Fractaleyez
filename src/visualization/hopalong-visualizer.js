@@ -197,19 +197,6 @@ export class HopalongVisualizer {
     return this.scene;
   }
 
-  getSpeed() {
-    return config.speed;
-  }
-
-  updateSpeed(deltaSpeed) {
-    config.speed += deltaSpeed;
-    config.speed = config.speed;
-  }
-
-  updateRotationSpeed(deltaRotationSpeed) {
-    this.rotationSpeed += deltaRotationSpeed;
-  }
-
   updateOrbit() {
     //Generate new Pattern
     this.generateOrbit();
