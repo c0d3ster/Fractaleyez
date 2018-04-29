@@ -10,6 +10,7 @@ var hopalongVisualizer;
 var fakeCamera;
 export class HopalongManager {
   constructor() {
+    this.$container = null;
     this.startTimer = null;
     this.deltaTime = 0;
     this.elapsedTime = 0;
@@ -34,27 +35,28 @@ export class HopalongManager {
     this.startTimer = startTimer;
 
     //pass the visualizer the camera manager so the camera can get the SCALE_FACTOR
+    this.hopalongVisualizer.init(this.cameraManager);
 
 
     this.container = document.createElement('div');
     document.body.appendChild(this.container);
     // Setup renderer and effects
-    renderer = new THREE.WebGLRenderer({
+    this.renderer = new THREE.WebGLRenderer({
       clearColor: 0x000000,
       clearAlpha: 1,
       antialias: true,
       gammeInput: true,
       gammaOutput: true
     });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    document.body.appendChild(renderer.domElement);
+    this.renderer.setSize(window.innerWidth, window.innerHeight);
+    $( document.body ).append(this.renderer.domElement);
 
     // Setup Effects
     this.setupEffects();
     // Setup listeners
-    document.addEventListener('mousemove', this.onDocumentMouseMove, false);
-    document.addEventListener('keydown', this.onKeyDown, false);
-    window.addEventListener('resize', this.onWindowResize, false);
+    $( document ).mousemove(this.onDocumentMouseMove);
+    $( document ).keydown(this.onKeyDown);
+    $( window ).resize(this.onWindowResize);
   }
 
   //SetUp effects
@@ -112,14 +114,14 @@ export class HopalongManager {
   ///////////////////////////////////////////////
   // Event listeners
   ///////////////////////////////////////////////
-  onDocumentMouseMove(event) {
-    cameraManager.updateMousePosition(event);
+  onDocumentMouseMove = (event) => {
+    this.cameraManager.updateMousePosition(event);
   }
 
-  onWindowResize(event) {
-    renderer.setPixelRatio( window.devicePixelRatio );
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    cameraManager.onResize();
+  onWindowResize = (event) => {
+    this.renderer.setPixelRatio( window.devicePixelRatio );
+    this.renderer.setSize(window.innerWidth, window.innerHeight);
+    this.cameraManager.onResize();
   }
 
   onKeyDown(event) {

@@ -2,14 +2,16 @@ import * as THREE from 'three';
 import { AudioAnalysedDataForVisualization } from '../audioanalysis/audio-analysed-data';
 import { CameraManager } from './camera-manager.js';
 
-
+/*
+ * AUTHOR: Iacopo Sassarini
+ */
 var VISUALS_VISIBLE = true;
 var SCALE_FACTOR = 1500;
-var NUM_POINTS_SUBSET = 32000;
-var NUM_SUBSETS = 7;
+var NUM_POINTS_SUBSET = 16000;
+var NUM_SUBSETS = 5;
 var NUM_POINTS = NUM_POINTS_SUBSET * NUM_SUBSETS;
-var NUM_LEVELS = 7;
-var LEVEL_DEPTH = 600;
+var NUM_LEVELS = 5;
+var LEVEL_DEPTH = 500;
 var DEF_BRIGHTNESS = .5;
 var DEF_SATURATION = 1;
 var SPRITE_SIZE = 5;
@@ -18,7 +20,7 @@ var A_MIN = 4;
 var A_MAX = 20;
 var B_MIN = .2;
 var B_MAX = .3;
-var C_MIN =55;
+var C_MIN = 5;
 var C_MAX = 6;
 var D_MIN = 0;
 var D_MAX = 1;
