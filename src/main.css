@@ -6,3 +6,16 @@ body
   background-color: #000;
   user-select: none;
 }
+
+
+
+.slider {
+  position: absolute;
+  top: 5%;
+  right: 5%;
+  width: 3em;
+  height: 1.6em;
+  text-align: center;
+  line-height: 1.6em;
+  z-index: 10;
+}

@@ -62,5 +62,5 @@ module.exports =
     modules: ['node_modules']
   },
   //manages plugins specified above configuration
-  plugins: [htmlPlugin, jQuery]
+  plugins: [htmlPlugin, jQuery],
 };

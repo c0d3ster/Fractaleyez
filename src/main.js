@@ -14,7 +14,12 @@ import { AnalysedDataVisualizer } from './audioanalysis/utility/analysed-data-vi
 
 import { HopalongManager } from './visualization/hopalong-manager.js';
 
-import css from './main.css';
+
+import './main.css';
+import 'jquery-ui/themes/base/core.css';
+import 'jquery-ui/themes/base/theme.css';
+import {slider} from 'jquery-ui/ui/widgets/slider';
+
 
 // Size of the fft transform performed on audio stream
 const FFT_SIZE = 512;
@@ -34,11 +39,31 @@ let startTimer = null,
 //Intiatialize Mic input stream & then set up Audio Anaysis
 audiosource.getStreamFromMicrophone(false).then(init); //set input to be from mic by default
 
+
+let jacky = $(`<div class='slider'></div>`);
+let sliderHandle = $(`<div class="ui-slider-handle"></div>`);
+
 //Set up the Audio Analysis
 function init() {
   audiostream.init();
   startTimer = new Date();
   lastFrameTimer = startTimer;
+
+
+  $(document.body).append(jacky);
+  jacky.append(sliderHandle);
+
+  var handle = $( ".ui-slider-handle" );
+  $( ".slider" ).slider({
+    create: function() {
+      handle.text( $( this ).slider( "value" ) );
+    },
+    slide: function( event, ui ) {
+      handle.text( ui.value );
+    }
+  });
+
+
   hopalongManager.init(startTimer);
   analyze();
 }
