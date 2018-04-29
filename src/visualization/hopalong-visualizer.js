@@ -8,7 +8,7 @@ import config from '../config/visualizer.config.js';
  */
 var VISUALS_VISIBLE = true;
 var SCALE_FACTOR = 1500;
-var NUM_POINTS_SUBSET = 32000;
+var NUM_POINTS_SUBSET = 48000;
 var NUM_SUBSETS = 5;
 var NUM_POINTS = NUM_POINTS_SUBSET * NUM_SUBSETS;
 var NUM_LEVELS = 5;
@@ -30,9 +30,6 @@ var E_MAX = 1;
 
 // Orbit parameters
 var a, b, c, d, e;
-var wobwob = 0;
-var peak = false;
-
 export class HopalongVisualizer {
   constructor() {
       this.lights = [];
@@ -43,6 +40,8 @@ export class HopalongVisualizer {
       this.startTimer = null;
       this.deltaTime = 0;
       this.elapsedTime = 0;
+      this.wobwob = 0;
+      this.audioPeak = false;
       config.speed = config.speed;
       this.rotationSpeed = 0.002;
       this.orbit = {
@@ -128,7 +127,7 @@ export class HopalongVisualizer {
    */
   update( deltaTime, audioData, renderer, cameraManager) {
     if ( audioData.peak.value > 0.8 ) {
-      peak = true;
+      this.audioPeak = true;
     }
 
     this.deltaTime = deltaTime;
@@ -146,14 +145,25 @@ export class HopalongVisualizer {
     this.objects.forEach( (obj) => {
       obj.position.z += config.speed * musicSpeedMultiplier;
 
-      if (peak) {
+      if (this.audioPeak) {
+
+          //change geometry of orbit on peak
+          if (count % 2 == 0) {
+            obj.geometry.verticesNeedUpdate = true;
+            obj.needsUpdate = 0;
+          }
+          
+          //wobwob effect
           obj.position.z -= config.speed * musicSpeedMultiplier * 2;
+          //change color on peak
+          obj.material.color.setHSL( this.hueValues[obj.mySubset], DEF_SATURATION, DEF_BRIGHTNESS );
+
         //increment wob wob effect for next frame
-        wobwob++;
+        this.wobwob++;
         //reset wob wob effect after 10 animation frames
-        if (wobwob > 100) {
-          peak = false;
-          wobwob = 0;
+        if (this.wobwob > 100) {
+          this.audioPeak = false;
+          this.wobwob = 0;
         }
       }
 
@@ -200,7 +210,6 @@ export class HopalongVisualizer {
         if( obj.needsUpdate == 1 )
         {
           obj.geometry.verticesNeedUpdate = true;
-          obj.material.color.setHSL( this.hueValues[obj.mySubset], DEF_SATURATION, DEF_BRIGHTNESS );
           obj.needsUpdate = 0;
         }
       }
