@@ -12,16 +12,11 @@ import { AnalysedDataVisualizer } from './audioanalysis/utility/analysed-data-vi
 import { HopalongManager } from './visualization/hopalong-manager.js';
 import Sidebar from './sidebar/sidebar';
 
-<<<<<<< HEAD
-
 import './main.css';
 import 'jquery-ui/themes/base/core.css';
 import 'jquery-ui/themes/base/theme.css';
 import {slider} from 'jquery-ui/ui/widgets/slider';
 
-=======
-import './main.css';
->>>>>>> sidebar
 
 // Size of the fft transform performed on audio stream
 const FFT_SIZE = 512;
