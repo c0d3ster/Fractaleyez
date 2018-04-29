@@ -3,6 +3,10 @@ import * as THREE from 'three';
 import { HopalongVisualizer } from './hopalong-visualizer.js'
 import { CameraManager } from './camera-manager';
 
+/**
+ *TODO: lets keep the standard of defining classes up top that we make, good habit to have
+ *
+ */
 export class HopalongManager {
   constructor() {
     this.startTimer = null;
@@ -48,9 +52,9 @@ export class HopalongManager {
     $( document.body ).append(this.renderer.domElement);
 
     // Setup listeners
-    $( document ).mousemove(this.onDocumentMouseMove.bind(this));
-    $( document ).keydown(this.onKeyDown.bind(this));
-    $( window ).resize(this.onWindowResize.bind(this));
+    $( document ).mousemove(this.onDocumentMouseMove);
+    $( document ).keydown(this.onKeyDown);
+    $( window ).resize(this.onWindowResize);
   }
 
 
@@ -72,17 +76,17 @@ export class HopalongManager {
   ///////////////////////////////////////////////
   // Event listeners
   ///////////////////////////////////////////////
-  onDocumentMouseMove(event) {
+  onDocumentMouseMove = (event) => {
     this.cameraManager.updateMousePosition(event);
   }
 
-  onWindowResize(event) {
+  onWindowResize = (event) => {
     this.renderer.setPixelRatio( window.devicePixelRatio );
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.cameraManager.onResize();
   }
 
-  onKeyDown(event) {
+  onKeyDown = (event) => {
     if (event.keyCode == 38 && this.hopalongVisualizer.getSpeed() < 20) this.hopalongVisualizer.updateSpeed(0.5);
     else if (event.keyCode == 40 && this.hopalongVisualizer.getSpeed() > 0) this.hopalongVisualizer.updateSpeed(-0.5);
     else if (event.keyCode == 37) this.hopalongVisualizer.updateRotationSpeed(0.001);

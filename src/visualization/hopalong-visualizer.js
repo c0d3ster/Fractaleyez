@@ -5,11 +5,11 @@ import { CameraManager } from './camera-manager.js';
 
 var VISUALS_VISIBLE = true;
 var SCALE_FACTOR = 1500;
-var NUM_POINTS_SUBSET = 32000;
-var NUM_SUBSETS = 7;
+var NUM_POINTS_SUBSET = 16000;
+var NUM_SUBSETS = 5;
 var NUM_POINTS = NUM_POINTS_SUBSET * NUM_SUBSETS;
-var NUM_LEVELS = 7;
-var LEVEL_DEPTH = 600;
+var NUM_LEVELS = 5;
+var LEVEL_DEPTH = 500;
 var DEF_BRIGHTNESS = .5;
 var DEF_SATURATION = 1;
 var SPRITE_SIZE = 5;
