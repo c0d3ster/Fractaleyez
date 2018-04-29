@@ -8,7 +8,7 @@ import config from '../config/visualizer.config.js';
  */
 var VISUALS_VISIBLE = true;
 var SCALE_FACTOR = 1500;
-var NUM_POINTS_SUBSET = 16000;
+var NUM_POINTS_SUBSET = 32000;
 var NUM_SUBSETS = 5;
 var NUM_POINTS = NUM_POINTS_SUBSET * NUM_SUBSETS;
 var NUM_LEVELS = 5;
@@ -18,7 +18,7 @@ var DEF_SATURATION = 1;
 var SPRITE_SIZE = 5;
 // Orbit parameters constraints
 var A_MIN = 4;
-var A_MAX = 20;
+var A_MAX = 15;
 var B_MIN = .2;
 var B_MAX = .3;
 var C_MIN = 5;
@@ -127,6 +127,10 @@ export class HopalongVisualizer {
    * @param {AudioAnalysedDataForVisualization} audioData
    */
   update( deltaTime, audioData, renderer, cameraManager) {
+    if ( audioData.peak.value > 0.8 ) {
+      peak = true;
+    }
+
     this.deltaTime = deltaTime;
     this.elapsedTime+= deltaTime;
 
@@ -141,6 +145,18 @@ export class HopalongVisualizer {
     //Process all children in scene and update them
     this.objects.forEach( (obj) => {
       obj.position.z += config.speed * musicSpeedMultiplier;
+
+      if (peak) {
+          obj.position.z -= config.speed * musicSpeedMultiplier * 2;
+        //increment wob wob effect for next frame
+        wobwob++;
+        //reset wob wob effect after 10 animation frames
+        if (wobwob > 100) {
+          peak = false;
+          wobwob = 0;
+        }
+      }
+
       //console.log(audioData.energyAverage);
       if (count % 3 == 0) {
         obj.rotation.z += this.rotationSpeed * (musicSpeedMultiplier);
