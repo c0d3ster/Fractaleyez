@@ -16,6 +16,7 @@ import './main.css';
 import 'jquery-ui/themes/base/core.css';
 import 'jquery-ui/themes/base/theme.css';
 import {slider} from 'jquery-ui/ui/widgets/slider';
+import config from './config/visualizer.config.js';
 
 
 // Size of the fft transform performed on audio stream
@@ -40,34 +41,38 @@ let startTimer = null,
 //Intiatialize Mic input stream & then set up Audio Anaysis
 audiosource.getStreamFromMicrophone(false).then(init); //set input to be from mic by default
 
-<<<<<<< HEAD
 
-let jacky = $(`<div class='slider'></div>`);
+let ashley = $(`<div class='slider'></div>`);
 let sliderHandle = $(`<div class="ui-slider-handle"></div>`);
 
 //Set up the Audio Analysis
-=======
 //Set up the Audio Analysis, Visualization manager
->>>>>>> sidebar
 function init() {
   audiostream.init();
   startTimer = new Date();
   lastFrameTimer = startTimer;
 
 
-  $(document.body).append(jacky);
-  jacky.append(sliderHandle);
+  $(document.body).append(ashley);
+  ashley.append(sliderHandle);
 
   var handle = $( ".ui-slider-handle" );
   $( ".slider" ).slider({
+    range: "max",
+    min: config.minSpeed,
+    max: config.maxSpeed,
+    value: config.speed,
+    step: config.step,
+
     create: function() {
       handle.text( $( this ).slider( "value" ) );
     },
     slide: function( event, ui ) {
       handle.text( ui.value );
+      config.speed = ui.value;
+      console.log('speed is now = ' + ui.value);
     }
   });
-
 
   hopalongManager.init(startTimer);
   sidebar.init();
@@ -90,12 +95,9 @@ function analyze() {
   //console.log("\nEnergy Data = " + analysedData.getEnergy());
   //console.log("\nEnergy Average = " + analysedData.getEnergyAverage());
   //console.log("\nMultiBand Energy = " + analysedData.getMultibandEnergy());
-<<<<<<< HEAD
   //console.log("\npeak.value = " + analysedData.peak.value);
   //console.log("\npeak.energy = " + analysedData.peak.energy);
-=======
 
->>>>>>> sidebar
   // we ask the helper to draw the analysed data
   // this is where we can send the data to a proper visualizer
   hopalongManager.update( deltaTime, analysedData );

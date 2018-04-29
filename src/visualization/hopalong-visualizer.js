@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { AudioAnalysedDataForVisualization } from '../audioanalysis/audio-analysed-data';
 import { CameraManager } from './camera-manager.js';
+import config from '../config/visualizer.config.js';
 
 /*
  * AUTHOR: Iacopo Sassarini
@@ -40,7 +41,7 @@ export class HopalongVisualizer {
       this.startTimer = null;
       this.deltaTime = 0;
       this.elapsedTime = 0;
-      this.speed = 2;
+      config.speed = config.speed;
       this.rotationSpeed = 0.002;
       this.orbit = {
         subsets: [],
@@ -131,19 +132,19 @@ export class HopalongVisualizer {
     let musicSpeed = (audioData.energyAverage + audioData.energy);
     let musicSpeedMultiplier = 1 + musicSpeed/10;
     //console.log('music speed multiplier: ' + musicSpeedMultiplier);
-    //console.log(this.speed * musicSpeedMultiplier);
+    //console.log(config.speed * musicSpeedMultiplier);
 
     let count = 0;
 
     //Process all children in scene and update them
     this.objects.forEach( (obj) => {
-      obj.position.z += this.speed * musicSpeedMultiplier;
+      obj.position.z += config.speed * musicSpeedMultiplier;
       //console.log(audioData.energyAverage);
-      if (count % 2 == 0) {
+      if (count % 3 == 0) {
         obj.rotation.z += this.rotationSpeed * (musicSpeedMultiplier);
-      } else {
+      } else if (count % 3 == 1) {
         obj.rotation.z -= this.rotationSpeed * (musicSpeedMultiplier);
-      }
+      } 
       count++;
 
 
@@ -195,11 +196,12 @@ export class HopalongVisualizer {
   }
 
   getSpeed() {
-    return this.speed;
+    return config.speed;
   }
 
   updateSpeed(deltaSpeed) {
-    this.speed += deltaSpeed;
+    config.speed += deltaSpeed;
+    config.speed = config.speed;
   }
 
   updateRotationSpeed(deltaRotationSpeed) {
@@ -237,7 +239,7 @@ export class HopalongVisualizer {
 
     for( let s = 0; s < NUM_SUBSETS; s++ )
     {
-      x =  s* 0.005 * (1-Math.random());
+      x =  s * 0.005 * (1-Math.random());
       y =  s * 0.005 * (1-Math.random());
 
       let currentSubset = this.orbit.subsets[s];

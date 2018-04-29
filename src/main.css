@@ -7,12 +7,15 @@ body
   user-select: none;
 }
 
-
-
 .slider {
   position: absolute;
-  top: 5%;
-  right: 5%;
+
+  width: 40em;
+  height: 1.6em;
+}
+
+.ui-slider-handle  {
+  position: absolute;
   width: 3em;
   height: 1.6em;
   text-align: center;
