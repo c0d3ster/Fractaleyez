@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-const CAMERA_BOUND = 50;
+const CAMERA_BOUND = 100;
 var SCALE_FACTOR = 1500;
 
 export class CameraManager {
@@ -16,7 +16,7 @@ export class CameraManager {
 
     init(scaleFactor) {
       console.log("Camera Manager Initialized\n------------");
-      this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 3 *  scaleFactor);
+      this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1, 3 *  scaleFactor);
       this.camera.position.z = scaleFactor / 2;
       this.cameraBound = CAMERA_BOUND;
       this.camera.rotation.y = 3.14;
@@ -35,9 +35,9 @@ export class CameraManager {
 
     //To be called in the render method
     manageCameraPosition() {
-        //this.camera.lookAt(this.focusPoint);
+        this.camera.lookAt(this.focusPoint);
 
-        /*if (this.camera.position.x >= -CAMERA_BOUND && this.camera.position.x <= CAMERA_BOUND) {
+        if (this.camera.position.x >= -CAMERA_BOUND && this.camera.position.x <= CAMERA_BOUND) {
           this.camera.position.x += (this.mouseX - this.camera.position.x) * 0.05;
           if (this.camera.position.x < -CAMERA_BOUND) this.camera.position.x = -CAMERA_BOUND;
           if (this.camera.position.x > CAMERA_BOUND) this.camera.position.x = CAMERA_BOUND;
@@ -46,7 +46,7 @@ export class CameraManager {
           this.camera.position.y += (-this.mouseY - this.camera.position.y) * 0.05;
           if (this.camera.position.y < -CAMERA_BOUND) this.camera.position.y = -CAMERA_BOUND;
           if (this.camera.position.y > CAMERA_BOUND) this.camera.position.y = CAMERA_BOUND;
-        }*/
+        }
     }
 
     //for moving the camera around

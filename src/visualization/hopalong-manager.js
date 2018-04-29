@@ -7,7 +7,7 @@ import { EffectComposer, Bloom, ShockWavePass,  RenderPass, BloomPass } from 'po
 var cameraManager;
 var renderer;
 var hopalongVisualizer;
-
+var fakeCamera;
 export class HopalongManager {
   constructor() {
     this.startTimer = null;
@@ -66,8 +66,8 @@ export class HopalongManager {
     this.bloomPass.kernelSize = 0;
     this.composer.addPass( this.bloomPass );
 
-    let fakeCamera = new THREE.PerspectiveCamera( 60, window.innerWidth/window.innerHeight );
-    fakeCamera.position.z = 10;
+    fakeCamera = new THREE.PerspectiveCamera( 60, window.innerWidth/window.innerHeight );
+    fakeCamera.position.z = 5;
 
     this.shockwavePass = new ShockWavePass( fakeCamera );
     this.shockwavePass.renderToScreen = true;
@@ -87,27 +87,26 @@ export class HopalongManager {
    */
   update( deltaTime, audioData )
   {
-    cameraManager.manageCameraPosition();
+
 
     this.deltaTime = deltaTime;
     this.elapsedTime += deltaTime;
 
-    this.shockwavePass.speed = (hopalongVisualizer.getSpeed() / 80) + audioData.peak.value + .25;
-    this.shockwavePass.size = .1;//audioData.peak.value * 2;
-    this.shockwavePass.extent = .01;//audioData.peak.value * 100;
-    this.shockwavePass.waveSize = 2;//(audioData.peak.value / 1) * 2;
-    this.shockwavePass.amplitude = 0.25;
-    let peak = false;
-    if (audioData.peak.value == 1) {
-      peak = true;
-    }
-    hopalongVisualizer.update( deltaTime, audioData, renderer, cameraManager, peak );
+    this.shockwavePass.speed = .3;//(hopalongVisualizer.getSpeed() / 80) + audioData.peak.value + .25;
+    this.shockwavePass.size = 2;//audioData.peak.value * 2;
+    this.shockwavePass.extent = 10;//audioData.peak.value * 100;
+    this.shockwavePass.waveSize = 10;//(audioData.peak.value / 1) * 2;
+    this.shockwavePass.amplitude = .25;
+
+    hopalongVisualizer.update( deltaTime, audioData, renderer, cameraManager );
 
       this.bloomPass.intensity = audioData.peak.value * audioData.peak.energy;
-      if ( peak ) {
-        this.shockwavePass.explode();
+      if ( audioData.peak.value == 1 ) {
+        //this.shockwavePass.explode();
       }
       this.composer.render( this.clock.getDelta() );
+
+      cameraManager.manageCameraPosition();
   }
 
   ///////////////////////////////////////////////
