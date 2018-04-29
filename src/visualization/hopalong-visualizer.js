@@ -30,6 +30,8 @@ var E_MAX = 1;
 
 // Orbit parameters
 var a, b, c, d, e;
+var wobwob = 0;
+var peak = false;
 
 export class HopalongVisualizer {
   constructor() {
@@ -144,7 +146,7 @@ export class HopalongVisualizer {
         obj.rotation.z += this.rotationSpeed * (musicSpeedMultiplier);
       } else if (count % 3 == 1) {
         obj.rotation.z -= this.rotationSpeed * (musicSpeedMultiplier);
-      } 
+      }
       count++;
 
 
