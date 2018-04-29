@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 
-const CAMERA_BOUND = 200;
+const CAMERA_BOUND = 100;
+var SCALE_FACTOR = 1500;
 
 export class CameraManager {
 
@@ -15,11 +16,19 @@ export class CameraManager {
 
     init(scaleFactor) {
       console.log("Camera Manager Initialized\n------------");
-      this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1, 3 * scaleFactor);
+      this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1, 3 *  scaleFactor);
       this.camera.position.z = scaleFactor / 2;
       this.cameraBound = CAMERA_BOUND;
+      this.camera.rotation.y = 3.14;
     }
 
+    getMouseX() {
+      return this.mouseX;
+    }
+
+    getMouseY() {
+      return this.mouseY;
+    }
     getCamera() {
       return this.camera;
     }

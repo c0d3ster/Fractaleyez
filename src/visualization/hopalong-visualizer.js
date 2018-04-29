@@ -1,33 +1,37 @@
 import * as THREE from 'three';
 import { AudioAnalysedDataForVisualization } from '../audioanalysis/audio-analysed-data';
 import { CameraManager } from './camera-manager.js';
+import config from '../config/visualizer.config.js';
 
-
+/*
+ * AUTHOR: Iacopo Sassarini
+ */
 var VISUALS_VISIBLE = true;
 var SCALE_FACTOR = 1500;
 var NUM_POINTS_SUBSET = 32000;
-var NUM_SUBSETS = 7;
+var NUM_SUBSETS = 5;
 var NUM_POINTS = NUM_POINTS_SUBSET * NUM_SUBSETS;
-var NUM_LEVELS = 7;
-var LEVEL_DEPTH = 600;
+var NUM_LEVELS = 5;
+var LEVEL_DEPTH = 500;
 var DEF_BRIGHTNESS = .5;
 var DEF_SATURATION = 1;
 var SPRITE_SIZE = 5;
-
 // Orbit parameters constraints
-var A_MIN = -30;
-var A_MAX = 30;
+var A_MIN = 4;
+var A_MAX = 15;
 var B_MIN = .2;
-var B_MAX = 1.8;
+var B_MAX = .3;
 var C_MIN = 5;
-var C_MAX = 17;
+var C_MAX = 6;
 var D_MIN = 0;
-var D_MAX = 10;
+var D_MAX = 1;
 var E_MIN = 0;
-var E_MAX = 12;
+var E_MAX = 1;
 
 // Orbit parameters
 var a, b, c, d, e;
+var wobwob = 0;
+var peak = false;
 
 export class HopalongVisualizer {
   constructor() {
@@ -39,10 +43,8 @@ export class HopalongVisualizer {
       this.startTimer = null;
       this.deltaTime = 0;
       this.elapsedTime = 0;
-
-      this.speed = 6;
+      config.speed = config.speed;
       this.rotationSpeed = 0.002;
-
       this.orbit = {
         subsets: [],
         xMin: 0,
@@ -71,9 +73,9 @@ export class HopalongVisualizer {
 
 
 
-  init(cameraManager) {
+  init() {
+
     console.log("Hopalong Visualizer Initialized\n------------");
-    //cameraManager.init(SCALE_FACTOR);
 
     let sprite = new THREE.TextureLoader().load( "./dist/img/galaxy.png" );
 
@@ -84,10 +86,15 @@ export class HopalongVisualizer {
     for( let level = 0; level < NUM_LEVELS; level++ ) {
       for( let s = 0; s < NUM_SUBSETS; s++ ) {
 
+
         let geometry = new THREE.Geometry();
+        let count = 0;
         for (var i = 0; i < NUM_POINTS_SUBSET; i++) {
+
           geometry.vertices.push(this.orbit.subsets[s][i].vertex);
+          count++;
         }
+
 
         let material = new THREE.PointsMaterial( {
          size: SPRITE_SIZE,
@@ -119,7 +126,11 @@ export class HopalongVisualizer {
    * @param {number} deltaTime
    * @param {AudioAnalysedDataForVisualization} audioData
    */
-  update( deltaTime, audioData, renderer, cameraManager ) {
+  update( deltaTime, audioData, renderer, cameraManager) {
+    if ( audioData.peak.value > 0.8 ) {
+      peak = true;
+    }
+
     this.deltaTime = deltaTime;
     this.elapsedTime+= deltaTime;
 
@@ -127,15 +138,64 @@ export class HopalongVisualizer {
     let musicSpeed = (audioData.energyAverage + audioData.energy);
     let musicSpeedMultiplier = 1 + musicSpeed/10;
     //console.log('music speed multiplier: ' + musicSpeedMultiplier);
-    //console.log(this.speed * musicSpeedMultiplier);
+    //console.log(config.speed * musicSpeedMultiplier);
+
+    let count = 0;
+
     //Process all children in scene and update them
     this.objects.forEach( (obj) => {
-      obj.position.z += this.speed * musicSpeedMultiplier;
-      obj.rotation.z += this.rotationSpeed;
+      obj.position.z += config.speed * musicSpeedMultiplier;
+
+      if (peak) {
+          obj.position.z -= config.speed * musicSpeedMultiplier * 2;
+        //increment wob wob effect for next frame
+        wobwob++;
+        //reset wob wob effect after 10 animation frames
+        if (wobwob > 100) {
+          peak = false;
+          wobwob = 0;
+        }
+      }
+
+      //console.log(audioData.energyAverage);
+      if (count % 3 == 0) {
+        obj.rotation.z += this.rotationSpeed * (musicSpeedMultiplier);
+      } else if (count % 3 == 1) {
+        obj.rotation.z -= this.rotationSpeed * (musicSpeedMultiplier);
+      }
+      count++;
+
+
+      /*if (obj.position.z < SCALE_FACTOR / 15) {
+        obj.position.x += -cameraManager.getMouseX() * 0.003;
+        obj.position.y -= cameraManager.getMouseY() * 0.003;
+      }
+      else if (obj.position.z < SCALE_FACTOR / 10) {
+        obj.position.x += -cameraManager.getMouseX() * 0.003;
+        obj.position.y -= cameraManager.getMouseY() * 0.003;
+      }
+      else {//if (obj.position.z < SCALE_FACTOR / 2) {
+        obj.position.x = -cameraManager.getMouseX() * 0;
+        obj.position.y = cameraManager.getMouseY() * 0;
+
+      }*/
+
+      //obj.rotation.x = cameraManager.getMouseY() * 0.001;
+      //obj.rotation.y = -cameraManager.getMouseX() * 0.001;
+
+      //cameraManager.getCamera().rotation.x = -obj.rotation.y * 0.001;
+      //cameraManager.getCamera().rotation.y = -obj.rotation.y * 0.001;
+
+      //cameraManager.getCamera().lookAt(new  THREE.Vector3(0,0,0));
+      //obj.geometry.verticesNeedUpdate = true;
+
+      //obj.lookAt(new THREE.Vector3(cameraManager.getMouseX() *1 , cameraManager.getMouseY() * 1, 10 ));
+      //cameraManager.getCamera().position.x = -obj.position.x;
+      //cameraManager.getCamera().position.y = -obj.position.y;
 
       if( obj.position.z > SCALE_FACTOR / 2 )
       {
-        obj.position.setZ( -(NUM_LEVELS-1) * LEVEL_DEPTH );
+        obj.position.setZ( -(NUM_LEVELS-1) * LEVEL_DEPTH + LEVEL_DEPTH);
 
         if( obj.needsUpdate == 1 )
         {
@@ -151,14 +211,6 @@ export class HopalongVisualizer {
 
   getScene() {
     return this.scene;
-  }
-
-  getSpeed() {
-    return this.speed;
-  }
-
-  updateSpeed(deltaSpeed) {
-    this.speed += deltaSpeed;
   }
 
   updateRotationSpeed(deltaRotationSpeed) {
@@ -196,20 +248,21 @@ export class HopalongVisualizer {
 
     for( let s = 0; s < NUM_SUBSETS; s++ )
     {
-      x = s*.005*(0.5-Math.random());
-      y = s*.005*(0.5-Math.random());
+      x =  s * 0.005 * (1-Math.random());
+      y =  s * 0.005 * (1-Math.random());
 
       let currentSubset = this.orbit.subsets[s];
 
       for( let i = 0; i < NUM_POINTS_SUBSET; i++ )
       {
-        if( choice < 0.5 )
+        z = (ld + Math.sqrt(Math.sqrt(Math.abs( lb * x - lc))));
+        /*if( choice < 0.5 )
           z = (ld + (Math.sqrt(Math.abs(lb * x - lc))));
         else if( choice < 0.75 )
           z = (ld + Math.sqrt(Math.sqrt(Math.abs( lb * x - lc))));
         else
           z = (ld + Math.log(2+Math.sqrt(Math.abs(lb * x - lc))));
-
+        */
         if( x > 0 ) x1 = y-z;
         else if( x == 0 ) x1 = y;
         else x1 = y+z;
@@ -241,6 +294,7 @@ export class HopalongVisualizer {
       let currentSubset = this.orbit.subsets[s];
       for( let i = 0; i < NUM_POINTS_SUBSET; i++ )
       {
+        //lil patch to get shit outta middle, not final
         currentSubset[i].vertex.setX( scaleX * (currentSubset[i].x - xMin) - scale_factor_l );
         currentSubset[i].vertex.setY( scaleY * (currentSubset[i].y - yMin) - scale_factor_l );
       }
