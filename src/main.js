@@ -1,9 +1,6 @@
 import * as THREE from 'three';
 import { HUD } from './hud/hud-controller';
 import { Stats } from './tools/stats';
-import { slider } from 'jquery-ui/ui/widgets/slider';
-import 'jquery-ui/themes/base/core.css';
-import 'jquery-ui/themes/base/theme.css';
 
 import './main.css';
 import { AudioSource } from './audiostream/audio-source';
@@ -13,7 +10,7 @@ import { AnalysedDataVisualizer } from './audioanalysis/utility/analysed-data-vi
 import CameraManager from './visualization/camera-manager.js';
 import HopalongManager from './visualization/hopalong-manager.js';
 import Sidebar from './sidebar/sidebar';
-import config from './config/visualizer.config.js';
+import config from './config/configuration.js';
 
 
 // Size of the fft transform performed on audio stream
@@ -38,36 +35,11 @@ let startTimer = null,
 //Intiatialize Mic input stream & then set up Audio Anaysis
 audiosource.getStreamFromMicrophone(false).then(init); //set input to be from mic by default
 
-//JQuery selector variables are prepended by $
-let $slider = $(`<div class='slider'></div>`);
-let $sliderHandle = $(`<div class="ui-slider-handle"></div>`);
-
 //Set up the Audio Analysis, Visualization manager
 function init() {
   audiostream.init();
   startTimer = new Date();
   lastFrameTimer = startTimer;
-
-
-  $(document.body).append($slider);
-  $slider.append($sliderHandle);
-
-  var handle = $( ".ui-slider-handle" );
-  $( ".slider" ).slider({
-    range: "max",
-    min: config.minSpeed,
-    max: config.maxSpeed,
-    value: config.speed,
-    step: config.step,
-
-    create: function() {
-      handle.text( $( this ).slider( "value" ) );
-    },
-    slide: function( event, ui ) {
-      handle.text( ui.value );
-      config.speed = ui.value;
-    }
-  });
 
   hopalongManager.init(startTimer);
   sidebar.init();

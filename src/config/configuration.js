@@ -8,27 +8,32 @@ export default {
     speed : {
     defaultValue: UserConfig.speed,
     value: UserConfig.speed,
-    property: "Speed",
+    name: "Speed",
     min: 0, max: 40, step: .5
+    },
+    rotationSpeed : {
+      defaultValue: UserConfig.rotationSpeed,
+      value: UserConfig.rotationSpeed,
+      name: "Rotation Speed",
+      min: -1, max: 1, step: .001
     }
   },
   audio : {
     threshold: {
       defaultValue: AnalyserConfig.options.peakDetection.options.threshold,
       value: AnalyserConfig.options.peakDetection.options.threshold,
-      property: "Sound Threshold",
-      min: 0, max: 6, step: 0.1,
+      name: "Sound Threshold",
+      min: 0, max: 6, step: 0.1
     },
     ignoreTime : {
-      property: AnalyserConfig.options.peakDetection.options.ignoreTime,
+      defaultValue: AnalyserConfig.options.peakDetection.options.ignoreTime,
+      value: AnalyserConfig.options.peakDetection.options.ignoreTime,
       name: "Ignore Time",
       min: 0, max: 5000, step: 10
     },
 
   },
-  visualizer: [{
+  visualizer: {
 
     }
-  ]
-
 };

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { AudioAnalysedDataForVisualization } from '../audioanalysis/audio-analysed-data';
 import { CameraManager } from './camera-manager.js';
-import config from '../config/visualizer.config.js';
+import config from '../config/configuration.js';
 
 /*
  * ORIGINAL AUTHOR: Iacopo Sassarini
@@ -137,13 +137,14 @@ export default class HopalongVisualizer {
     let count = 0;
 
     //Process all children in scene and update them
+    let userConfig = config.user;
     this.objects.forEach( (obj) => {
-      obj.position.z += config.speed * musicSpeedMultiplier;
+      obj.position.z += userConfig.speed.value * musicSpeedMultiplier;
       //console.log(audioData.energyAverage);
       if (count % 3 == 0) {
-        obj.rotation.z += this.rotationSpeed * (musicSpeedMultiplier);
+        obj.rotation.z += userConfig.rotationSpeed.value * (musicSpeedMultiplier);
       } else if (count % 3 == 1) {
-        obj.rotation.z -= this.rotationSpeed * (musicSpeedMultiplier);
+        obj.rotation.z -= userConfig.rotationSpeed.value * (musicSpeedMultiplier);
       }
       count++;
 

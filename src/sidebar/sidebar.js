@@ -1,4 +1,5 @@
 import { accordion } from 'jquery-ui/ui/widgets/accordion';
+import { slider } from 'jquery-ui/ui/widgets/slider';
 import 'jquery-ui/themes/base/core.css';
 import 'jquery-ui/themes/base/theme.css';
 
@@ -68,22 +69,41 @@ export default class Sidebar {
 
     for (let category in config) {
       this.$config.append($(`<h3 class='config-title'>${category} config</h3>`)); //create category header
-      let $category = $(`<div></div>`);
+      let $category = $(`<div class='config-content'></div>`);
       this.$config.append($category);
       console.log(`Category is: ${category}`);
       for (let option in config[category]) {
-        $category.append($(`<h4>${option}</h4>`));
+        $category.append($(`<h4 class=${option}>${option}</h4>`));
         console.log(option);
         console.log(config[category][option]);
         //if type == slider make slider element
       }
     }
-    $( 'canvas' )
-    console.log(this.categories);
-
     $( ".config" ).accordion({
-      collapsible: true
     });
 
+    let $slider = $(`<div class='slider'></div>`);
+    let $sliderHandle = $(`<div class="ui-slider-handle"></div>`);
+
+    $('.speed').after($slider);
+    $slider.append($sliderHandle);
+
+    let speedConfig = config.user.speed;
+    var handle = $( ".ui-slider-handle" );
+    $( ".slider" ).slider({
+      range: "min",
+      min: speedConfig.min,
+      max: speedConfig.max,
+      value: speedConfig.value,
+      step: speedConfig.step,
+
+      create: function() {
+        handle.text( $( this ).slider( "value" ) );
+      },
+      slide: function( event, ui ) {
+        handle.text( ui.value );
+        speedConfig.value = ui.value;
+      }
+    });
   }
 }

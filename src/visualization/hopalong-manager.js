@@ -30,6 +30,7 @@ export default class HopalongManager {
     console.log("Hopalong Manager Initialized\n------------");
     this.hopalongVisualizer = new HopalongVisualizer();
 
+    //jQuery variables are prepended by $
     this.$container = $('<div></div>');
     $( document.body ).append(this.$container);
 

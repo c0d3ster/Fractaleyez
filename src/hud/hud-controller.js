@@ -1,6 +1,5 @@
 import UserConfig from '../config/user.config';
 
-
 /**
  * Handles the elements from the HUD
  */

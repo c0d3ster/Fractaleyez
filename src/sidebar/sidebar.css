@@ -100,9 +100,10 @@
   margin: 5px 0;
   font-weight: bold;
   padding: 10px 0;
-  color: rgba(220,220,220,.9);
+  color: rgba(220, 220, 220,.9);
   background: rgba(40, 40, 40, .9);
   border: none;
+  border-bottom: 5px solid rgba(20, 20, 20, .9);
   outline: none;
   cursor: pointer;
 }
@@ -110,5 +111,20 @@
 .config-title:active, .config-title:focus {
   outline: none;
   color: white;
-  background: rgba(60, 60, 60, .9);
+  background: rgba(80, 80, 80, .9);
+}
+
+.config-content {
+  height: auto;
+}
+
+.slider {
+  width: 75%;
+  text-align: center;
+  padding: 0 20px;
+}
+
+.ui-slider-handle {
+  transform: translate(-50%, 0);
+  padding: 0;
 }
