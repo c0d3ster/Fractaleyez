@@ -124,11 +124,32 @@
 
 .slider {
   width: 75%;
+  margin: 0 auto;
   text-align: center;
   padding: 0 20px;
+  position: relative;
+}
+
+.ui-slider-range {
+  top: 0;
+  height: 100%;
+  position: absolute;
+  z-index: 1;
+  font-size: .7em;
+  display: block;
+  border: 0;
+  transform: translate(-20px, 0);
+  background-position: 0 0;
+  border-radius: 0px 0 0 0px;
 }
 
 .ui-slider-handle {
   transform: translate(-50%, 0);
   padding: 0;
+  position: relative;
+  width: 3em;
+  height: 1.6em;
+  text-align: center;
+  line-height: 1.6em;
+  z-index: 10;
 }
