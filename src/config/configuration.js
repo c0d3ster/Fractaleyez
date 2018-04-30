@@ -25,14 +25,14 @@ export default {
       type: 'slider',
       defaultValue: AnalyserConfig.options.peakDetection.options.threshold,
       value: AnalyserConfig.options.peakDetection.options.threshold,
-      min: 0, max: 6, step: 0.1
+      min: 0, max: 5, step: 0.1
     },
     ignoreTime : {
       name: 'Ignore Time',
       type: 'slider',
       defaultValue: AnalyserConfig.options.peakDetection.options.ignoreTime,
       value: AnalyserConfig.options.peakDetection.options.ignoreTime,
-      min: 0, max: 5000, step: 10
+      min: 0, max: 2500, step: 50
     },
   },
   visualizer: {

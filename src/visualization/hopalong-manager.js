@@ -8,6 +8,7 @@ import config from '../config/configuration';
 
 //let fakeCamera = new THREE.PerspectiveCamera( 60, window.innerWidth/window.innerHeight );
 //fakeCamera.position.z = 5;
+
 /**
  * The Hopalong Manager class is responsible for creating the camera and visualization
  * for Barry's Hopalong Orbits

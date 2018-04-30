@@ -131,7 +131,7 @@
 /***** JQUERY UI ELEMENT STYLE OVERRIDES *****/
 
 .slider-label {
-  margin: 0;
+  margin: 15px 0 0 0;
   text-align: center;
 }
 
@@ -139,7 +139,7 @@
   position: relative;
   width: 80%;
   text-align: center;
-  margin: 0 auto;
+  margin: 0 auto 15px auto;
   padding: 0 20px;
   border: none !important;
 }
@@ -163,7 +163,13 @@
   text-align: center;
   line-height: 1.6em;
   border-radius: 10px;
+  cursor: grab;
   outline: none;
+}
+
+.ui-slider-handle:active, .slider .ui-state-active {
+  cursor: grabbing;
+  background: rgba(0, 60, 0, .9);
 }
 
 .ui-checkboxradio-label {
@@ -191,4 +197,9 @@
 
 .ui-state-focus {
   box-shadow: none;
+}
+
+.ui-icon {
+  margin: 0 3px;
+  padding: 2px;
 }

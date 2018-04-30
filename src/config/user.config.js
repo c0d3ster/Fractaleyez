@@ -22,5 +22,11 @@ export default {
   speed: 2,
 
   // Speed at which particles rotate
-  rotationSpeed: 2
+  rotationSpeed: 2,
+
+  // Scale at which the camera view content, the higher the value the larger particles will become
+  scaleFactor: 1500,
+
+  // Controls the Sensitivity of the camera movement, higher number allows for more camera movement
+  cameraBound: 100
 };

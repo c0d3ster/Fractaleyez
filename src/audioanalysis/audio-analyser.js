@@ -1,5 +1,6 @@
 import UserConfig from '../config/user.config';
 import AnalyserConfig from '../config/analyser.config';
+import config from '../config/configuration';
 
 import { AudioData } from '../audiostream/audio-data';
 import { AudioAnalysedData, AudioAnalysedDataForVisualization, Peak } from './audio-analysed-data';
@@ -63,7 +64,7 @@ export class AudioAnalyser
         if( returns.peak || returns.peakHistory )
         {
           this.computePeakDetection( this.data.getEnergy(), this.data.getEnergyAverage(), this.data.peak, this.data.peakHistory, currentTimer,
-                                     AnalyserConfig.options.peakDetection.options.threshold, AnalyserConfig.options.peakDetection.options.peakPersistency, AnalyserConfig.options.peakDetection.options.ignoreTime, EASINGS.linear );
+                                     config.audio.threshold.value, AnalyserConfig.options.peakDetection.options.peakPersistency, config.audio.ignoreTime.value, EASINGS.linear );
         }
       }
     }
@@ -79,7 +80,7 @@ export class AudioAnalyser
         if( returns.multibandPeakHistory || returns.multibandPeak )
         {
           this.computeMultibandPeakDetection( this.data.getMultibandEnergy(), this.data.getMultibandEnergyAverage(), this.data.multibandPeak, this.data.multibandPeakHistory, currentTimer,
-                                              AnalyserConfig.options.multibandPeakDetection.options.threshold, AnalyserConfig.options.multibandPeakDetection.options.peakPersistency, AnalyserConfig.options.multibandPeakDetection.options.ignoreTime, EASINGS.linear );
+                                              config.audio.threshold.value, AnalyserConfig.options.multibandPeakDetection.options.peakPersistency, config.audio.ignoreTime.value, EASINGS.linear );
         }
       }
     }

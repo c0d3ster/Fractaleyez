@@ -32,12 +32,12 @@ module.exports =
     rules: [
       {
         test: /\.js?$/,
-        use: {
+        use: [{
           loader: 'babel-loader',
           options: {
             presets: ['env', 'stage-2']
           }
-        },
+        }],
         exclude: /node_modules/
       },
       {
@@ -54,12 +54,6 @@ module.exports =
           {
             loader: 'postcss-loader'
           }]
-      },
-      {
-        test: /\.(png|jpg)$/,
-        use: [ {
-          loader: 'file-loader?name=[name].[ext]'
-        } ]
       },
       {
         test: /\.(png|woff|woff2|eot|ttf|svg)$/,

@@ -16,7 +16,7 @@ var NUM_LEVELS = 5;
 var LEVEL_DEPTH = 500;
 var DEF_BRIGHTNESS = .5;
 var DEF_SATURATION = 1;
-var SPRITE_SIZE = 10;
+var SPRITE_SIZE = 5;
 // Orbit parameters constraints
 
 var A_MIN = 2;

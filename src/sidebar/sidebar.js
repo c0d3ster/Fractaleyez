@@ -76,12 +76,12 @@ export default class Sidebar {
     this.$container.mouseleave(this.hideTabDelayed);
 
     for (let category in config) {
-      console.log(`Category is: ${category}`);
+      //console.log(`Category is: ${category}`);
       this.$config.append($(`<h3 class='config-title'>${category} config</h3>`)); //create category header
       let $category = $(`<div class='config-content' id=${category}></div>`);
       this.$config.append($category);
       for (let option in config[category]) {
-        console.log(config[category][option]);
+        //console.log(config[category][option]);
         if(config[category][option].type == 'checkbox') {
           let $checkbox = $(`<input type='checkbox' name=${option} id=${option} checked=${config[category][option].value}>`);
           let $label = $(`<label for=${option}>${config[category][option].name}</label>`);
@@ -90,10 +90,32 @@ export default class Sidebar {
           $checkbox.change(this.updateConfigCheckbox);
         }
         else {
-          $category.append($(`<p class='slider-label' id=${option}>${config[category][option].name}</h4>`));
+          let optionObject = config[category][option];
+          let $slider = $(`<div class='slider' ></div>`);
+          let $sliderHandle = $(`<div class='ui-slider-handle' id=${option}'></div>`);
+
+          $category.append($(`<p class='slider-label'>${optionObject.name}</h4>`));
+          $category.append($slider);
+          $slider.append($sliderHandle);
+          $slider.slider({
+            range: 'min',
+            min: optionObject.min,
+            max: optionObject.max,
+            value: optionObject.value,
+            step: optionObject.step,
+
+            create: function() {
+              $sliderHandle.text( $( this ).slider( 'value' ))
+            },
+            slide: function(event, ui) {
+              $sliderHandle.text(ui.value);
+              optionObject.value = ui.value;
+            }
+          });
         }
       }
     }
+
 
     //Now that dom is populated with config items, use JQuery UI to style elements
     this.$config.accordion({
@@ -101,30 +123,6 @@ export default class Sidebar {
     });
     $('input').checkboxradio({
       icon: false
-    });
-
-    let $slider = $(`<div class='slider'></div>`);
-    let $sliderHandle = $(`<div class='ui-slider-handle' id='speed'></div>`);
-
-    $('#rotationSpeed').after($slider);
-    $slider.append($sliderHandle);
-
-    let speedConfig = config.user.rotationSpeed;
-    var handle = $( ".ui-slider-handle" );
-    $( ".slider" ).slider({
-      range: "min",
-      min: speedConfig.min,
-      max: speedConfig.max,
-      value: speedConfig.value,
-      step: speedConfig.step,
-
-      create: function() {
-        handle.text( $( this ).slider( "value" ) );
-      },
-      slide: function( event, ui ) {
-        handle.text( ui.value );
-        speedConfig.value = ui.value;
-      }
     });
   }
 }
