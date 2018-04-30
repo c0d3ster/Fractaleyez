@@ -1,5 +1,6 @@
 # Build files
 dist/app.js*
+dist/*.png
 dist/index.html
 
 # Dependency directory

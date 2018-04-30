@@ -1,4 +1,4 @@
-import AppConfig from '../../config/app.config';
+import UserConfig from '../../config/user.config';
 import AnalyserConfig from '../../config/analyser.config';
 
 import { AudioAnalysedData } from '../audio-analysed-data';
@@ -56,7 +56,7 @@ export class AnalysedDataVisualizer
     this.canvas.setAttribute( "height", 1024 );
     $('body').append( this.canvas );
     this.context = this.canvas.getContext( "2d" );
-    if( AppConfig.showloginfos ) console.log( `Visualizer initialized\n------------` );
+    if( UserConfig.showloginfos ) console.log( `Visualizer initialized\n------------` );
   }
 
 

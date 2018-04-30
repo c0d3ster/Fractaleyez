@@ -1,4 +1,4 @@
-import config from '../config/app.config';
+import UserConfig from '../config/user.config';
 
 import { AudioSource } from './audio-source';
 import { AudioData } from './audio-data';
@@ -6,7 +6,7 @@ import { AudioData } from './audio-data';
 
 /**
  * Reads data from an audio source
- * The audio source provided to this class must be an 
+ * The audio source provided to this class must be an
  * instance of AudioSource
  */
 export class AudioStream
@@ -14,18 +14,17 @@ export class AudioStream
   /**
    * @param {AudioSource} audiosource Audio source from which the data is gathered
    * @param {number} fftSize Size of the fourier transform. Must be pow of 2
-   * @param {number} volume [0.0; 1.0] Volume used by default 
    */
-  constructor( audiosource, fftsize, volume )
+  constructor( audiosource, fftsize )
   {
     this.audioSource = audiosource;
     this.audioContext = audiosource.getAudioContext();
-    this.volume = volume;
+    this.volume = UserConfig.volume;
     this.fftsize = fftsize;
     this.sourceNode = null;
 
     this.gainNode = this.audioContext.createGain();
-    this.gainNode.gain.setValueAtTime( volume, this.audioContext.currentTime );
+    this.gainNode.gain.setValueAtTime( this.volume, this.audioContext.currentTime );
 
     /*this.filterNode = this.audioContext.createBiquadFilter();
     this.filterNode.type = "lowpass";
@@ -47,16 +46,16 @@ export class AudioStream
     this.sourceNode = this.audioSource.getSourceNode();
     if( !this.sourceNode )
     {
-      if( config.showerrors ) console.error( `Couldn't init the audio stream class. The audio source is empty.` );
+      if( UserConfig.showerrors ) console.error( `Couldn't init the audio stream class. The audio source is empty.` );
     }
-    else 
+    else
     {
       this.sourceNode.connect( this.gainNode );
       this.gainNode.connect( this.analyserNode );
       //this.filterNode.connect( this.analyserNode );
       if( this.audioSource.isThereFeedback() )
         this.analyserNode.connect( this.audioContext.destination );
-      if( config.showloginfos ) console.log( `AudioStream class initialized\n------------` );
+      if( UserConfig.showloginfos ) console.log( `AudioStream class initialized\n------------` );
     }
   }
 
@@ -70,7 +69,7 @@ export class AudioStream
         fData = new Uint8Array( this.bufferLength );
     this.analyserNode.getByteTimeDomainData( tdData );
     this.analyserNode.getByteFrequencyData( fData );
-    
+
     return new AudioData( tdData, fData, this.bufferLength );
   }
 

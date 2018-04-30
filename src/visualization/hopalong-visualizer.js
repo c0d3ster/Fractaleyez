@@ -4,7 +4,8 @@ import { CameraManager } from './camera-manager.js';
 import config from '../config/visualizer.config.js';
 
 /*
- * AUTHOR: Iacopo Sassarini
+ * ORIGINAL AUTHOR: Iacopo Sassarini
+ * Modifications made by Cody Douglass and Conor O'Neill
  */
 var VISUALS_VISIBLE = true;
 var SCALE_FACTOR = 1500;
@@ -17,8 +18,8 @@ var DEF_BRIGHTNESS = .5;
 var DEF_SATURATION = 1;
 var SPRITE_SIZE = 5;
 // Orbit parameters constraints
-var A_MIN = 4;
-var A_MAX = 20;
+var A_MIN = 2;
+var A_MAX = 10;
 var B_MIN = .2;
 var B_MAX = .3;
 var C_MIN = 5;
@@ -31,17 +32,17 @@ var E_MAX = 1;
 // Orbit parameters
 var a, b, c, d, e;
 
-export class HopalongVisualizer {
+export default class HopalongVisualizer {
   constructor() {
       this.lights = [];
       this.objects = [];
       this.hueValues = [];
       this.scene = new THREE.Scene();
       this.scene.fog = new THREE.FogExp2( 0x000000, 0.0013 );
+      this.particleImage = "./dist/img/galaxy.png";
       this.startTimer = null;
       this.deltaTime = 0;
       this.elapsedTime = 0;
-      config.speed = config.speed;
       this.rotationSpeed = 0.002;
       this.orbit = {
         subsets: [],
@@ -72,10 +73,9 @@ export class HopalongVisualizer {
 
 
   init() {
-
     console.log("Hopalong Visualizer Initialized\n------------");
 
-    let sprite = new THREE.TextureLoader().load( "./dist/img/galaxy.png" );
+    let sprite = new THREE.TextureLoader().load( this.particleImage );
 
     this.setLights();
 
@@ -144,7 +144,7 @@ export class HopalongVisualizer {
         obj.rotation.z += this.rotationSpeed * (musicSpeedMultiplier);
       } else if (count % 3 == 1) {
         obj.rotation.z -= this.rotationSpeed * (musicSpeedMultiplier);
-      } 
+      }
       count++;
 
 

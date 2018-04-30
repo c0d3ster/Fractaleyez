@@ -1,4 +1,4 @@
-import AppConfig from '../config/app.config';
+import UserConfig from '../config/user.config';
 
 
 /**
@@ -9,7 +9,7 @@ export class HUD
   constructor()
   {
     this.elements = [];
-    this.show = AppConfig.hudDisplayed;
+    this.show = UserConfig.hudDisplayed;
 
     document.addEventListener( "keydown", (event) => {
       this.keyDownEvent(event);
@@ -29,12 +29,12 @@ export class HUD
 
 
   /**
-   * 
-   * @param {KeyboardEvent } event 
+   *
+   * @param {KeyboardEvent } event
    */
   keyDownEvent( event )
   {
-    if( event.key == AppConfig.hudToggleKey )
+    if( event.key == UserConfig.hudToggleKey )
     {
       event.stopPropagation();
       this.show = !this.show;
