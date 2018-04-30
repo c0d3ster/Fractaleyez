@@ -1,29 +1,31 @@
 import * as THREE from 'three';
-
-import { HopalongVisualizer } from './hopalong-visualizer.js'
-import { CameraManager } from './camera-manager';
 import { EffectComposer, Bloom, ShockWavePass,  RenderPass, BloomPass } from 'postprocessing';
+
+import HopalongVisualizer from './hopalong-visualizer.js'
+import CameraManager from './camera-manager';
+
 import config from '../config/visualizer.config.js';
 
 
 //let fakeCamera = new THREE.PerspectiveCamera( 60, window.innerWidth/window.innerHeight );
 //fakeCamera.position.z = 5;
 /**
- * The Hopalong Manager class is responsible for creating the camera and visualization for Barry's Hopalong Orbits
- *
+ * The Hopalong Manager class is responsible for creating the camera and visualization
+ * for Barry's Hopalong Orbits
  */
-export class HopalongManager {
+export default class HopalongManager {
   constructor() {
     this.$container = null;
     this.startTimer = null;
     this.deltaTime = 0;
     this.elapsedTime = 0;
+    this.scaleFactor = 1500;
+    this.cameraBound = 100;
     this.cameraManager = null;
     this.hopalongVisualizer = null;
     this.renderer = null;
     this.composer = null;
   }
-
 
   /**
    *
@@ -34,11 +36,12 @@ export class HopalongManager {
     console.log("Hopalong Manager Initialized\n------------");
     this.hopalongVisualizer = new HopalongVisualizer();
 
+    //jQuery variables are prepended by $
     this.$container = $('<div></div>');
     $( document.body ).append(this.$container);
 
     this.cameraManager = new CameraManager();
-    this.cameraManager.init(1500);
+    this.cameraManager.init(this.scaleFactor, this.cameraBound);
 
     //pass the visualizer the camera manager so the camera can get the SCALE_FACTOR
     this.hopalongVisualizer.init(this.cameraManager);

@@ -1,5 +1,5 @@
 import StatsJS from 'stats-js';
-import AppConfig from '../config/app.config';
+import UserConfig from '../config/user.config';
 
 
 /**
@@ -14,7 +14,7 @@ export class Stats
   {
     if( typeof(position) == "undefined" )
       position = 0;
-    
+
     this.stats = new StatsJS();
     this.stats.domElement.style.position = "absolute";
 
@@ -25,7 +25,7 @@ export class Stats
       case 0:
         this.stats.domElement.style.top = "0";
         break;
-      case 3: 
+      case 3:
         this.stats.domElement.style.right = "0";
       case 2:
         this.stats.domElement.style.bottom = "0";
@@ -33,7 +33,7 @@ export class Stats
     }
 
     document.body.appendChild( this.stats.domElement );
-    if( AppConfig.showloginfos ) console.log(`Stats initiliazed\n------------`);
+    if( UserConfig.showloginfos ) console.log(`Stats initiliazed\n------------`);
   }
 
 

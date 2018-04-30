@@ -1,10 +1,11 @@
 import * as THREE from 'three';
 import { AudioAnalysedDataForVisualization } from '../audioanalysis/audio-analysed-data';
 import { CameraManager } from './camera-manager.js';
-import config from '../config/visualizer.config.js';
+import config from '../config/configuration.js';
 
 /*
- * AUTHOR: Iacopo Sassarini
+ * ORIGINAL AUTHOR: Iacopo Sassarini
+ * Modifications made by Cody Douglass and Conor O'Neill
  */
 var VISUALS_VISIBLE = true;
 var SCALE_FACTOR = 1500;
@@ -17,6 +18,7 @@ var DEF_BRIGHTNESS = .5;
 var DEF_SATURATION = 1;
 var SPRITE_SIZE = 5;
 // Orbit parameters constraints
+
 var A_MIN = 4;
 var A_MAX = 15;
 var B_MIN = .2;
@@ -30,13 +32,15 @@ var E_MAX = 1;
 
 // Orbit parameters
 var a, b, c, d, e;
-export class HopalongVisualizer {
+
+export default class HopalongVisualizer {
   constructor() {
       this.lights = [];
       this.objects = [];
       this.hueValues = [];
       this.scene = new THREE.Scene();
       this.scene.fog = new THREE.FogExp2( 0x000000, 0.0013 );
+      this.particleImage = "./dist/img/galaxy.png";
       this.startTimer = null;
       this.deltaTime = 0;
       this.elapsedTime = 0;
@@ -73,10 +77,9 @@ export class HopalongVisualizer {
 
 
   init() {
-
     console.log("Hopalong Visualizer Initialized\n------------");
 
-    let sprite = new THREE.TextureLoader().load( "./dist/img/galaxy.png" );
+    let sprite = new THREE.TextureLoader().load( this.particleImage );
 
     this.setLights();
 
@@ -142,8 +145,9 @@ export class HopalongVisualizer {
     let count = 0;
 
     //Process all children in scene and update them
+    let userConfig = config.user;
     this.objects.forEach( (obj) => {
-      obj.position.z += config.speed * musicSpeedMultiplier;
+      obj.position.z += userConfig.speed.value * musicSpeedMultiplier;
 
       if (this.audioPeak) {
 
@@ -154,7 +158,7 @@ export class HopalongVisualizer {
           }
           
           //wobwob effect
-          obj.position.z -= config.speed * musicSpeedMultiplier * 2;
+          obj.position.z -= userConfig.speed.value * musicSpeedMultiplier * 2;
           //change color on peak
           obj.material.color.setHSL( this.hueValues[obj.mySubset], DEF_SATURATION, DEF_BRIGHTNESS );
 
@@ -169,9 +173,10 @@ export class HopalongVisualizer {
 
       //console.log(audioData.energyAverage);
       if (count % 3 == 0) {
-        obj.rotation.z += this.rotationSpeed * (musicSpeedMultiplier);
-      } else if (count % 3 == 1) {
-        obj.rotation.z -= this.rotationSpeed * (musicSpeedMultiplier);
+        obj.rotation.z += userConfig.rotationSpeed.value * (musicSpeedMultiplier);
+      } 
+      else if (count % 3 == 1) {
+        obj.rotation.z -= userConfig.rotationSpeed.value * (musicSpeedMultiplier);
       }
       count++;
 
