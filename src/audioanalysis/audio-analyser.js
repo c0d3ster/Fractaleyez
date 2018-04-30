@@ -1,4 +1,4 @@
-import AppConfig from '../config/app.config';
+import UserConfig from '../config/user.config';
 import AnalyserConfig from '../config/analyser.config';
 
 import { AudioData } from '../audiostream/audio-data';
@@ -25,8 +25,8 @@ export class AudioAnalyser
     this.data = new AudioAnalysedData( bufferSize );
     this.iterations = 0;
 
-    if( AppConfig.checkConfig ) this.checkOptions( AnalyserConfig );
-    if( AppConfig.showloginfos ) console.log( `Analyser initialized\n------------` );
+    if( UserConfig.checkConfig ) this.checkOptions( AnalyserConfig );
+    if( UserConfig.showloginfos ) console.log( `Analyser initialized\n------------` );
   }
 
 
@@ -62,16 +62,16 @@ export class AudioAnalyser
 
         if( returns.peak || returns.peakHistory )
         {
-          this.computePeakDetection( this.data.getEnergy(), this.data.getEnergyAverage(), this.data.peak, this.data.peakHistory, currentTimer, 
+          this.computePeakDetection( this.data.getEnergy(), this.data.getEnergyAverage(), this.data.peak, this.data.peakHistory, currentTimer,
                                      AnalyserConfig.options.peakDetection.options.threshold, AnalyserConfig.options.peakDetection.options.peakPersistency, AnalyserConfig.options.peakDetection.options.ignoreTime, EASINGS.linear );
         }
       }
     }
-    
+
     if( returns.multibandEnergy || returns.multibandEnergyAverage || returns.multibandEnergyHistory || returns.multibandPeak || returns.multibandPeakHistory )
     {
       this.data.pushNewMultibandEnergy( this.computeMultibandEnergy( audioData.frequencyData, AnalyserConfig.options.multibandPeakDetection.options.bands ), deltaTime );
-      
+
       if( returns.multibandEnergyAverage || returns.multibandPeak || returns.multibandPeakHistory )
       {
         this.data.setMultibandEnergyAverage( this.computeMultibandLocalEnergyAverage(this.data.getMultibandEnergyHistory()) );
@@ -79,7 +79,7 @@ export class AudioAnalyser
         if( returns.multibandPeakHistory || returns.multibandPeak )
         {
           this.computeMultibandPeakDetection( this.data.getMultibandEnergy(), this.data.getMultibandEnergyAverage(), this.data.multibandPeak, this.data.multibandPeakHistory, currentTimer,
-                                              AnalyserConfig.options.multibandPeakDetection.options.threshold, AnalyserConfig.options.multibandPeakDetection.options.peakPersistency, AnalyserConfig.options.multibandPeakDetection.options.ignoreTime, EASINGS.linear );  
+                                              AnalyserConfig.options.multibandPeakDetection.options.threshold, AnalyserConfig.options.multibandPeakDetection.options.peakPersistency, AnalyserConfig.options.multibandPeakDetection.options.ignoreTime, EASINGS.linear );
         }
       }
     }
@@ -92,37 +92,37 @@ export class AudioAnalyser
    */
   checkOptions( config )
   {
-    if( AppConfig.showloginfos ) console.log( `Checking if the analyser configuration is correct` );
+    if( UserConfig.showloginfos ) console.log( `Checking if the analyser configuration is correct` );
 
-    // we first check if some values are correct 
+    // we first check if some values are correct
     if( config.options.multibandPeakDetection.enabled )
     {
       if( !(config.options.multibandPeakDetection.options.bands && (config.options.multibandPeakDetection.options.bands & (config.options.multibandPeakDetection.options.bands - 1)) === 0) )
-        if( AppConfig.showerrors ) console.error( `The number of bands for the multiband detection algorithm must be a pow of 2.` );
+        if( UserConfig.showerrors ) console.error( `The number of bands for the multiband detection algorithm must be a pow of 2.` );
     }
 
     if( config.options.returns.peakHistory != config.options.returns.multibandPeakHistory )
     {
-      if( AppConfig.showerrors ) console.error( `Due to the conception of the analyser, the ` );
+      if( UserConfig.showerrors ) console.error( `Due to the conception of the analyser, the ` );
     }
 
     // we check if the return values can be returned
     if( !config.options.multibandPeakDetection.enabled )
     {
       if( config.options.returns.multibandPeak )
-        if( AppConfig.showerrors ) console.error( `The multiband peak can't be computed if the multiband peak detection algorithm is disabled.` );
+        if( UserConfig.showerrors ) console.error( `The multiband peak can't be computed if the multiband peak detection algorithm is disabled.` );
       if( config.options.returns.multibandPeakHistory )
-        if( AppConfig.showerrors ) console.error( `The multiband peak history can't be computed if the multiband peak detection algorithm is disabled.` );
+        if( UserConfig.showerrors ) console.error( `The multiband peak history can't be computed if the multiband peak detection algorithm is disabled.` );
     }
     if( !config.options.peakDetection.enabled )
     {
       if( config.options.returns.peak )
-        if( AppConfig.showerrors ) console.error( `The peak can't be computed if the peak detection algorithm is disabled.` );
+        if( UserConfig.showerrors ) console.error( `The peak can't be computed if the peak detection algorithm is disabled.` );
       if( config.options.returns.peakHistory )
-        if( AppConfig.showerrors ) console.error( `The peak history can't be computed if the peak detection algorithm is disabled.` );
+        if( UserConfig.showerrors ) console.error( `The peak history can't be computed if the peak detection algorithm is disabled.` );
     }
 
-    if( AppConfig.showloginfos ) console.log( `Config checked.\n------------` );
+    if( UserConfig.showloginfos ) console.log( `Config checked.\n------------` );
   }
 
 
@@ -160,7 +160,7 @@ export class AudioAnalyser
 
   /**
    * Computes the local average of the energy history
-   * @param {Array} energyHistory 
+   * @param {Array} energyHistory
    * @returns {number} the average energy of the history
    */
   computeLocalEnergyAverage( energyHistory )
@@ -170,13 +170,13 @@ export class AudioAnalyser
 
 
   /**
-   * Uses the [at]param peak to check if a peak has been detected recently and updates 
+   * Uses the [at]param peak to check if a peak has been detected recently and updates
    * its values, if not it checks if a peak is detected
    * @param {number} energy energy of the moment
    * @param {number} energyAverage average of the last energies
    * @param {Peak} peak Informations on the peak
    * @param {Array} peakHistory History of the recorded peaks
-   * @param {*} currentTimer the absolute timer on the current loop 
+   * @param {*} currentTimer the absolute timer on the current loop
    * @param {number} threshold the higher this value is, the harder the peak has to hit to be detected
    * @param {number} peakPersistency the time it takes for the peak valeu to go from 1 to 0
    * @param {number} ignoreTime time when a peak can't be detected after a detection
@@ -245,8 +245,8 @@ export class AudioAnalyser
 
       // for each band we parse the frequencies
       for( let f = firstIndex; f < lastIndex; f++ )
-        bandEnergy+= frequencyData[f]; 
-      
+        bandEnergy+= frequencyData[f];
+
       bandsEnergy[band] = bandEnergy/(lastIndex-firstIndex);
     }
 
@@ -266,7 +266,7 @@ export class AudioAnalyser
     for( let i = 0; i < AnalyserConfig.options.multibandPeakDetection.options.bands; i++ )
       energiesAverage[i] = 0;
 
-    // first we go through the history 
+    // first we go through the history
     for( let i = 0; i < energiesHistory.length; i++ )
     {
       // then we go though each band
@@ -278,13 +278,13 @@ export class AudioAnalyser
 
     for( let i = 0; i < AnalyserConfig.options.multibandPeakDetection.options.bands; i++ )
       energiesAverage[i]/= energiesHistory.length;
-    
+
     return energiesAverage;
   }
 
 
   /**
-   * Parse each band to see if there is a local peak on each one 
+   * Parse each band to see if there is a local peak on each one
    * of them. Uses the computePeakDetection method in that purpose.
    * @param {Array} multibandEnergy array of the computed energy of each band
    * @param {Array} multibandEnergyAverage array of the computed average local energy of each band

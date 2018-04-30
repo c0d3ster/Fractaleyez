@@ -1,12 +1,14 @@
 import * as THREE from 'three';
 
-const CAMERA_BOUND = 100;
-var SCALE_FACTOR = 1500;
-
-export class CameraManager {
+/*
+ *
+ */
+export default class CameraManager {
 
     constructor() {
       this.camera = null;
+      this.cameraBound = 100;
+      this.scaleFactor = 1500;
       this.mouseX = 0;
       this.mouseY = 0;
       this.deltaTime = 0;
@@ -14,11 +16,12 @@ export class CameraManager {
       this.focusPoint = new THREE.Vector3(0,0,0);
     }
 
-    init(scaleFactor) {
+    init(scaleFactor, cameraBound) {
       console.log("Camera Manager Initialized\n------------");
+      this.scaleFactor = scaleFactor;
       this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1, 3 *  scaleFactor);
       this.camera.position.z = scaleFactor / 2;
-      this.cameraBound = CAMERA_BOUND;
+      this.cameraBound =  cameraBound;
       this.camera.rotation.y = 3.14;
     }
 
@@ -37,15 +40,15 @@ export class CameraManager {
     manageCameraPosition() {
         this.camera.lookAt(this.focusPoint);
 
-        if (this.camera.position.x >= -CAMERA_BOUND && this.camera.position.x <= CAMERA_BOUND) {
+        if (this.camera.position.x >= - this.cameraBound && this.camera.position.x <=  this.cameraBound) {
           this.camera.position.x += (this.mouseX - this.camera.position.x) * 0.05;
-          if (this.camera.position.x < -CAMERA_BOUND) this.camera.position.x = -CAMERA_BOUND;
-          if (this.camera.position.x > CAMERA_BOUND) this.camera.position.x = CAMERA_BOUND;
+          if (this.camera.position.x < - this.cameraBound) this.camera.position.x = - this.cameraBound;
+          if (this.camera.position.x >  this.cameraBound) this.camera.position.x =  this.cameraBound;
         }
-        if (this.camera.position.y >= -CAMERA_BOUND && this.camera.position.y <= CAMERA_BOUND) {
+        if (this.camera.position.y >= - this.cameraBound && this.camera.position.y <=  this.cameraBound) {
           this.camera.position.y += (-this.mouseY - this.camera.position.y) * 0.05;
-          if (this.camera.position.y < -CAMERA_BOUND) this.camera.position.y = -CAMERA_BOUND;
-          if (this.camera.position.y > CAMERA_BOUND) this.camera.position.y = CAMERA_BOUND;
+          if (this.camera.position.y < - this.cameraBound) this.camera.position.y = - this.cameraBound;
+          if (this.camera.position.y >  this.cameraBound) this.camera.position.y =  this.cameraBound;
         }
     }
 

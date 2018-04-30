@@ -1,6 +1,4 @@
 import AnalyserConfig from '../config/analyser.config';
-import AppConfig from '../config/app.config';
-
 
 /**
  * Stores the analysed data into a structured object
@@ -11,23 +9,23 @@ export class AudioAnalysedData
   /**
    * frequenciesData
    * timedomainData
-   * 
+   *
    * energy
    * energyHistory
    * energyHistoryDeltaTime
    * energyAverage
-   * 
+   *
    * globalPeak
    * globalPeakValuesHistory
-   * 
+   *
    * multibandEnergy
    * multibandEnergyHistory
    * multibandEnergyHistoryDeltaTime
    * multibandEnergyAverage
-   * 
+   *
    * multibandPeakHistory
    * multibandPeakValuesHistory
-   * 
+   *
    */
 
   /**
@@ -37,7 +35,7 @@ export class AudioAnalysedData
   {
     this.bufferSize = bufferSize;
 
-    this.frequenciesData = new Uint8Array( bufferSize );  
+    this.frequenciesData = new Uint8Array( bufferSize );
     this.timedomainData = new Uint8Array( bufferSize );
 
     this.energy = 0;
@@ -141,7 +139,7 @@ export class AudioAnalysedData
     return this.energyAverage;
   }
 
-  
+
   /**
    * @param {Array} newEnergies The energies to set
    */
@@ -184,7 +182,7 @@ export class AudioAnalysedData
    * @param deltaTime Time since the last registered energy
    */
   pushNewEnergy( energy, deltaTime )
-  {    
+  {
     this.setEnergy( energy );
     this.energyHistory.push( energy );
     this.energyHistoryDeltaTime.push( deltaTime );
@@ -220,7 +218,7 @@ export class AudioAnalysedData
     return this.multibandEnergyHistory;
   }
 
-  
+
   /**
    * Push a new Array of energies to the history
    * @param {Array} multibandEnergy An array of each band energy
@@ -255,8 +253,8 @@ export class AudioAnalysedData
 export class AudioAnalysedDataForVisualization
 {
   /**
-   * 
-   * @param {AudioAnalysedData} analysedData 
+   *
+   * @param {AudioAnalysedData} analysedData
    */
   constructor( analysedData )
   {
@@ -300,13 +298,13 @@ export class AudioAnalysedDataForVisualization
 /**
  * Peak data informations
  */
-export class Peak 
+export class Peak
 {
   /**
-   * 
-   * @param {number} value [0.0; 1.0] Current value of the peak - decrease over time depending on the 
+   *
+   * @param {number} value [0.0; 1.0] Current value of the peak - decrease over time depending on the
    * interpolation function specified
-   * @param {*} timer Absolute timer on which the peak has been detected. 
+   * @param {*} timer Absolute timer on which the peak has been detected.
    * @param {number} energy Strength of the peak
    */
   constructor( value, timer, energy )
