@@ -108,8 +108,9 @@ export default class HopalongManager {
 
       this.hopalongVisualizer.update( deltaTime, audioData, this.renderer, this.cameraManager );
 
-      if (config.visualizer.glow.value)
+      if ( config.visualizer.glow.value ) {
         this.bloomPass.intensity = audioData.peak.value * audioData.peak.energy;
+      }
 
       if ( audioData.peak.value > 0.8 && config.visualizer.shockwave.value ) {
         this.shockwavePass.explode();
@@ -133,14 +134,14 @@ export default class HopalongManager {
   }
 
   onKeyDown = (event) => {
-    if (event.keyCode == 38 && config.user.speed.value < config.user.speed.max) {
+    if (event.keyCode == 38 && config.user.speed.value < config.user.speed.max)
         config.user.speed.value += 0.5;
-    }
-    else if (event.keyCode == 40 && config.user.speed.value > config.user.speed.min) {
+    else if (event.keyCode == 40 && config.user.speed.value > config.user.speed.min)
       config.user.speed.value -= 0.5;
-    }
-    else if (event.keyCode == 37) this.hopalongVisualizer.updateRotationSpeed(0.25);
-    else if (event.keyCode == 39) this.hopalongVisualizer.updateRotationSpeed(-0.25);
+    else if (event.keyCode == 37 && config.user.rotationSpeed.value < config.user.rotationSpeed.max)
+     config.user.rotationSpeed.value += 0.25;
+    else if (event.keyCode == 39 && config.user.rotationSpeed.value > config.user.rotationSpeed.min)
+      config.user.rotationSpeed.value -= 0.25;
     //else if (event.keyCode == 72 || event.keyCode == 104) toggleVisuals();
   }
 };

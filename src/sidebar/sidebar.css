@@ -13,7 +13,7 @@
   background-color: black;
   color: rgba(220,220,220,.9);
   border-right: 3px solid rgba(20,20,20,.9);
-  opacity: .85;
+  opacity: .9;
   padding: 10px;
 }
 
@@ -21,6 +21,8 @@
   text-align: center;
   font-weight: bold;
   overflow: hidden;
+  border-bottom: 3px solid rgba(20,20,20,.9);
+  margin-top: 10px;
 }
 
 .slide-in {
@@ -97,8 +99,10 @@
   }
 }
 
+/***** CONFIGURATION ACCORDION MENU STYLES *****/
+
 .config-title {
-  margin: 5px 0;
+  margin: 10px 0 0 0;
   font-weight: bold;
   padding: 10px 0;
   color: rgba(220, 220, 220,.9);
@@ -116,40 +120,75 @@
   outline: none;
   color: white;
   background: rgba(80, 80, 80, .9);
+  border: none !important;
 }
 
 .config-content {
   padding: 5px 10px;
+  background: rgba(220, 220, 220, .9);
+}
+
+/***** JQUERY UI ELEMENT STYLE OVERRIDES *****/
+
+.slider-label {
+  margin: 0;
+  text-align: center;
 }
 
 .slider {
-  width: 75%;
-  margin: 0 auto;
-  text-align: center;
-  padding: 0 20px;
   position: relative;
+  width: 80%;
+  text-align: center;
+  margin: 0 auto;
+  padding: 0 20px;
+  border: none !important;
 }
 
 .ui-slider-range {
+  position: absolute;
   top: 0;
   height: 100%;
-  position: absolute;
-  z-index: 1;
-  font-size: .7em;
-  display: block;
-  border: 0;
   transform: translate(-20px, 0);
-  background-position: 0 0;
-  border-radius: 0px 0 0 0px;
-}
+  background: rgba(40,40,40,.9);
+  border: 0;
+ }
 
 .ui-slider-handle {
+  z-index: 10;
+  position: relative;
   transform: translate(-50%, 0);
   padding: 0;
-  position: relative;
   width: 3em;
   height: 1.6em;
   text-align: center;
   line-height: 1.6em;
-  z-index: 10;
+  border-radius: 10px;
+  outline: none;
+}
+
+.ui-checkboxradio-label {
+  display: block;
+  text-align: center;
+  padding: 5px;
+  margin: 10px;
+  cursor: pointer;
+  border: none;
+  outline: none !important;
+}
+
+.ui-checkboxradio-label:active {
+  background: rgba(60, 60, 60, .9) !important;
+  box-shadow: none;
+}
+
+.ui-checkboxradio-checked {
+  background: rgba(0, 60, 0, .9) !important;
+}
+
+.ui-state-active {
+  border: 1px solid rgba(40, 40, 40, .9) !important;
+}
+
+.ui-state-focus {
+  box-shadow: none;
 }

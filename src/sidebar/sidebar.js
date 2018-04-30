@@ -61,7 +61,7 @@ export default class Sidebar {
     //create and append sidebar elements then hide tab after 3 seconds
     this.$container = $(`<div class='sidebar-container'></div>`);
     this.$sidebar = $(`<div class='sidebar'></div>`);
-    this.$tab = $(`<button class='tab'>Menu</button>`);
+    this.$tab = $(`<button class='tab tab-fade-in'>Menu</button>`);
     this.$config = $(`<div class='config'></div>`)
     $( document.body ).append(this.$container);
     this.$container.append(this.$sidebar);
@@ -76,11 +76,12 @@ export default class Sidebar {
     this.$container.mouseleave(this.hideTabDelayed);
 
     for (let category in config) {
+      console.log(`Category is: ${category}`);
       this.$config.append($(`<h3 class='config-title'>${category} config</h3>`)); //create category header
       let $category = $(`<div class='config-content' id=${category}></div>`);
       this.$config.append($category);
-      console.log(`Category is: ${category}`);
       for (let option in config[category]) {
+        console.log(config[category][option]);
         if(config[category][option].type == 'checkbox') {
           let $checkbox = $(`<input type='checkbox' name=${option} id=${option} checked=${config[category][option].value}>`);
           let $label = $(`<label for=${option}>${config[category][option].name}</label>`);
@@ -89,19 +90,16 @@ export default class Sidebar {
           $checkbox.change(this.updateConfigCheckbox);
         }
         else {
-          $category.append($(`<h4 id=${option}>${config[category][option].name}</h4>`));
+          $category.append($(`<p class='slider-label' id=${option}>${config[category][option].name}</h4>`));
         }
-        console.log(option);
-        console.log(config[category][option]);
-        //if type == slider make slider element
       }
     }
 
     //Now that dom is populated with config items, use JQuery UI to style elements
     this.$config.accordion({
-
+      heightStyle: 'content'
     });
-    $( 'input').checkboxradio({
+    $('input').checkboxradio({
       icon: false
     });
 

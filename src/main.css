@@ -7,3 +7,7 @@ body
   user-select: none;
   cursor: crosshair;
 }
+
+body * {
+  font-family: 'Acme', sans-serif !important;
+}
