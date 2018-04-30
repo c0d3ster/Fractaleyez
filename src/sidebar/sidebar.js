@@ -108,10 +108,10 @@ export default class Sidebar {
     let $slider = $(`<div class='slider'></div>`);
     let $sliderHandle = $(`<div class='ui-slider-handle' id='speed'></div>`);
 
-    $('#speed').after($slider);
+    $('#rotationSpeed').after($slider);
     $slider.append($sliderHandle);
 
-    let speedConfig = config.user.speed;
+    let speedConfig = config.user.rotationSpeed;
     var handle = $( ".ui-slider-handle" );
     $( ".slider" ).slider({
       range: "min",

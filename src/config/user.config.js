@@ -22,5 +22,5 @@ export default {
   speed: 2,
 
   // Speed at which particles rotate
-  rotationSpeed: .002
+  rotationSpeed: 2
 };

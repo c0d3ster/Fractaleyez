@@ -16,7 +16,7 @@ export default {
       type: 'slider',
       defaultValue: UserConfig.rotationSpeed,
       value: UserConfig.rotationSpeed,
-      min: -1, max: 1, step: .001
+      min: -100, max: 100, step: .25
     }
   },
   audio : {

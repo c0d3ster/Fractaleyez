@@ -139,8 +139,8 @@ export default class HopalongManager {
     else if (event.keyCode == 40 && config.user.speed.value > config.user.speed.min) {
       config.user.speed.value -= 0.5;
     }
-    else if (event.keyCode == 37) this.hopalongVisualizer.updateRotationSpeed(0.001);
-    else if (event.keyCode == 39) this.hopalongVisualizer.updateRotationSpeed(-0.001);
+    else if (event.keyCode == 37) this.hopalongVisualizer.updateRotationSpeed(0.25);
+    else if (event.keyCode == 39) this.hopalongVisualizer.updateRotationSpeed(-0.25);
     //else if (event.keyCode == 72 || event.keyCode == 104) toggleVisuals();
   }
 };

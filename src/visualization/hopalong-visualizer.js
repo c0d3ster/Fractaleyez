@@ -149,7 +149,7 @@ export default class HopalongVisualizer {
 
       if (this.audioPeak) {
         this.peakCountdown--; //decrement peak countdown
-        if (this.peakCountdown <= 0) {  //reset peakCountdown after 100 objects affected (4 frames with 25 objects)
+        if ( this.peakCountdown <= 0 ) {  //reset peakCountdown after 100 objects affected (4 frames with 25 objects)
           this.audioPeak = false;
           this.peakCountdown = 100;
         }
@@ -168,22 +168,26 @@ export default class HopalongVisualizer {
         }
       }
 
-      if( obj.position.z > SCALE_FACTOR / 2 ) {
+      if ( obj.position.z > SCALE_FACTOR / 2 ) {
         obj.position.setZ( -(NUM_LEVELS-1) * LEVEL_DEPTH + LEVEL_DEPTH);
 
-        if( obj.needsUpdate == 1 )
+        if ( obj.needsUpdate == 1 )
         {
           obj.geometry.verticesNeedUpdate = true;
           obj.needsUpdate = 0;
         }
       }
 
-      //console.log(audioData.energyAverage);
-      if (count % 3 == 0) {
-        obj.rotation.z += config.user.rotationSpeed.value * (musicSpeedMultiplier);
+      if ( config.visualizer.cyclone.value ) {
+        if (count % 3 == 0) {
+          obj.rotation.z += (config.user.rotationSpeed.value / 1000) * musicSpeedMultiplier;
+        }
+        else if (count % 3 == 1) {
+          obj.rotation.z -= (config.user.rotationSpeed.value / 1000) * musicSpeedMultiplier;
+        }
       }
-      else if (count % 3 == 1) {
-        obj.rotation.z -= config.user.rotationSpeed.value * (musicSpeedMultiplier);
+      else {
+        obj.rotation.z += (config.user.rotationSpeed.value / 1000) * musicSpeedMultiplier;
       }
       count++;
       /*if (obj.position.z < SCALE_FACTOR / 15) {
