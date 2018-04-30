@@ -35,7 +35,7 @@ module.exports =
         use: {
           loader: 'babel-loader',
           options: {
-            presets: ['env']
+            presets: ['env', 'stage-2']
           }
         },
         exclude: /node_modules/
@@ -54,6 +54,18 @@ module.exports =
           {
             loader: 'postcss-loader'
           }]
+      },
+      {
+        test: /\.(png|jpg)$/,
+        use: [ {
+          loader: 'file-loader?name=[name].[ext]'
+        } ]
+      },
+      {
+        test: /\.(png|woff|woff2|eot|ttf|svg)$/,
+        use: [ {
+          loader: 'url-loader?limit=100000'
+        } ]
       }
     ]
   },
@@ -62,5 +74,5 @@ module.exports =
     modules: ['node_modules']
   },
   //manages plugins specified above configuration
-  plugins: [htmlPlugin, jQuery]
+  plugins: [htmlPlugin, jQuery],
 };

@@ -1,6 +1,3 @@
-/*
- * AUTHOR: Iacopo Sassarini
- */
 import * as THREE from 'three';
 import {HUD} from './hud/hud-controller';
 import {Stats} from './tools/stats';
@@ -13,8 +10,14 @@ import { AudioAnalyser } from './audioanalysis/audio-analyser';
 import { AnalysedDataVisualizer } from './audioanalysis/utility/analysed-data-visualizer';
 
 import { HopalongManager } from './visualization/hopalong-manager.js';
+import Sidebar from './sidebar/sidebar';
 
-import css from './main.css';
+import './main.css';
+import 'jquery-ui/themes/base/core.css';
+import 'jquery-ui/themes/base/theme.css';
+import {slider} from 'jquery-ui/ui/widgets/slider';
+import config from './config/visualizer.config.js';
+
 
 // Size of the fft transform performed on audio stream
 const FFT_SIZE = 512;
@@ -27,6 +30,10 @@ let audioAnalyser = new AudioAnalyser( audiostream.getBufferSize() );
 //Create the Visualization Manager
 let hopalongManager = new HopalongManager();
 
+//Create the Config sidebar
+let sidebar = new Sidebar();
+
+
 let startTimer = null,
     lastFrameTimer = null,
     deltaTime = null;
@@ -34,12 +41,41 @@ let startTimer = null,
 //Intiatialize Mic input stream & then set up Audio Anaysis
 audiosource.getStreamFromMicrophone(false).then(init); //set input to be from mic by default
 
+
+let ashley = $(`<div class='slider'></div>`);
+let sliderHandle = $(`<div class="ui-slider-handle"></div>`);
+
 //Set up the Audio Analysis
+//Set up the Audio Analysis, Visualization manager
 function init() {
   audiostream.init();
   startTimer = new Date();
   lastFrameTimer = startTimer;
+
+
+  $(document.body).append(ashley);
+  ashley.append(sliderHandle);
+
+  var handle = $( ".ui-slider-handle" );
+  $( ".slider" ).slider({
+    range: "max",
+    min: config.minSpeed,
+    max: config.maxSpeed,
+    value: config.speed,
+    step: config.step,
+
+    create: function() {
+      handle.text( $( this ).slider( "value" ) );
+    },
+    slide: function( event, ui ) {
+      handle.text( ui.value );
+      config.speed = ui.value;
+      console.log('speed is now = ' + ui.value);
+    }
+  });
+
   hopalongManager.init(startTimer);
+  sidebar.init();
   analyze();
 }
 
@@ -56,11 +92,12 @@ function analyze() {
 
   //console.log("Analyzed Data:\nTime Domain Data = " + analysedData.getTimedomainData());
   //console.log("\nFrequencies Data = " + analysedData.getFrequenciesData());
-  console.log("\nEnergy Data = " + analysedData.getEnergy());
-  console.log("\nEnergy Average = " + analysedData.getEnergyAverage());
-  console.log("\nMultiBand Energy = " + analysedData.getMultibandEnergy());
-  console.log("\npeak.value = " + analysedData.peak.value);
-  console.log("\npeak.energy = " + analysedData.peak.energy);
+  //console.log("\nEnergy Data = " + analysedData.getEnergy());
+  //console.log("\nEnergy Average = " + analysedData.getEnergyAverage());
+  //console.log("\nMultiBand Energy = " + analysedData.getMultibandEnergy());
+  //console.log("\npeak.value = " + analysedData.peak.value);
+  //console.log("\npeak.energy = " + analysedData.peak.energy);
+
   // we ask the helper to draw the analysed data
   // this is where we can send the data to a proper visualizer
   hopalongManager.update( deltaTime, analysedData );
