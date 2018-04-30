@@ -7,19 +7,3 @@ body
   user-select: none;
   cursor: crosshair;
 }
-
-.slider {
-  position: absolute;
-
-  width: 40em;
-  height: 1.6em;
-}
-
-.ui-slider-handle  {
-  position: absolute;
-  width: 3em;
-  height: 1.6em;
-  text-align: center;
-  line-height: 1.6em;
-  z-index: 10;
-}
