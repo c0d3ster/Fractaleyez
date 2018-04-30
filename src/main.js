@@ -35,8 +35,28 @@ let startTimer = null,
 //Intiatialize Mic input stream & then set up Audio Anaysis
 audiosource.getStreamFromMicrophone(false).then(init); //set input to be from mic by default
 
+//Initialize variables to track mouse movement and hide mouse after timeout
+let idleMouseTimer;
+let forceMouseHide = false;
+
 //Set up the Audio Analysis, Visualization manager
 function init() {
+  $('body').mousemove(function(ev) {
+      if(!forceMouseHide) {
+        $('body').css('cursor', 'crosshair');
+
+        clearTimeout(idleMouseTimer);
+
+        idleMouseTimer = setTimeout(function() {
+          $('body').css('cursor', 'none');
+
+          forceMouseHide = true;
+          setTimeout(function() {
+            forceMouseHide = false;
+          }, 200);
+        }, 1000);
+      }
+  });
   audiostream.init();
   startTimer = new Date();
   lastFrameTimer = startTimer;
