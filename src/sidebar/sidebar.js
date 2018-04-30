@@ -1,5 +1,6 @@
 import { accordion } from 'jquery-ui/ui/widgets/accordion';
 import { slider } from 'jquery-ui/ui/widgets/slider';
+import { checkboxradio } from 'jquery-ui/ui/widgets/checkboxradio';
 import 'jquery-ui/themes/base/core.css';
 import 'jquery-ui/themes/base/theme.css';
 
@@ -8,7 +9,7 @@ import config from '../config/configuration';
 
 
 /* The Sidebar component contains all options for the Visualization
- * Options are split into tabs for presets, audio, and visualization
+ * Options are split into tabs for presets, user, audio, and visualization
  *
  */
 export default class Sidebar {
@@ -49,6 +50,13 @@ export default class Sidebar {
       }, Number.isInteger(waitTime) ? waitTime : 1000);
   }
 
+  updateConfigCheckbox = (event) => {
+    let $element = $( event.target );
+    let category = $element.parent().parent().attr('id');
+    let option = $element.attr('id');
+    config[category][option].value = $element.is(':checked');
+  }
+
   init() {
     //create and append sidebar elements then hide tab after 3 seconds
     this.$container = $(`<div class='sidebar-container'></div>`);
@@ -69,23 +77,38 @@ export default class Sidebar {
 
     for (let category in config) {
       this.$config.append($(`<h3 class='config-title'>${category} config</h3>`)); //create category header
-      let $category = $(`<div class='config-content'></div>`);
+      let $category = $(`<div class='config-content' id=${category}></div>`);
       this.$config.append($category);
       console.log(`Category is: ${category}`);
       for (let option in config[category]) {
-        $category.append($(`<h4 class=${option}>${option}</h4>`));
+        if(config[category][option].type == 'checkbox') {
+          let $checkbox = $(`<input type='checkbox' name=${option} id=${option} checked=${config[category][option].value}>`);
+          let $label = $(`<label for=${option}>${config[category][option].name}</label>`);
+          $category.append($label);
+          $label.append($checkbox);
+          $checkbox.change(this.updateConfigCheckbox);
+        }
+        else {
+          $category.append($(`<h4 id=${option}>${config[category][option].name}</h4>`));
+        }
         console.log(option);
         console.log(config[category][option]);
         //if type == slider make slider element
       }
     }
-    $( ".config" ).accordion({
+
+    //Now that dom is populated with config items, use JQuery UI to style elements
+    this.$config.accordion({
+
+    });
+    $( 'input').checkboxradio({
+      icon: false
     });
 
     let $slider = $(`<div class='slider'></div>`);
-    let $sliderHandle = $(`<div class="ui-slider-handle"></div>`);
+    let $sliderHandle = $(`<div class='ui-slider-handle' id='speed'></div>`);
 
-    $('.speed').after($slider);
+    $('#speed').after($slider);
     $slider.append($sliderHandle);
 
     let speedConfig = config.user.speed;

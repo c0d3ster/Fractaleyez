@@ -1,12 +1,14 @@
 export default {
 
-  spiral: true,
+  cyclone: true,
 
   wobwob: true,
 
   switcheroo: true,
 
-  bloom: true,
+  colorShift: true,
+
+  glow: true,
 
   shockwave: true
 }

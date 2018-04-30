@@ -9,18 +9,18 @@ import config from '../config/configuration.js';
  */
 var VISUALS_VISIBLE = true;
 var SCALE_FACTOR = 1500;
-var NUM_POINTS_SUBSET = 48000;
+var NUM_POINTS_SUBSET = 8000;
 var NUM_SUBSETS = 5;
 var NUM_POINTS = NUM_POINTS_SUBSET * NUM_SUBSETS;
 var NUM_LEVELS = 5;
 var LEVEL_DEPTH = 500;
 var DEF_BRIGHTNESS = .5;
 var DEF_SATURATION = 1;
-var SPRITE_SIZE = 5;
+var SPRITE_SIZE = 10;
 // Orbit parameters constraints
 
-var A_MIN = 4;
-var A_MAX = 15;
+var A_MIN = 2;
+var A_MAX = 10;
 var B_MIN = .2;
 var B_MAX = .3;
 var C_MIN = 5;
@@ -44,9 +44,8 @@ export default class HopalongVisualizer {
       this.startTimer = null;
       this.deltaTime = 0;
       this.elapsedTime = 0;
-      this.wobwob = 0;
       this.audioPeak = false;
-      config.speed = config.speed;
+      this.peakCountdown = 0;
       this.rotationSpeed = 0.002;
       this.orbit = {
         subsets: [],
@@ -142,45 +141,51 @@ export default class HopalongVisualizer {
     //console.log('music speed multiplier: ' + musicSpeedMultiplier);
     //console.log(config.speed * musicSpeedMultiplier);
 
-    let count = 0;
+    let count = 0; //keep track of which layer to apply settings on
 
-    //Process all children in scene and update them
-    let userConfig = config.user;
+    //Process all children in scene and update them applying effects as needed
     this.objects.forEach( (obj) => {
-      obj.position.z += userConfig.speed.value * musicSpeedMultiplier;
+      obj.position.z += config.user.speed.value * musicSpeedMultiplier; //move particles towards camera
 
       if (this.audioPeak) {
-
-          //change geometry of orbit on peak
-          if (count % 2 == 0) {
-            obj.geometry.verticesNeedUpdate = true;
-            obj.needsUpdate = 0;
-          }
-          
-          //wobwob effect
-          obj.position.z -= userConfig.speed.value * musicSpeedMultiplier * 2;
-          //change color on peak
-          obj.material.color.setHSL( this.hueValues[obj.mySubset], DEF_SATURATION, DEF_BRIGHTNESS );
-
-        //increment wob wob effect for next frame
-        this.wobwob++;
-        //reset wob wob effect after 10 animation frames
-        if (this.wobwob > 100) {
+        this.peakCountdown--; //decrement peak countdown
+        if (this.peakCountdown <= 0) {  //reset peakCountdown after 100 objects affected (4 frames with 25 objects)
           this.audioPeak = false;
-          this.wobwob = 0;
+          this.peakCountdown = 100;
+        }
+
+        if ( count % 2 == 0 && config.visualizer.switcheroo.value ) { //change geometry of every other orbit on peak
+          obj.geometry.verticesNeedUpdate = true;
+          obj.needsUpdate = 0;
+        }
+
+        if ( config.visualizer.wobwob.value ) { //wobwob effect
+          obj.position.z -= config.user.speed.value * musicSpeedMultiplier * 2;
+        }
+
+        if ( config.visualizer.colorShift.value ) { //change color on peak
+          obj.material.color.setHSL( this.hueValues[obj.mySubset], DEF_SATURATION, DEF_BRIGHTNESS );
+        }
+      }
+
+      if( obj.position.z > SCALE_FACTOR / 2 ) {
+        obj.position.setZ( -(NUM_LEVELS-1) * LEVEL_DEPTH + LEVEL_DEPTH);
+
+        if( obj.needsUpdate == 1 )
+        {
+          obj.geometry.verticesNeedUpdate = true;
+          obj.needsUpdate = 0;
         }
       }
 
       //console.log(audioData.energyAverage);
       if (count % 3 == 0) {
-        obj.rotation.z += userConfig.rotationSpeed.value * (musicSpeedMultiplier);
-      } 
+        obj.rotation.z += config.user.rotationSpeed.value * (musicSpeedMultiplier);
+      }
       else if (count % 3 == 1) {
-        obj.rotation.z -= userConfig.rotationSpeed.value * (musicSpeedMultiplier);
+        obj.rotation.z -= config.user.rotationSpeed.value * (musicSpeedMultiplier);
       }
       count++;
-
-
       /*if (obj.position.z < SCALE_FACTOR / 15) {
         obj.position.x += -cameraManager.getMouseX() * 0.003;
         obj.position.y -= cameraManager.getMouseY() * 0.003;
@@ -192,7 +197,6 @@ export default class HopalongVisualizer {
       else {//if (obj.position.z < SCALE_FACTOR / 2) {
         obj.position.x = -cameraManager.getMouseX() * 0;
         obj.position.y = cameraManager.getMouseY() * 0;
-
       }*/
 
       //obj.rotation.x = cameraManager.getMouseY() * 0.001;
@@ -207,19 +211,7 @@ export default class HopalongVisualizer {
       //obj.lookAt(new THREE.Vector3(cameraManager.getMouseX() *1 , cameraManager.getMouseY() * 1, 10 ));
       //cameraManager.getCamera().position.x = -obj.position.x;
       //cameraManager.getCamera().position.y = -obj.position.y;
-
-      if( obj.position.z > SCALE_FACTOR / 2 )
-      {
-        obj.position.setZ( -(NUM_LEVELS-1) * LEVEL_DEPTH + LEVEL_DEPTH);
-
-        if( obj.needsUpdate == 1 )
-        {
-          obj.geometry.verticesNeedUpdate = true;
-          obj.needsUpdate = 0;
-        }
-      }
-    })
-
+    });
     renderer.render(this.scene, cameraManager.getCamera());
   }
 
@@ -228,7 +220,7 @@ export default class HopalongVisualizer {
   }
 
   updateRotationSpeed(deltaRotationSpeed) {
-    this.rotationSpeed += deltaRotationSpeed;
+    config.user.rotationSpeed.value += deltaRotationSpeed;
   }
 
   updateOrbit() {
