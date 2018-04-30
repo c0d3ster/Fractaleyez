@@ -9,7 +9,7 @@ import config from '../config/configuration.js';
  */
 var VISUALS_VISIBLE = true;
 var SCALE_FACTOR = 1500;
-var NUM_POINTS_SUBSET = 16000;
+var NUM_POINTS_SUBSET = 48000;
 var NUM_SUBSETS = 5;
 var NUM_POINTS = NUM_POINTS_SUBSET * NUM_SUBSETS;
 var NUM_LEVELS = 5;
@@ -18,8 +18,9 @@ var DEF_BRIGHTNESS = .5;
 var DEF_SATURATION = 1;
 var SPRITE_SIZE = 5;
 // Orbit parameters constraints
-var A_MIN = 2;
-var A_MAX = 10;
+
+var A_MIN = 4;
+var A_MAX = 15;
 var B_MIN = .2;
 var B_MAX = .3;
 var C_MIN = 5;
@@ -43,6 +44,9 @@ export default class HopalongVisualizer {
       this.startTimer = null;
       this.deltaTime = 0;
       this.elapsedTime = 0;
+      this.wobwob = 0;
+      this.audioPeak = false;
+      config.speed = config.speed;
       this.rotationSpeed = 0.002;
       this.orbit = {
         subsets: [],
@@ -125,6 +129,10 @@ export default class HopalongVisualizer {
    * @param {AudioAnalysedDataForVisualization} audioData
    */
   update( deltaTime, audioData, renderer, cameraManager) {
+    if ( audioData.peak.value > 0.8 ) {
+      this.audioPeak = true;
+    }
+
     this.deltaTime = deltaTime;
     this.elapsedTime+= deltaTime;
 
@@ -140,10 +148,34 @@ export default class HopalongVisualizer {
     let userConfig = config.user;
     this.objects.forEach( (obj) => {
       obj.position.z += userConfig.speed.value * musicSpeedMultiplier;
+
+      if (this.audioPeak) {
+
+          //change geometry of orbit on peak
+          if (count % 2 == 0) {
+            obj.geometry.verticesNeedUpdate = true;
+            obj.needsUpdate = 0;
+          }
+          
+          //wobwob effect
+          obj.position.z -= userConfig.speed.value * musicSpeedMultiplier * 2;
+          //change color on peak
+          obj.material.color.setHSL( this.hueValues[obj.mySubset], DEF_SATURATION, DEF_BRIGHTNESS );
+
+        //increment wob wob effect for next frame
+        this.wobwob++;
+        //reset wob wob effect after 10 animation frames
+        if (this.wobwob > 100) {
+          this.audioPeak = false;
+          this.wobwob = 0;
+        }
+      }
+
       //console.log(audioData.energyAverage);
       if (count % 3 == 0) {
         obj.rotation.z += userConfig.rotationSpeed.value * (musicSpeedMultiplier);
-      } else if (count % 3 == 1) {
+      } 
+      else if (count % 3 == 1) {
         obj.rotation.z -= userConfig.rotationSpeed.value * (musicSpeedMultiplier);
       }
       count++;
@@ -183,7 +215,6 @@ export default class HopalongVisualizer {
         if( obj.needsUpdate == 1 )
         {
           obj.geometry.verticesNeedUpdate = true;
-          obj.material.color.setHSL( this.hueValues[obj.mySubset], DEF_SATURATION, DEF_BRIGHTNESS );
           obj.needsUpdate = 0;
         }
       }
@@ -194,15 +225,6 @@ export default class HopalongVisualizer {
 
   getScene() {
     return this.scene;
-  }
-
-  getSpeed() {
-    return config.speed;
-  }
-
-  updateSpeed(deltaSpeed) {
-    config.speed += deltaSpeed;
-    config.speed = config.speed;
   }
 
   updateRotationSpeed(deltaRotationSpeed) {
