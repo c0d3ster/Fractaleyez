@@ -8,7 +8,7 @@ import config from '../config/configuration.js';
  * Modifications made by Cody Douglass and Conor O'Neill
  */
 var VISUALS_VISIBLE = true;
-var SCALE_FACTOR = 1500;
+//var SCALE_FACTOR = 1500;
 var NUM_POINTS_SUBSET = 8000;
 var NUM_SUBSETS = 5;
 var NUM_POINTS = NUM_POINTS_SUBSET * NUM_SUBSETS;
@@ -17,8 +17,8 @@ var LEVEL_DEPTH = 500;
 var DEF_BRIGHTNESS = .5;
 var DEF_SATURATION = 1;
 var SPRITE_SIZE = 5;
-// Orbit parameters constraints
 
+// Orbit parameters constraints
 var A_MIN = 2;
 var A_MAX = 10;
 var B_MIN = .2;
@@ -46,7 +46,6 @@ export default class HopalongVisualizer {
       this.elapsedTime = 0;
       this.audioPeak = false;
       this.peakCountdown = 0;
-      this.rotationSpeed = 0.002;
       this.orbit = {
         subsets: [],
         xMin: 0,
@@ -111,7 +110,7 @@ export default class HopalongVisualizer {
         particles.mySubset = s;
         particles.position.x = 0;
         particles.position.y = 0;
-        particles.position.z = -LEVEL_DEPTH * level - (s * LEVEL_DEPTH / NUM_SUBSETS) + SCALE_FACTOR / 2;
+        particles.position.z = -LEVEL_DEPTH * level - (s * LEVEL_DEPTH / NUM_SUBSETS) + config.user.scaleFactor.value / 2;
         particles.needsUpdate = 0;
         particles.material.color.setHSL( this.hueValues[s], DEF_SATURATION, DEF_BRIGHTNESS );
         this.objects.push( particles );
@@ -168,7 +167,7 @@ export default class HopalongVisualizer {
         }
       }
 
-      if ( obj.position.z > SCALE_FACTOR / 2 ) {
+      if ( obj.position.z > config.user.scaleFactor.value / 2 ) {
         obj.position.setZ( -(NUM_LEVELS-1) * LEVEL_DEPTH + LEVEL_DEPTH);
 
         if ( obj.needsUpdate == 1 )
@@ -223,10 +222,6 @@ export default class HopalongVisualizer {
     return this.scene;
   }
 
-  updateRotationSpeed(deltaRotationSpeed) {
-    config.user.rotationSpeed.value += deltaRotationSpeed;
-  }
-
   updateOrbit() {
     //Generate new Pattern
     this.generateOrbit();
@@ -251,7 +246,7 @@ export default class HopalongVisualizer {
     let subsets = this.orbit.subsets;
     let num_points_subset_l = NUM_POINTS_SUBSET;
     let num_points_l = NUM_POINTS;
-    let scale_factor_l = SCALE_FACTOR;
+    let scale_factor_l = config.user.scaleFactor.value;
 
     let xMin = 0, xMax = 0, yMin = 0, yMax = 0;
     let choice = Math.random();

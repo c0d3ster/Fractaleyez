@@ -34,17 +34,14 @@ export default class HopalongManager {
   init( startTimer )
   {
     console.log("Hopalong Manager Initialized\n------------");
-    this.hopalongVisualizer = new HopalongVisualizer();
-
-    //jQuery variables are prepended by $
-    this.$container = $('<div></div>');
+    this.$container = $('<div></div>');    //jQuery variables are prepended by $
     $( document.body ).append(this.$container);
 
     this.cameraManager = new CameraManager();
-    this.cameraManager.init(this.scaleFactor, this.cameraBound);
+    this.cameraManager.init();
 
-    //pass the visualizer the camera manager so the camera can get the SCALE_FACTOR
-    this.hopalongVisualizer.init(this.cameraManager);
+    this.hopalongVisualizer = new HopalongVisualizer();
+    this.hopalongVisualizer.init();
 
     this.startTimer = startTimer;
     this.clock = new THREE.Clock();

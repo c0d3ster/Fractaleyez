@@ -17,6 +17,20 @@ export default {
       defaultValue: UserConfig.rotationSpeed,
       value: UserConfig.rotationSpeed,
       min: -50, max: 50, step: .25
+    },
+    scaleFactor : {
+      name: 'Scale Factor',
+      type: 'slider',
+      defaultValue: UserConfig.scaleFactor,
+      value: UserConfig.scaleFactor,
+      min: 100, max: 2000, step: 100
+    },
+    cameraBound : {
+      name: 'Camera Bound',
+      type: 'slider',
+      defaultValue: UserConfig.cameraBound,
+      value: UserConfig.cameraBound,
+      min: 0, max: 500, step: 20
     }
   },
   audio : {
