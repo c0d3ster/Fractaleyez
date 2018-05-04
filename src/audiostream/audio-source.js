@@ -68,7 +68,6 @@ export class AudioSource
         });
       });
       reader.readAsArrayBuffer( file );
-
     });
   }
 
@@ -90,9 +89,14 @@ export class AudioSource
       this.audioFeedback = audioFeedback;
 
     return new Promise( (resolve, reject) => {
+      setTimeout(() => {
+        console.log('Microphone Attempt Timeout');
+        resolve(); //move on to try for mic later
+      }, 2000);
       if( navigator.mediaDevices )
       {
         navigator.mediaDevices.getUserMedia( { audio: true } ).then( (stream) => {
+          console.log('inside callback');
           this.source = this.audioContext.createMediaStreamSource( stream );
           this.sourceType = "microphone";
           if( UserConfig.showloginfos ) console.log( "Audio stream is coming from microphone" );

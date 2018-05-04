@@ -40,7 +40,7 @@ export default class HopalongVisualizer {
       this.hueValues = [];
       this.scene = new THREE.Scene();
       this.scene.fog = new THREE.FogExp2( 0x000000, 0.0013 );
-      this.particleImage = "./dist/img/galaxy.png";
+      this.particleImage = "galaxy.png";
       this.startTimer = null;
       this.deltaTime = 0;
       this.elapsedTime = 0;
@@ -78,7 +78,7 @@ export default class HopalongVisualizer {
     console.log("Hopalong Visualizer Initialized\n------------");
 
     let sprite = new THREE.TextureLoader().load( this.particleImage );
-
+    console.log(this.particleImage);
     this.setLights();
 
     this.generateOrbit();

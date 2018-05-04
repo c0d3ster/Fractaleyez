@@ -1,15 +1,8 @@
 const webpack = require('webpack');
 const path = require('path');
-const HtmlWebPackPlugin = require('html-webpack-plugin');
 
-const BUILD_DIR = path.join( __dirname, 'dist' );
+const BUILD_DIR = path.join( __dirname, 'public' );
 const APP_DIR = path.join( __dirname, 'src' );
-
-//dynamically generates html file with correct references
-const htmlPlugin = new HtmlWebPackPlugin({
-  template: './src/index.html',
-  filename: './index.html'
-});
 
 //prepends all instances of $ with var $ = require('jquery')
 const jQuery = new webpack.ProvidePlugin({
@@ -17,8 +10,7 @@ const jQuery = new webpack.ProvidePlugin({
      jQuery: 'jquery'
  })
 
-module.exports =
-{
+module.exports = {
   //with webpack 4 entry and output configuration is optional
   entry: APP_DIR + '/main.js',
   output:
@@ -31,17 +23,17 @@ module.exports =
   module: {
     rules: [
       {
-        test: /\.js?$/,
-        use: [{
+        test: /\.(js|jsx)$/,
+        use: {
           loader: 'babel-loader',
           options: {
             presets: ['env', 'stage-2']
           }
-        }],
+        },
         exclude: /node_modules/
       },
       {
-        test: /\.css$/,
+        test: /\.(css|less)$/,
         use: [{
             loader: 'style-loader'
           },
@@ -53,13 +45,20 @@ module.exports =
           },
           {
             loader: 'postcss-loader'
-          }]
+          }
+        ]
       },
       {
-        test: /\.(jpg|png|woff|woff2|eot|ttf|svg)$/,
-        use: [ {
+        test: /\.(png|jpg)$/,
+        use: [{
+          loader: 'file-loader?name=[name].[ext]'
+        }]
+      },
+      {
+        test: /\.(png|woff|woff2|eot|ttf|svg)$/,
+        use: [{
           loader: 'url-loader?limit=100000'
-        } ]
+        }]
       }
     ]
   },
@@ -68,5 +67,5 @@ module.exports =
     modules: ['node_modules']
   },
   //manages plugins specified above configuration
-  plugins: [htmlPlugin, jQuery],
+  plugins: [jQuery]
 };

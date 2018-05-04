@@ -38,6 +38,7 @@ audiosource.getStreamFromMicrophone(false).then(init); //set input to be from mi
 //Initialize variables to track mouse movement and hide mouse after timeout
 let idleMouseTimer;
 let forceMouseHide = false;
+let idleSoundTimer;
 
 //Set up the Audio Analysis, Visualization manager
 function init() {
@@ -85,6 +86,15 @@ function analyze() {
   //console.log("\nMultiBand Energy = " + analysedData.getMultibandEnergy());
   //console.log("\npeak.value = " + analysedData.peak.value);
   //console.log("\npeak.energy = " + analysedData.peak.energy);
+
+  if(analysedData.getEnergy() == 0) {
+    idleSoundTimer++;
+    if(idleSoundTimer > 100) {
+      console.log('retrying sound');
+      audiosource.getAudioContext().resume();
+      idlesoundTimer = 0;
+    }
+  }
 
   //feed data to our visualization manager for next frame
   hopalongManager.update( deltaTime, analysedData );

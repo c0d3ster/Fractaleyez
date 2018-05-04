@@ -7,5 +7,9 @@ dist/dist
 # Dependency directory
 node_modules/
 
+# Certs
+*.pem
+ssl/
+
 # In Case iOS makes these extra files, ignore them
-.DS_Store
+*.DS_Store
