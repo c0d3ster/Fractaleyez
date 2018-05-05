@@ -1,8 +1,7 @@
 # Build files
-dist/app.js*
-dist/*.png
-dist/index.html
-dist/dist
+public/*.js*
+public/app.js
+public/*.png
 
 # Dependency directory
 node_modules/
@@ -10,6 +9,9 @@ node_modules/
 # Certs
 *.pem
 ssl/
+
+# Logs
+*.log
 
 # In Case iOS makes these extra files, ignore them
 *.DS_Store
