@@ -36,9 +36,9 @@ let startTimer = null,
 audiosource.getStreamFromMicrophone(false).then(init); //set input to be from mic by default
 
 //Initialize variables to track mouse movement and hide mouse after timeout
-let idleMouseTimer;
+let idleMouseTimer = 0;
 let forceMouseHide = false;
-let idleSoundTimer;
+let idleSoundTimer = 0;
 
 //Set up the Audio Analysis, Visualization manager
 function init() {
@@ -64,6 +64,7 @@ function init() {
 
   hopalongManager.init(startTimer);
   sidebar.init();
+  //TODO create a message modal here telling the user to click anywhere to connect mic as long as audiostream has intialized correctly (aka permissions are good)
   analyze();
 }
 
@@ -86,15 +87,15 @@ function analyze() {
   //console.log("\nMultiBand Energy = " + analysedData.getMultibandEnergy());
   //console.log("\npeak.value = " + analysedData.peak.value);
   //console.log("\npeak.energy = " + analysedData.peak.energy);
-
-  /*if(analysedData.getEnergy() == 0) {
+  if(!analysedData.getEnergy()) { //if the user hasnt clicked the page, the audio context wont be allowed to start automatically
+    console.log(idleSoundTimer);
     idleSoundTimer++;
     if(idleSoundTimer > 100) {
       console.log('retrying sound');
+      idleSoundTimer = 0;
       audiosource.getAudioContext().resume();
-      idlesoundTimer = 0;
     }
-  }*/
+  }
 
   //feed data to our visualization manager for next frame
   hopalongManager.update( deltaTime, analysedData );
