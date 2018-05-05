@@ -87,14 +87,14 @@ function analyze() {
   //console.log("\npeak.value = " + analysedData.peak.value);
   //console.log("\npeak.energy = " + analysedData.peak.energy);
 
-  if(analysedData.getEnergy() == 0) {
+  /*if(analysedData.getEnergy() == 0) {
     idleSoundTimer++;
     if(idleSoundTimer > 100) {
       console.log('retrying sound');
       audiosource.getAudioContext().resume();
       idlesoundTimer = 0;
     }
-  }
+  }*/
 
   //feed data to our visualization manager for next frame
   hopalongManager.update( deltaTime, analysedData );

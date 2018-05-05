@@ -22,3 +22,10 @@ app.get('*', function(req, res) {
 });
 
 server.listen(PORT, () => console.log("Node server listening on port " + PORT));
+
+// Redirect from http port 80 to https
+var http = require('http');
+http.createServer(function (req, res) {
+    res.writeHead(301, { "Location": "https://" + req.headers['host'] + req.url });
+    res.end();
+}).listen(80);
