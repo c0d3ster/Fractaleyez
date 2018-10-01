@@ -118,7 +118,7 @@ export default class HopalongVisualizer {
       }
     }
 
-    setInterval( () => { this.updateOrbit(); }, 3000)
+    setInterval( () => { this.updateOrbit(); }, 1000)
   }
 
     /**
@@ -153,16 +153,16 @@ export default class HopalongVisualizer {
           this.peakCountdown = 100;
         }
 
-        if ( count % 2 == 0 && config.visualizer.switcheroo.value ) { //change geometry of every other orbit on peak
+        if ( count % 2 == 0 && config.effects.switcheroo.value ) { //change geometry of every other orbit on peak
           obj.geometry.verticesNeedUpdate = true;
           obj.needsUpdate = 0;
         }
 
-        if ( config.visualizer.wobwob.value ) { //wobwob effect
+        if ( config.effects.wobwob.value ) { //wobwob effect
           obj.position.z -= config.user.speed.value * musicSpeedMultiplier * 2;
         }
 
-        if ( config.visualizer.colorShift.value ) { //change color on peak
+        if ( config.effects.colorShift.value ) { //change color on peak
           obj.material.color.setHSL( this.hueValues[obj.mySubset], DEF_SATURATION, DEF_BRIGHTNESS );
         }
       }
@@ -177,7 +177,7 @@ export default class HopalongVisualizer {
         }
       }
 
-      if ( config.visualizer.cyclone.value ) {
+      if ( config.effects.cyclone.value ) {
         if (count % 3 == 0) {
           obj.rotation.z += (config.user.rotationSpeed.value / 1000) * musicSpeedMultiplier;
         }
@@ -315,11 +315,17 @@ export default class HopalongVisualizer {
   }
 
   shuffleParams() {
-    a = A_MIN + Math.random() * (A_MAX - A_MIN);
+    a = config.orbit.a.value;
+    b = config.orbit.b.value;
+    c = config.orbit.c.value;
+    d = config.orbit.d.value;
+    e = config.orbit.e.value;
+
+    /*a = A_MIN + Math.random() * (A_MAX - A_MIN);
     b = B_MIN + Math.random() * (B_MAX - B_MIN);
     c = C_MIN + Math.random() * (C_MAX - C_MIN);
     d = D_MIN + Math.random() * (D_MAX - D_MIN);
-    e = E_MIN + Math.random() * (E_MAX - E_MIN);
+    e = E_MIN + Math.random() * (E_MAX - E_MIN);*/
   }
 
   setLights() {

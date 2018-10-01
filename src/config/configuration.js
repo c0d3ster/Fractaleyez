@@ -1,6 +1,7 @@
 import AnalyserConfig from './analyser.config';
 import UserConfig from './user.config';
 import VisualizerConfig from './visualizer.config';
+import OrbitConfig from './orbit.config';
 
 export default {
   user : {
@@ -49,7 +50,7 @@ export default {
       min: 0, max: 2500, step: 50
     },
   },
-  visualizer: {
+  effects: {
     cyclone: {
       name: 'Cyclone',
       type: 'checkbox',
@@ -86,6 +87,42 @@ export default {
       defaultValue: VisualizerConfig.shockwave,
       value: VisualizerConfig.shockwave
     },
-
+  },
+  orbit: {
+    a : {
+      name: 'A',
+      type: 'slider',
+      defaultValue: OrbitConfig.A_DEFAULT,
+      value: OrbitConfig.A_DEFAULT,
+      min: OrbitConfig.A_MIN, max: OrbitConfig.A_MAX, step: OrbitConfig.A_STEP_SIZE
+    },
+    b : {
+      name: 'B',
+      type: 'slider',
+      defaultValue: OrbitConfig.B_DEFAULT,
+      value: OrbitConfig.B_DEFAULT,
+      min: OrbitConfig.B_MIN, max: OrbitConfig.B_MAX, step: OrbitConfig.B_STEP_SIZE
+    },
+    c : {
+      name: 'C',
+      type: 'slider',
+      defaultValue: OrbitConfig.C_DEFAULT,
+      value: OrbitConfig.C_DEFAULT,
+      min: OrbitConfig.C_MIN, max: OrbitConfig.C_MAX, step: OrbitConfig.C_STEP_SIZE
+    },
+    d : {
+      name: 'D',
+      type: 'slider',
+      defaultValue: OrbitConfig.D_DEFAULT,
+      value: OrbitConfig.D_DEFAULT,
+      min: OrbitConfig.D_MIN, max: OrbitConfig.D_MAX, step: OrbitConfig.D_STEP_SIZE
+    },
+    e : {
+      name: 'E',
+      type: 'slider',
+      defaultValue: OrbitConfig.E_DEFAULT,
+      value: OrbitConfig.E_DEFAULT,
+      min: OrbitConfig.E_MIN, max: OrbitConfig.E_MAX, step: OrbitConfig.E_STEP_SIZE
+    },
   }
 };

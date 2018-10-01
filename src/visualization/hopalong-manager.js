@@ -106,11 +106,11 @@ export default class HopalongManager {
 
       this.hopalongVisualizer.update( deltaTime, audioData, this.renderer, this.cameraManager );
 
-      if ( config.visualizer.glow.value ) {
+      if ( config.effects.glow.value ) {
         this.bloomPass.intensity = audioData.peak.value * audioData.peak.energy;
       }
 
-      if ( audioData.peak.value > 0.8 && config.visualizer.shockwave.value ) {
+      if ( audioData.peak.value > 0.8 && config.effects.shockwave.value ) {
         this.shockwavePass.explode();
       }
       this.composer.render( this.clock.getDelta() );
