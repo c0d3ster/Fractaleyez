@@ -23,10 +23,22 @@ export default
 
         // the higher the threshold is, the harder a peak has to hit compared to
         // the rest of the audio
-        threshold: 2,
+        threshold_DEFAULT: 1.2,
+
+        threshold_MIN: 0,
+
+        threshold_MAX: 5,
+
+        threshold_STEP_SIZE: 0.1,
 
         // time in ms when a peak is not detectable after one has been detected
-        ignoreTime: 300,
+        ignoreTime_DEFAULT: 300,
+
+        ignoreTime_MIN: 0,
+
+        ignoreTime_MAX: 2500,
+
+        ignoreTime_STEP_SIZE: 50,
 
         // time in ms during energies are compared to the real-time energy value
         energyPersistence: 2000,

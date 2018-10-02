@@ -8,46 +8,58 @@ export default {
     speed : {
       name: 'Speed',
       type: 'slider',
-      defaultValue: UserConfig.speed,
-      value: UserConfig.speed,
-      min: 0, max: 40, step: .5
+      defaultValue: UserConfig.speed_DEFAULT,
+      value: UserConfig.speed_DEFAULT,
+      min: UserConfig.speed_MIN,
+      max: UserConfig.speed_MAX,
+      step: UserConfig.speed_STEP_SIZE
     },
     rotationSpeed : {
       name: 'Rotation Speed',
       type: 'slider',
-      defaultValue: UserConfig.rotationSpeed,
-      value: UserConfig.rotationSpeed,
-      min: -50, max: 50, step: .25
+      defaultValue: UserConfig.rotationSpeed_DEFAULT,
+      value: UserConfig.rotationSpeed_DEFAULT,
+      min: UserConfig.rotationSpeed_MIN,
+      max: UserConfig.rotationSpeed_MAX,
+      step: UserConfig.rotationSpeed_STEP_SIZE
     },
     scaleFactor : {
       name: 'Scale Factor',
       type: 'slider',
-      defaultValue: UserConfig.scaleFactor,
-      value: UserConfig.scaleFactor,
-      min: 100, max: 2000, step: 100
+      defaultValue: UserConfig.scaleFactor_DEFAULT,
+      value: UserConfig.scaleFactor_DEFAULT,
+      min: UserConfig.scaleFactor_MIN,
+      max: UserConfig.scaleFactor_MAX,
+      step: UserConfig.scaleFactor_STEP_SIZE
     },
     cameraBound : {
       name: 'Camera Bound',
       type: 'slider',
-      defaultValue: UserConfig.cameraBound,
-      value: UserConfig.cameraBound,
-      min: 0, max: 500, step: 20
+      defaultValue: UserConfig.cameraBound_DEFAULT,
+      value: UserConfig.cameraBound_DEFAULT,
+      min: UserConfig.cameraBound_MIN,
+      max: UserConfig.cameraBound_MAX,
+      step: UserConfig.cameraBound_SEP_SIZE
     }
   },
   audio : {
     threshold: {
       name: 'Sound Threshold',
       type: 'slider',
-      defaultValue: AnalyserConfig.options.peakDetection.options.threshold,
-      value: AnalyserConfig.options.peakDetection.options.threshold,
-      min: 0, max: 5, step: 0.1
+      defaultValue: AnalyserConfig.options.peakDetection.options.threshold_DEFAULT,
+      value: AnalyserConfig.options.peakDetection.options.threshold_DEFAULT,
+      min: AnalyserConfig.options.peakDetection.options.threshold_MIN,
+      max: AnalyserConfig.options.peakDetection.options.threshold_MAX,
+      step: AnalyserConfig.options.peakDetection.options.threshold_STEP_SIZE
     },
     ignoreTime : {
       name: 'Ignore Time',
       type: 'slider',
-      defaultValue: AnalyserConfig.options.peakDetection.options.ignoreTime,
-      value: AnalyserConfig.options.peakDetection.options.ignoreTime,
-      min: 0, max: 2500, step: 50
+      defaultValue: AnalyserConfig.options.peakDetection.options.ignoreTime_DEFAULT,
+      value: AnalyserConfig.options.peakDetection.options.ignoreTime_DEFAULT,
+      min: AnalyserConfig.options.peakDetection.options.ignoreTime_MIN,
+      max: AnalyserConfig.options.peakDetection.options.ignoreTime_MAX,
+      step: AnalyserConfig.options.peakDetection.options.ignoreTime_STEP_SIZE
     },
   },
   effects: {
@@ -94,35 +106,45 @@ export default {
       type: 'slider',
       defaultValue: OrbitConfig.A_DEFAULT,
       value: OrbitConfig.A_DEFAULT,
-      min: OrbitConfig.A_MIN, max: OrbitConfig.A_MAX, step: OrbitConfig.A_STEP_SIZE
+      min: OrbitConfig.A_MIN,
+      max: OrbitConfig.A_MAX,
+      step: OrbitConfig.A_STEP_SIZE
     },
     b : {
       name: 'B',
       type: 'slider',
       defaultValue: OrbitConfig.B_DEFAULT,
       value: OrbitConfig.B_DEFAULT,
-      min: OrbitConfig.B_MIN, max: OrbitConfig.B_MAX, step: OrbitConfig.B_STEP_SIZE
+      min: OrbitConfig.B_MIN,
+      max: OrbitConfig.B_MAX,
+      step: OrbitConfig.B_STEP_SIZE
     },
     c : {
       name: 'C',
       type: 'slider',
       defaultValue: OrbitConfig.C_DEFAULT,
       value: OrbitConfig.C_DEFAULT,
-      min: OrbitConfig.C_MIN, max: OrbitConfig.C_MAX, step: OrbitConfig.C_STEP_SIZE
+      min: OrbitConfig.C_MIN,
+      max: OrbitConfig.C_MAX,
+      step: OrbitConfig.C_STEP_SIZE
     },
     d : {
       name: 'D',
       type: 'slider',
       defaultValue: OrbitConfig.D_DEFAULT,
       value: OrbitConfig.D_DEFAULT,
-      min: OrbitConfig.D_MIN, max: OrbitConfig.D_MAX, step: OrbitConfig.D_STEP_SIZE
+      min: OrbitConfig.D_MIN,
+      max: OrbitConfig.D_MAX,
+      step: OrbitConfig.D_STEP_SIZE
     },
     e : {
       name: 'E',
       type: 'slider',
       defaultValue: OrbitConfig.E_DEFAULT,
       value: OrbitConfig.E_DEFAULT,
-      min: OrbitConfig.E_MIN, max: OrbitConfig.E_MAX, step: OrbitConfig.E_STEP_SIZE
+      min: OrbitConfig.E_MIN,
+      max: OrbitConfig.E_MAX,
+      step: OrbitConfig.E_STEP_SIZE
     },
   }
 };
