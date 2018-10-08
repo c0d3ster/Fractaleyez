@@ -4,11 +4,11 @@
 export default {
 
   //Config for the "A" input parameter into the hopalong orbit
-  A_MIN: 2,
+  A_MIN: 1,
 
   A_MAX: 10,
 
-  A_DEFAULT: 0.5,
+  A_DEFAULT: 3,
 
   A_STEP_SIZE: 0.1,
 

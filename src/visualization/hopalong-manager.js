@@ -71,19 +71,22 @@ export default class HopalongManager {
    this.composer = new EffectComposer( this.renderer );
    this.composer.addPass( new RenderPass( this.hopalongVisualizer.getScene(), this.cameraManager.getCamera() ) );
    this.bloomEffect = new BloomEffect();
-   this.bloomEffect.kernelSize = 0;
-   this.composer.addPass( new EffectPass(this.cameraManager.getCamera(), this.bloomEffect ) );
+   this.bloomEffect.kernelSize = 3;
 
    let fakeCamera = new THREE.PerspectiveCamera( 60, window.innerWidth/window.innerHeight );
    fakeCamera.position.z = 7;
 
-   this.shockwaveEffect = new ShockWaveEffect( fakeCamera );
-   this.shockwaveEffect.renderToScreen = true;
-   this.shockwaveEffect.size = 2;//audioData.peak.value * 2;
-   this.shockwaveEffect.extent = 10;//audioData.peak.value * 100;
-   this.shockwaveEffect.waveSize = 10;//(audioData.peak.value / 1) * 2;
-   this.shockwaveEffect.amplitude = 1;
-   this.composer.addPass( this.shockwaveEffect );
+   const options = {
+     waveSize: .15,
+     speed: .5,
+     amplitude: .2,
+     maxRadius: .5
+   }
+   this.shockwaveEffect = new ShockWaveEffect( fakeCamera, this.cameraManager.focusPoint, options );
+
+   this.effectPass = new EffectPass(this.cameraManager.getCamera(), this.shockwaveEffect, this.bloomEffect );
+   this.effectPass.renderToScreen = true;
+   this.composer.addPass( this.effectPass );
 
    this.clock = new THREE.Clock();
  }
@@ -98,16 +101,13 @@ export default class HopalongManager {
       this.deltaTime = deltaTime;
       this.elapsedTime += deltaTime;
 
-      this.shockwaveEffect.speed = .3;//(hopalongVisualizer.getSpeed() / 80) + audioData.peak.value + .25;
-      this.shockwaveEffect.size = 2;//audioData.peak.value * 2;
-      this.shockwaveEffect.extent = 10;//audioData.peak.value * 100;
-      this.shockwaveEffect.waveSize = 10;//(audioData.peak.value / 1) * 2;
-      this.shockwaveEffect.amplitude = .25;
+      this.shockwaveEffect.speed = (config.user.speed.value / 15) + audioData.peak.value * 1.25;
+      console.log(this.shockwaveEffect.speed);
 
       this.hopalongVisualizer.update( deltaTime, audioData, this.renderer, this.cameraManager );
 
       if ( config.effects.glow.value ) {
-        this.bloomEffect.intensity = audioData.peak.value * audioData.peak.energy;
+        this.bloomEffect.opacity = audioData.peak.value * audioData.peak.energy;
       }
 
       if ( audioData.peak.value > 0.8 && config.effects.shockwave.value ) {
