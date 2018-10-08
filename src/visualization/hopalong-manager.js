@@ -5,10 +5,6 @@ import HopalongVisualizer from './hopalong-visualizer.js'
 import CameraManager from './camera-manager';
 import config from '../config/configuration';
 
-
-//let fakeCamera = new THREE.PerspectiveCamera( 60, window.innerWidth/window.innerHeight );
-//fakeCamera.position.z = 5;
-
 /**
  * The Hopalong Manager class is responsible for creating the camera and visualization
  * for Barry's Hopalong Orbits
@@ -71,7 +67,7 @@ export default class HopalongManager {
    this.composer = new EffectComposer( this.renderer );
    this.composer.addPass( new RenderPass( this.hopalongVisualizer.getScene(), this.cameraManager.getCamera() ) );
    this.bloomEffect = new BloomEffect();
-   this.bloomEffect.kernelSize = 3;
+   this.bloomEffect.kernelSize = 1;
 
    let fakeCamera = new THREE.PerspectiveCamera( 60, window.innerWidth/window.innerHeight );
    fakeCamera.position.z = 7;
@@ -80,7 +76,7 @@ export default class HopalongManager {
      waveSize: .15,
      speed: .5,
      amplitude: .2,
-     maxRadius: .5
+     maxRadius: 2
    }
    this.shockwaveEffect = new ShockWaveEffect( fakeCamera, this.cameraManager.focusPoint, options );
 
@@ -102,12 +98,11 @@ export default class HopalongManager {
       this.elapsedTime += deltaTime;
 
       this.shockwaveEffect.speed = (config.user.speed.value / 15) + audioData.peak.value * 1.25;
-      console.log(this.shockwaveEffect.speed);
 
       this.hopalongVisualizer.update( deltaTime, audioData, this.renderer, this.cameraManager );
 
       if ( config.effects.glow.value ) {
-        this.bloomEffect.opacity = audioData.peak.value * audioData.peak.energy;
+        this.bloomEffect.blendMode.opacity.value = audioData.peak.value * audioData.peak.energy;
       }
 
       if ( audioData.peak.value > 0.8 && config.effects.shockwave.value ) {
