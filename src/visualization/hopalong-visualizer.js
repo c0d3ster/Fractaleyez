@@ -9,26 +9,15 @@ import config from '../config/configuration.js';
  */
 var VISUALS_VISIBLE = true;
 //var SCALE_FACTOR = 1500;
-var NUM_POINTS_SUBSET = 8000;
+var NUM_POINTS_SUBSET = 24000;
 var NUM_SUBSETS = 5;
 var NUM_POINTS = NUM_POINTS_SUBSET * NUM_SUBSETS;
-var NUM_LEVELS = 5;
+var NUM_LEVELS = 7;
 var LEVEL_DEPTH = 500;
 var DEF_BRIGHTNESS = .5;
 var DEF_SATURATION = 1;
 var SPRITE_SIZE = 5;
 
-// Orbit parameters constraints
-var A_MIN = 2;
-var A_MAX = 10;
-var B_MIN = .2;
-var B_MAX = .3;
-var C_MIN = 5;
-var C_MAX = 6;
-var D_MIN = 0;
-var D_MAX = 1;
-var E_MIN = 0;
-var E_MAX = 1;
 
 // Orbit parameters
 var a, b, c, d, e;

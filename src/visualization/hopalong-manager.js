@@ -79,10 +79,9 @@ export default class HopalongManager {
 
    this.shockwavePass = new ShockWavePass( fakeCamera );
    this.shockwavePass.renderToScreen = true;
-   this.shockwavePass.size = 2;//audioData.peak.value * 2;
-   this.shockwavePass.extent = 10;//audioData.peak.value * 100;
-   this.shockwavePass.waveSize = 10;//(audioData.peak.value / 1) * 2;
-   this.shockwavePass.amplitude = 1;
+   this.shockwavePass.speed = 1.3;
+   this.shockwavePass.extent = 3.34;
+   this.shockwavePass.waveSize = 0.8;
    this.composer.addPass( this.shockwavePass );
 
    this.clock = new THREE.Clock();
@@ -98,11 +97,9 @@ export default class HopalongManager {
       this.deltaTime = deltaTime;
       this.elapsedTime += deltaTime;
 
-      this.shockwavePass.speed = .3;//(hopalongVisualizer.getSpeed() / 80) + audioData.peak.value + .25;
-      this.shockwavePass.size = 2;//audioData.peak.value * 2;
-      this.shockwavePass.extent = 10;//audioData.peak.value * 100;
-      this.shockwavePass.waveSize = 10;//(audioData.peak.value / 1) * 2;
-      this.shockwavePass.amplitude = .25;
+      this.shockwavePass.speed = 1.3 * audioData.peak.energy / 10;
+      this.shockwavePass.extent = 3.34;
+      this.shockwavePass.waveSize = 0.8;
 
       this.hopalongVisualizer.update( deltaTime, audioData, this.renderer, this.cameraManager );
 
