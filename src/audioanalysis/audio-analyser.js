@@ -63,8 +63,11 @@ export class AudioAnalyser
 
         if( returns.peak || returns.peakHistory )
         {
-          this.computePeakDetection( this.data.getEnergy(), this.data.getEnergyAverage(), this.data.peak, this.data.peakHistory, currentTimer,
-                                     config.audio.threshold.value, AnalyserConfig.options.peakDetection.options.peakPersistency, config.audio.ignoreTime.value, EASINGS.linear );
+          console.log("multiband energy " + this.data.getMultibandEnergy());
+          //this.computePeakDetection( this.data.getEnergy(), this.data.getEnergyAverage(), this.data.peak, this.data.peakHistory, currentTimer,
+          //                           config.audio.threshold.value, AnalyserConfig.options.peakDetection.options.peakPersistency, config.audio.ignoreTime.value, EASINGS.linear );
+          this.computePeakDetection( this.data.getMultibandEnergy()[0], this.data.getEnergyAverage(), this.data.peak, this.data.peakHistory,
+            currentTimer, config.audio.threshold.value, AnalyserConfig.options.peakDetection.options.peakPersistency, config.audio.ignoreTime.value, EASINGS.linear );
         }
       }
     }

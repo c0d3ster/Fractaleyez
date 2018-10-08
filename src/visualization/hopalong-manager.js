@@ -97,7 +97,7 @@ export default class HopalongManager {
       this.deltaTime = deltaTime;
       this.elapsedTime += deltaTime;
 
-      this.shockwavePass.speed = 1.3 * audioData.peak.energy / 10;
+      this.shockwavePass.speed = 1.3;// * audioData.peak.energy / 10;
       this.shockwavePass.extent = 3.34;
       this.shockwavePass.waveSize = 0.8;
 
@@ -107,7 +107,8 @@ export default class HopalongManager {
         this.bloomPass.intensity = audioData.peak.value * audioData.peak.energy;
       }
 
-      if ( audioData.peak.value > 0.8 && config.effects.shockwave.value ) {
+      console.log(audioData.peak.value);
+      if ( audioData.peak.value > 0 && config.effects.shockwave.value ) {
         this.shockwavePass.explode();
       }
       this.composer.render( this.clock.getDelta() );

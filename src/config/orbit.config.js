@@ -15,36 +15,36 @@ export default {
   //Config for the "B" input parameter into the hopalong orbit
   B_MIN: 0,
 
-  B_MAX: 2,
+  B_MAX: 10,
 
   B_DEFAULT: 1,
 
-  B_STEP_SIZE: 0.01,
+  B_STEP_SIZE: 0.1,
 
   //Config for the "C" input parameter into the hopalong orbit
-  C_MIN: 5,
+  C_MIN: 0,
 
-  C_MAX: 9,
+  C_MAX: 10,
 
-  C_DEFAULT: 7,
+  C_DEFAULT: 8,
 
   C_STEP_SIZE: 0.1,
 
   //Config for the "D" input parameter into the hopalong orbit
   D_MIN: 0,
 
-  D_MAX: 5,
+  D_MAX: 10,
 
-  D_DEFAULT: 2.5,
+  D_DEFAULT: 4.9,
 
   D_STEP_SIZE: 0.1,
 
   //Config for the "E" input parameter into the hopalong orbit
   E_MIN: 0,
 
-  E_MAX: 6,
+  E_MAX: 10,
 
-  E_DEFAULT: 3,
+  E_DEFAULT: 6.25,
 
   E_STEP_SIZE: 0.1
 };

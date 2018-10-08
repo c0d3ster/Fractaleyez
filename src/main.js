@@ -87,6 +87,9 @@ function analyze() {
   //console.log("\nMultiBand Energy = " + analysedData.getMultibandEnergy());
   //console.log("\npeak.value = " + analysedData.peak.value);
   //console.log("\npeak.energy = " + analysedData.peak.energy);
+
+  //console.log("\nPeakHistory = " + analysedData.peakHistory);
+  //console.log("\nmultibandPeakHistory = " + analysedData.multibandPeakHistory);
   if(!analysedData.getEnergy()) { //if the user hasnt clicked the page, the audio context wont be allowed to start automatically
     console.log(idleSoundTimer);
     idleSoundTimer++;
