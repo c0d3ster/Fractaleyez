@@ -23,7 +23,7 @@ export default
 
         // the higher the threshold is, the harder a peak has to hit compared to
         // the rest of the audio
-        threshold_DEFAULT: 1.2,
+        threshold_DEFAULT: 2,
 
         threshold_MIN: 0,
 

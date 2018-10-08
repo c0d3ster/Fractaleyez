@@ -14,7 +14,7 @@ export default class CameraManager {
       this.mouseY = 0;
       this.deltaTime = 0;
       this.elapsedTime = 0;
-      this.focusPoint = new THREE.Vector3(0,0,0);
+      this.focusPoint = new THREE.Vector3(0,0,-5);
     }
 
     init() {
