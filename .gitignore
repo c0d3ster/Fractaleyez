@@ -2,6 +2,7 @@
 public/*.js*
 public/app.js
 public/*.png
+public/*.svg
 
 # Dependency directory
 node_modules/

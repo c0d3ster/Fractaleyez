@@ -121,6 +121,8 @@ export default class HopalongManager {
   }
 
   onWindowResize = (event) => {
+    console.log('resizing.....');
+    this.composer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.setPixelRatio( window.devicePixelRatio );
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.cameraManager.onResize();

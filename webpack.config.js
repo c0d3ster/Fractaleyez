@@ -12,7 +12,7 @@ const jQuery = new webpack.ProvidePlugin({
 
 module.exports = {
   //with webpack 4 entry and output configuration is optional
-  entry: APP_DIR + '/main.js',
+  entry: APP_DIR + '/index.jsx',
   output:
   {
     path: BUILD_DIR,
@@ -27,7 +27,7 @@ module.exports = {
         use: {
           loader: 'babel-loader',
           options: {
-            presets: ['@babel/preset-env'],
+            presets: ['@babel/preset-env', '@babel/preset-react'],
             plugins: ['@babel/plugin-proposal-class-properties']
           }
         },
