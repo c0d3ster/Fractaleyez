@@ -3,9 +3,9 @@ import Header from './Header.jsx';
 
 import '../styles/App.css';
 //SHOULD ADD CSS FOR HAVING THE HEADER SLIDE IN AND OUT LIKE THE SIDEBAR DOES With a DEFAULT STATE OF HIDDEN
-import  '../main.js';
+import  '../main.js'; // this starts the three js stuff.
 
-import ConfigWindow from './ConfigWindow.jsx';
+import ConfigWindow from './config/ConfigWindow.jsx';
 
 export default class App extends React.Component {
   constructor(props) {
@@ -48,9 +48,6 @@ export default class App extends React.Component {
 
         {this.state.showConfigWindow && (
           <ConfigWindow>
-            <h1>Counter in a portal: {this.state.counter}</h1>
-            <p>Even though I render in a different window, I share state!</p>
-
           </ConfigWindow>
         )}
       </div>

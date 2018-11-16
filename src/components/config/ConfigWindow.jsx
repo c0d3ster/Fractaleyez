@@ -1,5 +1,8 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
+import UserConfig from './UserConfig.jsx';
+
+import copyStyles from '../../styles/AppStyleCopier.js';
 
 export default class ConfigWindow extends React.PureComponent {
   constructor(props) {
@@ -9,7 +12,7 @@ export default class ConfigWindow extends React.PureComponent {
     this.externalWindow = null;
   }
 
-
+  //SHOULD STILL INITALLY KEEP CONFIG IN SAME WINDOW AND ADD BUTTON TO DETACH IT TO NEW WINDOW
 
   componentDidMount() {
     // STEP 3: open a new browser window and store a reference to it
@@ -17,6 +20,9 @@ export default class ConfigWindow extends React.PureComponent {
 
     // STEP 4: append the container <div> (that has props.children appended to it) to the body of the new window
     this.externalWindow.document.body.appendChild(this.containerEl);
+
+    copyStyles(document, this.externalWindow.document);
+
   }
 
   componentWillUnmount() {
@@ -25,8 +31,17 @@ export default class ConfigWindow extends React.PureComponent {
     this.externalWindow.close();
   }
 
+  onSpeedChanged(speed) {
+    console.log('speed changed clicked');
+
+  }
+
   render() {
     // STEP 2: append props.children to the container <div> that isn't mounted anywhere yet
-    return ReactDOM.createPortal(this.props.children, this.containerEl);
+    return ReactDOM.createPortal(
+      <UserConfig/>
+      ,
+      this.containerEl
+    );
   }
 }
