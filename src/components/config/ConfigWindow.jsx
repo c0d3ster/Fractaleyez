@@ -4,6 +4,9 @@ import UserConfig from './UserConfig.jsx';
 
 import copyStyles from '../../styles/AppStyleCopier.js';
 
+import config from '../../config/configuration.js';
+
+
 export default class ConfigWindow extends React.PureComponent {
   constructor(props) {
     super(props);
@@ -31,15 +34,36 @@ export default class ConfigWindow extends React.PureComponent {
     this.externalWindow.close();
   }
 
-  onSpeedChanged(speed) {
-    console.log('speed changed clicked');
+  onUserSpeedChanged(speed) {
+    console.log('speed changed ');
+
+  }
+
+  onUserRotationSpeedChanged(speed) {
+    console.log('rotation speed changed ');
+
+  }
+
+  onUserScaleFactorChanged(scale) {
+    console.log('onUserScaleFactorChanged ');
+
+  }
+
+  onUserCameraBoundChanged(bound) {
+    console.log('onUserCameraBoundChanged ');
 
   }
 
   render() {
     // STEP 2: append props.children to the container <div> that isn't mounted anywhere yet
     return ReactDOM.createPortal(
-      <UserConfig/>
+      <UserConfig
+        userConfig={config.user}
+        onUserSpeedChanged={this.onUserSpeedChanged}
+        onUserRotationSpeedChanged={this.onUserRotationSpeedChanged}
+        onUserScaleFactorChanged={this.onUserScaleFactorChanged}
+        onUserCameraBoundChanged={this.onUserCameraBoundChanged}
+        {...this.state}/>
       ,
       this.containerEl
     );
