@@ -1,9 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
 import UserConfig from './UserConfig.jsx';
-import AudioConfig from './AudioConfig.jsx';
-import EffectsConfig from './EffectsConfig.jsx';
-import OrbitConfig from './OrbitConfig.jsx';
+import ConfigCategory from './ConfigCategory'
 
 
 import { Grid, Row, Col, } from 'react-bootstrap';
@@ -15,7 +13,7 @@ import copyStyles from '../../styles/AppStyleCopier.js';
 import config from '../../config/configuration.js';
 
 
-export default class ConfigWindow extends React.PureComponent {
+export default class ConfigWindow extends React.Component {
   externalWindow = null;
   containerEl = document.createElement('div');
   state = {
@@ -47,6 +45,7 @@ export default class ConfigWindow extends React.PureComponent {
   }
 
   onSpeedChanged = (event) => {
+    console.log(event.target)
     config.user.speed.value = event.target.value;
     this.externalWindow.console.log('speed changed ' + event.target.value);
   }
@@ -67,34 +66,7 @@ export default class ConfigWindow extends React.PureComponent {
                 {...this.state}/>
             </Col>
             <Col sm={6} md={3}>
-              <AudioConfig
-                audioConfig={config.audio}
-                onThresholdChanged={this.onThresholdChanged}
-                onIgnoreTimeChanged={this.onIgnoreTimeChanged}
-                {...this.state}/>
-            </Col>
-          </Row>
-          <Row>
-            <Col sm={6} md={3}>
-              <EffectsConfig
-                effectsConfig={config.effects}
-                onCycloneToggled={this.onCycloneToggled}
-                onWobWobToggle={this.onWobWobToggle}
-                onSwitcherooToggled={this.onSwitcherooToggled}
-                onColorShiftToggled={this.onColorShiftToggled}
-                onGlowToggled={this.onGlowToggled}
-                onShockWaveToggled={this.onShockWaveToggled}
-                {...this.state}/>
-            </Col>
-            <Col sm={6} md={3}>
-                <OrbitConfig
-                  orbitConfig={config.orbit}
-                  onAChanged={this.onAChanged}
-                  onBChanged={this.onBChanged}
-                  onCChanged={this.onCChanged}
-                  onDChanged={this.onDChanged}
-                  onEChanged={this.onEChanged}
-                  {...this.state}/>
+              <ConfigCategory />
             </Col>
           </Row>
         </Grid>

@@ -63,8 +63,9 @@ module.exports = {
       }
     ]
   },
-  //resolves directory to look for modules
+  //resolves directory to look for modules and resolves extensions
   resolve: {
+    extensions: ['.js', '.jsx'],
     modules: ['node_modules']
   },
   //manages plugins specified above configuration

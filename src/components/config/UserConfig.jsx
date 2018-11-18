@@ -15,6 +15,7 @@ export default class UserConfig extends React.Component {
       <h1> User Config </h1>
       <p> Speed </p>
       <input type="range"
+        name={"speed"}
         min={this.props.userConfig.speed.min}
         max={this.props.userConfig.speed.max}
         defaultValue={this.props.speedValue}
