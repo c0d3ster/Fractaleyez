@@ -8,30 +8,13 @@ import  '../main.js'; // this starts the three js stuff.
 import ConfigWindow from './config/ConfigWindow.jsx';
 
 export default class App extends React.Component {
-  constructor(props) {
-    super(props);
-
-    this.state = {
-      showConfig: false, //SHOULD STILL INITALLY KEEP CONFIG IN SAME WINDOW AND ADD BUTTON TO DETACH IT TO NEW WINDOW
-      counter: 0,
-      showConfigWindow: false,
-    };
-
-    this.toggleConfigWindow = this.toggleConfigWindow.bind(this);
+  state = {
+    showConfig: false, //SHOULD STILL INITALLY KEEP CONFIG IN SAME WINDOW AND ADD BUTTON TO DETACH IT TO NEW WINDOW
+    showConfigWindow: false,
   }
 
-  componentDidMount() {
-    window.setInterval(() => {
-      this.setState(state => ({
-        ...state,
-        counter: state.counter + 1,
-      }));
-    }, 1000);
-  }
-
-  toggleConfigWindow() {
+  toggleConfigWindow = () => {
     this.setState(state => ({
-      ...state,
       showConfigWindow: !state.showConfigWindow,
     }));
   }
@@ -39,17 +22,8 @@ export default class App extends React.Component {
   render() {
     return (
       <div>
-        <Header
-        onConfigClicked={this.toggleConfigWindow}
-        {...this.state}/>
-
-        <h1>Counter: {this.state.counter}</h1>
-
-
-        {this.state.showConfigWindow && (
-          <ConfigWindow>
-          </ConfigWindow>
-        )}
+        <Header onConfigClicked={this.toggleConfigWindow} />
+        {this.state.showConfigWindow && <ConfigWindow/>}
       </div>
     );
   }

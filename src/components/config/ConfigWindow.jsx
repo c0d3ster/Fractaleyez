@@ -16,143 +16,42 @@ import config from '../../config/configuration.js';
 
 
 export default class ConfigWindow extends React.PureComponent {
-  constructor(props) {
-    super(props);
-    // STEP 1: create a container <div>
-    this.containerEl = document.createElement('div');
-    this.externalWindow = null;
-
-    this.state = {
-      width:  1920,
-      height: 1080
-    };
-  }
+  externalWindow = null;
+  containerEl = document.createElement('div');
+  state = {
+    width:  1920,
+    height: 1080
+  };
 
   //SHOULD STILL INITALLY KEEP CONFIG IN SAME WINDOW AND ADD BUTTON TO DETACH IT TO NEW WINDOW
 
   componentDidMount() {
-    // STEP 3: open a new browser window and store a reference to it
     this.externalWindow = window.open('', '', 'width=' + this.state.width + ',height=' + this.state.height);
-
-    // STEP 4: append the container <div> (that has props.children appended to it) to the body of the new window
     this.externalWindow.document.body.appendChild(this.containerEl);
-
-    this.externalWindow.addEventListener("resize", this.updateDimensions.bind(this));
+    this.externalWindow.addEventListener("resize", this.updateDimensions);
 
     copyStyles(document, this.externalWindow.document);
   }
 
   componentWillUnmount() {
-    this.externalWindow.removeEventListener("resize", this.updateDimensions.bind(this));
-    // STEP 5: This will fire when this.state.showWindowPortal in the parent component becomes false
-    // So we tidy up by closing the window
+    this.externalWindow.removeEventListener("resize", this.updateDimensions);
     this.externalWindow.close();
-
-
   }
 
-    /**
+  /**
    * Calculate & Update state of new dimensions
    */
-  updateDimensions() {
-    console.log('updating dimesnison  ');
-
+  updateDimensions = () => {
+    console.log('updating dimensions');
     this.setState({ width: this.externalWindow.innerWidth, height: this.externalWindow.innerHeight });
-
   }
 
-  //---------------USER CONFIG ----------------
   onSpeedChanged = (event) => {
     config.user.speed.value = event.target.value;
     this.externalWindow.console.log('speed changed ' + event.target.value);
-
-  }
-
-  onRotationSpeedChanged(speed) {
-    console.log('rotation speed changed ');
-
-  }
-
-  onScaleFactorChanged(scale) {
-    console.log('onUserScaleFactorChanged ');
-
-  }
-
-  onCameraBoundChanged(bound) {
-    console.log('onUserCameraBoundChanged ');
-
-  }
-
-  //--------AUDIO CONFIG
-  onThresholdChanged(threshold) {
-    console.log('onUserScaleFactorChanged ');
-
-  }
-
-  onIgnoreTimeChanged(ignoreTime) {
-    console.log('onUserCameraBoundChanged ');
-
-  }
-
-  //-------EFFECTS Config
-  onCycloneToggled() {
-    console.log('onCycloneToggled ');
-
-  }
-
-  onWobWobToggle () {
-    console.log('onWobWobToggle ');
-
-  }
-
-  onSwitcherooToggled() {
-    console.log('onSwitcherooToggled ');
-
-  }
-
-  onColorShiftToggled() {
-    console.log('onColorShiftToggled ');
-
-  }
-
-  onGlowToggled() {
-    console.log('onGlowToggled ');
-
-  }
-
-  onShockWaveToggled() {
-    console.log('onShockWaveToggled ');
-
-  }
-
-  //---------------ORBIT CONFIG ----------------
-  onAChanged(a) {
-    console.log('onAChanged ');
-
-  }
-
-  onBChanged(b) {
-    console.log('onBChanged ');
-
-  }
-
-  onCChanged(c) {
-    console.log('onCChanged ');
-
-  }
-
-  onDChanged(d) {
-    console.log('onDChanged ');
-
-  }
-
-  onEChanged(e) {
-    console.log('onEChanged ');
-
   }
 
   render() {
-    // STEP 2: append props.children to the container <div> that isn't mounted anywhere yet
     return ReactDOM.createPortal(
       <div width={this.state.width} height={this.state.height}>
         <Grid>
@@ -160,6 +59,7 @@ export default class ConfigWindow extends React.PureComponent {
             <Col sm={6} md={3}>
               <UserConfig
                 userConfig={config.user}
+                speedValue={config.user.speed.value}
                 onSpeedChanged={this.onSpeedChanged}
                 onRotationSpeedChanged={this.onRotationSpeedChanged}
                 onScaleFactorChanged={this.onScaleFactorChanged}

@@ -1,8 +1,6 @@
-
 import React from 'react';
 
-
-export default class UserConfig extends React.PureComponent {
+export default class UserConfig extends React.Component {
   componentWillUnmount() {
 
   }
@@ -12,7 +10,6 @@ export default class UserConfig extends React.PureComponent {
   }
 
   render() {
-
     return (
       <div>
       <h1> User Config </h1>
@@ -20,7 +17,7 @@ export default class UserConfig extends React.PureComponent {
       <input type="range"
         min={this.props.userConfig.speed.min}
         max={this.props.userConfig.speed.max}
-        value={this.props.speedValue}
+        defaultValue={this.props.speedValue}
         step={this.props.userConfig.speed.step}
         onChange={(e) => this.props.onSpeedChanged(e)}/>
 

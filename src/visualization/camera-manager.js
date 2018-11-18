@@ -20,9 +20,8 @@ export default class CameraManager {
     init() {
       console.log("Camera Manager Initialized\n------------");
       this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1, 3 * config.user.scaleFactor.value);
-      this.camera.position.z = config.user.scaleFactor.value / 2;
+      this.camera.position.z = config.user.scaleFactor.value / 3;
       this.cameraBound = config.user.cameraBound.value;
-      this.camera.rotation.y = 3.14;
     }
 
     getMouseX() {
