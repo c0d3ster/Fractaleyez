@@ -26,8 +26,6 @@ export default class ConfigWindow extends React.PureComponent {
       width:  1920,
       height: 1080
     };
-
-    this.onSpeedChanged = this.onSpeedChanged.bind(this);
   }
 
   //SHOULD STILL INITALLY KEEP CONFIG IN SAME WINDOW AND ADD BUTTON TO DETACH IT TO NEW WINDOW
@@ -64,8 +62,9 @@ export default class ConfigWindow extends React.PureComponent {
   }
 
   //---------------USER CONFIG ----------------
-  onSpeedChanged(speed) {
-    console.log('speed changed ');
+  onSpeedChanged = (event) => {
+    config.user.speed.value = event.target.value;
+    this.externalWindow.console.log('speed changed ' + event.target.value);
 
   }
 
