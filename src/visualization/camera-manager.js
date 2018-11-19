@@ -2,8 +2,9 @@ import * as THREE from 'three';
 
 import config from '../config/configuration';
 
-/*
- *
+/**
+ * The Camera Manager class is responsible for creating and modifying the 
+ * user's point of view in relation to the scene
  */
 export default class CameraManager {
 
@@ -18,7 +19,6 @@ export default class CameraManager {
     }
 
     init() {
-      console.log("Camera Manager Initialized\n------------");
       this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1, 3 * config.user.scaleFactor.value);
       this.camera.position.z = config.user.scaleFactor.value / 3;
       this.cameraBound = config.user.cameraBound.value;

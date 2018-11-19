@@ -29,7 +29,6 @@ export default class HopalongManager {
    */
   init( startTimer )
   {
-    console.log("Hopalong Manager Initialized\n------------");
     this.$container = $('<div></div>');    //jQuery variables are prepended by $
     $( document.body ).append(this.$container);
 
@@ -116,6 +115,7 @@ export default class HopalongManager {
   ///////////////////////////////////////////////
   // Event listeners
   ///////////////////////////////////////////////
+  // TODO Move these into config
   onDocumentMouseMove = (event) => {
     this.cameraManager.updateMousePosition(event);
   }

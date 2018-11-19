@@ -1,7 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
-import UserConfig from './UserConfig.jsx';
-import ConfigCategory from './ConfigCategory'
+import ConfigCategory from './ConfigCategory';
 
 
 import { Grid, Row, Col, } from 'react-bootstrap';

@@ -1,16 +1,11 @@
 import * as THREE from 'three';
-import { HUD } from './hud/hud-controller';
-import { Stats } from './tools/stats';
 
 import './main.css';
 import { AudioSource } from './audiostream/audio-source';
 import { AudioStream } from './audiostream/audio-stream';
 import { AudioAnalyser } from './audioanalysis/audio-analyser';
-import { AnalysedDataVisualizer } from './audioanalysis/utility/analysed-data-visualizer';
-import CameraManager from './visualization/camera-manager.js';
 import HopalongManager from './visualization/hopalong-manager.js';
 import Sidebar from './sidebar/sidebar';
-import config from './config/configuration.js';
 
 
 // Size of the fft transform performed on audio stream

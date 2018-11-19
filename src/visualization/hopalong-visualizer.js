@@ -1,13 +1,11 @@
 import * as THREE from 'three';
 import { AudioAnalysedDataForVisualization } from '../audioanalysis/audio-analysed-data';
-import { CameraManager } from './camera-manager.js';
 import config from '../config/configuration.js';
 
 /*
  * ORIGINAL AUTHOR: Iacopo Sassarini
  * Modifications made by Cody Douglass and Conor O'Neill
  */
-var VISUALS_VISIBLE = true;
 var NUM_POINTS_SUBSET = 10;
 var NUM_SUBSETS = 5;
 var NUM_POINTS = NUM_POINTS_SUBSET * NUM_SUBSETS;
@@ -16,18 +14,6 @@ var LEVEL_DEPTH = 500;
 var DEF_BRIGHTNESS = .5;
 var DEF_SATURATION = 1;
 var SPRITE_SIZE = 250;
-
-// Orbit parameters constraints
-var A_MIN = 2;
-var A_MAX = 10;
-var B_MIN = .2;
-var B_MAX = .3;
-var C_MIN = 5;
-var C_MAX = 6;
-var D_MIN = 0;
-var D_MAX = 1;
-var E_MIN = 0;
-var E_MAX = 1;
 
 // Orbit parameters
 var a, b, c, d, e;
@@ -74,8 +60,6 @@ export default class HopalongVisualizer {
 
 
   init() {
-    console.log("Hopalong Visualizer Initialized\n------------");
-
     let sprite = new THREE.TextureLoader().load( this.particleImage );
     this.setLights();
 
@@ -86,11 +70,8 @@ export default class HopalongVisualizer {
 
 
         let geometry = new THREE.Geometry();
-        let count = 0;
         for (var i = 0; i < NUM_POINTS_SUBSET; i++) {
-
           geometry.vertices.push(this.orbit.subsets[s][i].vertex);
-          count++;
         }
 
 
@@ -241,13 +222,10 @@ export default class HopalongVisualizer {
 
     let la=a, lb=b, lc=c, ld=d, le=e;
 
-    let subsets = this.orbit.subsets;
-    let num_points_subset_l = NUM_POINTS_SUBSET;
-    let num_points_l = NUM_POINTS;
     let scale_factor_l = config.user.scaleFactor.value;
 
     let xMin = 0, xMax = 0, yMin = 0, yMax = 0;
-    let choice = Math.random();
+    // let choice = Math.random();
 
     for( let s = 0; s < NUM_SUBSETS; s++ )
     {
@@ -297,7 +275,7 @@ export default class HopalongVisualizer {
       let currentSubset = this.orbit.subsets[s];
       for( let i = 0; i < NUM_POINTS_SUBSET; i++ )
       {
-        //lil patch to get shit outta middle, not final
+        //TODO: Determine whether this "Clear Center" hack is still functioning or not
         currentSubset[i].vertex.setX( scaleX * (currentSubset[i].x - xMin) - scale_factor_l );
         currentSubset[i].vertex.setY( scaleY * (currentSubset[i].y - yMin) - scale_factor_l );
       }
@@ -319,7 +297,8 @@ export default class HopalongVisualizer {
     d = config.orbit.d.value;
     e = config.orbit.e.value;
 
-    /*a = A_MIN + Math.random() * (A_MAX - A_MIN);
+    /* Randomize parameters
+    a = A_MIN + Math.random() * (A_MAX - A_MIN);
     b = B_MIN + Math.random() * (B_MAX - B_MIN);
     c = C_MIN + Math.random() * (C_MAX - C_MIN);
     d = D_MIN + Math.random() * (D_MAX - D_MIN);
