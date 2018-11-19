@@ -4,7 +4,6 @@ import ConfigSlider from './ConfigSlider'
 
 export default class ConfigCategory extends React.Component {
   render() {
-    const { name, value, min, max, step } = this.props.data.speed
     return(
     <div>
       <h2>{this.props.name} Config</h2>

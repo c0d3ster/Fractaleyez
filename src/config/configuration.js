@@ -43,7 +43,7 @@ export default {
     }
   },
   audio : {
-    threshold: {
+    soundThreshold: {
       name: 'Sound Threshold',
       type: 'slider',
       defaultValue: AnalyserConfig.options.peakDetection.options.threshold_DEFAULT,

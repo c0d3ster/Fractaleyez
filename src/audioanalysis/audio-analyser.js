@@ -64,7 +64,7 @@ export class AudioAnalyser
         if( returns.peak || returns.peakHistory )
         {
           this.computePeakDetection( this.data.getEnergy(), this.data.getEnergyAverage(), this.data.peak, this.data.peakHistory, currentTimer,
-                                     config.audio.threshold.value, AnalyserConfig.options.peakDetection.options.peakPersistency, config.audio.ignoreTime.value, EASINGS.linear );
+                                     config.audio.soundThreshold.value, AnalyserConfig.options.peakDetection.options.peakPersistency, config.audio.ignoreTime.value, EASINGS.linear );
         }
       }
     }
@@ -80,7 +80,7 @@ export class AudioAnalyser
         if( returns.multibandPeakHistory || returns.multibandPeak )
         {
           this.computeMultibandPeakDetection( this.data.getMultibandEnergy(), this.data.getMultibandEnergyAverage(), this.data.multibandPeak, this.data.multibandPeakHistory, currentTimer,
-                                              config.audio.threshold.value, AnalyserConfig.options.multibandPeakDetection.options.peakPersistency, config.audio.ignoreTime.value, EASINGS.linear );
+                                              config.audio.soundThreshold.value, AnalyserConfig.options.multibandPeakDetection.options.peakPersistency, config.audio.ignoreTime.value, EASINGS.linear );
         }
       }
     }

@@ -1,6 +1,6 @@
 import React from 'react'
 
-export default class ConfigItem extends React.PureComponent {
+export default class ConfigSlider extends React.PureComponent {
   render() {
     const { name, value, min, max, step, onChange } = this.props
     return(

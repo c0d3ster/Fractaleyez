@@ -17,11 +17,11 @@ export default class ConfigWindow extends React.Component {
   externalWindow = null;
   containerEl = document.createElement('div');
   state = {
-    width:  600,
-    height: 400
+    width:  1200,
+    height: 420
   };
 
-  //SHOULD STILL INITALLY KEEP CONFIG IN SAME WINDOW AND ADD BUTTON TO DETACH IT TO NEW WINDOW
+  //TODO SHOULD STILL INITALLY KEEP CONFIG IN SAME WINDOW AND ADD BUTTON TO DETACH IT TO NEW WINDOW
 
   componentDidMount() {
     this.externalWindow = window.open('', '', 'width=' + this.state.width + ',height=' + this.state.height);
@@ -36,9 +36,6 @@ export default class ConfigWindow extends React.Component {
     this.externalWindow.close();
   }
 
-  /**
-   * Calculate & Update state of new dimensions
-   */
   updateDimensions = () => {
     console.log('updating dimensions');
     this.setState({ width: this.externalWindow.innerWidth, height: this.externalWindow.innerHeight });
@@ -61,12 +58,7 @@ export default class ConfigWindow extends React.Component {
       <div width={this.state.width} height={this.state.height}>
         <Grid>
           <Row>
-            <Col sm={6} md={3}>
-              <ConfigCategory 
-                name="User"
-                data={config.user}
-                onChange={this.handleConfigChange}/>
-            </Col>
+            {this.mapConfigCategories()}
           </Row>
         </Grid>
       </div>
@@ -74,4 +66,15 @@ export default class ConfigWindow extends React.Component {
       this.containerEl
     );
   }
+
+  mapConfigCategories = () => (
+    Object.keys(config).map((category) => (
+      <Col sm={6} md={3} key={category}>
+        <ConfigCategory 
+          name={category}
+          data={config[category]}
+          onChange={this.handleConfigChange}/>
+      </Col>
+    ))
+  )
 }
