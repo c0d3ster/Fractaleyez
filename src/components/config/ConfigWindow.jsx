@@ -44,32 +44,23 @@ export default class ConfigWindow extends React.Component {
     this.setState({ width: this.externalWindow.innerWidth, height: this.externalWindow.innerHeight });
   }
 
-  onSpeedChanged = (event) => {
-    console.log(event.target)
-    config.user.speed.value = event.target.value;
-    this.externalWindow.console.log('speed changed ' + event.target.value);
+  handleConfigChange = (event, category) => {
+    const { name, value } = event.target
+    const camelName = this.titleToCamelCase(name)
+    const camelCategory = this.titleToCamelCase(category)
+    config[camelCategory][camelName].value = value
   }
 
-  handleConfigChange = (category, event) => {
-    const { name, value } = event.target
-    config[category][name].value = value
-  }
+  titleToCamelCase = (string) => (
+    string.toLowerCase().trim().split(/[.\-_\s]/g)
+      .reduce((string, word) => string + word[0].toUpperCase() + word.slice(1))
+  )
 
   render() {
     return ReactDOM.createPortal(
       <div width={this.state.width} height={this.state.height}>
         <Grid>
           <Row>
-            <Col sm={6} md={3}>
-              <UserConfig
-                userConfig={config.user}
-                speedValue={config.user.speed.value}
-                onSpeedChanged={this.onSpeedChanged}
-                onRotationSpeedChanged={this.onRotationSpeedChanged}
-                onScaleFactorChanged={this.onScaleFactorChanged}
-                onCameraBoundChanged={this.onCameraBoundChanged}
-                {...this.state}/>
-            </Col>
             <Col sm={6} md={3}>
               <ConfigCategory 
                 name="User"

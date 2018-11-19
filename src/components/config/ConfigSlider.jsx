@@ -7,7 +7,7 @@ export default class ConfigItem extends React.PureComponent {
     <div>
       <h4>{name}</h4>
       <input type="range"
-        name={name.toLowerCase()}
+        name={name}
         min={min}
         max={max}
         defaultValue={value}
