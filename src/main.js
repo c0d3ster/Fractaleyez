@@ -42,22 +42,8 @@ let idleSoundTimer = 0;
 
 //Set up the Audio Analysis, Visualization manager
 function init() {
-  $('body').mousemove(function(ev) {
-      if(!forceMouseHide) {
-        $('body').css('cursor', 'crosshair');
+  hideCursorOnInactivity();
 
-        clearTimeout(idleMouseTimer);
-
-        idleMouseTimer = setTimeout(function() {
-          $('body').css('cursor', 'none');
-
-          forceMouseHide = true;
-          setTimeout(function() {
-            forceMouseHide = false;
-          }, 200);
-        }, 1000);
-      }
-  });
   audiostream.init();
   startTimer = new Date();
   lastFrameTimer = startTimer;
@@ -66,6 +52,25 @@ function init() {
   sidebar.init();
   //TODO create a message modal here telling the user to click anywhere to connect mic as long as audiostream has intialized correctly (aka permissions are good)
   analyze();
+}
+
+function hideCursorOnInactivity() {
+  $('body').mousemove(function(ev) {
+    if(!forceMouseHide) {
+      $('canvas').css('cursor', 'crosshair');
+
+      clearTimeout(idleMouseTimer);
+
+      idleMouseTimer = setTimeout(function() {
+        $('canvas').css('cursor', 'none');
+
+        forceMouseHide = true;
+        setTimeout(function() {
+          forceMouseHide = false;
+        }, 200);
+      }, 1000);
+    }
+  });
 }
 
 //This function will be called in a loop for each frame
