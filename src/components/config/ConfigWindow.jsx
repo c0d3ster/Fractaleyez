@@ -17,8 +17,8 @@ export default class ConfigWindow extends React.Component {
   externalWindow = null;
   containerEl = document.createElement('div');
   state = {
-    width:  1920,
-    height: 1080
+    width:  600,
+    height: 400
   };
 
   //SHOULD STILL INITALLY KEEP CONFIG IN SAME WINDOW AND ADD BUTTON TO DETACH IT TO NEW WINDOW
@@ -50,6 +50,11 @@ export default class ConfigWindow extends React.Component {
     this.externalWindow.console.log('speed changed ' + event.target.value);
   }
 
+  handleConfigChange = (category, event) => {
+    const { name, value } = event.target
+    config[category][name].value = value
+  }
+
   render() {
     return ReactDOM.createPortal(
       <div width={this.state.width} height={this.state.height}>
@@ -66,7 +71,10 @@ export default class ConfigWindow extends React.Component {
                 {...this.state}/>
             </Col>
             <Col sm={6} md={3}>
-              <ConfigCategory />
+              <ConfigCategory 
+                name="User"
+                data={config.user}
+                onChange={this.handleConfigChange}/>
             </Col>
           </Row>
         </Grid>
