@@ -1,7 +1,7 @@
 # Build files
 public/*.js*
 public/app.js
-public/*.png
+# public/*.png TODO: copy-webpack-plugin or other means of referencing sprite image
 public/*.svg
 
 # Dependency directory

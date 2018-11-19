@@ -8,15 +8,14 @@ import config from '../config/configuration.js';
  * Modifications made by Cody Douglass and Conor O'Neill
  */
 var VISUALS_VISIBLE = true;
-//var SCALE_FACTOR = 1500;
-var NUM_POINTS_SUBSET = 8000;
+var NUM_POINTS_SUBSET = 10;
 var NUM_SUBSETS = 5;
 var NUM_POINTS = NUM_POINTS_SUBSET * NUM_SUBSETS;
 var NUM_LEVELS = 5;
 var LEVEL_DEPTH = 500;
 var DEF_BRIGHTNESS = .5;
 var DEF_SATURATION = 1;
-var SPRITE_SIZE = 5;
+var SPRITE_SIZE = 250;
 
 // Orbit parameters constraints
 var A_MIN = 2;
@@ -40,7 +39,7 @@ export default class HopalongVisualizer {
       this.hueValues = [];
       this.scene = new THREE.Scene();
       this.scene.fog = new THREE.FogExp2( 0x000000, 0.0013 );
-      this.particleImage = "galaxy.png";
+      this.particleImage = 'ohSprite.png';
       this.startTimer = null;
       this.deltaTime = 0;
       this.elapsedTime = 0;
@@ -78,7 +77,6 @@ export default class HopalongVisualizer {
     console.log("Hopalong Visualizer Initialized\n------------");
 
     let sprite = new THREE.TextureLoader().load( this.particleImage );
-    console.log(this.particleImage);
     this.setLights();
 
     this.generateOrbit();
