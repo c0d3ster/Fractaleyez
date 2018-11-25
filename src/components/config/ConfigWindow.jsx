@@ -41,9 +41,16 @@ export default class ConfigWindow extends React.Component {
   }
 
   handleConfigChange = (event, category) => {
+
     const { name, value } = event.target
     const camelName = this.titleToCamelCase(name)
     const camelCategory = this.titleToCamelCase(category)
+    console.log('camelName ' + camelName);
+    console.log('camelCategory ' + camelCategory);
+
+    console.log('config[camelCategory][camelName] ' + config[camelCategory][camelName]);
+    console.log('value = ' + value);
+    
     config[camelCategory][camelName].value = value
   }
 
@@ -69,7 +76,7 @@ export default class ConfigWindow extends React.Component {
   mapConfigCategories = () => (
     Object.keys(config).map((category) => (
       <Col sm={6} md={3} key={category}>
-        <ConfigCategory 
+        <ConfigCategory
           name={category}
           data={config[category]}
           onChange={this.handleConfigChange}/>

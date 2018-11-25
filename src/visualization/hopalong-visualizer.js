@@ -137,7 +137,7 @@ export default class HopalongVisualizer {
           obj.needsUpdate = 0;
         }
 
-        if ( config.effects.wobwob.value ) { //wobwob effect
+        if ( config.effects.wobWob.value ) { //wobwob effect
           obj.position.z -= config.user.speed.value * musicSpeedMultiplier * 2;
         }
 

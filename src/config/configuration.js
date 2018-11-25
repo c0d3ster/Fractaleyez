@@ -69,7 +69,7 @@ export default {
       defaultValue: VisualizerConfig.cyclone,
       value: VisualizerConfig.cyclone
     },
-    wobwob: {
+    wobWob: {
       name: 'Wob Wob',
       type: 'checkbox',
       defaultValue: VisualizerConfig.wobwob,
