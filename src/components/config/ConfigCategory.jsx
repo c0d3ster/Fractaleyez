@@ -13,12 +13,18 @@ export default class ConfigCategory extends React.Component {
   }
 
   mapConfigItems = () => (
+
     Object.keys(this.props.data).map((configItem) => {
-      if (this.props.data[configItem].type == 'checkbox') {
-        const {name, value } = this.props.data[configItem]
+
+      //figure out the type of config item to be rendered
+      const { type } = this.props.data[configItem]
+
+      if (type == 'checkbox') {
+        const { name, value } = this.props.data[configItem]
         return(
           <ConfigCheckbox
             name={name}
+            key={name}
             checked={value}
             onChange={e => this.props.onChange(e, this.props.name)}
           />

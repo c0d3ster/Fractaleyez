@@ -3,6 +3,7 @@ import React from 'react'
 export default class ConfigSlider extends React.PureComponent {
   render() {
     const { name, value, min, max, step, onChange } = this.props
+    //console.log('rerendering slider ' + value);
     return(
     <div>
       <h4>{name}</h4>

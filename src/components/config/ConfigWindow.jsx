@@ -11,6 +11,7 @@ import copyStyles from '../../styles/AppStyleCopier.js';
 
 import config from '../../config/configuration.js';
 
+import ConfigSlider from './ConfigSlider';
 
 export default class ConfigWindow extends React.Component {
   externalWindow = null;
@@ -41,16 +42,13 @@ export default class ConfigWindow extends React.Component {
   }
 
   handleConfigChange = (event, category) => {
+    const target = event.target;
+    const name = target.name;
+    const value = target.type === 'checkbox' ? target.checked : target.value;
 
-    const { name, value } = event.target
     const camelName = this.titleToCamelCase(name)
     const camelCategory = this.titleToCamelCase(category)
-    console.log('camelName ' + camelName);
-    console.log('camelCategory ' + camelCategory);
 
-    console.log('config[camelCategory][camelName] ' + config[camelCategory][camelName]);
-    console.log('value = ' + value);
-    
     config[camelCategory][camelName].value = value
   }
 
