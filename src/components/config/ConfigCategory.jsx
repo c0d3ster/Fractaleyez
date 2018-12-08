@@ -28,7 +28,6 @@ export default class ConfigCategory extends React.Component {
   }
 
   mapConfigItems = () => (
-
     Object.keys(this.props.data).map((configItem) => {
       const { type } = this.state[configItem]
 

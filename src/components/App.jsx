@@ -5,7 +5,7 @@ import '../styles/App.css';
 //SHOULD ADD CSS FOR HAVING THE HEADER SLIDE IN AND OUT LIKE THE SIDEBAR DOES With a DEFAULT STATE OF HIDDEN
 import  '../main.js'; // this starts the three js stuff.
 
-import ConfigContainer from './config/ConfigContainer.jsx';
+import ConfigWindow from './config/ConfigWindow.jsx';
 
 export default class App extends React.Component {
   state = {
@@ -23,7 +23,7 @@ export default class App extends React.Component {
     return (
       <div>
         <Header onConfigClicked={this.toggleConfigWindow} />
-        {this.state.showConfigWindow && <ConfigContainer />}
+        {this.state.showConfigWindow && <ConfigWindow/>}
       </div>
     );
   }

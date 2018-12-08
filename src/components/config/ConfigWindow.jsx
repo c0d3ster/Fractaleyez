@@ -1,19 +1,12 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
-import ConfigCategory from './ConfigCategory';
-
-
 import { Grid, Row, Col, } from 'react-bootstrap';
-import 'bootstrap/dist/css/bootstrap.min.css';
 
-
+import ConfigCategory from './ConfigCategory';
 import copyStyles from '../../styles/AppStyleCopier.js';
-
 import config from '../../config/configuration.js';
 
-import ConfigSlider from './ConfigSlider';
-
-export default class ConfigContainer extends React.Component {
+export default class ConfigWindow extends React.Component {
   externalWindow = null;
   containerEl = document.createElement('div');
   state = {
@@ -42,7 +35,6 @@ export default class ConfigContainer extends React.Component {
   }
 
   handleConfigFileChange = (category, item, value) => {
-    console.log(category, item, value)
     const camelItem = this.titleToCamelCase(item)
     const camelCategory = this.titleToCamelCase(category)
 
