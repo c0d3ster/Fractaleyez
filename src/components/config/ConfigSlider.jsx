@@ -1,19 +1,16 @@
 import React from 'react'
 
-export default class ConfigSlider extends React.PureComponent {
-  render() {
-    const { name, value, min, max, step, onChange } = this.props
-    //console.log('rerendering slider ' + value);
-    return(
-    <div>
-      <h4>{name}</h4>
-      <input type="range"
-        name={name}
-        min={min}
-        max={max}
-        defaultValue={value}
-        step={step}
-        onChange={onChange}/>
-    </div>)
-  }
-}
+const ConfigSlider = ({ name, value, min, max, step, onChange }) => (
+  <div>
+    <h4>{name}</h4>
+    <input type="range"
+      name={name}
+      min={min}
+      max={max}
+      value={value}
+      step={step}
+      onChange={onChange}/>
+  </div>
+)
+
+export default ConfigSlider

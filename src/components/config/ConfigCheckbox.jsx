@@ -10,7 +10,7 @@ export default class ConfigCheckbox extends React.PureComponent {
       <h4>{name}</h4>
       <input type='checkbox'
         name={name}
-        defaultChecked={checked}
+        checked={checked}
         onChange={onChange}/>
     </div>)
   }

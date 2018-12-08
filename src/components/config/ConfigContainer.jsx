@@ -13,7 +13,7 @@ import config from '../../config/configuration.js';
 
 import ConfigSlider from './ConfigSlider';
 
-export default class ConfigWindow extends React.Component {
+export default class ConfigContainer extends React.Component {
   externalWindow = null;
   containerEl = document.createElement('div');
   state = {
@@ -41,15 +41,12 @@ export default class ConfigWindow extends React.Component {
     this.setState({ width: this.externalWindow.innerWidth, height: this.externalWindow.innerHeight });
   }
 
-  handleConfigChange = (event, category) => {
-    const target = event.target;
-    const name = target.name;
-    const value = target.type === 'checkbox' ? target.checked : target.value;
-
-    const camelName = this.titleToCamelCase(name)
+  handleConfigFileChange = (category, item, value) => {
+    console.log(category, item, value)
+    const camelItem = this.titleToCamelCase(item)
     const camelCategory = this.titleToCamelCase(category)
 
-    config[camelCategory][camelName].value = value
+    config[camelCategory][camelItem].value = value
   }
 
   titleToCamelCase = (string) => (
@@ -77,7 +74,7 @@ export default class ConfigWindow extends React.Component {
         <ConfigCategory
           name={category}
           data={config[category]}
-          onChange={this.handleConfigChange}/>
+          onChange={this.handleConfigFileChange}/>
       </Col>
     ))
   )
