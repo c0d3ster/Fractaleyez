@@ -1,4 +1,5 @@
 import React from 'react';
+import classNames from 'classnames';
 import { Grid, Row, Col, } from 'react-bootstrap';
 import '../../sidebar/sidebar.css';
 
@@ -6,14 +7,30 @@ import ConfigCategory from './ConfigCategory';
 import config from '../../config/configuration.js';
 
 export default class ConfigSidebar extends React.Component {
-  toggleSidebar = () => {
-    if(this.$sidebar.hasClass('slide-in')) {
-      this.$sidebar.removeClass('slide-in');
-      this.$sidebar.addClass('slide-out');
+  state = {
+    sidebarVisible: null, // set to null to prevent slide out animation on page load
+    tabVisible: true,
+    hideTimer: null
+  }
+
+  setSidebarVisibility = (visible) => this.setState({ sidebarVisible: visible })
+
+  showTab = () => {
+    if(this.state.hideTimer) {
+      window.clearTimeout(this.state.hideTimer);
     }
-    else {
-      this.$sidebar.addClass('slide-in');
-      this.$sidebar.removeClass('slide-out');
+    this.setState({
+      tabVisible: true,
+      hideTimer: null
+    })
+  }
+
+  hideTabDelayed = (waitTime) => {
+    if(!this.state.hideTabTimer) {
+      const hideTimer = window.setTimeout(() => {
+        this.setState({ tabVisible: false })
+      }, Number.isInteger(waitTime) ? waitTime : 1000);
+      this.setState({ hideTimer });
     }
   }
 
@@ -30,15 +47,30 @@ export default class ConfigSidebar extends React.Component {
   )
 
   render() {
+    const sidebarContentClasses = classNames('sidebar-content', {
+      'slide-in': this.state.sidebarVisible,
+      'slide-out': this.state.sidebarVisible == false
+    })
+    const tabClasses = classNames('tab-new', {
+      'tab-fade-in': this.state.tabVisible,
+      'tab-fade-out': !this.state.tabVisible
+    })
     return (
-      <div className='sidebar-container'>
-        <Grid bsClass='sidebar-content slide-out'>
+      <div 
+        className='sidebar-container'
+        onMouseEnter={this.showTab} 
+        onMouseLeave={this.hideTabDelayed}>
+        <Grid bsClass={sidebarContentClasses}>
+          <button 
+            className={tabClasses} 
+            onClick={(e) => this.setSidebarVisibility(!this.state.sidebarVisible)}>
+            Menu
+          </button>
           <Row>
             <h2 className='sidebar-title'>Configuration</h2>
           </Row>
           {this.mapConfigCategories()}
         </Grid>
-
       </div>
     );
   }
@@ -46,7 +78,7 @@ export default class ConfigSidebar extends React.Component {
   mapConfigCategories = () => (
     Object.keys(config).map((category) => (
       <Row  key={category}>
-        <Col sm={6} md={3}>
+        <Col>
           <ConfigCategory
             name={category}
             data={config[category]}

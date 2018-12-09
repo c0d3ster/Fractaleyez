@@ -14,8 +14,6 @@ export default class ConfigWindow extends React.Component {
     height: 420
   };
 
-  //TODO SHOULD STILL INITALLY KEEP CONFIG IN SAME WINDOW AND ADD BUTTON TO DETACH IT TO NEW WINDOW
-
   componentDidMount() {
     this.externalWindow = window.open('', '', 'width=' + this.state.width + ',height=' + this.state.height);
     this.externalWindow.document.body.appendChild(this.containerEl);
