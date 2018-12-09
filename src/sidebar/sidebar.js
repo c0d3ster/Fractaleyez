@@ -60,7 +60,7 @@ export default class Sidebar {
   init() {
     //create and append sidebar elements then hide tab after 3 seconds
     this.$container = $(`<div class='sidebar-container'></div>`);
-    this.$sidebar = $(`<div class='sidebar'></div>`);
+    this.$sidebar = $(`<div class='sidebar-content'></div>`);
     this.$tab = $(`<button class='tab tab-fade-in'>Menu</button>`);
     this.$config = $(`<div class='config'></div>`)
     $( document.body ).append(this.$container);
@@ -77,8 +77,8 @@ export default class Sidebar {
 
     for (let category in config) {
       //console.log(`Category is: ${category}`);
-      this.$config.append($(`<h3 class='config-title'>${category} config</h3>`)); //create category header
-      let $category = $(`<div class='config-content' id=${category}></div>`);
+      this.$config.append($(`<h3 class='category-title'>${category} config</h3>`)); //create category header
+      let $category = $(`<div class='category-content' id=${category}></div>`);
       this.$config.append($category);
       for (let option in config[category]) {
         //console.log(config[category][option]);

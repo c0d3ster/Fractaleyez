@@ -6,7 +6,7 @@
   width: 20px;
 }
 
-.sidebar {
+.sidebar-content {
   transform: translate(-100%, 0);
   width: 20vw;
   height: 100vh;
@@ -101,7 +101,7 @@
 
 /***** CONFIGURATION ACCORDION MENU STYLES *****/
 
-.config-title {
+.category-title {
   margin: 10px 0 0 0;
   font-weight: bold;
   padding: 10px 0;
@@ -113,8 +113,8 @@
   cursor: pointer;
 }
 
-.config-title:active,
-.config-title:focus,
+.category-title:active,
+.category-title:focus,
 .ui-accordion-header-active,
 .ui-state-active {
   outline: none;
@@ -123,7 +123,7 @@
   border: none !important;
 }
 
-.config-content {
+.category-content {
   padding: 5px 10px;
   background: rgba(220, 220, 220, .9);
 }

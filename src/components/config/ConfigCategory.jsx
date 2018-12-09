@@ -21,9 +21,11 @@ export default class ConfigCategory extends React.Component {
 
   render() {
     return(
-    <div>
-      <h2>{this.props.name} Config</h2>
-      {this.mapConfigItems()}
+    <div className='category-container'>
+      <h3 className='category-title'>{this.props.name} config</h3>
+      <div className='category-content'>
+        {this.mapConfigItems()}
+      </div>
     </div>)
   }
 
