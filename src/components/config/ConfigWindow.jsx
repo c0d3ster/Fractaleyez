@@ -17,18 +17,18 @@ export default class ConfigWindow extends React.Component {
   componentDidMount() {
     this.externalWindow = window.open('', '', 'width=' + this.state.width + ',height=' + this.state.height);
     this.externalWindow.document.body.appendChild(this.containerEl);
-    this.externalWindow.addEventListener("resize", this.updateDimensions);
+    this.externalWindow.addEventListener('resize', this.updateDimensions);
+    this.externalWindow.addEventListener('beforeunload', this.props.onClose)
 
     copyStyles(document, this.externalWindow.document);
   }
 
   componentWillUnmount() {
-    this.externalWindow.removeEventListener("resize", this.updateDimensions);
+    this.externalWindow.removeEventListener('resize', this.updateDimensions);
     this.externalWindow.close();
   }
 
   updateDimensions = () => {
-    console.log('updating dimensions');
     this.setState({ width: this.externalWindow.innerWidth, height: this.externalWindow.innerHeight });
   }
 

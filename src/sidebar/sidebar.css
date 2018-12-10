@@ -8,21 +8,29 @@
 
 .sidebar-content {
   transform: translate(-100%, 0);
-  width: 20vw;
+  width: 25vw;
   height: 100vh;
   background-color: black;
   color: rgba(220,220,220,.9);
   border-right: 3px solid rgba(20,20,20,.9);
   opacity: .9;
-  padding: 10px;
+  padding: 10px 20px;
 }
 
 .sidebar-title {
-  text-align: center;
+  display: inline;
   font-weight: bold;
   overflow: hidden;
   border-bottom: 3px solid rgba(20,20,20,.9);
-  margin-top: 10px;
+  padding: 10px 25px;
+}
+
+.expand-config {
+  margin: 0 0 10px 10px;
+}
+
+.expanded {
+  background: green;
 }
 
 .slide-in {
@@ -124,7 +132,7 @@
 .category-title {
   margin: 10px 0 0 0;
   font-weight: bold;
-  padding: 10px 0;
+  padding: 10px;
   color: rgba(220, 220, 220,.9);
   background: rgba(40, 40, 40, .9);
   border: none;

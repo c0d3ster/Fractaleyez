@@ -10,7 +10,7 @@ export default class ConfigSidebar extends React.Component {
   state = {
     sidebarVisible: null, // set to null to prevent slide out animation on page load
     tabVisible: true,
-    hideTimer: null
+    hideTimer: null,
   }
 
   setSidebarVisibility = (visible) => this.setState({ sidebarVisible: visible })
@@ -55,6 +55,9 @@ export default class ConfigSidebar extends React.Component {
       'tab-fade-in': this.state.tabVisible,
       'tab-fade-out': !this.state.tabVisible
     })
+    const expandConfigClasses = classNames('expand-config', {
+      'expanded': this.props.configWindowVisible
+    })
     return (
       <div 
         className='sidebar-container'
@@ -68,6 +71,11 @@ export default class ConfigSidebar extends React.Component {
           </button>
           <Row>
             <h2 className='sidebar-title'>Configuration</h2>
+            <button 
+              className={expandConfigClasses} 
+              onClick={(e) => this.props.setConfigWindow(!this.props.configWindowVisible)}>
+              expand
+            </button>
           </Row>
           {this.mapConfigCategories()}
         </Grid>
@@ -82,7 +90,7 @@ export default class ConfigSidebar extends React.Component {
           <ConfigCategory
             name={category}
             data={config[category]}
-            onChange={this.handleConfigFileChange}/>
+            onChange={this.handleConfigFileChange} />
         </Col>
       </Row>
     ))
