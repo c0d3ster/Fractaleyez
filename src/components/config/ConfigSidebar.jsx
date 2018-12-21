@@ -8,7 +8,7 @@ import config from '../../config/configuration.js';
 
 export default class ConfigSidebar extends React.Component {
   state = {
-    sidebarVisible: true, // set to null to prevent slide out animation on page load
+    sidebarVisible: null, // set to null to prevent slide out animation on page load
     tabVisible: true,
     hideTimer: null,
   }

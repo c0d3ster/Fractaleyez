@@ -6,14 +6,14 @@ import config from '../config/configuration.js';
  * ORIGINAL AUTHOR: Iacopo Sassarini
  * Modifications made by Cody Douglass and Conor O'Neill
  */
-var NUM_POINTS_SUBSET = 10;
+var NUM_POINTS_SUBSET = 8000;
 var NUM_SUBSETS = 5;
 var NUM_POINTS = NUM_POINTS_SUBSET * NUM_SUBSETS;
 var NUM_LEVELS = 5;
 var LEVEL_DEPTH = 500;
 var DEF_BRIGHTNESS = .5;
 var DEF_SATURATION = 1;
-var SPRITE_SIZE = 250;
+var SPRITE_SIZE = 8;
 
 // Orbit parameters
 var a, b, c, d, e;
@@ -25,7 +25,7 @@ export default class HopalongVisualizer {
       this.hueValues = [];
       this.scene = new THREE.Scene();
       this.scene.fog = new THREE.FogExp2( 0x000000, 0.0013 );
-      this.particleImage = 'ohSprite.png';
+      this.particleImage = 'galaxySprite.png';
       this.startTimer = null;
       this.deltaTime = 0;
       this.elapsedTime = 0;
