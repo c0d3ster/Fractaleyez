@@ -87,7 +87,7 @@ export default class ConfigSidebar extends React.Component {
 
   mapConfigCategories = () => (
     Object.keys(config).map((category) => (
-      <Row  key={category}>
+      <Row key={category}>
         <Col>
           <ConfigCategory
             name={category}

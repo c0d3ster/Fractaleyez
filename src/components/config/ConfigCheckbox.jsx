@@ -1,13 +1,15 @@
 
 import React from 'react'
+import './Checkbox.css'
 
 const ConfigCheckbox = ({ name, checked, onChange }) => (
-  <div>
-    <h4>{name}</h4>
+  <div className='config-checkbox-container'>
     <input type='checkbox'
+      id={name}
       name={name}
       checked={checked}
       onChange={onChange}/>
+    <label htmlFor={name}>{name} </label>
   </div>
 )
 

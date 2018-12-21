@@ -1,0 +1,25 @@
+.config-checkbox-container {
+  display: block;
+  margin: 1rem;
+  text-align: center;
+}
+
+.config-checkbox-container label {
+  margin: 0;
+  width: 100%;
+  padding: .5rem 1rem;
+  border-radius: .5rem;
+  background: #EEE;
+  color: #555;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.config-checkbox-container input:checked + label {
+  background: #060;
+  color: white;
+}
+
+.config-checkbox-container input {
+  display: none;
+}
