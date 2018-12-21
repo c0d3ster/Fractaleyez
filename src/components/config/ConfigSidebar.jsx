@@ -1,7 +1,7 @@
 import React from 'react';
 import classNames from 'classnames';
 import { Grid, Row, Col, } from 'react-bootstrap';
-import '../../sidebar/sidebar.css';
+import './Sidebar.css';
 
 import ConfigCategory from './ConfigCategory';
 import config from '../../config/configuration.js';
