@@ -13,6 +13,8 @@ export default class ConfigSidebar extends React.Component {
     hideTimer: null,
   }
 
+  componentDidMount() {this.hideTabDelayed(5000)}
+
   setSidebarVisibility = (visible) => this.setState({ sidebarVisible: visible })
 
   showTab = () => {
@@ -49,7 +51,7 @@ export default class ConfigSidebar extends React.Component {
   render() {
     const sidebarContentClasses = classNames('sidebar-content', {
       'slide-in': this.state.sidebarVisible,
-      'slide-out': !this.state.sidebarVisible
+      'slide-out': this.state.sidebarVisible == false
     })
     const tabClasses = classNames('tab', {
       'tab-fade-in': this.state.tabVisible,

@@ -20,7 +20,7 @@ let audioAnalyser = new AudioAnalyser( audiostream.getBufferSize() );
 let hopalongManager = new HopalongManager();
 
 //Create the Config sidebar
-let sidebar = new Sidebar();
+//let sidebar = new Sidebar();
 
 //Create timing mechanism
 let startTimer = null,
@@ -44,7 +44,7 @@ function init() {
   lastFrameTimer = startTimer;
 
   hopalongManager.init(startTimer);
-  sidebar.init();
+  //sidebar.init();
   //TODO create a message modal here telling the user to click anywhere to connect mic as long as audiostream has intialized correctly (aka permissions are good)
   analyze();
 }
