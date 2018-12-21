@@ -1,5 +1,3 @@
-import * as THREE from 'three';
-
 import './main.css';
 import { AudioSource } from './audiostream/audio-source';
 import { AudioStream } from './audiostream/audio-stream';

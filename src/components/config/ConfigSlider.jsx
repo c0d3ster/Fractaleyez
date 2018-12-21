@@ -1,9 +1,14 @@
 import React from 'react'
+import "./Slider.css"
 
 const ConfigSlider = ({ name, value, min, max, step, onChange }) => (
   <div>
-    <h4>{name}</h4>
+    <div className="slider-info">
+      <div className="slider-value">{value}</div>
+      <h4 className="slider-name">{name}</h4>
+    </div>
     <input type="range"
+      className="slider-input"
       name={name}
       min={min}
       max={max}

@@ -18,15 +18,15 @@
 }
 
 .sidebar-title {
-  display: inline;
+  display: inline-block;
   font-weight: bold;
   overflow: hidden;
-  border-bottom: 3px solid rgba(20,20,20,.9);
-  padding: 10px 25px;
+  margin: 1rem 2rem 2rem 2rem;
 }
 
 .expand-config {
-  margin: 0 0 10px 10px;
+  margin: 1.5rem 1rem 0 0;
+  vertical-align: top;
 }
 
 .expanded {
@@ -114,14 +114,17 @@
 
 /***** CONFIGURATION ACCORDION MENU STYLES *****/
 
+.category-container {
+  margin: 0 1rem;
+}
+
 .category-title {
-  margin: 10px 0 0 0;
+  margin: 1rem 0 0 0;
   font-weight: bold;
   padding: 10px;
   color: rgba(220, 220, 220,.9);
   background: rgba(40, 40, 40, .9);
   border: none;
-  border-bottom: 5px solid rgba(20, 20, 20, .9);
   outline: none;
   cursor: pointer;
 }
@@ -139,80 +142,4 @@
 .category-content {
   padding: 5px 10px;
   background: rgba(220, 220, 220, .9);
-}
-
-/***** JQUERY UI ELEMENT STYLE OVERRIDES *****/
-
-.slider-label {
-  margin: 15px 0 0 0;
-  text-align: center;
-}
-
-.slider {
-  position: relative;
-  width: 80%;
-  text-align: center;
-  margin: 0 auto 15px auto;
-  padding: 0 20px;
-  border: none !important;
-}
-
-.ui-slider-range {
-  position: absolute;
-  top: 0;
-  height: 100%;
-  transform: translate(-20px, 0);
-  background: rgba(40,40,40,.9);
-  border: 0;
- }
-
-.ui-slider-handle {
-  z-index: 10;
-  position: relative;
-  transform: translate(-50%, 0);
-  padding: 0;
-  width: 3em;
-  height: 1.6em;
-  text-align: center;
-  line-height: 1.6em;
-  border-radius: 10px;
-  cursor: grab;
-  outline: none;
-}
-
-.ui-slider-handle:active, .slider .ui-state-active {
-  cursor: grabbing;
-  background: rgba(0, 60, 0, .9);
-}
-
-.ui-checkboxradio-label {
-  display: block;
-  text-align: center;
-  padding: 5px;
-  margin: 10px;
-  cursor: pointer;
-  border: none;
-  outline: none !important;
-}
-
-.ui-checkboxradio-label:active {
-  background: rgba(60, 60, 60, .9) !important;
-  box-shadow: none;
-}
-
-.ui-checkboxradio-checked {
-  background: rgba(0, 60, 0, .9) !important;
-}
-
-.ui-state-active {
-  border: 1px solid rgba(40, 40, 40, .9) !important;
-}
-
-.ui-state-focus {
-  box-shadow: none;
-}
-
-.ui-icon {
-  margin: 0 3px;
-  padding: 2px;
 }
