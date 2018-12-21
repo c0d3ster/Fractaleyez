@@ -49,9 +49,9 @@ export default class ConfigSidebar extends React.Component {
   render() {
     const sidebarContentClasses = classNames('sidebar-content', {
       'slide-in': this.state.sidebarVisible,
-      'slide-out': this.state.sidebarVisible == false
+      'slide-out': !this.state.sidebarVisible
     })
-    const tabClasses = classNames('tab-new', {
+    const tabClasses = classNames('tab', {
       'tab-fade-in': this.state.tabVisible,
       'tab-fade-out': !this.state.tabVisible
     })

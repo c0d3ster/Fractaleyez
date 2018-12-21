@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
-import { Grid, Row, Col, } from 'react-bootstrap';
+import { Grid, Row, Col } from 'react-bootstrap';
+import 'bootstrap/dist/css/bootstrap.min.css';
 
 import ConfigCategory from './ConfigCategory';
 import copyStyles from '../../styles/AppStyleCopier.js';
@@ -60,7 +61,7 @@ export default class ConfigWindow extends React.Component {
 
   mapConfigCategories = () => (
     Object.keys(config).map((category) => (
-      <Col sm={6} md={3} key={category}>
+      <Col sm={3} key={category}>
         <ConfigCategory
           name={category}
           data={config[category]}
