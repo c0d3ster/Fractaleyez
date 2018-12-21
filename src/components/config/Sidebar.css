@@ -140,16 +140,21 @@
 
 .category-title:active,
 .category-title:focus,
-.ui-accordion-header-active,
-.ui-state-active {
+.category-title:hover {
   outline: none;
   color: white;
-  background: rgba(80, 80, 80, .9);
+  background: #555;
   border: none !important;
 }
 
 .category-content {
-  padding: 5px 10px;
+  padding: .5rem;
   background: rgba(220, 220, 220, .9);
   border-radius: 0 0 .5rem .5rem;
+  overflow: hidden;
+}
+
+.hide-content {
+  height: 0;
+  background: #555;
 }
