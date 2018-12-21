@@ -3,10 +3,10 @@ import classNames from 'classnames';
 import { Grid, Row, Col, } from 'react-bootstrap';
 import './Sidebar.css';
 
-import ConfigCategory from './ConfigCategory';
+import ConfigCategory from '../config/ConfigCategory';
 import config from '../../config/configuration.js';
 
-export default class ConfigSidebar extends React.Component {
+export default class Sidebar extends React.Component {
   state = {
     sidebarVisible: null, // set to null to prevent slide out animation on page load
     tabVisible: true,

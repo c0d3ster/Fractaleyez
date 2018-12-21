@@ -4,7 +4,7 @@ import '../styles/App.css';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 import ConfigWindow from './config/ConfigWindow'
-import ConfigSidebar from './config/ConfigSidebar'
+import Sidebar from './sidebar/Sidebar'
 
 export default class App extends React.Component {
   state = {
@@ -17,7 +17,7 @@ export default class App extends React.Component {
     return (
       <div>
         {this.state.configWindowVisible && <ConfigWindow onClose={() => this.setConfigWindow(false)} />}
-        <ConfigSidebar 
+        <Sidebar 
           setConfigWindow={this.setConfigWindow} 
           configWindowVisible={this.state.configWindowVisible} />
       </div>

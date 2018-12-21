@@ -1,5 +1,6 @@
 import React from 'react'
 import classNames from 'classnames'
+import './ConfigCategory.css'
 
 import ConfigSlider from './ConfigSlider'
 import ConfigCheckbox from './ConfigCheckbox'
