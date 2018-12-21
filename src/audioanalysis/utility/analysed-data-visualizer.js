@@ -54,7 +54,7 @@ export class AnalysedDataVisualizer
     this.canvas = document.createElement( "canvas" );
     this.canvas.setAttribute( "width", 1025 );
     this.canvas.setAttribute( "height", 1024 );
-    $('body').append( this.canvas );
+    document.body.appendChild(this.canvas);
     this.context = this.canvas.getContext( "2d" );
     if( UserConfig.showloginfos ) console.log( `Visualizer initialized\n------------` );
   }

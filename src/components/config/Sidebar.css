@@ -21,16 +21,24 @@
   display: inline-block;
   font-weight: bold;
   overflow: hidden;
-  margin: 1rem 2rem 2rem 2rem;
+  margin: 1rem 2rem;
 }
 
 .expand-config {
+  float: right;
   margin: 1.5rem 1rem 0 0;
   vertical-align: top;
+  border-radius: .25rem;
+  color: #333;
 }
 
-.expanded {
+.expand-config:focus {
+  outline: none;
+}
+
+.expand-config:hover, .expanded {
   background: green;
+  color: #ccc;
 }
 
 .slide-in {
@@ -127,6 +135,7 @@
   border: none;
   outline: none;
   cursor: pointer;
+  border-radius: .5rem .5rem 0 0;
 }
 
 .category-title:active,
@@ -142,4 +151,5 @@
 .category-content {
   padding: 5px 10px;
   background: rgba(220, 220, 220, .9);
+  border-radius: 0 0 .5rem .5rem;
 }

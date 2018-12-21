@@ -11,7 +11,6 @@ import config from '../config/configuration';
  */
 export default class HopalongManager {
   constructor() {
-    this.$container = null;
     this.startTimer = null;
     this.deltaTime = 0;
     this.elapsedTime = 0;
@@ -29,9 +28,6 @@ export default class HopalongManager {
    */
   init( startTimer )
   {
-    this.$container = $('<div></div>');    //jQuery variables are prepended by $
-    $( document.body ).append(this.$container);
-
     this.cameraManager = new CameraManager();
     this.cameraManager.init();
 
@@ -50,14 +46,14 @@ export default class HopalongManager {
       gammaOutput: true
     });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
-    $( document.body ).append(this.renderer.domElement);
+    document.body.appendChild(this.renderer.domElement);
 
     // Setup Effects
     this.setupEffects();
     // Setup listeners
-    $( document ).mousemove(this.onDocumentMouseMove);
-    $( document ).keydown(this.onKeyDown);
-    $( window ).resize(this.onWindowResize);
+    document.addEventListener('mousemove', this.onDocumentMouseMove);
+    document.addEventListener('keydown', this.onKeyDown);
+    window.addEventListener('resize', this.onWindowResize);
   }
 
   //SetUp effects

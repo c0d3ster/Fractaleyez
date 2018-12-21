@@ -8,19 +8,19 @@ html {
 }
 
 body {
-  background-color: rgba(14, 21, 31, 1);
-  font-family: 'Merriweather', 'Helvetica Neue', Arial, sans-serif;
+  background-color: rgba(14, 21, 31, 1) !important;
+  font-family: 'Acme', sans-serif !important;
 }
 
-a:hover {
-  color: rgba(255,255,255,1) !important;
+canvas {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background-color: #000;
+  user-select: none;
+  cursor: none;
 }
 
 .hidden {
   opacity: 0;
-}
-
-
-.text-white {
-  color: #fff;
 }

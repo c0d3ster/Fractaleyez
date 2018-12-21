@@ -1,9 +1,7 @@
-import './main.css';
 import { AudioSource } from './audiostream/audio-source';
 import { AudioStream } from './audiostream/audio-stream';
 import { AudioAnalyser } from './audioanalysis/audio-analyser';
 import HopalongManager from './visualization/hopalong-manager.js';
-import Sidebar from './sidebar/sidebar';
 
 
 // Size of the fft transform performed on audio stream
@@ -16,9 +14,6 @@ let audioAnalyser = new AudioAnalyser( audiostream.getBufferSize() );
 
 //Create the Visualization Manager
 let hopalongManager = new HopalongManager();
-
-//Create the Config sidebar
-//let sidebar = new Sidebar();
 
 //Create timing mechanism
 let startTimer = null,
@@ -42,23 +37,22 @@ function init() {
   lastFrameTimer = startTimer;
 
   hopalongManager.init(startTimer);
-  //sidebar.init();
   //TODO create a message modal here telling the user to click anywhere to connect mic as long as audiostream has intialized correctly (aka permissions are good)
   analyze();
 }
 
 function hideCursorOnInactivity() {
-  $('body').mousemove(function(ev) {
+  document.addEventListener('mousemove', (ev) => {
+    const canvas = document.getElementsByTagName('canvas');
     if(!forceMouseHide) {
-      $('canvas').css('cursor', 'crosshair');
+      canvas[0].style.cursor = 'crosshair';
 
       clearTimeout(idleMouseTimer);
-
-      idleMouseTimer = setTimeout(function() {
-        $('canvas').css('cursor', 'none');
+      idleMouseTimer = setTimeout(() => {
+        canvas[0].style.cursor = 'none';
 
         forceMouseHide = true;
-        setTimeout(function() {
+        setTimeout(() => {
           forceMouseHide = false;
         }, 200);
       }, 1000);

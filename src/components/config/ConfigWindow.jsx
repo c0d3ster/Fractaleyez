@@ -1,7 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
 import { Grid, Row, Col } from 'react-bootstrap';
-import 'bootstrap/dist/css/bootstrap.min.css';
 
 import ConfigCategory from './ConfigCategory';
 import copyStyles from '../../styles/AppStyleCopier.js';
@@ -12,11 +11,12 @@ export default class ConfigWindow extends React.Component {
   containerEl = document.createElement('div');
   state = {
     width:  1200,
-    height: 420
+    height: 600
   };
 
   componentDidMount() {
-    this.externalWindow = window.open('', '', 'width=' + this.state.width + ',height=' + this.state.height);
+    this.externalWindow = window.open('', '', `width=${this.state.width}, height=${this.state.height}, location=no`);
+    this.externalWindow.document.title = "Configuration";
     this.externalWindow.document.body.appendChild(this.containerEl);
     this.externalWindow.addEventListener('resize', this.updateDimensions);
     this.externalWindow.addEventListener('beforeunload', this.props.onClose)

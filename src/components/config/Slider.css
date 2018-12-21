@@ -26,6 +26,11 @@
   margin: 0 0 2.5rem 0;
 }
 
+.slider-input:active::-webkit-slider-thumb {
+  cursor: grabbing;
+  background: darkgreen;
+}
+
 .slider-input:focus {
   outline: none;
 }

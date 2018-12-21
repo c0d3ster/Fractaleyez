@@ -1,6 +1,7 @@
 import React from 'react';
 import  '../main.js'; // this starts the three js stuff.
 import '../styles/App.css';
+import 'bootstrap/dist/css/bootstrap.min.css';
 
 import ConfigWindow from './config/ConfigWindow'
 import ConfigSidebar from './config/ConfigSidebar'
