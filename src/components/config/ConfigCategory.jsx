@@ -7,8 +7,7 @@ import ConfigCheckbox from './ConfigCheckbox'
 
 export default class ConfigCategory extends React.Component {
   state = {
-    ...this.props.data,
-    isOpen: false
+    ...this.props.data
   }
 
   // this helper function allows us to re render categories only when necessary using state
@@ -22,16 +21,16 @@ export default class ConfigCategory extends React.Component {
     this.props.onChange(this.props.name, item, value)
   }
 
-  setOpen = (open) => this.setState({isOpen: open})
-
   render() {
+    const { name, toggleOpen, isOpen } = this.props
+    console.log(name, isOpen)
     const categoryContentClasses = classNames('category-content', {
-      'hide-content': !this.state.isOpen
+      'hide-content': !isOpen
     })
     return(
     <div className='category-container'>
-      <h3 className='category-title' onClick={() => this.setOpen(!this.state.isOpen)}>
-        {this.props.name} config
+      <h3 className='category-title' onClick={() => toggleOpen(name)}>
+        {name} config
       </h3>
       <div className={categoryContentClasses}>
         {this.mapConfigItems()}

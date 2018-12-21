@@ -1,10 +1,9 @@
 import React from 'react';
 import classNames from 'classnames';
-import { Grid, Row, Col, } from 'react-bootstrap';
+import { Grid, Row } from 'react-bootstrap';
 import './Sidebar.css';
 
-import ConfigCategory from '../config/ConfigCategory';
-import config from '../../config/configuration.js';
+import ConfigAccordion from '../config/ConfigAccordion'
 
 export default class Sidebar extends React.Component {
   state = {
@@ -35,18 +34,6 @@ export default class Sidebar extends React.Component {
       this.setState({ hideTimer });
     }
   }
-
-  handleConfigFileChange = (category, item, value) => {
-    const camelItem = this.titleToCamelCase(item)
-    const camelCategory = this.titleToCamelCase(category)
-
-    config[camelCategory][camelItem].value = value
-  }
-
-  titleToCamelCase = (string) => (
-    string.toLowerCase().trim().split(/[.\-_\s]/g)
-      .reduce((string, word) => string + word[0].toUpperCase() + word.slice(1))
-  )
 
   render() {
     const sidebarContentClasses = classNames('sidebar-content', {
@@ -79,22 +66,9 @@ export default class Sidebar extends React.Component {
               expand
             </button>
           </Row>
-          {this.mapConfigCategories()}
+          <ConfigAccordion canOpenMultiple={false} />
         </Grid>
       </div>
     );
   }
-
-  mapConfigCategories = () => (
-    Object.keys(config).map((category) => (
-      <Row key={category}>
-        <Col>
-          <ConfigCategory
-            name={category}
-            data={config[category]}
-            onChange={this.handleConfigFileChange} />
-        </Col>
-      </Row>
-    ))
-  )
 }
