@@ -23,7 +23,6 @@ export default class ConfigCategory extends React.Component {
 
   render() {
     const { name, toggleOpen, isOpen } = this.props
-    console.log(name, isOpen)
     const categoryContentClasses = classNames('category-content', {
       'hide-content': !isOpen
     })
