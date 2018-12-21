@@ -1,14 +1,7 @@
-const webpack = require('webpack');
 const path = require('path');
 
 const BUILD_DIR = path.join( __dirname, 'public' );
 const APP_DIR = path.join( __dirname, 'src' );
-
-//prepends all instances of $ with var $ = require('jquery')
-const jQuery = new webpack.ProvidePlugin({
-     $: 'jquery',
-     jQuery: 'jquery'
- })
 
 module.exports = {
   //with webpack 4 entry and output configuration is optional
@@ -68,6 +61,4 @@ module.exports = {
     extensions: ['.js', '.jsx'],
     modules: ['node_modules']
   },
-  //manages plugins specified above configuration
-  plugins: [jQuery]
 };

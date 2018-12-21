@@ -7,15 +7,13 @@
     "build-dev": "webpack --mode development --watch",
     "build": "webpack --mode production",
     "start": "yarn build && supervisor server.js",
-    "start-dev": "concurrently --kill-others \"yarn build-dev\" \"webpack-dev-server --mode development --open --content-base public/\""
+    "start-dev": "concurrently --kill-others \"yarn build-dev\" \"webpack-dev-server --mode development --content-base public/\""
   },
   "author": "Cody Douglass",
   "license": "ISC",
   "dependencies": {
     "bootstrap": "^3.3.7",
     "classnames": "^2.2.6",
-    "jquery": "^3.3.1",
-    "jquery-ui": "^1.12.1",
     "postprocessing": "^5.0.0",
     "react": "^16.6.3",
     "react-bootstrap": "^0.32.4",
