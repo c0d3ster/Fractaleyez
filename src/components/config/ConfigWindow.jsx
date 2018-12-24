@@ -65,7 +65,9 @@ export default class ConfigWindow extends React.Component {
         <ConfigCategory
           name={category}
           data={config[category]}
-          onChange={this.handleConfigFileChange}/>
+          onChange={this.handleConfigFileChange}
+          isOpen={true}
+          toggleOpen={() => {return null}}/>
       </Col>
     ))
   )
