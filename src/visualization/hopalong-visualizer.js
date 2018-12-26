@@ -6,14 +6,14 @@ import config from '../config/configuration.js';
  * ORIGINAL AUTHOR: Iacopo Sassarini
  * Modifications made by Cody Douglass and Conor O'Neill
  */
-var NUM_POINTS_SUBSET = 8000;
-var NUM_SUBSETS = 5;
+var NUM_POINTS_SUBSET = 12;
+var NUM_SUBSETS = 11;
 var NUM_POINTS = NUM_POINTS_SUBSET * NUM_SUBSETS;
-var NUM_LEVELS = 5;
-var LEVEL_DEPTH = 500;
+var NUM_LEVELS = 11;
+var LEVEL_DEPTH = 420;
 var DEF_BRIGHTNESS = .5;
 var DEF_SATURATION = 1;
-var SPRITE_SIZE = 8;
+var SPRITE_SIZE = 250;
 
 // Orbit parameters
 var a, b, c, d, e;
@@ -25,7 +25,7 @@ export default class HopalongVisualizer {
       this.hueValues = [];
       this.scene = new THREE.Scene();
       this.scene.fog = new THREE.FogExp2( 0x000000, 0.0013 );
-      this.particleImage = 'galaxySprite.png';
+      this.particleImages = ['giftSprite.png', 'santaSprite.png', 'christmasTreeSprite.png', 'reindeerSprite.png'];
       this.startTimer = null;
       this.deltaTime = 0;
       this.elapsedTime = 0;
@@ -60,11 +60,13 @@ export default class HopalongVisualizer {
 
 
   init() {
-    let sprite = new THREE.TextureLoader().load( this.particleImage );
+    let sprite = new THREE.TextureLoader().load( this.particleImages[0] );
+    let count = 1;
+    let particleIndex = 0
     this.setLights();
 
     this.generateOrbit();
-
+    
     for( let level = 0; level < NUM_LEVELS; level++ ) {
       for( let s = 0; s < NUM_SUBSETS; s++ ) {
 
@@ -75,6 +77,8 @@ export default class HopalongVisualizer {
         }
 
 
+        particleIndex = count % this.particleImages.length;
+        sprite = new THREE.TextureLoader().load( this.particleImages[particleIndex] );
         let material = new THREE.PointsMaterial( {
          size: SPRITE_SIZE,
          map: sprite,
@@ -94,6 +98,7 @@ export default class HopalongVisualizer {
         particles.material.color.setHSL( this.hueValues[s], DEF_SATURATION, DEF_BRIGHTNESS );
         this.objects.push( particles );
         this.scene.add( particles );
+        count++;
       }
     }
 
