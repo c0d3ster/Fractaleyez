@@ -288,10 +288,6 @@ export default class HopalongVisualizer {
   }
 
   prepareOrbit() {
-    if (this.particlesPerLayer != config.particle.particlesPerLayer.value)
-    {
-      this.needsParticleReset = true;
-    }
     this.updateOrbitParams();
     this.orbit.xMin = 0;
     this.orbit.xMax = 0;

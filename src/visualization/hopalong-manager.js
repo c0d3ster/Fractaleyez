@@ -14,8 +14,6 @@ export default class HopalongManager {
     this.startTimer = null;
     this.deltaTime = 0;
     this.elapsedTime = 0;
-    this.scaleFactor = config.user.scaleFactor.value;
-    this.cameraBound = config.user.cameraBound.value;
     this.cameraManager = null;
     this.hopalongVisualizer = null;
     this.renderer = null;
@@ -42,7 +40,7 @@ export default class HopalongManager {
       clearColor: 0x000000,
       clearAlpha: 1,
       antialias: false,
-      gammeInput: true,
+      gammaInput: true,
       gammaOutput: true
     });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
@@ -54,27 +52,6 @@ export default class HopalongManager {
     document.addEventListener('mousemove', this.onDocumentMouseMove);
     document.addEventListener('keydown', this.onKeyDown);
     window.addEventListener('resize', this.onWindowResize);
-  }
-
-  resetVisualization() {
-    this.hopalongVisualizer.destroyVisualization();
-    this.hopalongVisualizer = new HopalongVisualizer();
-    this.hopalongVisualizer.init();
-
-    // Remove old scene and reset renderer
-    document.body.removeChild(this.renderer.domElement);
-    this.renderer = new THREE.WebGLRenderer({
-      clearColor: 0x000000,
-      clearAlpha: 1,
-      antialias: false,
-      gammeInput: true,
-      gammaOutput: true
-    });
-    this.renderer.setSize(window.innerWidth, window.innerHeight);
-    document.body.appendChild(this.renderer.domElement);
-
-    // Setup Effects
-    this.setupEffects();
   }
 
   //SetUp effects
@@ -116,7 +93,7 @@ export default class HopalongManager {
       this.shockwaveEffect.speed = (config.user.speed.value / 15) + audioData.peak.value * 1.25;
 
 
-      if(this.hopalongVisualizer.needsParticleReset) {
+      if(this.particleConfigChanged()) {
         this.resetVisualization();
       }
       this.hopalongVisualizer.update( deltaTime, audioData, this.renderer, this.cameraManager );
@@ -131,6 +108,23 @@ export default class HopalongManager {
       this.composer.render( this.clock.getDelta() );
 
       this.cameraManager.manageCameraPosition();
+  }
+
+  particleConfigChanged() {
+    Object.keys(config.particle).map(setting => {
+      if(this.hopalongVisualizer[setting] != config.particle[setting].value) {
+        return true;
+      }
+    })
+  }
+
+  resetVisualization() {
+    this.hopalongVisualizer.destroyVisualization(this.renderer, this.cameraManager);
+    this.hopalongVisualizer = null;
+    this.hopalongVisualizer = new HopalongVisualizer();
+    this.hopalongVisualizer.init();
+
+    this.setupEffects();
   }
 
   ///////////////////////////////////////////////
