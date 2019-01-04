@@ -7,7 +7,6 @@ import config from '../config/configuration';
  * user's point of view in relation to the scene
  */
 export default class CameraManager {
-
     constructor() {
       this.camera = null;
       this.cameraBound = 100;

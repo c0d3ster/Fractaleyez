@@ -56,6 +56,29 @@ export default class HopalongManager {
     window.addEventListener('resize', this.onWindowResize);
   }
 
+  resetVisualization() {
+    this.hopalongVisualizer.destroyVisualization();
+    this.hopalongVisualizer = new HopalongVisualizer();
+    this.hopalongVisualizer.init();
+
+    // Remove old scene and reset renderer
+    this.sceneToRemove = this.renderer.domElement;
+    this.sceneToRemove.style.opacity = .1;
+    setTimeout(() => document.body.removeChild(this.sceneToRemove), 1000);
+    this.renderer = new THREE.WebGLRenderer({
+      clearColor: 0x000000,
+      clearAlpha: 1,
+      antialias: false,
+      gammeInput: true,
+      gammaOutput: true
+    });
+    this.renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(this.renderer.domElement);
+
+    // Setup Effects
+    this.setupEffects();
+  }
+
   //SetUp effects
  setupEffects() {
    //setup the composer that renders the effects
@@ -94,12 +117,10 @@ export default class HopalongManager {
 
       this.shockwaveEffect.speed = (config.user.speed.value / 15) + audioData.peak.value * 1.25;
 
-      if(this.hopalongVisualizer.needsParticleReset) {
-        this.hopalongVisualizer = new HopalongVisualizer();
-        this.hopalongVisualizer.init();
-        this.setupEffects();
-      }
 
+      if(this.hopalongVisualizer.needsParticleReset) {
+        this.resetVisualization();
+      }
       this.hopalongVisualizer.update( deltaTime, audioData, this.renderer, this.cameraManager );
 
       if ( config.effects.glow.value ) {
