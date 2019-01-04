@@ -62,9 +62,7 @@ export default class HopalongManager {
     this.hopalongVisualizer.init();
 
     // Remove old scene and reset renderer
-    this.sceneToRemove = this.renderer.domElement;
-    this.sceneToRemove.style.opacity = .1;
-    setTimeout(() => document.body.removeChild(this.sceneToRemove), 1000);
+    document.body.removeChild(this.renderer.domElement);
     this.renderer = new THREE.WebGLRenderer({
       clearColor: 0x000000,
       clearAlpha: 1,
