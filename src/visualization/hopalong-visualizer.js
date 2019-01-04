@@ -8,7 +8,7 @@ import config from '../config/configuration.js';
  */
 var DEF_BRIGHTNESS = .5;
 var DEF_SATURATION = 1;
-var SPRITE_SIZE = 8;
+
 
 // Orbit parameters
 var a, b, c, d, e;
@@ -16,9 +16,10 @@ var a, b, c, d, e;
 export default class HopalongVisualizer {
   constructor() {
     this.particlesPerLayer = config.particle.particlesPerLayer.value;
-    this.layers = 5;
-    this.levels = 5;
+    this.layers = config.particle.layers.value;
+    this.levels = config.particle.levels.value;
     this.levelDepth = 500;
+    this.particleSize = config.particle.particleSize.value;
     this.needsParticleReset = false;
     this.lights = [];
     this.objects = [];
@@ -80,7 +81,7 @@ export default class HopalongVisualizer {
         particleIndex = count % this.particleImages.length;
         sprite = new THREE.TextureLoader().load( this.particleImages[particleIndex] );
         let material = new THREE.PointsMaterial( {
-         size: SPRITE_SIZE,
+         size: this.particleSize,
          map: sprite,
          blending: THREE.AdditiveBlending,
          depthTest: false,

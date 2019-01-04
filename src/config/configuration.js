@@ -149,6 +149,15 @@ export default {
     },
   },
   particle : {
+    particleSize: {
+      name: 'Particle Size',
+      type: 'slider',
+      defaultValue: ParticleConfig.size_DEFAULT,
+      value: ParticleConfig.size_DEFAULT,
+      min: ParticleConfig.size_MIN,
+      max: ParticleConfig.size_MAX,
+      step: ParticleConfig.size_STEP_SIZE
+    },
     particlesPerLayer: {
       name: 'Particles Per Layer',
       type: 'slider',
@@ -157,6 +166,24 @@ export default {
       min: ParticleConfig.particles_MIN,
       max: ParticleConfig.particles_MAX,
       step: ParticleConfig.particles_STEP_SIZE
+    },
+    layers: {
+      name: 'Layers',
+      type: 'slider',
+      defaultValue: ParticleConfig.layers_DEFAULT,
+      value: ParticleConfig.layers_DEFAULT,
+      min: ParticleConfig.layers_MIN,
+      max: ParticleConfig.layers_MAX,
+      step: ParticleConfig.layers_STEP_SIZE
+    },
+    levels: {
+      name: 'Levels',
+      type: 'slider',
+      defaultValue: ParticleConfig.levels_DEFAULT,
+      value: ParticleConfig.levels_DEFAULT,
+      min: ParticleConfig.levels_MIN,
+      max: ParticleConfig.levels_MAX,
+      step: ParticleConfig.levels_STEP_SIZE
     }
   }
 };

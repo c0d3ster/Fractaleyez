@@ -87,27 +87,27 @@ export default class HopalongManager {
    */
   update( deltaTime, audioData )
   {
-      this.deltaTime = deltaTime;
-      this.elapsedTime += deltaTime;
+    this.deltaTime = deltaTime;
+    this.elapsedTime += deltaTime;
 
-      this.shockwaveEffect.speed = (config.user.speed.value / 15) + audioData.peak.value * 1.25;
+    this.shockwaveEffect.speed = (config.user.speed.value / 15) + audioData.peak.value * 1.25;
 
 
-      if(this.particleConfigChanged()) {
-        this.resetVisualization();
-      }
-      this.hopalongVisualizer.update( deltaTime, audioData, this.renderer, this.cameraManager );
+    if(this.particleConfigChanged()) {
+      this.resetVisualization();
+    }
+    this.hopalongVisualizer.update( deltaTime, audioData, this.renderer, this.cameraManager );
 
-      if ( config.effects.glow.value ) {
-        this.bloomEffect.blendMode.opacity.value = audioData.peak.value * audioData.peak.energy;
-      }
+    if ( config.effects.glow.value ) {
+      this.bloomEffect.blendMode.opacity.value = audioData.peak.value * audioData.peak.energy;
+    }
 
-      if ( audioData.peak.value > 0.8 && config.effects.shockwave.value ) {
-        this.shockwaveEffect.explode();
-      }
-      this.composer.render( this.clock.getDelta() );
+    if ( audioData.peak.value > 0.8 && config.effects.shockwave.value ) {
+      this.shockwaveEffect.explode();
+    }
+    this.composer.render( this.clock.getDelta() );
 
-      this.cameraManager.manageCameraPosition();
+    this.cameraManager.manageCameraPosition();
   }
 
   particleConfigChanged() {
