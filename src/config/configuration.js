@@ -2,6 +2,7 @@ import AnalyserConfig from './analyser.config';
 import UserConfig from './user.config';
 import VisualizerConfig from './visualizer.config';
 import OrbitConfig from './orbit.config';
+import ParticleConfig from './particle.config';
 
 export default {
   user : {
@@ -146,5 +147,16 @@ export default {
       max: OrbitConfig.E_MAX,
       step: OrbitConfig.E_STEP_SIZE
     },
+  },
+  particle : {
+    particlesPerLayer: {
+      name: 'Particles Per Layer',
+      type: 'slider',
+      defaultValue: ParticleConfig.particles_DEFAULT,
+      value: ParticleConfig.particles_DEFAULT,
+      min: ParticleConfig.particles_MIN,
+      max: ParticleConfig.particles_MAX,
+      step: ParticleConfig.particles_STEP_SIZE
+    }
   }
 };

@@ -14,8 +14,8 @@ export default class HopalongManager {
     this.startTimer = null;
     this.deltaTime = 0;
     this.elapsedTime = 0;
-    this.scaleFactor = 1500;
-    this.cameraBound = 100;
+    this.scaleFactor = config.user.scaleFactor.value;
+    this.cameraBound = config.user.cameraBound.value;
     this.cameraManager = null;
     this.hopalongVisualizer = null;
     this.renderer = null;
@@ -93,6 +93,12 @@ export default class HopalongManager {
       this.elapsedTime += deltaTime;
 
       this.shockwaveEffect.speed = (config.user.speed.value / 15) + audioData.peak.value * 1.25;
+
+      if(this.hopalongVisualizer.needsParticleReset) {
+        this.hopalongVisualizer = new HopalongVisualizer();
+        this.hopalongVisualizer.init();
+        this.setupEffects();
+      }
 
       this.hopalongVisualizer.update( deltaTime, audioData, this.renderer, this.cameraManager );
 

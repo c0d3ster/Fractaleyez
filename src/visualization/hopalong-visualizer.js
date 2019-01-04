@@ -6,7 +6,7 @@ import config from '../config/configuration.js';
  * ORIGINAL AUTHOR: Iacopo Sassarini
  * Modifications made by Cody Douglass and Conor O'Neill
  */
-var NUM_POINTS_SUBSET = 8000;
+var NUM_POINTS_SUBSET = config.particle.particlesPerLayer.value;
 var NUM_SUBSETS = 5;
 var NUM_POINTS = NUM_POINTS_SUBSET * NUM_SUBSETS;
 var NUM_LEVELS = 5;
@@ -20,46 +20,48 @@ var a, b, c, d, e;
 
 export default class HopalongVisualizer {
   constructor() {
-      this.lights = [];
-      this.objects = [];
-      this.hueValues = [];
-      this.scene = new THREE.Scene();
-      this.scene.fog = new THREE.FogExp2( 0x000000, 0.0013 );
-      this.particleImages = ['galaxySprite.png', 'galaxy2Sprite.png', 'galaxy3Sprite.png'];
-      this.startTimer = null;
-      this.deltaTime = 0;
-      this.elapsedTime = 0;
-      this.audioPeak = false;
-      this.peakCountdown = 0;
-      this.orbit = {
-        subsets: [],
-        xMin: 0,
-        xMax: 0,
-        yMin: 0,
-        yMax: 0,
-        scaleX: 0,
-        scaleY: 0
-      };
+    this.needsParticleReset = false;
+    this.lights = [];
+    this.objects = [];
+    this.hueValues = [];
+    this.scene = new THREE.Scene();
+    this.scene.fog = new THREE.FogExp2( 0x000000, 0.0013 );
+    this.particleImages = ['galaxySprite.png', 'galaxy2Sprite.png', 'galaxy3Sprite.png'];
+    this.startTimer = null;
+    this.deltaTime = 0;
+    this.elapsedTime = 0;
+    this.audioPeak = false;
+    this.peakCountdown = 0;
+    this.orbit = {
+      subsets: [],
+      xMin: 0,
+      xMax: 0,
+      yMin: 0,
+      yMax: 0,
+      scaleX: 0,
+      scaleY: 0
+    };
 
-      for( let i = 0; i < NUM_SUBSETS; i++ )
+    for( let i = 0; i < NUM_SUBSETS; i++ )
+    {
+      let subsetPoints = [];
+      for( let j = 0; j < NUM_POINTS_SUBSET; j++ )
       {
-        let subsetPoints = [];
-        for( let j = 0; j < NUM_POINTS_SUBSET; j++ )
-        {
-          subsetPoints[j] = {
-            x: 0,
-            y: 0,
-            vertex: new THREE.Vector3(0,0,0)
-          }
+        subsetPoints[j] = {
+          x: 0,
+          y: 0,
+          vertex: new THREE.Vector3(0,0,0)
         }
-        this.orbit.subsets.push( subsetPoints );
-        this.hueValues[i] = Math.random();
       }
+      this.orbit.subsets.push( subsetPoints );
+      this.hueValues[i] = Math.random();
+    }
   }
 
 
 
   init() {
+    this.objects = [];
     let sprite = new THREE.TextureLoader().load( this.particleImages[0] );
     let count = 1;
     let particleIndex = 0
@@ -102,7 +104,10 @@ export default class HopalongVisualizer {
       }
     }
 
-    setInterval( () => { this.updateOrbit(); }, 1000)
+    if (this.updateInterval) {
+      clearInterval(this.updateInterval)
+    }
+    this.updateInterval = setInterval( () => { this.updateOrbit(); }, 300)
   }
 
     /**
@@ -288,26 +293,23 @@ export default class HopalongVisualizer {
   }
 
   prepareOrbit() {
-    this.shuffleParams();
+    if (NUM_POINTS_SUBSET != config.particle.particlesPerLayer.value)
+    {
+      this.needsParticleReset = true;
+    }
+    this.updateOrbitParams();
     this.orbit.xMin = 0;
     this.orbit.xMax = 0;
     this.orbit.yMin = 0;
     this.orbit.yMax = 0;
   }
 
-  shuffleParams() {
+  updateOrbitParams() {
     a = config.orbit.a.value;
     b = config.orbit.b.value;
     c = config.orbit.c.value;
     d = config.orbit.d.value;
     e = config.orbit.e.value;
-
-    /* Randomize parameters
-    a = A_MIN + Math.random() * (A_MAX - A_MIN);
-    b = B_MIN + Math.random() * (B_MAX - B_MIN);
-    c = C_MIN + Math.random() * (C_MAX - C_MIN);
-    d = D_MIN + Math.random() * (D_MAX - D_MIN);
-    e = E_MIN + Math.random() * (E_MAX - E_MIN);*/
   }
 
   setLights() {
