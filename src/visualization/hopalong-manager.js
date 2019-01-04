@@ -111,11 +111,13 @@ export default class HopalongManager {
   }
 
   particleConfigChanged() {
+    let hasChanged = false;
     Object.keys(config.particle).map(setting => {
       if(this.hopalongVisualizer[setting] != config.particle[setting].value) {
-        return true;
+        hasChanged = true;
       }
     })
+    return hasChanged;
   }
 
   resetVisualization() {
