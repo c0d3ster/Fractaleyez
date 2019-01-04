@@ -6,55 +6,56 @@ import config from '../config/configuration.js';
  * ORIGINAL AUTHOR: Iacopo Sassarini
  * Modifications made by Cody Douglass and Conor O'Neill
  */
-var NUM_POINTS_SUBSET = 8000;
-var NUM_SUBSETS = 5;
-var NUM_POINTS = NUM_POINTS_SUBSET * NUM_SUBSETS;
-var NUM_LEVELS = 5;
-var LEVEL_DEPTH = 500;
 var DEF_BRIGHTNESS = .5;
 var DEF_SATURATION = 1;
-var SPRITE_SIZE = 8;
+
 
 // Orbit parameters
 var a, b, c, d, e;
 
 export default class HopalongVisualizer {
   constructor() {
-      this.lights = [];
-      this.objects = [];
-      this.hueValues = [];
-      this.scene = new THREE.Scene();
-      this.scene.fog = new THREE.FogExp2( 0x000000, 0.0013 );
-      this.particleImages = ['galaxySprite.png', 'galaxy2Sprite.png', 'galaxy3Sprite.png'];
-      this.startTimer = null;
-      this.deltaTime = 0;
-      this.elapsedTime = 0;
-      this.audioPeak = false;
-      this.peakCountdown = 0;
-      this.orbit = {
-        subsets: [],
-        xMin: 0,
-        xMax: 0,
-        yMin: 0,
-        yMax: 0,
-        scaleX: 0,
-        scaleY: 0
-      };
+    this.particlesPerLayer = config.particle.particlesPerLayer.value;
+    this.layers = config.particle.layers.value;
+    this.levels = config.particle.levels.value;
+    this.levelDepth = 500;
+    this.particleSize = config.particle.particleSize.value;
+    this.needsParticleReset = false;
+    this.lights = [];
+    this.objects = [];
+    this.hueValues = [];
+    this.scene = new THREE.Scene();
+    this.scene.fog = new THREE.FogExp2( 0x000000, 0.0013 );
+    this.particleImages = ['galaxySprite.png', 'galaxy2Sprite.png', 'galaxy3Sprite.png'];
+    this.startTimer = null;
+    this.deltaTime = 0;
+    this.elapsedTime = 0;
+    this.audioPeak = false;
+    this.peakCountdown = 0;
+    this.orbit = {
+      subsets: [],
+      xMin: 0,
+      xMax: 0,
+      yMin: 0,
+      yMax: 0,
+      scaleX: 0,
+      scaleY: 0
+    };
 
-      for( let i = 0; i < NUM_SUBSETS; i++ )
+    for( let i = 0; i < this.layers; i++ )
+    {
+      let subsetPoints = [];
+      for( let j = 0; j < this.particlesPerLayer; j++ )
       {
-        let subsetPoints = [];
-        for( let j = 0; j < NUM_POINTS_SUBSET; j++ )
-        {
-          subsetPoints[j] = {
-            x: 0,
-            y: 0,
-            vertex: new THREE.Vector3(0,0,0)
-          }
+        subsetPoints[j] = {
+          x: 0,
+          y: 0,
+          vertex: new THREE.Vector3(0,0,0)
         }
-        this.orbit.subsets.push( subsetPoints );
-        this.hueValues[i] = Math.random();
       }
+      this.orbit.subsets.push( subsetPoints );
+      this.hueValues[i] = Math.random();
+    }
   }
 
 
@@ -67,12 +68,12 @@ export default class HopalongVisualizer {
 
     this.generateOrbit();
     
-    for( let level = 0; level < NUM_LEVELS; level++ ) {
-      for( let s = 0; s < NUM_SUBSETS; s++ ) {
+    for( let level = 0; level < this.levels; level++ ) {
+      for( let s = 0; s < this.layers; s++ ) {
 
 
         let geometry = new THREE.Geometry();
-        for (var i = 0; i < NUM_POINTS_SUBSET; i++) {
+        for (var i = 0; i < this.particlesPerLayer; i++) {
           geometry.vertices.push(this.orbit.subsets[s][i].vertex);
         }
 
@@ -80,7 +81,7 @@ export default class HopalongVisualizer {
         particleIndex = count % this.particleImages.length;
         sprite = new THREE.TextureLoader().load( this.particleImages[particleIndex] );
         let material = new THREE.PointsMaterial( {
-         size: SPRITE_SIZE,
+         size: this.particleSize,
          map: sprite,
          blending: THREE.AdditiveBlending,
          depthTest: false,
@@ -93,7 +94,7 @@ export default class HopalongVisualizer {
         particles.mySubset = s;
         particles.position.x = 0;
         particles.position.y = 0;
-        particles.position.z = -LEVEL_DEPTH * level - (s * LEVEL_DEPTH / NUM_SUBSETS) + config.user.scaleFactor.value / 2;
+        particles.position.z = -this.levelDepth * level - (s * this.levelDepth / this.layers) + config.user.scaleFactor.value / 2;
         particles.needsUpdate = 0;
         particles.material.color.setHSL( this.hueValues[s], DEF_SATURATION, DEF_BRIGHTNESS );
         this.objects.push( particles );
@@ -102,7 +103,7 @@ export default class HopalongVisualizer {
       }
     }
 
-    setInterval( () => { this.updateOrbit(); }, 1000)
+    this.updateInterval = setInterval( () => { this.updateOrbit(); }, 300)
   }
 
     /**
@@ -152,7 +153,7 @@ export default class HopalongVisualizer {
       }
 
       if ( obj.position.z > config.user.scaleFactor.value / 2 ) {
-        obj.position.setZ( -(NUM_LEVELS-1) * LEVEL_DEPTH + LEVEL_DEPTH);
+        obj.position.setZ( -(this.levels-1) * this.levelDepth + this.levelDepth);
 
         if ( obj.needsUpdate == 1 )
         {
@@ -211,7 +212,7 @@ export default class HopalongVisualizer {
     this.generateOrbit();
 
     //Change their colors
-    for( let s = 0; s < NUM_SUBSETS; s++ )
+    for( let s = 0; s < this.layers; s++ )
     {
       this.hueValues[s] = Math.random();
     }
@@ -232,14 +233,14 @@ export default class HopalongVisualizer {
     let xMin = 0, xMax = 0, yMin = 0, yMax = 0;
     // let choice = Math.random();
 
-    for( let s = 0; s < NUM_SUBSETS; s++ )
+    for( let s = 0; s < this.layers; s++ )
     {
       x =  s * 0.005 * (1-Math.random());
       y =  s * 0.005 * (1-Math.random());
 
       let currentSubset = this.orbit.subsets[s];
 
-      for( let i = 0; i < NUM_POINTS_SUBSET; i++ )
+      for( let i = 0; i < this.particlesPerLayer; i++ )
       {
         z = (ld + Math.sqrt(Math.sqrt(Math.abs( lb * x - lc))));
         /*if( choice < 0.5 )
@@ -275,10 +276,10 @@ export default class HopalongVisualizer {
     this.orbit.scaleX = scaleX;
     this.orbit.scaleY = scaleY;
 
-    for( let s = 0; s < NUM_SUBSETS; s++ )
+    for( let s = 0; s < this.layers; s++ )
     {
       let currentSubset = this.orbit.subsets[s];
-      for( let i = 0; i < NUM_POINTS_SUBSET; i++ )
+      for( let i = 0; i < this.particlesPerLayer; i++ )
       {
         //TODO: Determine whether this "Clear Center" hack is still functioning or not
         currentSubset[i].vertex.setX( scaleX * (currentSubset[i].x - xMin) - scale_factor_l );
@@ -288,26 +289,19 @@ export default class HopalongVisualizer {
   }
 
   prepareOrbit() {
-    this.shuffleParams();
+    this.updateOrbitParams();
     this.orbit.xMin = 0;
     this.orbit.xMax = 0;
     this.orbit.yMin = 0;
     this.orbit.yMax = 0;
   }
 
-  shuffleParams() {
+  updateOrbitParams() {
     a = config.orbit.a.value;
     b = config.orbit.b.value;
     c = config.orbit.c.value;
     d = config.orbit.d.value;
     e = config.orbit.e.value;
-
-    /* Randomize parameters
-    a = A_MIN + Math.random() * (A_MAX - A_MIN);
-    b = B_MIN + Math.random() * (B_MAX - B_MIN);
-    c = C_MIN + Math.random() * (C_MAX - C_MIN);
-    d = D_MIN + Math.random() * (D_MAX - D_MIN);
-    e = E_MIN + Math.random() * (E_MAX - E_MIN);*/
   }
 
   setLights() {
@@ -324,4 +318,8 @@ export default class HopalongVisualizer {
     this.scene.add( this.lights[2] );
   }
 
+  destroyVisualization() {
+    clearInterval(this.updateInterval);
+    this.scene = null;
+  }
 }

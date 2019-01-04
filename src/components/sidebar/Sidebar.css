@@ -17,11 +17,25 @@
   padding: 10px 20px;
 }
 
+@media only screen and (max-width: 600px) {
+  .sidebar-content {
+    width: 60vw;
+  }
+  
+  .expand-config {
+    display: none;
+  }
+}
+
 .sidebar-title {
   display: inline-block;
   font-weight: bold;
   overflow: hidden;
   margin: 1rem 2rem;
+}
+
+.sidebar-content:not(.slide-in) > .row > .sidebar-title {
+  display: none;
 }
 
 .expand-config {

@@ -14,8 +14,6 @@ export default class HopalongManager {
     this.startTimer = null;
     this.deltaTime = 0;
     this.elapsedTime = 0;
-    this.scaleFactor = 1500;
-    this.cameraBound = 100;
     this.cameraManager = null;
     this.hopalongVisualizer = null;
     this.renderer = null;
@@ -42,7 +40,7 @@ export default class HopalongManager {
       clearColor: 0x000000,
       clearAlpha: 1,
       antialias: false,
-      gammeInput: true,
+      gammaInput: true,
       gammaOutput: true
     });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
@@ -89,23 +87,46 @@ export default class HopalongManager {
    */
   update( deltaTime, audioData )
   {
-      this.deltaTime = deltaTime;
-      this.elapsedTime += deltaTime;
+    this.deltaTime = deltaTime;
+    this.elapsedTime += deltaTime;
 
-      this.shockwaveEffect.speed = (config.user.speed.value / 15) + audioData.peak.value * 1.25;
+    this.shockwaveEffect.speed = (config.user.speed.value / 15) + audioData.peak.value * 1.25;
 
-      this.hopalongVisualizer.update( deltaTime, audioData, this.renderer, this.cameraManager );
 
-      if ( config.effects.glow.value ) {
-        this.bloomEffect.blendMode.opacity.value = audioData.peak.value * audioData.peak.energy;
+    if(this.particleConfigChanged()) {
+      this.resetVisualization();
+    }
+    this.hopalongVisualizer.update( deltaTime, audioData, this.renderer, this.cameraManager );
+
+    if ( config.effects.glow.value ) {
+      this.bloomEffect.blendMode.opacity.value = audioData.peak.value * audioData.peak.energy;
+    }
+
+    if ( audioData.peak.value > 0.8 && config.effects.shockwave.value ) {
+      this.shockwaveEffect.explode();
+    }
+    this.composer.render( this.clock.getDelta() );
+
+    this.cameraManager.manageCameraPosition();
+  }
+
+  particleConfigChanged() {
+    let hasChanged = false;
+    Object.keys(config.particle).map(setting => {
+      if(this.hopalongVisualizer[setting] != config.particle[setting].value) {
+        hasChanged = true;
       }
+    })
+    return hasChanged;
+  }
 
-      if ( audioData.peak.value > 0.8 && config.effects.shockwave.value ) {
-        this.shockwaveEffect.explode();
-      }
-      this.composer.render( this.clock.getDelta() );
+  resetVisualization() {
+    this.hopalongVisualizer.destroyVisualization(this.renderer, this.cameraManager);
+    this.hopalongVisualizer = null;
+    this.hopalongVisualizer = new HopalongVisualizer();
+    this.hopalongVisualizer.init();
 
-      this.cameraManager.manageCameraPosition();
+    this.setupEffects();
   }
 
   ///////////////////////////////////////////////

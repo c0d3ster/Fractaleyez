@@ -2,6 +2,7 @@ import AnalyserConfig from './analyser.config';
 import UserConfig from './user.config';
 import VisualizerConfig from './visualizer.config';
 import OrbitConfig from './orbit.config';
+import ParticleConfig from './particle.config';
 
 export default {
   user : {
@@ -146,5 +147,43 @@ export default {
       max: OrbitConfig.E_MAX,
       step: OrbitConfig.E_STEP_SIZE
     },
+  },
+  particle : {
+    particleSize: {
+      name: 'Particle Size',
+      type: 'slider',
+      defaultValue: ParticleConfig.size_DEFAULT,
+      value: ParticleConfig.size_DEFAULT,
+      min: ParticleConfig.size_MIN,
+      max: ParticleConfig.size_MAX,
+      step: ParticleConfig.size_STEP_SIZE
+    },
+    particlesPerLayer: {
+      name: 'Particles Per Layer',
+      type: 'slider',
+      defaultValue: ParticleConfig.particles_DEFAULT,
+      value: ParticleConfig.particles_DEFAULT,
+      min: ParticleConfig.particles_MIN,
+      max: ParticleConfig.particles_MAX,
+      step: ParticleConfig.particles_STEP_SIZE
+    },
+    layers: {
+      name: 'Layers',
+      type: 'slider',
+      defaultValue: ParticleConfig.layers_DEFAULT,
+      value: ParticleConfig.layers_DEFAULT,
+      min: ParticleConfig.layers_MIN,
+      max: ParticleConfig.layers_MAX,
+      step: ParticleConfig.layers_STEP_SIZE
+    },
+    levels: {
+      name: 'Levels',
+      type: 'slider',
+      defaultValue: ParticleConfig.levels_DEFAULT,
+      value: ParticleConfig.levels_DEFAULT,
+      min: ParticleConfig.levels_MIN,
+      max: ParticleConfig.levels_MAX,
+      step: ParticleConfig.levels_STEP_SIZE
+    }
   }
 };

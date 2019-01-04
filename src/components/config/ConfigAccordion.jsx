@@ -35,8 +35,6 @@ export default class ConfigAccordion extends React.Component {
     const camelItem = this.titleToCamelCase(item)
     const camelCategory = this.titleToCamelCase(category)
 
-    console.log(config[camelCategory][camelItem])
-
     if(config[camelCategory][camelItem].type == "slider") {
       value = parseFloat(value);
     }
