@@ -13,7 +13,7 @@ var NUM_LEVELS = 5;
 var LEVEL_DEPTH = 500;
 var DEF_BRIGHTNESS = .5;
 var DEF_SATURATION = 1;
-var SPRITE_SIZE = 10;
+var SPRITE_SIZE = 8;
 
 // Orbit parameters
 var a, b, c, d, e;
@@ -25,7 +25,7 @@ export default class HopalongVisualizer {
       this.hueValues = [];
       this.scene = new THREE.Scene();
       this.scene.fog = new THREE.FogExp2( 0x000000, 0.0013 );
-      this.particleImages = ['galaxySprite.png', 'ohSprite.png'];
+      this.particleImages = ['galaxySprite.png', 'galaxy2Sprite.png', 'galaxy3Sprite.png'];
       this.startTimer = null;
       this.deltaTime = 0;
       this.elapsedTime = 0;

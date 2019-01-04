@@ -17,7 +17,7 @@ export default {
 
   B_MAX: 1,
 
-  B_DEFAULT: 0.9,
+  B_DEFAULT: 0.5,
 
   B_STEP_SIZE: 0.01,
 
@@ -44,7 +44,7 @@ export default {
 
   E_MAX: 1,
 
-  E_DEFAULT:.6,
+  E_DEFAULT: .5,
 
   E_STEP_SIZE: 0.1
 };
