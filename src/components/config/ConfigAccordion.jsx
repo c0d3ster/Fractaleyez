@@ -3,8 +3,9 @@ import { Row, Col } from 'react-bootstrap';
 
 import ConfigCategory from '../config/ConfigCategory';
 import config from '../../config/configuration.js';
+import { connectConfig } from './context/ConfigProvider';
 
-export default class ConfigAccordion extends React.Component {
+class ConfigAccordion extends React.Component {
   state = {
     openCategories: ['user']
   }
@@ -39,6 +40,7 @@ export default class ConfigAccordion extends React.Component {
       value = parseFloat(value);
     }
     config[camelCategory][camelItem].value = value
+    console.log(this.props.updateConfigItem, this.props.config)
   }
 
   titleToCamelCase = (string) => (
@@ -63,3 +65,5 @@ export default class ConfigAccordion extends React.Component {
     )
   }
 }
+
+export default connectConfig(ConfigAccordion)
