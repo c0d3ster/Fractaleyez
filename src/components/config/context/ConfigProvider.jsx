@@ -21,6 +21,11 @@ class ConfigProvider extends Component {
     }
   }
 
+  titleToCamelCase = (string) => (
+    string.toLowerCase().trim().split(/[.\-_\s]/g)
+      .reduce((string, word) => string + word[0].toUpperCase() + word.slice(1))
+  )
+
   updateConfigItem = (category, item, value) => {
     const camelItem = this.titleToCamelCase(item)
     const camelCategory = this.titleToCamelCase(category)
@@ -29,7 +34,9 @@ class ConfigProvider extends Component {
       value = parseFloat(value);
     }
     
-    this.setState((prevState) => {
+    configDefaults[camelCategory][camelItem].value = value // update static file for three context
+    
+    this.setState((prevState) => { // update state for React context
       return {
         config: {
           [camelCategory]: {
@@ -37,18 +44,14 @@ class ConfigProvider extends Component {
             ...prevState.config[camelCategory]
           },
           ...prevState.config
-        },
-        ...prevState
+        }
       }
     })
   }
 
   updateConfigPreset = (presetObject) => {
-    this.setState((prevState) => {
-      return {
-        config: presetObject,
-        ...prevState
-      }
+    this.setState({
+        config: presetObject
     })
   }
 
@@ -68,6 +71,7 @@ ConfigProvider.propTypes = {
 }
 
 export {
-  connectConfig,
+  ConfigContext,
   ConfigProvider,
+  connectConfig,
 }

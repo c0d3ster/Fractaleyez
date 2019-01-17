@@ -4,9 +4,10 @@ import { Grid, Row, Col } from 'react-bootstrap';
 
 import ConfigCategory from './ConfigCategory';
 import copyStyles from '../../styles/AppStyleCopier.js';
-import config from '../../config/configuration.js';
+import configFile from '../../config/configuration.js';
+import { connectConfig } from './context/ConfigProvider';
 
-export default class ConfigWindow extends React.Component {
+class ConfigWindow extends React.Component {
   externalWindow = null;
   containerEl = document.createElement('div');
   state = {
@@ -33,18 +34,6 @@ export default class ConfigWindow extends React.Component {
     this.setState({ width: this.externalWindow.innerWidth, height: this.externalWindow.innerHeight });
   }
 
-  handleConfigFileChange = (category, item, value) => {
-    const camelItem = this.titleToCamelCase(item)
-    const camelCategory = this.titleToCamelCase(category)
-
-    config[camelCategory][camelItem].value = value
-  }
-
-  titleToCamelCase = (string) => (
-    string.toLowerCase().trim().split(/[.\-_\s]/g)
-      .reduce((string, word) => string + word[0].toUpperCase() + word.slice(1))
-  )
-
   render() {
     return ReactDOM.createPortal(
       <div width={this.state.width} height={this.state.height}>
@@ -60,15 +49,17 @@ export default class ConfigWindow extends React.Component {
   }
 
   mapConfigCategories = () => (
-    Object.keys(config).map((category) => (
-      <Col sm={3} key={category}>
+    Object.keys(configFile).map((category) => (
+      <Col sm={2} key={category}>
         <ConfigCategory
           name={category}
-          data={config[category]}
-          onChange={this.handleConfigFileChange}
+          data={configFile[category]}
+          onChange={this.props.updateConfigItem}
           isOpen={true}
-          toggleOpen={() => {return null}}/>
+          toggleOpen={() => null}/>
       </Col>
     ))
   )
 }
+
+export default connectConfig(ConfigWindow)

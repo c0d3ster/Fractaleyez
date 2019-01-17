@@ -80,7 +80,6 @@ function analyze() {
   //console.log("\npeak.value = " + analysedData.peak.value);
   //console.log("\npeak.energy = " + analysedData.peak.energy);
   if(!analysedData.getEnergy()) { //if the user hasnt clicked the page, the audio context wont be allowed to start automatically
-    console.log(idleSoundTimer);
     idleSoundTimer++;
     if(idleSoundTimer > 100) {
       console.log('retrying sound');

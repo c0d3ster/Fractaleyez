@@ -32,7 +32,7 @@ export default
         threshold_STEP_SIZE: 0.1,
 
         // time in ms when a peak is not detectable after one has been detected
-        ignoreTime_DEFAULT: 300,
+        ignoreTime_DEFAULT: 250,
 
         ignoreTime_MIN: 0,
 
