@@ -2,9 +2,10 @@ import React from 'react'
 import { Row, Col } from 'react-bootstrap';
 
 import ConfigCategory from '../config/ConfigCategory';
-import config from '../../config/configuration.js';
+import configFile from '../../config/configuration';
+import { connectConfig } from './context/ConfigProvider';
 
-export default class ConfigAccordion extends React.Component {
+class ConfigAccordion extends React.Component {
   state = {
     openCategories: ['user']
   }
@@ -30,31 +31,16 @@ export default class ConfigAccordion extends React.Component {
   }
 
   isCategoryOpen = (category) => this.state.openCategories.indexOf(category) !== -1
-
-  handleConfigFileChange = (category, item, value) => {
-    const camelItem = this.titleToCamelCase(item)
-    const camelCategory = this.titleToCamelCase(category)
-
-    if(config[camelCategory][camelItem].type == "slider") {
-      value = parseFloat(value);
-    }
-    config[camelCategory][camelItem].value = value
-  }
-
-  titleToCamelCase = (string) => (
-    string.toLowerCase().trim().split(/[.\-_\s]/g)
-      .reduce((string, word) => string + word[0].toUpperCase() + word.slice(1))
-  )
   
   render() {
     return(
-      Object.keys(config).map((category) => (
+      Object.keys(configFile).map((category) => (
         <Row key={category}>
           <Col>
             <ConfigCategory
               name={category}
-              data={config[category]}
-              onChange={this.handleConfigFileChange}
+              data={configFile[category]}
+              onChange={this.props.updateConfigItem}
               isOpen={this.isCategoryOpen(category)}
               toggleOpen={this.toggleOpen} />
           </Col>
@@ -63,3 +49,5 @@ export default class ConfigAccordion extends React.Component {
     )
   }
 }
+
+export default connectConfig(ConfigAccordion)
