@@ -5,7 +5,7 @@ const APP_DIR = path.join( __dirname, 'src' );
 
 module.exports = {
   //with webpack 4 entry and output configuration is optional
-  entry: APP_DIR + '/index.jsx',
+  entry: ['@babel/polyfill', APP_DIR + '/index.jsx'],
   output:
   {
     path: BUILD_DIR,
@@ -55,6 +55,13 @@ module.exports = {
         }]
       }
     ]
+  },
+  devServer: {
+    port: 8080,
+    open: true,
+    proxy: {
+      "/api": "http://localhost:8080"
+    }
   },
   //resolves directory to look for modules and resolves extensions
   resolve: {

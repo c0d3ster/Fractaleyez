@@ -1,4 +1,5 @@
 import React from 'react';
+import axios from 'axios';
 import  '../main.js'; // this starts the three js stuff.
 import '../styles/App.css';
 import 'bootstrap/dist/css/bootstrap.min.css';
@@ -12,7 +13,12 @@ export default class App extends React.Component {
     configWindowVisible: false,
   }
 
-  setConfigWindow = (show) => this.setState({ configWindowVisible: show })
+  setConfigWindow = async (show) => {
+    // this.setState({ configWindowVisible: show })
+
+    const res = await axios.get("/api/getUsername");
+    console.log(res)
+  }
 
   render() {
     return (
