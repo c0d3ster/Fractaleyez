@@ -39,7 +39,6 @@ class ConfigAccordion extends React.Component {
           <Col>
             <ConfigCategory
               name={category}
-              data={configFile[category]}
               onChange={this.props.updateConfigItem}
               isOpen={this.isCategoryOpen(category)}
               toggleOpen={this.toggleOpen} />

@@ -1,5 +1,6 @@
 import React, { Component } from 'react'
 import PropTypes from 'prop-types'
+import axios from 'axios'
 
 import configDefaults from "../../../config/configuration"
 
@@ -17,7 +18,8 @@ class ConfigProvider extends Component {
     this.state = {
       config: configDefaults,
       updateConfigItem: this.updateConfigItem,
-      updateConfigPreset: this.updateConfigPreset
+      updateConfigPreset: this.updateConfigPreset,
+      resetConfig: this.resetConfig
     }
   }
 
@@ -47,11 +49,21 @@ class ConfigProvider extends Component {
         }
       }
     })
+    console.log(configDefaults[camelCategory][camelItem].value, this.state.config[camelCategory][camelItem])
   }
 
   updateConfigPreset = (presetObject) => {
     this.setState({
         config: presetObject
+    })
+  }
+
+  resetConfig = async () => {
+    const { data: config } = await axios.get("/api/getConfigDefaults");
+    this.setState({ config })
+
+    Object.keys(config).map( (category) => {
+      configDefaults[category] = config[category]
     })
   }
 
