@@ -4,7 +4,6 @@ import { Grid, Row, Col } from 'react-bootstrap';
 
 import ConfigCategory from './ConfigCategory';
 import copyStyles from '../../styles/AppStyleCopier.js';
-import configFile from '../../config/configuration.js';
 import { connectConfig } from './context/ConfigProvider';
 
 class ConfigWindow extends React.Component {
@@ -49,11 +48,10 @@ class ConfigWindow extends React.Component {
   }
 
   mapConfigCategories = () => (
-    Object.keys(configFile).map((category) => (
+    Object.keys(this.props.config).map((category) => (
       <Col sm={2} key={category}>
         <ConfigCategory
           name={category}
-          data={configFile[category]}
           onChange={this.props.updateConfigItem}
           isOpen={true}
           toggleOpen={() => null}/>
