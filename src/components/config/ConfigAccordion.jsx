@@ -2,7 +2,7 @@ import React from 'react'
 import { Row, Col } from 'react-bootstrap';
 
 import ConfigCategory from '../config/ConfigCategory';
-import configFile from '../../config/configuration';
+//import configFile from '../../config/configuration';
 import { connectConfig } from './context/ConfigProvider';
 
 class ConfigAccordion extends React.Component {
@@ -34,7 +34,7 @@ class ConfigAccordion extends React.Component {
   
   render() {
     return(
-      Object.keys(configFile).map((category) => (
+      Object.keys(this.props.config).map((category) => (
         <Row key={category}>
           <Col>
             <ConfigCategory

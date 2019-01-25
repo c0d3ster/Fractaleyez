@@ -41,14 +41,19 @@ class ConfigProvider extends Component {
     this.setState((prevState) => { // update state for React context
       return {
         config: {
+          ...prevState.config,
           [camelCategory]: {
-            [camelItem]: value,
-            ...prevState.config[camelCategory]
+            ...prevState.config[camelCategory],
+            [camelItem]: {
+              ...prevState.config[camelCategory][camelItem],
+              value
+            },
           },
-          ...prevState.config
         }
       }
     })
+
+    console.log(JSON.stringify(this.state.config))
   }
 
   updateConfigPreset = (presetObject) => {
