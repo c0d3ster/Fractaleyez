@@ -4,7 +4,6 @@ import { EffectComposer, ShockWaveEffect, RenderPass, BloomEffect, EffectPass } 
 import HopalongVisualizer from './hopalong-visualizer.js'
 import CameraManager from './camera-manager';
 import configFile from '../config/configuration';
-//import { ConfigFileContext } from '../components/configFile/context/ConfigFileProvider.jsx';
 
 /**
  * The Hopalong Manager class is responsible for creating the camera and visualization
@@ -95,7 +94,6 @@ export default class HopalongManager {
 
 
     if(this.particleConfigFileChanged()) {
-      // TODO: Figure out how to read Context here console.log(ConfigFileContext.configFile);
       this.resetVisualization();
     }
     this.hopalongVisualizer.update( deltaTime, audioData, this.renderer, this.cameraManager );

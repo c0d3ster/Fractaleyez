@@ -49,7 +49,6 @@ class ConfigProvider extends Component {
         }
       }
     })
-    console.log(configDefaults[camelCategory][camelItem].value, this.state.config[camelCategory][camelItem])
   }
 
   updateConfigPreset = (presetObject) => {
@@ -83,7 +82,6 @@ ConfigProvider.propTypes = {
 }
 
 export {
-  ConfigContext,
   ConfigProvider,
   connectConfig,
 }
