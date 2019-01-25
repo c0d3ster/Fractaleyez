@@ -2,7 +2,7 @@ import React, { Component } from 'react'
 import PropTypes from 'prop-types'
 import axios from 'axios'
 
-import configDefaults from "../../../config/configuration"
+import configDefaults from "../../../configDefaults/configDefaults"
 
 const ConfigContext = React.createContext()
 

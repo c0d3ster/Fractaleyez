@@ -2,7 +2,6 @@ import React from 'react'
 import { Row, Col } from 'react-bootstrap';
 
 import ConfigCategory from '../config/ConfigCategory';
-//import configFile from '../../config/configuration';
 import { connectConfig } from './context/ConfigProvider';
 
 class ConfigAccordion extends React.Component {

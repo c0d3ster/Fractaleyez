@@ -1,6 +1,6 @@
-import UserConfig from '../config/user.config';
-import AnalyserConfig from '../config/analyser.config';
-import config from '../config/configuration';
+import UserConfig from '../configDefaults/user.config';
+import AnalyserConfig from '../configDefaults/analyser.config';
+import config from '../configDefaults/configDefaults';
 
 import { AudioData } from '../audiostream/audio-data';
 import { AudioAnalysedData, AudioAnalysedDataForVisualization, Peak } from './audio-analysed-data';
