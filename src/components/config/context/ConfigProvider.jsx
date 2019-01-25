@@ -37,8 +37,6 @@ class ConfigProvider extends Component {
       value = parseFloat(value);
     }
     
-    //configDefaults[camelCategory][camelItem].value = value // update static file for three context
-    
     this.setState((prevState) => { // update state for React context
       return {
         config: {
@@ -57,8 +55,8 @@ class ConfigProvider extends Component {
 
   updateConfigPreset = (presetObject) => {
     this.setState({
-        config: presetObject
-    })
+      config: presetObject
+    }, () => window.config = this.state.config)
   }
 
   resetConfig = async () => {
