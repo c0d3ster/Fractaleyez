@@ -13,7 +13,6 @@ class App extends React.Component {
   }
 
   componentDidMount() {
-    window.config = this.props.config
     initWithMicrophone()
   }
 

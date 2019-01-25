@@ -93,6 +93,7 @@ export default class HopalongManager {
 
 
     if(this.particleConfigChanged()) {
+      console.log(window.config)
       this.resetVisualization();
     }
     this.hopalongVisualizer.update( deltaTime, audioData, this.renderer, this.cameraManager );

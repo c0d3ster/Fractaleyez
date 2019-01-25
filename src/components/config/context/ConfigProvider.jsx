@@ -21,6 +21,7 @@ class ConfigProvider extends Component {
       updateConfigPreset: this.updateConfigPreset,
       resetConfig: this.resetConfig
     }
+    window.config = this.state.config
   }
 
   titleToCamelCase = (string) => (
@@ -35,7 +36,9 @@ class ConfigProvider extends Component {
     if(this.state.config[camelCategory][camelItem].type == "slider") {
       value = parseFloat(value);
     }
-        
+    
+    //configDefaults[camelCategory][camelItem].value = value // update static file for three context
+    
     this.setState((prevState) => { // update state for React context
       return {
         config: {
@@ -49,7 +52,7 @@ class ConfigProvider extends Component {
           },
         }
       }
-    })
+    }, () => window.config = this.state.config)
   }
 
   updateConfigPreset = (presetObject) => {
@@ -60,7 +63,9 @@ class ConfigProvider extends Component {
 
   resetConfig = async () => {
     const { data: config } = await axios.get("/api/getConfigDefaults");
-    this.setState({ config })
+    this.setState({ 
+      config 
+    }, () => window.config = this.state.config)
   }
 
   render() {
