@@ -5,13 +5,17 @@
   "main": "app.js",
   "scripts": {
     "build-dev": "webpack --mode development --watch",
+    "client-dev": "webpack-dev-server --mode development --content-base public/",
+    "server-dev": "node server-dev.js",
     "build": "webpack --mode production",
     "start": "yarn build && supervisor server.js",
-    "start-dev": "concurrently --kill-others \"yarn build-dev\" \"webpack-dev-server --mode development --content-base public/\""
+    "start-dev": "concurrently --kill-others \"yarn build-dev\" \"yarn server-dev\" \"yarn client-dev\""
   },
   "author": "Cody Douglass",
   "license": "ISC",
   "dependencies": {
+    "@babel/polyfill": "^7.2.5",
+    "axios": "^0.18.0",
     "bootstrap": "^3.3.7",
     "classnames": "^2.2.6",
     "postprocessing": "^5.0.0",
@@ -31,7 +35,6 @@
     "@babel/plugin-proposal-numeric-separator": "^7.0.0",
     "@babel/plugin-proposal-throw-expressions": "^7.0.0",
     "@babel/plugin-syntax-dynamic-import": "^7.0.0",
-    "@babel/plugin-syntax-import-meta": "^7.0.0",
     "@babel/preset-env": "^7.1.5",
     "@babel/preset-react": "^7.0.0",
     "autoprefixer": "^9.1.5",

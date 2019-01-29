@@ -1,7 +1,5 @@
 import * as THREE from 'three';
 
-import config from '../config/configuration';
-
 /**
  * The Camera Manager class is responsible for creating and modifying the 
  * user's point of view in relation to the scene
@@ -18,9 +16,9 @@ export default class CameraManager {
     }
 
     init() {
-      this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1, 3 * config.user.scaleFactor.value);
-      this.camera.position.z = config.user.scaleFactor.value / 3;
-      this.cameraBound = config.user.cameraBound.value;
+      this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1, 3 * window.config.user.scaleFactor.value);
+      this.camera.position.z = window.config.user.scaleFactor.value / 3;
+      this.cameraBound = window.config.user.cameraBound.value;
     }
 
     getMouseX() {
@@ -48,10 +46,10 @@ export default class CameraManager {
         if (this.camera.position.y >  this.cameraBound) this.camera.position.y =  this.cameraBound;
       }
 
-      if (this.cameraBound != config.user.cameraBound.value) {
+      if (this.cameraBound != window.config.user.cameraBound.value) {
         this.camera.position.y = 0;
         this.camera.position.x = 0
-        this.cameraBound =  config.user.cameraBound.value;
+        this.cameraBound =  window.config.user.cameraBound.value;
       }
     }
 

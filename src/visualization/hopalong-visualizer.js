@@ -1,6 +1,6 @@
 import * as THREE from 'three';
+
 import { AudioAnalysedDataForVisualization } from '../audioanalysis/audio-analysed-data';
-import config from '../config/configuration.js';
 
 /*
  * ORIGINAL AUTHOR: Iacopo Sassarini
@@ -9,17 +9,16 @@ import config from '../config/configuration.js';
 var DEF_BRIGHTNESS = .5;
 var DEF_SATURATION = 1;
 
-
 // Orbit parameters
 var a, b, c, d, e;
 
 export default class HopalongVisualizer {
   constructor() {
-    this.particlesPerLayer = config.particle.particlesPerLayer.value;
-    this.layers = config.particle.layers.value;
-    this.levels = config.particle.levels.value;
+    this.particlesPerLayer = window.config.particle.particlesPerLayer.value;
+    this.layers = window.config.particle.layers.value;
+    this.levels = window.config.particle.levels.value;
     this.levelDepth = 500;
-    this.particleSize = config.particle.particleSize.value;
+    this.particleSize = window.config.particle.particleSize.value;
     this.needsParticleReset = false;
     this.lights = [];
     this.objects = [];
@@ -94,7 +93,7 @@ export default class HopalongVisualizer {
         particles.mySubset = s;
         particles.position.x = 0;
         particles.position.y = 0;
-        particles.position.z = -this.levelDepth * level - (s * this.levelDepth / this.layers) + config.user.scaleFactor.value / 2;
+        particles.position.z = -this.levelDepth * level - (s * this.levelDepth / this.layers) + window.config.user.scaleFactor.value / 2;
         particles.needsUpdate = 0;
         particles.material.color.setHSL( this.hueValues[s], DEF_SATURATION, DEF_BRIGHTNESS );
         this.objects.push( particles );
@@ -123,13 +122,13 @@ export default class HopalongVisualizer {
     let musicSpeed = (audioData.energyAverage + audioData.energy);
     let musicSpeedMultiplier = 1 + musicSpeed/10;
     //console.log('music speed multiplier: ' + musicSpeedMultiplier);
-    //console.log(config.speed * musicSpeedMultiplier);
+    //console.log(window.config.speed * musicSpeedMultiplier);
 
     let count = 0; //keep track of which layer to apply settings on
 
     //Process all children in scene and update them applying effects as needed
     this.objects.forEach( (obj) => {
-      obj.position.z += config.user.speed.value * musicSpeedMultiplier; //move particles towards camera
+      obj.position.z += window.config.user.speed.value * musicSpeedMultiplier; //move particles towards camera
 
       if (this.audioPeak) {
         this.peakCountdown--; //decrement peak countdown
@@ -138,21 +137,21 @@ export default class HopalongVisualizer {
           this.peakCountdown = 100;
         }
 
-        if ( count % 2 == 0 && config.effects.switcheroo.value ) { //change geometry of every other orbit on peak
+        if ( count % 2 == 0 && window.config.effects.switcheroo.value ) { //change geometry of every other orbit on peak
           obj.geometry.verticesNeedUpdate = true;
           obj.needsUpdate = 0;
         }
 
-        if ( config.effects.wobWob.value ) { //wobwob effect
-          obj.position.z -= config.user.speed.value * musicSpeedMultiplier * 2;
+        if ( window.config.effects.wobWob.value ) { //wobwob effect
+          obj.position.z -= window.config.user.speed.value * musicSpeedMultiplier * 2;
         }
 
-        if ( config.effects.colorShift.value ) { //change color on peak
+        if ( window.config.effects.colorShift.value ) { //change color on peak
           obj.material.color.setHSL( this.hueValues[obj.mySubset], DEF_SATURATION, DEF_BRIGHTNESS );
         }
       }
 
-      if ( obj.position.z > config.user.scaleFactor.value / 2 ) {
+      if ( obj.position.z > window.config.user.scaleFactor.value / 2 ) {
         obj.position.setZ( -(this.levels-1) * this.levelDepth + this.levelDepth);
 
         if ( obj.needsUpdate == 1 )
@@ -162,16 +161,16 @@ export default class HopalongVisualizer {
         }
       }
 
-      if ( config.effects.cyclone.value ) {
+      if ( window.config.effects.cyclone.value ) {
         if (count % 3 == 0) {
-          obj.rotation.z += (config.user.rotationSpeed.value / 1000) * musicSpeedMultiplier;
+          obj.rotation.z += (window.config.user.rotationSpeed.value / 1000) * musicSpeedMultiplier;
         }
         else if (count % 3 == 1) {
-          obj.rotation.z -= (config.user.rotationSpeed.value / 1000) * musicSpeedMultiplier;
+          obj.rotation.z -= (window.config.user.rotationSpeed.value / 1000) * musicSpeedMultiplier;
         }
       }
       else {
-        obj.rotation.z += (config.user.rotationSpeed.value / 1000) * musicSpeedMultiplier;
+        obj.rotation.z += (window.config.user.rotationSpeed.value / 1000) * musicSpeedMultiplier;
       }
       count++;
       /*if (obj.position.z < SCALE_FACTOR / 15) {
@@ -228,7 +227,7 @@ export default class HopalongVisualizer {
 
     let la=a, lb=b, lc=c, ld=d, le=e;
 
-    let scale_factor_l = config.user.scaleFactor.value;
+    let scale_factor_l = window.config.user.scaleFactor.value;
 
     let xMin = 0, xMax = 0, yMin = 0, yMax = 0;
     // let choice = Math.random();
@@ -297,11 +296,11 @@ export default class HopalongVisualizer {
   }
 
   updateOrbitParams() {
-    a = config.orbit.a.value;
-    b = config.orbit.b.value;
-    c = config.orbit.c.value;
-    d = config.orbit.d.value;
-    e = config.orbit.e.value;
+    a = window.config.orbit.a.value;
+    b = window.config.orbit.b.value;
+    c = window.config.orbit.c.value;
+    d = window.config.orbit.d.value;
+    e = window.config.orbit.e.value;
   }
 
   setLights() {

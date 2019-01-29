@@ -1,7 +1,8 @@
 import React, { Component } from 'react'
 import PropTypes from 'prop-types'
+import axios from 'axios'
 
-import configDefaults from "../../../config/configuration"
+import configDefaults from "../../../configDefaults/configDefaults"
 
 const ConfigContext = React.createContext()
 
@@ -17,8 +18,10 @@ class ConfigProvider extends Component {
     this.state = {
       config: configDefaults,
       updateConfigItem: this.updateConfigItem,
-      updateConfigPreset: this.updateConfigPreset
+      updateConfigPreset: this.updateConfigPreset,
+      resetConfig: this.resetConfig
     }
+    window.config = this.state.config
   }
 
   titleToCamelCase = (string) => (
@@ -34,25 +37,33 @@ class ConfigProvider extends Component {
       value = parseFloat(value);
     }
     
-    configDefaults[camelCategory][camelItem].value = value // update static file for three context
-    
     this.setState((prevState) => { // update state for React context
       return {
         config: {
+          ...prevState.config,
           [camelCategory]: {
-            [camelItem]: value,
-            ...prevState.config[camelCategory]
+            ...prevState.config[camelCategory],
+            [camelItem]: {
+              ...prevState.config[camelCategory][camelItem],
+              value
+            },
           },
-          ...prevState.config
         }
       }
-    })
+    }, () => window.config = this.state.config)
   }
 
   updateConfigPreset = (presetObject) => {
     this.setState({
-        config: presetObject
-    })
+      config: presetObject
+    }, () => window.config = this.state.config)
+  }
+
+  resetConfig = async () => {
+    const { data: config } = await axios.get("/api/getConfigDefaults");
+    this.setState({ 
+      config 
+    }, () => window.config = this.state.config)
   }
 
   render() {
@@ -71,7 +82,6 @@ ConfigProvider.propTypes = {
 }
 
 export {
-  ConfigContext,
   ConfigProvider,
   connectConfig,
 }

@@ -3,11 +3,10 @@ import { AudioStream } from './audiostream/audio-stream';
 import { AudioAnalyser } from './audioanalysis/audio-analyser';
 import HopalongManager from './visualization/hopalong-manager.js';
 
-
-// Size of the fft transform performed on audio stream
+//Size of the fft transform performed on audio stream
 const FFT_SIZE = 512;
 
-// 1- we create the audio components required for analysis
+//Create the audio components required for analysis
 let audiosource = new AudioSource();
 let audiostream = new AudioStream( audiosource, FFT_SIZE );
 let audioAnalyser = new AudioAnalyser( audiostream.getBufferSize() );
@@ -20,13 +19,15 @@ let startTimer = null,
     lastFrameTimer = null,
     deltaTime = null;
 
-//Intiatialize Mic input stream & then set up Audio Anaysis
-audiosource.getStreamFromMicrophone(false).then(init); //set input to be from mic by default
-
 //Initialize variables to track mouse movement and hide mouse after timeout
 let idleMouseTimer = 0;
 let forceMouseHide = false;
 let idleSoundTimer = 0;
+
+//Intiatialize Mic input stream & then set up Audio Analysis
+export function initWithMicrophone() {
+  audiosource.getStreamFromMicrophone(false).then(init); //set input to be from mic by default
+}
 
 //Set up the Audio Analysis, Visualization manager
 function init() {

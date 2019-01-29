@@ -3,8 +3,6 @@ import { EffectComposer, ShockWaveEffect, RenderPass, BloomEffect, EffectPass } 
 
 import HopalongVisualizer from './hopalong-visualizer.js'
 import CameraManager from './camera-manager';
-import configFile from '../config/configuration';
-//import { ConfigFileContext } from '../components/configFile/context/ConfigFileProvider.jsx';
 
 /**
  * The Hopalong Manager class is responsible for creating the camera and visualization
@@ -91,20 +89,19 @@ export default class HopalongManager {
     this.deltaTime = deltaTime;
     this.elapsedTime += deltaTime;
 
-    this.shockwaveEffect.speed = (configFile.user.speed.value / 15) + audioData.peak.value * 1.25;
+    this.shockwaveEffect.speed = (window.config.user.speed.value / 15) + audioData.peak.value * 1.25;
 
 
-    if(this.particleConfigFileChanged()) {
-      // TODO: Figure out how to read Context here console.log(ConfigFileContext.configFile);
+    if(this.particleConfigChanged()) {
       this.resetVisualization();
     }
     this.hopalongVisualizer.update( deltaTime, audioData, this.renderer, this.cameraManager );
 
-    if ( configFile.effects.glow.value ) {
+    if ( window.config.effects.glow.value ) {
       this.bloomEffect.blendMode.opacity.value = audioData.peak.value * audioData.peak.energy;
     }
 
-    if ( audioData.peak.value > 0.8 && configFile.effects.shockwave.value ) {
+    if ( audioData.peak.value > 0.8 && window.config.effects.shockwave.value ) {
       this.shockwaveEffect.explode();
     }
     this.composer.render( this.clock.getDelta() );
@@ -112,10 +109,10 @@ export default class HopalongManager {
     this.cameraManager.manageCameraPosition();
   }
 
-  particleConfigFileChanged() {
+  particleConfigChanged() {
     let hasChanged = false;
-    Object.keys(configFile.particle).map(setting => {
-      if(this.hopalongVisualizer[setting] != configFile.particle[setting].value) {
+    Object.keys(window.config.particle).map(setting => {
+      if(this.hopalongVisualizer[setting] != window.config.particle[setting].value) {
         hasChanged = true;
       }
     })
@@ -134,7 +131,7 @@ export default class HopalongManager {
   ///////////////////////////////////////////////
   // Event listeners
   ///////////////////////////////////////////////
-  // TODO Move these into configFile
+  // TODO Move these into config and set up from React
   onDocumentMouseMove = (event) => {
     this.cameraManager.updateMousePosition(event);
   }
@@ -148,14 +145,14 @@ export default class HopalongManager {
   }
 
   onKeyDown = (event) => {
-    if (event.keyCode == 38 && configFile.user.speed.value < configFile.user.speed.max)
-        configFile.user.speed.value += 0.5;
-    else if (event.keyCode == 40 && configFile.user.speed.value > configFile.user.speed.min)
-      configFile.user.speed.value -= 0.5;
-    else if (event.keyCode == 37 && configFile.user.rotationSpeed.value < configFile.user.rotationSpeed.max)
-     configFile.user.rotationSpeed.value += 0.25;
-    else if (event.keyCode == 39 && configFile.user.rotationSpeed.value > configFile.user.rotationSpeed.min)
-      configFile.user.rotationSpeed.value -= 0.25;
+    if (event.keyCode == 38 && window.config.user.speed.value < window.config.user.speed.max)
+        window.config.user.speed.value += 0.5;
+    else if (event.keyCode == 40 && window.config.user.speed.value > window.config.user.speed.min)
+      window.config.user.speed.value -= 0.5;
+    else if (event.keyCode == 37 && window.config.user.rotationSpeed.value < window.config.user.rotationSpeed.max)
+     window.config.user.rotationSpeed.value += 0.25;
+    else if (event.keyCode == 39 && window.config.user.rotationSpeed.value > window.config.user.rotationSpeed.min)
+      window.config.user.rotationSpeed.value -= 0.25;
     //else if (event.keyCode == 72 || event.keyCode == 104) toggleVisuals();
   }
 };
