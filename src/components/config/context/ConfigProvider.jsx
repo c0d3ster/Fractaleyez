@@ -50,7 +50,9 @@ class ConfigProvider extends Component {
           },
         }
       }
-    }, () => window.config = this.state.config)
+    }, () => {
+      window.config = this.state.config
+    })
   }
 
   retrieveConfigPreset = async (name) => {
