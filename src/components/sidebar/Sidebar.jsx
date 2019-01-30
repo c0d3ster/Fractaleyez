@@ -16,7 +16,9 @@ class Sidebar extends React.Component {
 
   componentDidMount() {this.hideTabDelayed(5000)}
 
-  setSidebarVisibility = (visible) => this.setState({ sidebarVisible: visible })
+  setConfigWindow = () => this.props.setConfigWindow(!this.props.configWindowVisible)
+
+  setSidebarVisibility = () => this.setState({ sidebarVisible: !this.state.visible })
 
   showTab = () => {
     if(this.state.hideTimer) {
@@ -57,7 +59,7 @@ class Sidebar extends React.Component {
         <Grid bsClass={sidebarContentClasses}>
           <button 
             className={tabClasses} 
-            onClick={(e) => this.setSidebarVisibility(!this.state.sidebarVisible)}>
+            onClick={this.setSidebarVisibility}>
             Menu
           </button>
           <Row>
@@ -68,7 +70,7 @@ class Sidebar extends React.Component {
             <h2 className='sidebar-title'>Configuration</h2>
             <button 
               className={expandConfigClasses} 
-              onClick={(e) => this.props.setConfigWindow(!this.props.configWindowVisible)}>
+              onClick={this.setConfigWindow}>
               expand
             </button>
           </Row>

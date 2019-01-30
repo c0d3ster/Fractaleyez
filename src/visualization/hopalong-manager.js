@@ -120,6 +120,10 @@ export default class HopalongManager {
   }
 
   resetVisualization() {
+    document.mousemove = function() {}
+    document.keydown  = function() {}
+    window.resize  = function() {}
+
     this.hopalongVisualizer.destroyVisualization(this.renderer, this.cameraManager);
     this.hopalongVisualizer = null;
     this.hopalongVisualizer = new HopalongVisualizer();
