@@ -319,6 +319,6 @@ export default class HopalongVisualizer {
 
   destroyVisualization() {
     clearInterval(this.updateInterval);
-    this.scene = null;
+    delete this.scene;
   }
 }

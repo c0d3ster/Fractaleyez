@@ -6,10 +6,10 @@
   "scripts": {
     "build-dev": "webpack --mode development --watch",
     "client-dev": "webpack-dev-server --mode development --content-base public/",
-    "server-dev": "nodemon server-dev.js",
+    "server-dev": "node server-dev.js",
     "build": "webpack --mode production",
     "start": "yarn build && supervisor server.js",
-    "start-dev": "concurrently --kill-others \"yarn build-dev\" \"yarn server-dev\" \"yarn client-dev\""
+    "start-dev": "concurrently --kill-others \"yarn server-dev\" \"yarn client-dev\""
   },
   "author": "Cody Douglass",
   "license": "ISC",

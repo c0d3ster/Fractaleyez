@@ -125,7 +125,7 @@ export default class HopalongManager {
     window.resize  = function() {}
 
     this.hopalongVisualizer.destroyVisualization(this.renderer, this.cameraManager);
-    this.hopalongVisualizer = null;
+    delete this.hopalongVisualizer;
     this.hopalongVisualizer = new HopalongVisualizer();
     this.hopalongVisualizer.init();
 
