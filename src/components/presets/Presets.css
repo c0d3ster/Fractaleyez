@@ -3,6 +3,7 @@
   margin: 1rem 1.5rem;
 }
 
-button {
+.presets-container button {
+  margin: 0 1rem !important;
   color: #333;
 }

@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import { Grid, Row, Col } from 'react-bootstrap';
 
+import Presets from '../presets/Presets';
 import ConfigCategory from './ConfigCategory';
 import copyStyles from '../../styles/AppStyleCopier.js';
 import { connectConfig } from './context/ConfigProvider';
@@ -37,6 +38,9 @@ class ConfigWindow extends React.Component {
     return ReactDOM.createPortal(
       <div width={this.state.width} height={this.state.height}>
         <Grid>
+          <Row>
+            <Presets />
+          </Row>
           <Row>
             {this.mapConfigCategories()}
           </Row>

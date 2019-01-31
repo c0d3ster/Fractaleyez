@@ -44,7 +44,7 @@ class ConfigCategory extends React.Component {
             name={name}
             key={name}
             checked={value}
-            onChange={this.updateConfig}
+            onChange={(e) => this.updateConfig(e)}
           />
         )
       }
@@ -57,7 +57,7 @@ class ConfigCategory extends React.Component {
             min={min}
             max={max}
             step={step}
-            onChange={this.updateConfig}
+            onChange={(e) => this.updateConfig(e)}
           />
         )
       }

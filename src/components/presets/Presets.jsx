@@ -6,13 +6,14 @@ import { connectConfig } from '../config/context/ConfigProvider'
 
 class Presets extends React.Component {
   
+
   render() {
     return(
       <Row>
         <Col>
           <div className='presets-container'>
-            <button onClick={() => this.props.resetConfig()}>reset</button>
-            <button onClick={() => this.props.retrieveConfigPreset("configDefault")}>default</button>
+            <button onClick={this.props.retrieveConfigPreset}>default</button>
+            <button onClick={this.props.retrieveConfigPreset}>galaxySpace</button>
           </div>
         </Col>
       </Row>

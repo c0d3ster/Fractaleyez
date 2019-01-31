@@ -55,7 +55,8 @@ class ConfigProvider extends Component {
     })
   }
 
-  retrieveConfigPreset = async (name) => {
+  retrieveConfigPreset = async (event) => {
+    const name = event.target.innerHTML;
     const { data: config } = await axios.get(`/api/getConfig/${name}`);
     this.setState({
       config

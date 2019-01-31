@@ -18,7 +18,7 @@ class Sidebar extends React.Component {
 
   setConfigWindow = () => this.props.setConfigWindow(!this.props.configWindowVisible)
 
-  setSidebarVisibility = () => this.setState({ sidebarVisible: !this.state.visible })
+  setSidebarVisibility = () => this.setState((prevState) => {return{ sidebarVisible: !prevState.sidebarVisible }})
 
   showTab = () => {
     if(this.state.hideTimer) {
@@ -64,6 +64,11 @@ class Sidebar extends React.Component {
           </button>
           <Row>
             <h2 className='sidebar-title'>Presets</h2>
+            <button 
+              className={expandConfigClasses} 
+              onClick={() => {console.log(JSON.stringify(this.props.config))}}>
+              Log Config
+            </button>
           </Row>
           <Presets/>
           <Row>
