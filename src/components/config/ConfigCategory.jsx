@@ -48,7 +48,7 @@ class ConfigCategory extends React.Component {
           />
         )
       }
-      else {
+      else if (type == 'slider') {
         return(
           <ConfigSlider
             name={name}
@@ -61,7 +61,7 @@ class ConfigCategory extends React.Component {
           />
         )
       }
-
+      return null
     })
   )
 }

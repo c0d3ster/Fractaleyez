@@ -1,4 +1,8 @@
 export default {
+  sprites_DEFAULT: ['galaxySprite.png', 'galaxy2Sprite.png', 'galaxy3Sprite.png'],
+  sprites_MIN: 1,
+  sprites_MAX: 5,
+
   particles_DEFAULT: 7500,
   particles_MIN: 1,
   particles_MAX: 15000,

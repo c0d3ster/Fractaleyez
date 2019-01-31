@@ -184,6 +184,14 @@ export default {
       min: ParticleConfig.levels_MIN,
       max: ParticleConfig.levels_MAX,
       step: ParticleConfig.levels_STEP_SIZE
+    },
+    sprites: {
+      name: "Sprites",
+      type: "multiselect",
+      defaultValue: ParticleConfig.sprites_DEFAULT,
+      value: ParticleConfig.sprites_DEFAULT,
+      min: ParticleConfig.sprites_MIN,
+      max: ParticleConfig.sprites_MAX
     }
   }
 };

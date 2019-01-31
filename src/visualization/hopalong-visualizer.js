@@ -25,7 +25,7 @@ export default class HopalongVisualizer {
     this.hueValues = [];
     this.scene = new THREE.Scene();
     this.scene.fog = new THREE.FogExp2( 0x000000, 0.0013 );
-    this.particleImages = ['galaxySprite.png', 'galaxy2Sprite.png', 'galaxy3Sprite.png'];
+    this.sprites = window.config.particle.sprites.value;
     this.startTimer = null;
     this.deltaTime = 0;
     this.elapsedTime = 0;
@@ -60,7 +60,7 @@ export default class HopalongVisualizer {
 
 
   init() {
-    let sprite = new THREE.TextureLoader().load( this.particleImages[0] );
+    let sprite = new THREE.TextureLoader().load( this.sprites[0] );
     let count = 1;
     let particleIndex = 0
     this.setLights();
@@ -77,8 +77,8 @@ export default class HopalongVisualizer {
         }
 
 
-        particleIndex = count % this.particleImages.length;
-        sprite = new THREE.TextureLoader().load( this.particleImages[particleIndex] );
+        particleIndex = count % this.sprites.length;
+        sprite = new THREE.TextureLoader().load( this.sprites[particleIndex] );
         let material = new THREE.PointsMaterial( {
          size: this.particleSize,
          map: sprite,
