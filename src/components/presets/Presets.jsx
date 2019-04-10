@@ -12,8 +12,16 @@ class Presets extends React.Component {
       <Row>
         <Col>
           <div className='presets-container'>
-            <button onClick={this.props.retrieveConfigPreset}>default</button>
-            <button onClick={this.props.retrieveConfigPreset}>galaxySpace</button>
+          <button onClick={this.props.retrieveConfigPreset}>default</button>
+          <button onClick={this.props.retrieveConfigPreset}>edgeChaseSpin</button>
+          <button onClick={this.props.retrieveConfigPreset}>dispersionTunnelSpin</button>
+          <button onClick={this.props.retrieveConfigPreset}>crossheirSpin</button>            
+          <button onClick={this.props.retrieveConfigPreset}>galaxySpace</button>
+          <button onClick={this.props.retrieveConfigPreset}>ohSprite</button>
+          <button onClick={this.props.retrieveConfigPreset}>eyeChase</button>
+          <button onClick={this.props.retrieveConfigPreset}>sideSwirl</button>
+          <button onClick={this.props.retrieveConfigPreset}>bassPhysics</button>
+          <button onClick={this.props.retrieveConfigPreset}>bassyndicate</button>
           </div>
         </Col>
       </Row>
