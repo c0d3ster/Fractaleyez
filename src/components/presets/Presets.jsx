@@ -17,10 +17,14 @@ class Presets extends React.Component {
           <button onClick={this.props.retrieveConfigPreset}>dispersionTunnelSpin</button>
           <button onClick={this.props.retrieveConfigPreset}>crossheirSpin</button>            
           <button onClick={this.props.retrieveConfigPreset}>galaxySpace</button>
+          <button onClick={this.props.retrieveConfigPreset}>galaxySalad</button>
           <button onClick={this.props.retrieveConfigPreset}>ohSprite</button>
+          <button onClick={this.props.retrieveConfigPreset}>ohSkull</button>
           <button onClick={this.props.retrieveConfigPreset}>eyeChase</button>
           <button onClick={this.props.retrieveConfigPreset}>sideSwirl</button>
-          <button onClick={this.props.retrieveConfigPreset}>bassPhysics</button>
+          <button onClick={this.props.retrieveConfigPreset}>ZEKEBEATS</button>
+          <button onClick={this.props.retrieveConfigPreset}>ZEKEBEATSpin</button>
+          <button onClick={this.props.retrieveConfigPreset}>ZEKEBEATSalad</button>
           <button onClick={this.props.retrieveConfigPreset}>bassyndicate</button>
           </div>
         </Col>

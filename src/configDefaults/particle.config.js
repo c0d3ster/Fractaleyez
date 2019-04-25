@@ -3,6 +3,11 @@ export default {
   sprites_MIN: 1,
   sprites_MAX: 5,
 
+  saturation_DEFAULT: 1,
+  saturation_MIN: 0,
+  saturation_MAX: 1,
+  saturation_STEP_SIZE: .1,
+
   particles_DEFAULT: 7500,
   particles_MIN: 1,
   particles_MAX: 15000,
