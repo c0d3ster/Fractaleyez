@@ -26,6 +26,7 @@ class Presets extends React.Component {
           <button onClick={this.props.retrieveConfigPreset}>ZEKEBEATSpin</button>
           <button onClick={this.props.retrieveConfigPreset}>ZEKEBEATSalad</button>
           <button onClick={this.props.retrieveConfigPreset}>bassyndicate</button>
+          <button onClick={this.props.retrieveConfigPreset}>circles</button>
           </div>
         </Col>
       </Row>
