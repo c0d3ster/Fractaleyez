@@ -24,3 +24,17 @@ canvas {
 .hidden {
   opacity: 0;
 }
+
+button {
+  padding: .25rem .5rem;
+  border-radius: .25rem;
+}
+
+button:focus {
+  outline: none;
+}
+
+button:hover, .selected {
+  background: green;
+  color: #ccc;
+}

@@ -16,14 +16,14 @@ class App extends React.Component {
     initWithMicrophone()
   }
 
-  setConfigWindow = async (show) => {
-    this.setState({ configWindowVisible: show })
+  setConfigWindow = async () => {
+    this.setState({ configWindowVisible: !this.state.configWindowVisible})
   }
 
   render() {
     return (
         <div>
-          {this.state.configWindowVisible && <ConfigWindow onClose={() => this.setConfigWindow(false)} />}
+          {this.state.configWindowVisible && <ConfigWindow onClose={this.setConfigWindow} />}
           <Sidebar 
             setConfigWindow={this.setConfigWindow} 
             configWindowVisible={this.state.configWindowVisible} />

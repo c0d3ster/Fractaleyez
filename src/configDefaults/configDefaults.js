@@ -184,6 +184,23 @@ export default {
       min: ParticleConfig.levels_MIN,
       max: ParticleConfig.levels_MAX,
       step: ParticleConfig.levels_STEP_SIZE
+    },
+    saturation: {
+      name: 'Saturation',
+      type: 'slider',
+      defaultValue: ParticleConfig.saturation_DEFAULT,
+      value: ParticleConfig.saturation_DEFAULT,
+      min: ParticleConfig.saturation_MIN,
+      max: ParticleConfig.saturation_MAX,
+      step: ParticleConfig.saturation_STEP_SIZE
+    },
+    sprites: {
+      name: "Sprites",
+      type: "multiselect",
+      defaultValue: ParticleConfig.sprites_DEFAULT,
+      value: ParticleConfig.sprites_DEFAULT,
+      min: ParticleConfig.sprites_MIN,
+      max: ParticleConfig.sprites_MAX
     }
   }
 };

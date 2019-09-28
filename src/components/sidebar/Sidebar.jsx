@@ -3,6 +3,7 @@ import classNames from 'classnames';
 import { Grid, Row } from 'react-bootstrap';
 import './Sidebar.css';
 
+import Presets from '../presets/Presets'
 import ConfigAccordion from '../config/ConfigAccordion'
 import { connectConfig } from '../config/context/ConfigProvider'
 
@@ -15,7 +16,9 @@ class Sidebar extends React.Component {
 
   componentDidMount() {this.hideTabDelayed(5000)}
 
-  setSidebarVisibility = (visible) => this.setState({ sidebarVisible: visible })
+  setConfigWindow = () => this.props.setConfigWindow(!this.props.configWindowVisible)
+
+  setSidebarVisibility = () => this.setState((prevState) => {return{ sidebarVisible: !prevState.sidebarVisible }})
 
   showTab = () => {
     if(this.state.hideTimer) {
@@ -56,19 +59,23 @@ class Sidebar extends React.Component {
         <Grid bsClass={sidebarContentClasses}>
           <button 
             className={tabClasses} 
-            onClick={(e) => this.setSidebarVisibility(!this.state.sidebarVisible)}>
+            onClick={this.setSidebarVisibility}>
             Menu
           </button>
           <Row>
-            <h2 className='sidebar-title'>Configuration</h2>
-            <button 
-              className='expand-config' 
-              onClick={(e) => this.props.resetConfig()}>
-              reset
-            </button>
+            <h2 className='sidebar-title'>Presets</h2>
             <button 
               className={expandConfigClasses} 
-              onClick={(e) => this.props.setConfigWindow(!this.props.configWindowVisible)}>
+              onClick={() => {console.log(JSON.stringify(this.props.config))}}>
+              Log Config
+            </button>
+          </Row>
+          <Presets/>
+          <Row>
+            <h2 className='sidebar-title'>Configuration</h2>
+            <button 
+              className={expandConfigClasses} 
+              onClick={this.setConfigWindow}>
               expand
             </button>
           </Row>

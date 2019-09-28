@@ -7,7 +7,6 @@ import { AudioAnalysedDataForVisualization } from '../audioanalysis/audio-analys
  * Modifications made by Cody Douglass and Conor O'Neill
  */
 var DEF_BRIGHTNESS = .5;
-var DEF_SATURATION = 1;
 
 // Orbit parameters
 var a, b, c, d, e;
@@ -17,6 +16,7 @@ export default class HopalongVisualizer {
     this.particlesPerLayer = window.config.particle.particlesPerLayer.value;
     this.layers = window.config.particle.layers.value;
     this.levels = window.config.particle.levels.value;
+    this.saturation = window.config.particle.saturation ? window.config.particle.saturation.value : 1;
     this.levelDepth = 500;
     this.particleSize = window.config.particle.particleSize.value;
     this.needsParticleReset = false;
@@ -25,7 +25,7 @@ export default class HopalongVisualizer {
     this.hueValues = [];
     this.scene = new THREE.Scene();
     this.scene.fog = new THREE.FogExp2( 0x000000, 0.0013 );
-    this.particleImages = ['galaxySprite.png', 'galaxy2Sprite.png', 'galaxy3Sprite.png'];
+    this.sprites = window.config.particle.sprites.value;
     this.startTimer = null;
     this.deltaTime = 0;
     this.elapsedTime = 0;
@@ -60,7 +60,7 @@ export default class HopalongVisualizer {
 
 
   init() {
-    let sprite = new THREE.TextureLoader().load( this.particleImages[0] );
+    let sprite = new THREE.TextureLoader().load( this.sprites[0] );
     let count = 1;
     let particleIndex = 0
     this.setLights();
@@ -77,8 +77,8 @@ export default class HopalongVisualizer {
         }
 
 
-        particleIndex = count % this.particleImages.length;
-        sprite = new THREE.TextureLoader().load( this.particleImages[particleIndex] );
+        particleIndex = count % this.sprites.length;
+        sprite = new THREE.TextureLoader().load( this.sprites[particleIndex] );
         let material = new THREE.PointsMaterial( {
          size: this.particleSize,
          map: sprite,
@@ -95,7 +95,7 @@ export default class HopalongVisualizer {
         particles.position.y = 0;
         particles.position.z = -this.levelDepth * level - (s * this.levelDepth / this.layers) + window.config.user.scaleFactor.value / 2;
         particles.needsUpdate = 0;
-        particles.material.color.setHSL( this.hueValues[s], DEF_SATURATION, DEF_BRIGHTNESS );
+        particles.material.color.setHSL( this.hueValues[s], this.saturation, DEF_BRIGHTNESS );
         this.objects.push( particles );
         this.scene.add( particles );
         count++;
@@ -147,7 +147,7 @@ export default class HopalongVisualizer {
         }
 
         if ( window.config.effects.colorShift.value ) { //change color on peak
-          obj.material.color.setHSL( this.hueValues[obj.mySubset], DEF_SATURATION, DEF_BRIGHTNESS );
+          obj.material.color.setHSL( this.hueValues[obj.mySubset], this.saturation, DEF_BRIGHTNESS );
         }
       }
 
@@ -319,6 +319,6 @@ export default class HopalongVisualizer {
 
   destroyVisualization() {
     clearInterval(this.updateInterval);
-    this.scene = null;
+    delete this.scene;
   }
 }

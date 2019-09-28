@@ -18,7 +18,7 @@ class ConfigProvider extends Component {
     this.state = {
       config: configDefaults,
       updateConfigItem: this.updateConfigItem,
-      updateConfigPreset: this.updateConfigPreset,
+      retrieveConfigPreset: this.retrieveConfigPreset,
       resetConfig: this.resetConfig
     }
     window.config = this.state.config
@@ -50,12 +50,16 @@ class ConfigProvider extends Component {
           },
         }
       }
-    }, () => window.config = this.state.config)
+    }, () => {
+      window.config = this.state.config
+    })
   }
 
-  updateConfigPreset = (presetObject) => {
+  retrieveConfigPreset = async (event) => {
+    const name = event.target.innerHTML;
+    const { data: config } = await axios.get(`/api/getConfig/${name}`);
     this.setState({
-      config: presetObject
+      config
     }, () => window.config = this.state.config)
   }
 

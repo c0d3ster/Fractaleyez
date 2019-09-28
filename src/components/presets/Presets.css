@@ -1,0 +1,9 @@
+.presets-container {
+  display: block;
+  margin: 1rem 1.5rem;
+}
+
+.presets-container button {
+  margin: .5rem 1rem !important;
+  color: #333;
+}
