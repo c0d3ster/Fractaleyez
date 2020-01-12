@@ -12,7 +12,7 @@ class ConfigWindow extends React.Component {
   containerEl = document.createElement('div');
   state = {
     width:  1200,
-    height: 600
+    height: 750
   };
 
   componentDidMount() {

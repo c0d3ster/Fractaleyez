@@ -14,7 +14,17 @@ class Sidebar extends React.Component {
     hideTimer: null,
   }
 
-  componentDidMount() {this.hideTabDelayed(5000)}
+  componentDidMount() {
+    this.hideTabDelayed(5000)
+
+    document.addEventListener('keyup', (e) => {
+      if (e.key === 'e') {
+        this.setConfigWindow()
+      } else if (e.key === 'm') {
+        this.setSidebarVisibility()
+      }
+    })
+  }
 
   setConfigWindow = () => this.props.setConfigWindow(!this.props.configWindowVisible)
 
@@ -75,7 +85,8 @@ class Sidebar extends React.Component {
             <h2 className='sidebar-title'>Configuration</h2>
             <button 
               className={expandConfigClasses} 
-              onClick={this.setConfigWindow}>
+              onClick={this.setConfigWindow}
+              onKeyDown={this.onKeyDown}>
               expand
             </button>
           </Row>

@@ -20,13 +20,17 @@ class Presets extends React.Component {
           <button onClick={this.props.retrieveConfigPreset}>galaxySalad</button>
           <button onClick={this.props.retrieveConfigPreset}>ohSprite</button>
           <button onClick={this.props.retrieveConfigPreset}>eyeChase</button>
-          <button onClick={this.props.retrieveConfigPreset}>sideSwirl</button>
+          <button onClick={this.props.retrieveConfigPreset}>sideSwirl</button> 
+          <button onClick={this.props.retrieveConfigPreset}>circles</button>
+          <button onClick={this.props.retrieveConfigPreset}>weed</button>              
+          <button onClick={this.props.retrieveConfigPreset}>bassyndicate</button>
           <button onClick={this.props.retrieveConfigPreset}>GSpace</button>
           <button onClick={this.props.retrieveConfigPreset}>GSpaceAtomSpin</button>
           <button onClick={this.props.retrieveConfigPreset}>HyperGSpace</button>
           <button onClick={this.props.retrieveConfigPreset}>GSpaceSalad</button>
-          <button onClick={this.props.retrieveConfigPreset}>bassyndicate</button>
-          <button onClick={this.props.retrieveConfigPreset}>circles</button>
+          <button onClick={this.props.retrieveConfigPreset}>GSpaceSnaps</button>          
+          <button onClick={this.props.retrieveConfigPreset}>HyperDJRoca</button>    
+          <button onClick={this.props.retrieveConfigPreset}>DJRocaSpin</button> 
           </div>
         </Col>
       </Row>
