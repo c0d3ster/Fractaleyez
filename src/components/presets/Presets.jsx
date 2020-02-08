@@ -32,6 +32,7 @@ class Presets extends React.Component {
           <button onClick={this.props.retrieveConfigPreset}>HyperLykMagik</button>    
           <button onClick={this.props.retrieveConfigPreset}>LykMagikSpin</button> 
           <button onClick={this.props.retrieveConfigPreset}>VastsBeamSalad</button>
+          <button onClick={this.props.retrieveConfigPreset}>Hydra</button>
           </div>
         </Col>
       </Row>
