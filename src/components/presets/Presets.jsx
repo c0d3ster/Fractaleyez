@@ -29,8 +29,9 @@ class Presets extends React.Component {
           <button onClick={this.props.retrieveConfigPreset}>HyperBeatzMe</button>
           <button onClick={this.props.retrieveConfigPreset}>BeatzMeSalad</button>
           <button onClick={this.props.retrieveConfigPreset}>GSpaceSnaps</button>          
-          <button onClick={this.props.retrieveConfigPreset}>HyperDJRoca</button>    
-          <button onClick={this.props.retrieveConfigPreset}>DJRocaSpin</button> 
+          <button onClick={this.props.retrieveConfigPreset}>HyperBigCity</button>    
+          <button onClick={this.props.retrieveConfigPreset}>BigCitySpin</button> 
+          <button onClick={this.props.retrieveConfigPreset}>BigCitySalad</button>
           </div>
         </Col>
       </Row>
