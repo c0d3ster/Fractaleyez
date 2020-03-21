@@ -15,9 +15,11 @@ class Presets extends React.Component {
           <button onClick={this.props.retrieveConfigPreset}>default</button>
           <button onClick={this.props.retrieveConfigPreset}>edgeChaseSpin</button>
           <button onClick={this.props.retrieveConfigPreset}>dispersionTunnelSpin</button>
-          <button onClick={this.props.retrieveConfigPreset}>crossheirSpin</button>            
+          <button onClick={this.props.retrieveConfigPreset}>crossheirSpin</button>  
+          <button onClick={this.props.retrieveConfigPreset}>pointerz</button>            
           <button onClick={this.props.retrieveConfigPreset}>galaxySpace</button>
           <button onClick={this.props.retrieveConfigPreset}>galaxySalad</button>
+          <button onClick={this.props.retrieveConfigPreset}>colorPortal</button>
           <button onClick={this.props.retrieveConfigPreset}>ohSprite</button>
           <button onClick={this.props.retrieveConfigPreset}>eyeChase</button>
           <button onClick={this.props.retrieveConfigPreset}>sideSwirl</button> 
