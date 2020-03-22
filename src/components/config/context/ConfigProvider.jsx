@@ -2,7 +2,7 @@ import React, { Component } from 'react'
 import PropTypes from 'prop-types'
 import axios from 'axios'
 
-import configDefaults from "../../../configDefaults/configDefaults"
+import configDefaults from "../../../config/configDefaults"
 
 const ConfigContext = React.createContext()
 
@@ -59,7 +59,7 @@ class ConfigProvider extends Component {
     let config
     let name
     try {
-      name = event.target.innerHTML;
+      name = this.titleToCamelCase(event.target.innerHTML);
       const result = await axios.get(`/api/getConfig/${name}`);
       config = result.data
     } catch (error) {

@@ -1,4 +1,4 @@
-import AnalyserConfig from '../configDefaults/analyser.config';
+import AnalyserConfig from '../config/analyser.config';
 
 /**
  * Stores the analysed data into a structured object

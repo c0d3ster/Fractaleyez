@@ -6,7 +6,7 @@
   "scripts": {
     "build-dev": "webpack --mode development --watch",
     "client-dev": "webpack-dev-server --mode development --content-base public/",
-    "server-dev": "node server-dev.js",
+    "server-dev": "node -r esm server-dev.js",
     "build": "webpack --mode production",
     "start": "yarn build && supervisor server.js",
     "start-dev": "concurrently --kill-others \"yarn server-dev\" \"yarn client-dev\"",
@@ -20,6 +20,7 @@
     "axios": "^0.18.1",
     "bootstrap": "^3.4.1",
     "classnames": "^2.2.6",
+    "esm": "^3.2.25",
     "mongoose": "^5.7.5",
     "nodemon": "^1.18.9",
     "postprocessing": "^5.0.0",
@@ -57,5 +58,13 @@
     "webpack": "^4.25.1",
     "webpack-cli": "^3.1.2",
     "webpack-dev-server": "^3.1.11"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/c0d3ster/Fractaleyez.git"
+  },
+  "bugs": {
+    "url": "https://github.com/c0d3ster/Fractaleyez/issues"
+  },
+  "homepage": "https://github.com/c0d3ster/Fractaleyez#readme"
 }

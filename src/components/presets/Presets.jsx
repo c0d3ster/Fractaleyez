@@ -9,20 +9,20 @@ class Presets extends React.Component {
     return(
       <Row>
         <Col className='presets-container'>
-          <button onClick={this.props.retrieveConfigPreset}>default</button>
-          <button onClick={this.props.retrieveConfigPreset}>edgeChaseSpin</button>
-          <button onClick={this.props.retrieveConfigPreset}>dispersionTunnelSpin</button>
-          <button onClick={this.props.retrieveConfigPreset}>crossheirSpin</button>  
-          <button onClick={this.props.retrieveConfigPreset}>pointerz</button>            
-          <button onClick={this.props.retrieveConfigPreset}>galaxySpace</button>
-          <button onClick={this.props.retrieveConfigPreset}>galaxySalad</button>
-          <button onClick={this.props.retrieveConfigPreset}>colorPortal</button>
-          <button onClick={this.props.retrieveConfigPreset}>ohSprite</button>
-          <button onClick={this.props.retrieveConfigPreset}>eyeChase</button>
-          <button onClick={this.props.retrieveConfigPreset}>sideSwirl</button> 
-          <button onClick={this.props.retrieveConfigPreset}>circles</button>
-          <button onClick={this.props.retrieveConfigPreset}>weed</button>              
-          <button onClick={this.props.retrieveConfigPreset}>bassyndicate</button>
+          <button onClick={this.props.retrieveConfigPreset}>Default</button>
+          <button onClick={this.props.retrieveConfigPreset}>Edge Chase Spin</button>
+          <button onClick={this.props.retrieveConfigPreset}>Dispersion Tunnel Spin</button>
+          <button onClick={this.props.retrieveConfigPreset}>Crossheir Spin</button>  
+          <button onClick={this.props.retrieveConfigPreset}>Pointerz</button>            
+          <button onClick={this.props.retrieveConfigPreset}>Galaxy Space</button>
+          <button onClick={this.props.retrieveConfigPreset}>Galaxy Salad</button>
+          <button onClick={this.props.retrieveConfigPreset}>Color Portal</button>
+          <button onClick={this.props.retrieveConfigPreset}>Oh Sprite</button>
+          <button onClick={this.props.retrieveConfigPreset}>Eye Chase</button>
+          <button onClick={this.props.retrieveConfigPreset}>Side Swirl</button> 
+          <button onClick={this.props.retrieveConfigPreset}>Circles</button>
+          <button onClick={this.props.retrieveConfigPreset}>Weed</button>              
+          <button onClick={this.props.retrieveConfigPreset}>Bassyndicate</button>
         </Col>
       </Row>
     )
