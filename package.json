@@ -1,7 +1,7 @@
 {
-  "name": "audio-visualization-starter",
-  "version": "0.0.1",
-  "description": "Fractaleyez Audio Visualizer",
+  "name": "fractaleyez",
+  "version": "1.0.0",
+  "description": "Fractaleyez - A Real-Time Audio Visualizer",
   "main": "app.js",
   "scripts": {
     "build-dev": "webpack --mode development --watch",

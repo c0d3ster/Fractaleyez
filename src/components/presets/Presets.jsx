@@ -1,5 +1,5 @@
 import React from 'react'
-import { Row, Col } from 'react-bootstrap';
+import { Row, Col } from 'react-bootstrap'
 import './Presets.css'
 
 import { connectConfig } from '../config/context/ConfigProvider'
