@@ -28,7 +28,7 @@ class Sidebar extends React.Component {
 
   setConfigWindow = () => this.props.setConfigWindow(!this.props.configWindowVisible)
 
-  setSidebarVisibility = () => this.setState((prevState) => {return{ sidebarVisible: !prevState.sidebarVisible }})
+  setSidebarVisibility = () => this.setState((prevState) => ({ sidebarVisible: !prevState.sidebarVisible }))
 
   showTab = () => {
     if(this.state.hideTimer) {
