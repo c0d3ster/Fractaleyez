@@ -32,7 +32,12 @@ app.get("/api/getConfigDefaults", (req, res) =>
 );
 
 app.get("/api/getConfig/:name", (req, res) => {
-  res.send(configs[req.params.name])
+  const name = configs[req.params.name]
+  if(name) {
+    res.send(name)
+  } else {
+    res.status(404).send(`${req.params.name} preset could not be found`)
+  }
 });
 
 app.listen(8080, () => console.log("Listening on port 8080!"));

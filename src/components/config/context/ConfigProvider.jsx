@@ -56,18 +56,33 @@ class ConfigProvider extends Component {
   }
 
   retrieveConfigPreset = async (event) => {
-    const name = event.target.innerHTML;
-    const { data: config } = await axios.get(`/api/getConfig/${name}`);
-    this.setState({
-      config
-    }, () => window.config = this.state.config)
+    let config
+    let name
+    try {
+      name = event.target.innerHTML;
+      const result = await axios.get(`/api/getConfig/${name}`);
+      config = result.data
+    } catch (error) {
+      const errorMessage = error.response.data || error.message
+      console.error( `Error retrieving ${name} preset: ${errorMessage}`)
+      return
+    }
+
+    this.setState({ config }, () => window.config = this.state.config)
   }
 
   resetConfig = async () => {
-    const { data: config } = await axios.get("/api/getConfigDefaults");
-    this.setState({ 
-      config 
-    }, () => window.config = this.state.config)
+    let config
+    try {
+      const result = await axios.get(`/api/getConfigDefaults`);
+      config = result.data
+    } catch (error) {
+      const errorMessage = error.response.data || error.message
+      console.error( `Error retrieving ${name} preset: ${errorMessage}`)
+      return
+    }
+
+    this.setState({ config }, () => window.config = this.state.config)
   }
 
   render() {
