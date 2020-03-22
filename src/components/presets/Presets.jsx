@@ -8,8 +8,7 @@ class Presets extends React.Component {
   render() {
     return(
       <Row>
-        <Col>
-          <div className='presets-container'>
+        <Col className='presets-container'>
           <button onClick={this.props.retrieveConfigPreset}>default</button>
           <button onClick={this.props.retrieveConfigPreset}>edgeChaseSpin</button>
           <button onClick={this.props.retrieveConfigPreset}>dispersionTunnelSpin</button>
@@ -24,7 +23,6 @@ class Presets extends React.Component {
           <button onClick={this.props.retrieveConfigPreset}>circles</button>
           <button onClick={this.props.retrieveConfigPreset}>weed</button>              
           <button onClick={this.props.retrieveConfigPreset}>bassyndicate</button>
-          </div>
         </Col>
       </Row>
     )
