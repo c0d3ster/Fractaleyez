@@ -1,4 +1,4 @@
-import UserConfig from '../configDefaults/user.config';
+import UserConfig from '../config/user.config';
 
 /**
  * \brief Loads audio from a source
