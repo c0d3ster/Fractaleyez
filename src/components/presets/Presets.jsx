@@ -5,8 +5,6 @@ import './Presets.css'
 import { connectConfig } from '../config/context/ConfigProvider'
 
 class Presets extends React.Component {
-  
-
   render() {
     return(
       <Row>
