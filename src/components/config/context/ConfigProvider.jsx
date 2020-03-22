@@ -3,6 +3,7 @@ import PropTypes from 'prop-types'
 import axios from 'axios'
 
 import configDefaults from "../../../config/configDefaults"
+import { presets } from '../../../config/presets'
 
 const ConfigContext = React.createContext()
 
@@ -22,6 +23,14 @@ class ConfigProvider extends Component {
       resetConfig: this.resetConfig
     }
     window.config = this.state.config
+  }
+
+  componentDidMount() {
+    const localPresets = JSON.parse(localStorage.getItem('presets'))
+
+    if (!localPresets) {
+      localStorage.setItem('presets', JSON.stringify(presets))
+    }
   }
 
   titleToCamelCase = (string) => (
@@ -60,8 +69,12 @@ class ConfigProvider extends Component {
     let name
     try {
       name = this.titleToCamelCase(event.target.innerHTML);
-      const result = await axios.get(`/api/getConfig/${name}`);
-      config = result.data
+      config = this.retrieveCachedPreset(name)
+
+      if (!config) {
+        const result = await axios.get(`/api/getConfig/${name}`);
+        config = result.data
+      }
     } catch (error) {
       const errorMessage = error.response.data || error.message
       console.error( `Error retrieving ${name} preset: ${errorMessage}`)
@@ -71,19 +84,9 @@ class ConfigProvider extends Component {
     this.setState({ config }, () => window.config = this.state.config)
   }
 
-  resetConfig = async () => {
-    let config
-    try {
-      const result = await axios.get(`/api/getConfigDefaults`);
-      config = result.data
-    } catch (error) {
-      const errorMessage = error.response.data || error.message
-      console.error( `Error retrieving ${name} preset: ${errorMessage}`)
-      return
-    }
+  retrieveCachedPreset = (name) => JSON.parse(localStorage.getItem('presets'))[name]
 
-    this.setState({ config }, () => window.config = this.state.config)
-  }
+  resetConfig = async () => this.retrieveConfigPreset('default')
 
   render() {
     return (
