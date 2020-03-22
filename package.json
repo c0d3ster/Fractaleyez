@@ -9,7 +9,9 @@
     "server-dev": "node server-dev.js",
     "build": "webpack --mode production",
     "start": "yarn build && supervisor server.js",
-    "start-dev": "concurrently --kill-others \"yarn server-dev\" \"yarn client-dev\""
+    "start-dev": "concurrently --kill-others \"yarn server-dev\" \"yarn client-dev\"",
+    "predeploy": "yarn build",
+    "deploy": "gh-pages -d public"
   },
   "author": "Cody Douglass",
   "license": "ISC",
@@ -45,6 +47,7 @@
     "css-loader": "^1.0.0",
     "express": "^4.16.3",
     "file-loader": "^2.0.0",
+    "gh-pages": "^2.2.0",
     "path": "^0.12.7",
     "postcss-loader": "^3.0.0",
     "react-dev-utils": "^5.0.2",
