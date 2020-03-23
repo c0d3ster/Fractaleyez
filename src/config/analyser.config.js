@@ -1,4 +1,4 @@
-import { EASINGS } from '../utility/easings';
+import { EASINGS } from '../utility/easings'
 
 
 export default
@@ -134,4 +134,4 @@ export default
 
     }
   },
-};
+}

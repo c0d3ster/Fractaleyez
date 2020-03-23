@@ -1,5 +1,5 @@
-import StatsJS from 'stats-js';
-import UserConfig from '../configDefaults/user.config';
+import StatsJS from 'stats-js'
+import UserConfig from '../configDefaults/user.config'
 
 
 /**
@@ -12,41 +12,42 @@ export class Stats
    */
   constructor( position )
   {
-    if( typeof(position) == "undefined" )
-      position = 0;
+    if( typeof(position) == 'undefined' )
+      position = 0
 
-    this.stats = new StatsJS();
-    this.stats.domElement.style.position = "absolute";
+    this.stats = new StatsJS()
+    this.stats.domElement.style.position = 'absolute'
 
     switch( position )
     {
-      case 1:
-        this.stats.domElement.style.right = "0";
-      case 0:
-        this.stats.domElement.style.top = "0";
-        break;
-      case 3:
-        this.stats.domElement.style.right = "0";
-      case 2:
-        this.stats.domElement.style.bottom = "0";
-        break;
+    case 1:
+      this.stats.domElement.style.right = '0'
+    case 0:
+      this.stats.domElement.style.top = '0'
+      break
+    case 3:
+      this.stats.domElement.style.right = '0'
+    case 2:
+      this.stats.domElement.style.bottom = '0'
+      break
     }
 
-    document.body.appendChild( this.stats.domElement );
-    if( UserConfig.showloginfos ) console.log(`Stats initiliazed\n------------`);
+    document.body.appendChild( this.stats.domElement )
+    if( UserConfig.showloginfos ) console.log('Stats initiliazed\n------------')
   }
 
 
   /**
    * hide/show the HUD
+   *
    * @param {boolean} show
    */
   toggle( show )
   {
-    if( show && this.stats.domElement.hasAttribute("hidden") )
-      this.stats.domElement.removeAttribute("hidden");
+    if( show && this.stats.domElement.hasAttribute('hidden') )
+      this.stats.domElement.removeAttribute('hidden')
     else if( !show )
-      this.stats.domElement.setAttribute("hidden", true);
+      this.stats.domElement.setAttribute('hidden', true)
   }
 
 
@@ -65,7 +66,7 @@ export class Stats
    */
   begin()
   {
-    this.stats.begin();
+    this.stats.begin()
   }
 
   /**
@@ -73,6 +74,6 @@ export class Stats
    */
   end()
   {
-    this.stats.end();
+    this.stats.end()
   }
 }

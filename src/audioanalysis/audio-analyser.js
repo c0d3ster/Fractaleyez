@@ -1,10 +1,10 @@
-import UserConfig from '../config/user.config';
-import AnalyserConfig from '../config/analyser.config';
-import config from '../config/configDefaults';
+import UserConfig from '../config/user.config'
+import AnalyserConfig from '../config/analyser.config'
+import config from '../config/configDefaults'
 
-import { AudioData } from '../audiostream/audio-data';
-import { AudioAnalysedData, AudioAnalysedDataForVisualization, Peak } from './audio-analysed-data';
-import { EASINGS } from '../utility/easings';
+import { AudioData } from '../audiostream/audio-data'
+import { AudioAnalysedData, AudioAnalysedDataForVisualization, Peak } from './audio-analysed-data'
+import { EASINGS } from '../utility/easings'
 
 
 /**
@@ -22,65 +22,66 @@ export class AudioAnalyser
    */
   constructor( bufferSize )
   {
-    this.bufferSize = bufferSize;
-    this.data = new AudioAnalysedData( bufferSize );
-    this.iterations = 0;
+    this.bufferSize = bufferSize
+    this.data = new AudioAnalysedData( bufferSize )
+    this.iterations = 0
 
-    if( UserConfig.checkConfig ) this.checkOptions( AnalyserConfig );
-    if( UserConfig.showloginfos ) console.log( `Analyser initialized\n------------` );
+    if( UserConfig.checkConfig ) this.checkOptions( AnalyserConfig )
+    if( UserConfig.showloginfos ) console.log( 'Analyser initialized\n------------' )
   }
 
 
   /**
    * Analyse the data provided by the AudioStream
+   *
    * @param {AudioData} audioData Data provided by the AudioStream.getAudioData()
    * @param deltaTime Elapsed time since last analysis
    * @param currentTimer The timer of the current loop
    */
   analyse( audioData, deltaTime, currentTimer )
   {
-    this.iterations++;
+    this.iterations++
 
     /**
      * This method looks horrible but the logical tests are useful to save CPU usage
      * if all the analysis are not required by the visualizer
      */
 
-    this.data.setTimedomainData( audioData.timedomainData );
-    this.data.setFrequenciesData( audioData.frequencyData );
+    this.data.setTimedomainData( audioData.timedomainData )
+    this.data.setFrequenciesData( audioData.frequencyData )
 
     // Peak detection
-    let returns = AnalyserConfig.options.returns;
+    const returns = AnalyserConfig.options.returns
 
     if( returns.energy || returns.energyAverage || returns.energyHistory || returns.peak || returns.peakHistory )
     {
       // we first compute the energy and push it to the energy history
-      this.data.pushNewEnergy( this.computeEnergy(this.data.getTimedomainData()), deltaTime );
+      this.data.pushNewEnergy( this.computeEnergy(this.data.getTimedomainData()), deltaTime )
 
       if( returns.energyAverage || returns.peak || returns.peakHistory )
       {
-        this.data.setEnergyAverage( this.computeLocalEnergyAverage(this.data.getEnergyHistory()) );
+        this.data.setEnergyAverage( this.computeLocalEnergyAverage(this.data.getEnergyHistory()) )
 
         if( returns.peak || returns.peakHistory )
         {
           this.computePeakDetection( this.data.getEnergy(), this.data.getEnergyAverage(), this.data.peak, this.data.peakHistory, currentTimer,
-                                     config.audio.soundThreshold.value, AnalyserConfig.options.peakDetection.options.peakPersistency, config.audio.ignoreTime.value, EASINGS.linear );
+            config.audio.soundThreshold.value, AnalyserConfig.options.peakDetection.options.peakPersistency, config.audio.ignoreTime.value, EASINGS.linear )
         }
       }
     }
 
     if( returns.multibandEnergy || returns.multibandEnergyAverage || returns.multibandEnergyHistory || returns.multibandPeak || returns.multibandPeakHistory )
     {
-      this.data.pushNewMultibandEnergy( this.computeMultibandEnergy( audioData.frequencyData, AnalyserConfig.options.multibandPeakDetection.options.bands ), deltaTime );
+      this.data.pushNewMultibandEnergy( this.computeMultibandEnergy( audioData.frequencyData, AnalyserConfig.options.multibandPeakDetection.options.bands ), deltaTime )
 
       if( returns.multibandEnergyAverage || returns.multibandPeak || returns.multibandPeakHistory )
       {
-        this.data.setMultibandEnergyAverage( this.computeMultibandLocalEnergyAverage(this.data.getMultibandEnergyHistory()) );
+        this.data.setMultibandEnergyAverage( this.computeMultibandLocalEnergyAverage(this.data.getMultibandEnergyHistory()) )
 
         if( returns.multibandPeakHistory || returns.multibandPeak )
         {
           this.computeMultibandPeakDetection( this.data.getMultibandEnergy(), this.data.getMultibandEnergyAverage(), this.data.multibandPeak, this.data.multibandPeakHistory, currentTimer,
-                                              config.audio.soundThreshold.value, AnalyserConfig.options.multibandPeakDetection.options.peakPersistency, config.audio.ignoreTime.value, EASINGS.linear );
+            config.audio.soundThreshold.value, AnalyserConfig.options.multibandPeakDetection.options.peakPersistency, config.audio.ignoreTime.value, EASINGS.linear )
         }
       }
     }
@@ -89,41 +90,42 @@ export class AudioAnalyser
 
   /**
    * This function check if the config is set correctly. It only shows an error if needed.
+   *
    * @param {AnalyserConfig} config Config to check
    */
   checkOptions( config )
   {
-    if( UserConfig.showloginfos ) console.log( `Checking if the analyser configuration is correct` );
+    if( UserConfig.showloginfos ) console.log( 'Checking if the analyser configuration is correct' )
 
     // we first check if some values are correct
     if( config.options.multibandPeakDetection.enabled )
     {
       if( !(config.options.multibandPeakDetection.options.bands && (config.options.multibandPeakDetection.options.bands & (config.options.multibandPeakDetection.options.bands - 1)) === 0) )
-        if( UserConfig.showerrors ) console.error( `The number of bands for the multiband detection algorithm must be a pow of 2.` );
+        if( UserConfig.showerrors ) console.error( 'The number of bands for the multiband detection algorithm must be a pow of 2.' )
     }
 
     if( config.options.returns.peakHistory != config.options.returns.multibandPeakHistory )
     {
-      if( UserConfig.showerrors ) console.error( `Due to the conception of the analyser, the ` );
+      if( UserConfig.showerrors ) console.error( 'Due to the conception of the analyser, the ' )
     }
 
     // we check if the return values can be returned
     if( !config.options.multibandPeakDetection.enabled )
     {
       if( config.options.returns.multibandPeak )
-        if( UserConfig.showerrors ) console.error( `The multiband peak can't be computed if the multiband peak detection algorithm is disabled.` );
+        if( UserConfig.showerrors ) console.error( 'The multiband peak can\'t be computed if the multiband peak detection algorithm is disabled.' )
       if( config.options.returns.multibandPeakHistory )
-        if( UserConfig.showerrors ) console.error( `The multiband peak history can't be computed if the multiband peak detection algorithm is disabled.` );
+        if( UserConfig.showerrors ) console.error( 'The multiband peak history can\'t be computed if the multiband peak detection algorithm is disabled.' )
     }
     if( !config.options.peakDetection.enabled )
     {
       if( config.options.returns.peak )
-        if( UserConfig.showerrors ) console.error( `The peak can't be computed if the peak detection algorithm is disabled.` );
+        if( UserConfig.showerrors ) console.error( 'The peak can\'t be computed if the peak detection algorithm is disabled.' )
       if( config.options.returns.peakHistory )
-        if( UserConfig.showerrors ) console.error( `The peak history can't be computed if the peak detection algorithm is disabled.` );
+        if( UserConfig.showerrors ) console.error( 'The peak history can\'t be computed if the peak detection algorithm is disabled.' )
     }
 
-    if( UserConfig.showloginfos ) console.log( `Config checked.\n------------` );
+    if( UserConfig.showloginfos ) console.log( 'Config checked.\n------------' )
   }
 
 
@@ -132,7 +134,7 @@ export class AudioAnalyser
    */
   getAnalysedData()
   {
-    return this.data;
+    return this.data
   }
 
 
@@ -141,38 +143,41 @@ export class AudioAnalyser
    */
   getAnalysedDataForVisualization()
   {
-    return new AudioAnalysedDataForVisualization( this.data );
+    return new AudioAnalysedDataForVisualization( this.data )
   }
 
 
   /**
    * Computes the energy of a signal
+   *
    * @param {Uint8Array} timedomainData The timedomain data of the signal
    * @return {number} The energy of the timedomain data
    */
   computeEnergy( timedomainData )
   {
-    let energy = 0;
+    let energy = 0
     for( let i = 0; i < timedomainData.length; i++ )
-      energy+= Math.abs( timedomainData[i] - 128 );
-    return energy/timedomainData.length;
+      energy+= Math.abs( timedomainData[i] - 128 )
+    return energy/timedomainData.length
   }
 
 
   /**
    * Computes the local average of the energy history
+   *
    * @param {Array} energyHistory
    * @returns {number} the average energy of the history
    */
   computeLocalEnergyAverage( energyHistory )
   {
-    return energyHistory.reduce( (a,b) => a+b, 0 ) / energyHistory.length;
+    return energyHistory.reduce( (a,b) => a+b, 0 ) / energyHistory.length
   }
 
 
   /**
    * Uses the [at]param peak to check if a peak has been detected recently and updates
    * its values, if not it checks if a peak is detected
+   *
    * @param {number} energy energy of the moment
    * @param {number} energyAverage average of the last energies
    * @param {Peak} peak Informations on the peak
@@ -195,7 +200,7 @@ export class AudioAnalyser
         // we decrease the value of the peak if it's not 0
         if( peak.value > 0.0 )
         {
-          peak.value = this.peakInterpolation( currentTimer, peak.timer, peakPersistency, interpolationFunction );
+          peak.value = this.peakInterpolation( currentTimer, peak.timer, peakPersistency, interpolationFunction )
         }
       }
       else
@@ -203,14 +208,14 @@ export class AudioAnalyser
         // we try a peak detection
         if( energy / energyAverage > threshold ) // we have a peak
         {
-          let detectedPeak = new Peak( 1.0, currentTimer, energy );
+          const detectedPeak = new Peak( 1.0, currentTimer, energy )
           if( AnalyserConfig.options.returns.peakHistory )
-            peakHistory.push( detectedPeak );
-          peak.copy( detectedPeak );
+            peakHistory.push( detectedPeak )
+          peak.copy( detectedPeak )
         }
         else if( peak.value > 0.0 ) // if the detected peak is still not to 0 we decrease its value
         {
-          peak.value = this.peakInterpolation( currentTimer, peak.timer, peakPersistency, interpolationFunction );
+          peak.value = this.peakInterpolation( currentTimer, peak.timer, peakPersistency, interpolationFunction )
         }
       }
     }
@@ -218,10 +223,10 @@ export class AudioAnalyser
     {
       if( energy / energyAverage > threshold ) // we have a peak
       {
-        let detectedPeak = new Peak( 1.0, currentTimer, energy );
+        const detectedPeak = new Peak( 1.0, currentTimer, energy )
         if( AnalyserConfig.options.returns.peakHistory )
-          peakHistory.push( detectedPeak );
-        peak.copy( detectedPeak );
+          peakHistory.push( detectedPeak )
+        peak.copy( detectedPeak )
       }
     }
   }
@@ -234,24 +239,24 @@ export class AudioAnalyser
    */
   computeMultibandEnergy( frequencyData, nbBands )
   {
-    let fSize = frequencyData.length,
-        bandsEnergy = new Array( nbBands );
+    const fSize = frequencyData.length
+    const bandsEnergy = new Array( nbBands )
 
     // we parse each band
     for( let band = 0; band < nbBands; band++ )
     {
-      let firstIndex = this.bandInterpolation( band / nbBands ) * fSize,
-          lastIndex = this.bandInterpolation( (band+1) / nbBands ) * fSize,
-          bandEnergy = 0;
+      const firstIndex = this.bandInterpolation( band / nbBands ) * fSize
+      const lastIndex = this.bandInterpolation( (band+1) / nbBands ) * fSize
+      let bandEnergy = 0
 
       // for each band we parse the frequencies
       for( let f = firstIndex; f < lastIndex; f++ )
-        bandEnergy+= frequencyData[f];
+        bandEnergy+= frequencyData[f]
 
-      bandsEnergy[band] = bandEnergy/(lastIndex-firstIndex);
+      bandsEnergy[band] = bandEnergy/(lastIndex-firstIndex)
     }
 
-    return bandsEnergy;
+    return bandsEnergy
   }
 
 
@@ -261,11 +266,11 @@ export class AudioAnalyser
    */
   computeMultibandLocalEnergyAverage( energiesHistory )
   {
-    let energiesAverage = new Array( AnalyserConfig.options.multibandPeakDetection.options.bands );
+    const energiesAverage = new Array( AnalyserConfig.options.multibandPeakDetection.options.bands )
 
     // we init the values
     for( let i = 0; i < AnalyserConfig.options.multibandPeakDetection.options.bands; i++ )
-      energiesAverage[i] = 0;
+      energiesAverage[i] = 0
 
     // first we go through the history
     for( let i = 0; i < energiesHistory.length; i++ )
@@ -273,20 +278,21 @@ export class AudioAnalyser
       // then we go though each band
       for( let b = 0; b < energiesHistory[i].length; b++ )
       {
-        energiesAverage[b]+= energiesHistory[i][b];
+        energiesAverage[b]+= energiesHistory[i][b]
       }
     }
 
     for( let i = 0; i < AnalyserConfig.options.multibandPeakDetection.options.bands; i++ )
-      energiesAverage[i]/= energiesHistory.length;
+      energiesAverage[i]/= energiesHistory.length
 
-    return energiesAverage;
+    return energiesAverage
   }
 
 
   /**
    * Parse each band to see if there is a local peak on each one
    * of them. Uses the computePeakDetection method in that purpose.
+   *
    * @param {Array} multibandEnergy array of the computed energy of each band
    * @param {Array} multibandEnergyAverage array of the computed average local energy of each band
    * @param {Array} multibandPeak array of each band peak
@@ -299,9 +305,9 @@ export class AudioAnalyser
    */
   computeMultibandPeakDetection( multibandEnergy, multibandEnergyAverage, multibandPeak, multibandPeakHistory, currentTimer, threshold, peakPersistency, ignoreTime, interpolationFunction )
   {
-    let bandsNb = multibandPeak.length;
+    const bandsNb = multibandPeak.length
     for( let band = 0; band < bandsNb; band++ ){
-      this.computePeakDetection( multibandEnergy[band], multibandEnergyAverage[band], multibandPeak[band], multibandPeakHistory[band], currentTimer, threshold, peakPersistency, ignoreTime, interpolationFunction );
+      this.computePeakDetection( multibandEnergy[band], multibandEnergyAverage[band], multibandPeak[band], multibandPeakHistory[band], currentTimer, threshold, peakPersistency, ignoreTime, interpolationFunction )
     }
   }
 
@@ -309,12 +315,13 @@ export class AudioAnalyser
   /**
    * This function must be growing and continue on [0; 1]
    * in this case f(x) = x²
+   *
    * @param {number} bandposition [0; 1] the band / total of bands
    * @returns {number} [0; 1] the new position of the band
    */
   bandInterpolation( bandposition )
   {
-    return bandposition*bandposition;
+    return bandposition*bandposition
   }
 
 
@@ -327,6 +334,6 @@ export class AudioAnalyser
    */
   peakInterpolation( currentTimer, peakTimer, peakPersistency, easingFunction )
   {
-    return Math.max( 0.0, easingFunction( 1.0 - (currentTimer - peakTimer) / peakPersistency ) );
+    return Math.max( 0.0, easingFunction( 1.0 - (currentTimer - peakTimer) / peakPersistency ) )
   }
 };

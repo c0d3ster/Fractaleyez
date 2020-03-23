@@ -1,7 +1,7 @@
-import UserConfig from '../config/user.config';
+import UserConfig from '../config/user.config'
 
-import { AudioSource } from './audio-source';
-import { AudioData } from './audio-data';
+import { AudioSource } from './audio-source'
+import { AudioData } from './audio-data'
 
 
 /**
@@ -17,24 +17,24 @@ export class AudioStream
    */
   constructor( audiosource, fftsize )
   {
-    this.audioSource = audiosource;
-    this.audioContext = audiosource.getAudioContext();
-    this.volume = UserConfig.volume;
-    this.fftsize = fftsize;
-    this.sourceNode = null;
+    this.audioSource = audiosource
+    this.audioContext = audiosource.getAudioContext()
+    this.volume = UserConfig.volume
+    this.fftsize = fftsize
+    this.sourceNode = null
 
-    this.gainNode = this.audioContext.createGain();
-    this.gainNode.gain.setValueAtTime( this.volume, this.audioContext.currentTime );
+    this.gainNode = this.audioContext.createGain()
+    this.gainNode.gain.setValueAtTime( this.volume, this.audioContext.currentTime )
 
-    /*this.filterNode = this.audioContext.createBiquadFilter();
+    /* this.filterNode = this.audioContext.createBiquadFilter();
     this.filterNode.type = "lowpass";
     this.filterNode.frequency.setValueAtTime( 500, this.audioContext.currentTime );*/
 
-    this.analyserNode = this.audioContext.createAnalyser();
-    this.analyserNode.fftSize = fftsize;
-    //this.analyserNode.smoothingConstant = 0.9;
-    this.bufferLength = this.analyserNode.frequencyBinCount;
-    this.dataArray = new Uint8Array( this.bufferLength );
+    this.analyserNode = this.audioContext.createAnalyser()
+    this.analyserNode.fftSize = fftsize
+    // this.analyserNode.smoothingConstant = 0.9;
+    this.bufferLength = this.analyserNode.frequencyBinCount
+    this.dataArray = new Uint8Array( this.bufferLength )
   }
 
 
@@ -43,19 +43,19 @@ export class AudioStream
    */
   init()
   {
-    this.sourceNode = this.audioSource.getSourceNode();
+    this.sourceNode = this.audioSource.getSourceNode()
     if( !this.sourceNode )
     {
-      if( UserConfig.showerrors ) console.error( `Couldn't init the audio stream class. The audio source is empty.` );
+      if( UserConfig.showerrors ) console.error( 'Couldn\'t init the audio stream class. The audio source is empty.' )
     }
     else
     {
-      this.sourceNode.connect( this.gainNode );
-      this.gainNode.connect( this.analyserNode );
-      //this.filterNode.connect( this.analyserNode );
+      this.sourceNode.connect( this.gainNode )
+      this.gainNode.connect( this.analyserNode )
+      // this.filterNode.connect( this.analyserNode );
       if( this.audioSource.isThereFeedback() )
-        this.analyserNode.connect( this.audioContext.destination );
-      if( UserConfig.showloginfos ) console.log( `AudioStream class initialized\n------------` );
+        this.analyserNode.connect( this.audioContext.destination )
+      if( UserConfig.showloginfos ) console.log( 'AudioStream class initialized\n------------' )
     }
   }
 
@@ -65,23 +65,24 @@ export class AudioStream
    */
   getAudioData()
   {
-    let tdData = new Uint8Array( this.bufferLength ),
-        fData = new Uint8Array( this.bufferLength );
-    this.analyserNode.getByteTimeDomainData( tdData );
-    this.analyserNode.getByteFrequencyData( fData );
+    const tdData = new Uint8Array( this.bufferLength )
+    const fData = new Uint8Array( this.bufferLength )
+    this.analyserNode.getByteTimeDomainData( tdData )
+    this.analyserNode.getByteFrequencyData( fData )
 
-    return new AudioData( tdData, fData, this.bufferLength );
+    return new AudioData( tdData, fData, this.bufferLength )
   }
 
 
   /**
    * Changes the volume
+   *
    * @param {number} volume [0.0; 1.0] New Volume
    */
   setVolume( volume )
   {
-    this.volume = volume;
-    this.gainNode.gain.setValueAtTime( volume, this.audioContext.currentTime );
+    this.volume = volume
+    this.gainNode.gain.setValueAtTime( volume, this.audioContext.currentTime )
   }
 
 
@@ -90,7 +91,7 @@ export class AudioStream
    */
   getVolume()
   {
-    return this.volume;
+    return this.volume
   }
 
 
@@ -99,6 +100,6 @@ export class AudioStream
    */
   getBufferSize()
   {
-    return this.bufferLength;
+    return this.bufferLength
   }
 };

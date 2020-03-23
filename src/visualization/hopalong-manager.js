@@ -1,8 +1,8 @@
-import * as THREE from 'three';
-import { EffectComposer, ShockWaveEffect, RenderPass, BloomEffect, EffectPass } from 'postprocessing';
+import * as THREE from 'three'
+import { EffectComposer, ShockWaveEffect, RenderPass, BloomEffect, EffectPass } from 'postprocessing'
 
 import HopalongVisualizer from './hopalong-visualizer.js'
-import CameraManager from './camera-manager';
+import CameraManager from './camera-manager'
 
 /**
  * The Hopalong Manager class is responsible for creating the camera and visualization
@@ -10,13 +10,13 @@ import CameraManager from './camera-manager';
  */
 export default class HopalongManager {
   constructor() {
-    this.startTimer = null;
-    this.deltaTime = 0;
-    this.elapsedTime = 0;
-    this.cameraManager = null;
-    this.hopalongVisualizer = null;
-    this.renderer = null;
-    this.composer = null;
+    this.startTimer = null
+    this.deltaTime = 0
+    this.elapsedTime = 0
+    this.cameraManager = null
+    this.hopalongVisualizer = null
+    this.renderer = null
+    this.composer = null
   }
 
   /**
@@ -25,14 +25,14 @@ export default class HopalongManager {
    */
   init( startTimer )
   {
-    this.cameraManager = new CameraManager();
-    this.cameraManager.init();
+    this.cameraManager = new CameraManager()
+    this.cameraManager.init()
 
-    this.hopalongVisualizer = new HopalongVisualizer();
-    this.hopalongVisualizer.init();
+    this.hopalongVisualizer = new HopalongVisualizer()
+    this.hopalongVisualizer.init()
 
-    this.startTimer = startTimer;
-    this.clock = new THREE.Clock();
+    this.startTimer = startTimer
+    this.clock = new THREE.Clock()
 
     // Setup renderer and effects
     this.renderer = new THREE.WebGLRenderer({
@@ -41,43 +41,43 @@ export default class HopalongManager {
       antialias: false,
       gammaInput: true,
       gammaOutput: true
-    });
-    this.renderer.setSize(window.innerWidth, window.innerHeight);
-    document.body.appendChild(this.renderer.domElement);
+    })
+    this.renderer.setSize(window.innerWidth, window.innerHeight)
+    document.body.appendChild(this.renderer.domElement)
 
     // Setup Effects
-    this.setupEffects();
+    this.setupEffects()
     // Setup listeners
-    document.addEventListener('mousemove', this.onDocumentMouseMove);
-    document.addEventListener('keydown', this.onKeyDown);
-    window.addEventListener('resize', this.onWindowResize);
+    document.addEventListener('mousemove', this.onDocumentMouseMove)
+    document.addEventListener('keydown', this.onKeyDown)
+    window.addEventListener('resize', this.onWindowResize)
   }
 
-  //SetUp effects
- setupEffects() {
-   //setup the composer that renders the effects
-   this.composer = new EffectComposer( this.renderer );
-   this.composer.addPass( new RenderPass( this.hopalongVisualizer.getScene(), this.cameraManager.getCamera() ) );
-   this.bloomEffect = new BloomEffect();
-   this.bloomEffect.kernelSize = 1;
+  // SetUp effects
+  setupEffects() {
+    // setup the composer that renders the effects
+    this.composer = new EffectComposer( this.renderer )
+    this.composer.addPass( new RenderPass( this.hopalongVisualizer.getScene(), this.cameraManager.getCamera() ) )
+    this.bloomEffect = new BloomEffect()
+    this.bloomEffect.kernelSize = 1
 
-   let fakeCamera = new THREE.PerspectiveCamera( 60, window.innerWidth/window.innerHeight );
-   fakeCamera.position.z = 7;
+    const fakeCamera = new THREE.PerspectiveCamera( 60, window.innerWidth/window.innerHeight )
+    fakeCamera.position.z = 7
 
-   const options = {
-     waveSize: .15,
-     speed: .5,
-     amplitude: .2,
-     maxRadius: 2
-   }
-   this.shockwaveEffect = new ShockWaveEffect( fakeCamera, this.cameraManager.focusPoint, options );
+    const options = {
+      waveSize: .15,
+      speed: .5,
+      amplitude: .2,
+      maxRadius: 2
+    }
+    this.shockwaveEffect = new ShockWaveEffect( fakeCamera, this.cameraManager.focusPoint, options )
 
-   this.effectPass = new EffectPass(this.cameraManager.getCamera(), this.shockwaveEffect, this.bloomEffect );
-   this.effectPass.renderToScreen = true;
-   this.composer.addPass( this.effectPass );
+    this.effectPass = new EffectPass(this.cameraManager.getCamera(), this.shockwaveEffect, this.bloomEffect )
+    this.effectPass.renderToScreen = true
+    this.composer.addPass( this.effectPass )
 
-   this.clock = new THREE.Clock();
- }
+    this.clock = new THREE.Clock()
+  }
 
   /**
    *
@@ -86,37 +86,37 @@ export default class HopalongManager {
    */
   update( deltaTime, audioData )
   {
-    this.deltaTime = deltaTime;
-    this.elapsedTime += deltaTime;
+    this.deltaTime = deltaTime
+    this.elapsedTime += deltaTime
 
-    this.shockwaveEffect.speed = (window.config.user.speed.value / 15) + audioData.peak.value * 1.25;
+    this.shockwaveEffect.speed = (window.config.user.speed.value / 15) + audioData.peak.value * 1.25
 
 
     if(this.particleConfigChanged()) {
-      this.resetVisualization();
+      this.resetVisualization()
     }
-    this.hopalongVisualizer.update( deltaTime, audioData, this.renderer, this.cameraManager );
+    this.hopalongVisualizer.update( deltaTime, audioData, this.renderer, this.cameraManager )
 
     if ( window.config.effects.glow.value ) {
-      this.bloomEffect.blendMode.opacity.value = audioData.peak.value * audioData.peak.energy;
+      this.bloomEffect.blendMode.opacity.value = audioData.peak.value * audioData.peak.energy
     }
 
     if ( audioData.peak.value > 0.8 && window.config.effects.shockwave.value ) {
-      this.shockwaveEffect.explode();
+      this.shockwaveEffect.explode()
     }
-    this.composer.render( this.clock.getDelta() );
+    this.composer.render( this.clock.getDelta() )
 
-    this.cameraManager.manageCameraPosition();
+    this.cameraManager.manageCameraPosition()
   }
 
   particleConfigChanged() {
-    let hasChanged = false;
+    let hasChanged = false
     Object.keys(window.config.particle).map(setting => {
       if(this.hopalongVisualizer[setting] != window.config.particle[setting].value) {
-        hasChanged = true;
+        hasChanged = true
       }
     })
-    return hasChanged;
+    return hasChanged
   }
 
   resetVisualization() {
@@ -124,39 +124,39 @@ export default class HopalongManager {
     document.keydown  = function() {}
     window.resize  = function() {}
 
-    this.hopalongVisualizer.destroyVisualization(this.renderer, this.cameraManager);
-    delete this.hopalongVisualizer;
-    this.hopalongVisualizer = new HopalongVisualizer();
-    this.hopalongVisualizer.init();
+    this.hopalongVisualizer.destroyVisualization(this.renderer, this.cameraManager)
+    delete this.hopalongVisualizer
+    this.hopalongVisualizer = new HopalongVisualizer()
+    this.hopalongVisualizer.init()
 
-    this.setupEffects();
+    this.setupEffects()
   }
 
-  ///////////////////////////////////////////////
+  // /////////////////////////////////////////////
   // Event listeners
-  ///////////////////////////////////////////////
+  // /////////////////////////////////////////////
   // TODO Move these into config and set up from React
   onDocumentMouseMove = (event) => {
-    this.cameraManager.updateMousePosition(event);
+    this.cameraManager.updateMousePosition(event)
   }
 
   onWindowResize = (event) => {
-    console.log('resizing.....');
-    this.composer.setSize(window.innerWidth, window.innerHeight);
-    this.renderer.setPixelRatio( window.devicePixelRatio );
-    this.renderer.setSize(window.innerWidth, window.innerHeight);
-    this.cameraManager.onResize();
+    console.log('resizing.....')
+    this.composer.setSize(window.innerWidth, window.innerHeight)
+    this.renderer.setPixelRatio( window.devicePixelRatio )
+    this.renderer.setSize(window.innerWidth, window.innerHeight)
+    this.cameraManager.onResize()
   }
 
   onKeyDown = (event) => {
     if (event.keyCode == 38 && window.config.user.speed.value < window.config.user.speed.max)
-        window.config.user.speed.value += 0.5;
+      window.config.user.speed.value += 0.5
     else if (event.keyCode == 40 && window.config.user.speed.value > window.config.user.speed.min)
-      window.config.user.speed.value -= 0.5;
+      window.config.user.speed.value -= 0.5
     else if (event.keyCode == 37 && window.config.user.rotationSpeed.value < window.config.user.rotationSpeed.max)
-     window.config.user.rotationSpeed.value += 0.25;
+      window.config.user.rotationSpeed.value += 0.25
     else if (event.keyCode == 39 && window.config.user.rotationSpeed.value > window.config.user.rotationSpeed.min)
-      window.config.user.rotationSpeed.value -= 0.25;
-    //else if (event.keyCode == 72 || event.keyCode == 104) toggleVisuals();
+      window.config.user.rotationSpeed.value -= 0.25
+    // else if (event.keyCode == 72 || event.keyCode == 104) toggleVisuals();
   }
 };
