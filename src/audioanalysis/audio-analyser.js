@@ -1,6 +1,6 @@
 import UserConfig from '../config/user.config'
 import AnalyserConfig from '../config/analyser.config'
-import config from '../config/configDefaults'
+import configDefaults from '../config/configDefaults'
 
 import { AudioData } from '../audiostream/audio-data'
 import { AudioAnalysedData, AudioAnalysedDataForVisualization, Peak } from './audio-analysed-data'
@@ -65,7 +65,7 @@ export class AudioAnalyser
         if( returns.peak || returns.peakHistory )
         {
           this.computePeakDetection( this.data.getEnergy(), this.data.getEnergyAverage(), this.data.peak, this.data.peakHistory, currentTimer,
-            config.audio.soundThreshold.value, AnalyserConfig.options.peakDetection.options.peakPersistency, config.audio.ignoreTime.value, EASINGS.linear )
+            configDefaults.audio.soundThreshold.value, AnalyserConfig.options.peakDetection.options.peakPersistency, configDefaults.audio.ignoreTime.value, EASINGS.linear )
         }
       }
     }
@@ -81,7 +81,7 @@ export class AudioAnalyser
         if( returns.multibandPeakHistory || returns.multibandPeak )
         {
           this.computeMultibandPeakDetection( this.data.getMultibandEnergy(), this.data.getMultibandEnergyAverage(), this.data.multibandPeak, this.data.multibandPeakHistory, currentTimer,
-            config.audio.soundThreshold.value, AnalyserConfig.options.multibandPeakDetection.options.peakPersistency, config.audio.ignoreTime.value, EASINGS.linear )
+            configDefaults.audio.soundThreshold.value, AnalyserConfig.options.multibandPeakDetection.options.peakPersistency, configDefaults.audio.ignoreTime.value, EASINGS.linear )
         }
       }
     }
@@ -100,6 +100,7 @@ export class AudioAnalyser
     // we first check if some values are correct
     if( config.options.multibandPeakDetection.enabled )
     {
+      // eslint-disable-next-line no-bitwise
       if( !(config.options.multibandPeakDetection.options.bands && (config.options.multibandPeakDetection.options.bands & (config.options.multibandPeakDetection.options.bands - 1)) === 0) )
         if( UserConfig.showerrors ) console.error( 'The number of bands for the multiband detection algorithm must be a pow of 2.' )
     }

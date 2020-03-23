@@ -1,3 +1,4 @@
+/* eslint-disable max-classes-per-file */
 import AnalyserConfig from '../config/analyser.config'
 
 /**

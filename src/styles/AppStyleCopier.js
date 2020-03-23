@@ -1,5 +1,5 @@
 
-export default function copyStyles(sourceDoc, targetDoc) {
+export const copyStyles = (sourceDoc, targetDoc) => {
   Array.from(sourceDoc.styleSheets).forEach(styleSheet => {
 
     if (styleSheet.href) {

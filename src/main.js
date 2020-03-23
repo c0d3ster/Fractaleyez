@@ -17,7 +17,6 @@ const hopalongManager = new HopalongManager()
 // Create timing mechanism
 let startTimer = null
 let lastFrameTimer = null
-const deltaTime = null
 
 // Initialize variables to track mouse movement and hide mouse after timeout
 let idleMouseTimer = 0
@@ -25,12 +24,12 @@ let forceMouseHide = false
 let idleSoundTimer = 0
 
 // Intiatialize Mic input stream & then set up Audio Analysis
-export function initWithMicrophone() {
+export const initWithMicrophone = () => {
   audiosource.getStreamFromMicrophone(false).then(init) // set input to be from mic by default
 }
 
 // Set up the Audio Analysis, Visualization manager
-function init() {
+const init = () => {
   hideCursorOnInactivity()
 
   audiostream.init()
@@ -42,7 +41,7 @@ function init() {
   analyze()
 }
 
-function hideCursorOnInactivity() {
+const hideCursorOnInactivity = () => {
   document.addEventListener('mousemove', (ev) => {
     const canvas = document.getElementsByTagName('canvas')
     if(!forceMouseHide) {
@@ -62,7 +61,7 @@ function hideCursorOnInactivity() {
 }
 
 // This function will be called in a loop for each frame
-function analyze() {
+const analyze = () => {
   window.requestAnimationFrame( analyze )
 
   // console.info("Analyzing Audio Data...");

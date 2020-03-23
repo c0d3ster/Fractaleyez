@@ -23,8 +23,7 @@ export default class HopalongManager {
    *
    * @param {Date} startTimer
    */
-  init( startTimer )
-  {
+  init = (startTimer) => {
     this.cameraManager = new CameraManager()
     this.cameraManager.init()
 
@@ -54,7 +53,7 @@ export default class HopalongManager {
   }
 
   // SetUp effects
-  setupEffects() {
+  setupEffects = () => {
     // setup the composer that renders the effects
     this.composer = new EffectComposer( this.renderer )
     this.composer.addPass( new RenderPass( this.hopalongVisualizer.getScene(), this.cameraManager.getCamera() ) )
@@ -84,8 +83,7 @@ export default class HopalongManager {
    * @param {number} deltaTime
    * @param {AudioAnalysedDataForVisualization} audioData
    */
-  update( deltaTime, audioData )
-  {
+  update = (deltaTime, audioData) => {
     this.deltaTime = deltaTime
     this.elapsedTime += deltaTime
 
@@ -109,7 +107,7 @@ export default class HopalongManager {
     this.cameraManager.manageCameraPosition()
   }
 
-  particleConfigChanged() {
+  particleConfigChanged = () => {
     let hasChanged = false
     Object.keys(window.config.particle).map(setting => {
       if(this.hopalongVisualizer[setting] !== window.config.particle[setting].value) {
@@ -119,10 +117,10 @@ export default class HopalongManager {
     return hasChanged
   }
 
-  resetVisualization() {
-    document.mousemove = function() {}
-    document.keydown  = function() {}
-    window.resize  = function() {}
+  resetVisualization = () => {
+    document.mousemove = () => {}
+    document.keydown  = () => {}
+    window.resize  = () => {}
 
     this.hopalongVisualizer.destroyVisualization(this.renderer, this.cameraManager)
     delete this.hopalongVisualizer

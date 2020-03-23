@@ -20,16 +20,14 @@ class App extends React.Component {
     this.setState({ configWindowVisible: !this.state.configWindowVisible})
   }
 
-  render() {
-    return (
-        <div>
-          {this.state.configWindowVisible && <ConfigWindow onClose={this.setConfigWindow} />}
-          <Sidebar 
-            setConfigWindow={this.setConfigWindow} 
-            configWindowVisible={this.state.configWindowVisible} />
-        </div>
-    )
-  }
+  render = () => (
+    <div>
+      {this.state.configWindowVisible && <ConfigWindow onClose={this.setConfigWindow} />}
+      <Sidebar 
+        setConfigWindow={this.setConfigWindow} 
+        configWindowVisible={this.state.configWindowVisible} />
+    </div>
+  )
 }
 
 export default connectConfig(App)
