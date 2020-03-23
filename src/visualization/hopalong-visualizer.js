@@ -120,8 +120,8 @@ export default class HopalongVisualizer {
     // Get momentum of the music being played
     const musicSpeed = (audioData.energyAverage + audioData.energy)
     const musicSpeedMultiplier = 1 + musicSpeed/10
-    // console.log('music speed multiplier: ' + musicSpeedMultiplier);
-    // console.log(window.config.speed * musicSpeedMultiplier);
+    // console.info('music speed multiplier: ' + musicSpeedMultiplier);
+    // console.info(window.config.speed * musicSpeedMultiplier);
 
     let count = 0 // keep track of which layer to apply settings on
 

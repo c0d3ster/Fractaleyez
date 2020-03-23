@@ -55,7 +55,7 @@ export class AudioStream
       // this.filterNode.connect( this.analyserNode );
       if( this.audioSource.isThereFeedback() )
         this.analyserNode.connect( this.audioContext.destination )
-      if( UserConfig.showloginfos ) console.log( 'AudioStream class initialized\n------------' )
+      if( UserConfig.showloginfos ) console.info( 'AudioStream class initialized\n------------' )
     }
   }
 

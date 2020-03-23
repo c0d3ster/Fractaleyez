@@ -65,7 +65,7 @@ function hideCursorOnInactivity() {
 function analyze() {
   window.requestAnimationFrame( analyze )
 
-  // console.log("Analyzing Audio Data...");
+  // console.info("Analyzing Audio Data...");
   const currentTimer = new Date()
   const deltaTime    = currentTimer - lastFrameTimer
 
@@ -73,17 +73,17 @@ function analyze() {
   audioAnalyser.analyse( audiostream.getAudioData(), deltaTime, currentTimer )
   const analysedData = audioAnalyser.getAnalysedData() // we get the analysed data
 
-  // console.log("Analyzed Data:\nTime Domain Data = " + analysedData.getTimedomainData());
-  // console.log("\nFrequencies Data = " + analysedData.getFrequenciesData());
-  // console.log("\nEnergy Data = " + analysedData.getEnergy());
-  // console.log("\nEnergy Average = " + analysedData.getEnergyAverage());
-  // console.log("\nMultiBand Energy = " + analysedData.getMultibandEnergy());
-  // console.log("\npeak.value = " + analysedData.peak.value);
-  // console.log("\npeak.energy = " + analysedData.peak.energy);
+  // console.info("Analyzed Data:\nTime Domain Data = " + analysedData.getTimedomainData());
+  // console.info("\nFrequencies Data = " + analysedData.getFrequenciesData());
+  // console.info("\nEnergy Data = " + analysedData.getEnergy());
+  // console.info("\nEnergy Average = " + analysedData.getEnergyAverage());
+  // console.info("\nMultiBand Energy = " + analysedData.getMultibandEnergy());
+  // console.info("\npeak.value = " + analysedData.peak.value);
+  // console.info("\npeak.energy = " + analysedData.peak.energy);
   if(!analysedData.getEnergy()) { // if the user hasnt clicked the page, the audio context wont be allowed to start automatically
     idleSoundTimer++
     if(idleSoundTimer > 100) {
-      console.log('retrying sound')
+      console.info('retrying sound')
       idleSoundTimer = 0
       audiosource.getAudioContext().resume()
     }

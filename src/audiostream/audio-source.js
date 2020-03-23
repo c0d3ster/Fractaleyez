@@ -26,7 +26,7 @@ export class AudioSource
    */
   loadAudioFromLibrary( filepath )
   {
-    if( UserConfig.showloginfos ) console.log( `Loading file ${filepath}` )
+    if( UserConfig.showloginfos ) console.info( `Loading file ${filepath}` )
 
     return new Promise( (resolve, reject) => {
       this.loadFile( filepath ).then( (audioData) => {
@@ -34,7 +34,7 @@ export class AudioSource
           this.source = this.audioContext.createBufferSource()
           this.source.buffer = buffer
           this.sourceType = 'audiofile'
-          if( UserConfig.showloginfos ) console.log( `Audio from file ${filepath} loaded\n------------` )
+          if( UserConfig.showloginfos ) console.info( `Audio from file ${filepath} loaded\n------------` )
           resolve()
         }).catch( (error) => {
           if( UserConfig.showerrors ) console.error( `File ${filepath} loaded, but can't decode audio data.\n${error}`)
@@ -65,7 +65,7 @@ export class AudioSource
           this.source = this.audioContext.createBufferSource()
           this.source.buffer = buffer
           this.sourceType = 'audiofile'
-          if( UserConfig.showloginfos ) console.log( 'Audio from file loaded\n------------' )
+          if( UserConfig.showloginfos ) console.info( 'Audio from file loaded\n------------' )
           resolve()
         })
       })
@@ -84,7 +84,7 @@ export class AudioSource
    */
   getStreamFromMicrophone( audioFeedback )
   {
-    if( UserConfig.showloginfos ) console.log( 'Setting up microphone' )
+    if( UserConfig.showloginfos ) console.info( 'Setting up microphone' )
 
     if( typeof(audioFeedback) === 'undefined' )
       this.audioFeedback = false
@@ -93,16 +93,16 @@ export class AudioSource
 
     return new Promise( (resolve, reject) => {
       setTimeout(() => {
-        console.log('Microphone Attempt Timeout')
+        console.info('Microphone Attempt Timeout')
         resolve() // move on to try for mic later
       }, 2000)
       if( navigator.mediaDevices )
       {
         navigator.mediaDevices.getUserMedia( { audio: true } ).then( (stream) => {
-          console.log('inside callback')
+          console.info('inside callback')
           this.source = this.audioContext.createMediaStreamSource( stream )
           this.sourceType = 'microphone'
-          if( UserConfig.showloginfos ) console.log( 'Audio stream is coming from microphone' )
+          if( UserConfig.showloginfos ) console.info( 'Audio stream is coming from microphone' )
           resolve()
         }).catch( (error) => {
           if( UserConfig.showerrors ) console.error( `The following gUM error occured: ${error}` )
@@ -111,7 +111,7 @@ export class AudioSource
       }
       else
       {
-        if( UserConfig.showerrors ) console.log( 'getUserMedia is not supported on this browser')
+        if( UserConfig.showerrors ) console.info( 'getUserMedia is not supported on this browser')
         reject( 'getUserMedia is not supported on this browser' )
       }
     })

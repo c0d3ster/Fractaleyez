@@ -27,7 +27,7 @@ export class AudioAnalyser
     this.iterations = 0
 
     if( UserConfig.checkConfig ) this.checkOptions( AnalyserConfig )
-    if( UserConfig.showloginfos ) console.log( 'Analyser initialized\n------------' )
+    if( UserConfig.showloginfos ) console.info( 'Analyser initialized\n------------' )
   }
 
 
@@ -95,7 +95,7 @@ export class AudioAnalyser
    */
   checkOptions( config )
   {
-    if( UserConfig.showloginfos ) console.log( 'Checking if the analyser configuration is correct' )
+    if( UserConfig.showloginfos ) console.info( 'Checking if the analyser configuration is correct' )
 
     // we first check if some values are correct
     if( config.options.multibandPeakDetection.enabled )
@@ -125,7 +125,7 @@ export class AudioAnalyser
         if( UserConfig.showerrors ) console.error( 'The peak history can\'t be computed if the peak detection algorithm is disabled.' )
     }
 
-    if( UserConfig.showloginfos ) console.log( 'Config checked.\n------------' )
+    if( UserConfig.showloginfos ) console.info( 'Config checked.\n------------' )
   }
 
 

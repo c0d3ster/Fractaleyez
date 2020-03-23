@@ -56,7 +56,7 @@ export class AnalysedDataVisualizer
     this.canvas.setAttribute( 'height', 1024 )
     document.body.appendChild(this.canvas)
     this.context = this.canvas.getContext( '2d' )
-    if( UserConfig.showloginfos ) console.log( 'Visualizer initialized\n------------' )
+    if( UserConfig.showloginfos ) console.info( 'Visualizer initialized\n------------' )
   }
 
 

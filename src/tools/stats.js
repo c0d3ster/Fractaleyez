@@ -33,7 +33,7 @@ export class Stats
     }
 
     document.body.appendChild( this.stats.domElement )
-    if( UserConfig.showloginfos ) console.log('Stats initiliazed\n------------')
+    if( UserConfig.showloginfos ) console.info('Stats initiliazed\n------------')
   }
 
 

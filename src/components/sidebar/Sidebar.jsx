@@ -76,7 +76,7 @@ class Sidebar extends React.Component {
             <h2 className='sidebar-title'>Presets</h2>
             <button 
               className={expandConfigClasses} 
-              onClick={() => {console.log(JSON.stringify(this.props.config))}}>
+              onClick={() => {console.info(JSON.stringify(this.props.config))}}>
               Log Config
             </button>
           </Row>

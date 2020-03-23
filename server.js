@@ -45,7 +45,7 @@ app.get("/api/getConfig/:name", (req, res) => {
 })
 
 
-server.listen(PORT, () => console.log("Node server listening on port " + PORT))
+server.listen(PORT, () => console.info("Node server listening on port " + PORT))
 
 // Redirect from http port 80 to https
 var http = require('http')
