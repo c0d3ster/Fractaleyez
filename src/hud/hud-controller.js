@@ -34,7 +34,7 @@ export class HUD
    */
   keyDownEvent( event )
   {
-    if( event.key == UserConfig.hudToggleKey )
+    if( event.key === UserConfig.hudToggleKey )
     {
       event.stopPropagation()
       this.show = !this.show

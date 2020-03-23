@@ -38,7 +38,7 @@ class ConfigCategory extends React.Component {
     Object.keys(this.props.config[this.props.name]).map((configItem) => {
       const { type, name, value, min, max, step } = this.props.config[this.props.name][configItem]
 
-      if (type == 'checkbox') {
+      if (type === 'checkbox') {
         return(
           <ConfigCheckbox
             name={name}
@@ -48,7 +48,7 @@ class ConfigCategory extends React.Component {
           />
         )
       }
-      else if (type == 'slider') {
+      else if (type === 'slider') {
         return(
           <ConfigSlider
             name={name}

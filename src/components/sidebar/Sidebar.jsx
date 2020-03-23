@@ -52,7 +52,7 @@ class Sidebar extends React.Component {
   render() {
     const sidebarContentClasses = classNames('sidebar-content', {
       'slide-in': this.state.sidebarVisible,
-      'slide-out': this.state.sidebarVisible == false
+      'slide-out': this.state.sidebarVisible === false
     })
     const tabClasses = classNames('tab', {
       'tab-fade-in': this.state.tabVisible,

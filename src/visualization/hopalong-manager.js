@@ -149,14 +149,14 @@ export default class HopalongManager {
   }
 
   onKeyDown = (event) => {
-    if (event.keyCode == 38 && window.config.user.speed.value < window.config.user.speed.max)
+    if (event.keyCode === 38 && window.config.user.speed.value < window.config.user.speed.max)
       window.config.user.speed.value += 0.5
-    else if (event.keyCode == 40 && window.config.user.speed.value > window.config.user.speed.min)
+    else if (event.keyCode === 40 && window.config.user.speed.value > window.config.user.speed.min)
       window.config.user.speed.value -= 0.5
-    else if (event.keyCode == 37 && window.config.user.rotationSpeed.value < window.config.user.rotationSpeed.max)
+    else if (event.keyCode === 37 && window.config.user.rotationSpeed.value < window.config.user.rotationSpeed.max)
       window.config.user.rotationSpeed.value += 0.25
-    else if (event.keyCode == 39 && window.config.user.rotationSpeed.value > window.config.user.rotationSpeed.min)
+    else if (event.keyCode === 39 && window.config.user.rotationSpeed.value > window.config.user.rotationSpeed.min)
       window.config.user.rotationSpeed.value -= 0.25
-    // else if (event.keyCode == 72 || event.keyCode == 104) toggleVisuals();
+    // else if (event.keyCode === 72 || event.keyCode === 104) toggleVisuals();
   }
 };

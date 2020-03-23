@@ -86,7 +86,7 @@ export class AudioSource
   {
     if( UserConfig.showloginfos ) console.log( 'Setting up microphone' )
 
-    if( typeof(audioFeedback) == 'undefined' )
+    if( typeof(audioFeedback) === 'undefined' )
       this.audioFeedback = false
     else
       this.audioFeedback = audioFeedback
@@ -131,7 +131,7 @@ export class AudioSource
       xhr.responseType = 'arraybuffer'
       xhr.open( 'GET', filepath, true )
       xhr.onloadend = () => {
-        if( xhr.status == 404 )
+        if( xhr.status === 404 )
           reject( xhr.statusText )
         else
           resolve( xhr.response )
@@ -150,12 +150,12 @@ export class AudioSource
    */
   play( when, offset )
   {
-    if( typeof(when) == 'undefined' )
+    if( typeof(when) === 'undefined' )
       when = 0
-    if( typeof(offset) == 'undefined' )
+    if( typeof(offset) === 'undefined' )
       offset = 0
 
-    if( this.sourceType == 'audiofile' )
+    if( this.sourceType === 'audiofile' )
       this.source.start(when, offset)
     else
     {
@@ -169,7 +169,7 @@ export class AudioSource
    */
   isThereFeedback()
   {
-    if( this.sourceType == 'microphone' )
+    if( this.sourceType === 'microphone' )
       return this.audioFeedback
     else
       return true

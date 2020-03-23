@@ -136,7 +136,7 @@ export default class HopalongVisualizer {
           this.peakCountdown = 100
         }
 
-        if ( count % 2 == 0 && window.config.effects.switcheroo.value ) { // change geometry of every other orbit on peak
+        if ( count % 2 === 0 && window.config.effects.switcheroo.value ) { // change geometry of every other orbit on peak
           obj.geometry.verticesNeedUpdate = true
           obj.needsUpdate = 0
         }
@@ -153,7 +153,7 @@ export default class HopalongVisualizer {
       if ( obj.position.z > window.config.user.scaleFactor.value / 2 ) {
         obj.position.setZ( -(this.levels-1) * this.levelDepth + this.levelDepth)
 
-        if ( obj.needsUpdate == 1 )
+        if ( obj.needsUpdate === 1 )
         {
           obj.geometry.verticesNeedUpdate = true
           obj.needsUpdate = 0
@@ -161,10 +161,10 @@ export default class HopalongVisualizer {
       }
 
       if ( window.config.effects.cyclone.value ) {
-        if (count % 3 == 0) {
+        if (count % 3 === 0) {
           obj.rotation.z += (window.config.user.rotationSpeed.value / 1000) * musicSpeedMultiplier
         }
-        else if (count % 3 == 1) {
+        else if (count % 3 === 1) {
           obj.rotation.z -= (window.config.user.rotationSpeed.value / 1000) * musicSpeedMultiplier
         }
       }
@@ -249,7 +249,7 @@ export default class HopalongVisualizer {
           z = (ld + Math.log(2+Math.sqrt(Math.abs(lb * x - lc))));
         */
         if( x > 0 ) x1 = y-z
-        else if( x == 0 ) x1 = y
+        else if( x === 0 ) x1 = y
         else x1 = y+z
         y = la-x
         x = x1 + le

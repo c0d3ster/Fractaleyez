@@ -12,7 +12,7 @@ export class Stats
    */
   constructor( position )
   {
-    if( typeof(position) == 'undefined' )
+    if( typeof(position) === 'undefined' )
       position = 0
 
     this.stats = new StatsJS()
