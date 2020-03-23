@@ -193,4 +193,4 @@ export class AudioSource
     if( UserConfig.showerrors && !this.source ) console.error( 'Audio source has not bet set up' )
     return this.source
   }
-};
+}

@@ -26,13 +26,13 @@ export class AudioStream
     this.gainNode = this.audioContext.createGain()
     this.gainNode.gain.setValueAtTime( this.volume, this.audioContext.currentTime )
 
-    /* this.filterNode = this.audioContext.createBiquadFilter();
-    this.filterNode.type = "lowpass";
-    this.filterNode.frequency.setValueAtTime( 500, this.audioContext.currentTime );*/
+    /* this.filterNode = this.audioContext.createBiquadFilter()
+    this.filterNode.type = "lowpass"
+    this.filterNode.frequency.setValueAtTime( 500, this.audioContext.currentTime )*/
 
     this.analyserNode = this.audioContext.createAnalyser()
     this.analyserNode.fftSize = fftsize
-    // this.analyserNode.smoothingConstant = 0.9;
+    // this.analyserNode.smoothingConstant = 0.9
     this.bufferLength = this.analyserNode.frequencyBinCount
     this.dataArray = new Uint8Array( this.bufferLength )
   }
@@ -102,4 +102,4 @@ export class AudioStream
   {
     return this.bufferLength
   }
-};
+}

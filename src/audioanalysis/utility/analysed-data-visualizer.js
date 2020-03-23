@@ -304,5 +304,4 @@ export class AnalysedDataVisualizer
       this.context.strokeRect( rect.pos_x + margin + 0.5, rect.pos_y +band_height*b + (b+1)*margin + 0.5, rect.size_x-margin*2, band_height )
     }
   }
-
-};
+}

@@ -112,7 +112,7 @@ export default class HopalongManager {
   particleConfigChanged() {
     let hasChanged = false
     Object.keys(window.config.particle).map(setting => {
-      if(this.hopalongVisualizer[setting] != window.config.particle[setting].value) {
+      if(this.hopalongVisualizer[setting] !== window.config.particle[setting].value) {
         hasChanged = true
       }
     })

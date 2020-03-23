@@ -250,7 +250,7 @@ export class AudioAnalysedData
       }
     }
   }
-};
+}
 
 
 /**
@@ -299,7 +299,7 @@ export class AudioAnalysedDataForVisualization
     if( AnalyserConfig.options.returns.multibandPeakHistory )
       this.multibandPeakHistory = analysedData.multibandPeakHistory
   }
-};
+}
 
 
 /**
@@ -328,4 +328,4 @@ export class Peak
     this.timer = peak.timer
     this.energy = peak.energy
   }
-};
+}

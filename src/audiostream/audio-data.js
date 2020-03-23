@@ -14,4 +14,4 @@ export class AudioData
     this.timedomainData = timedomainData
     this.frequencyData = frequencyData
   }
-};
+}

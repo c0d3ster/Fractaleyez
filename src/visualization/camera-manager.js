@@ -46,7 +46,7 @@ export default class CameraManager {
       if (this.camera.position.y >  this.cameraBound) this.camera.position.y =  this.cameraBound
     }
 
-    if (this.cameraBound != window.config.user.cameraBound.value) {
+    if (this.cameraBound !== window.config.user.cameraBound.value) {
       this.camera.position.y = 0
       this.camera.position.x = 0
       this.cameraBound =  window.config.user.cameraBound.value

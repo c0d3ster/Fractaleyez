@@ -104,7 +104,7 @@ export class AudioAnalyser
         if( UserConfig.showerrors ) console.error( 'The number of bands for the multiband detection algorithm must be a pow of 2.' )
     }
 
-    if( config.options.returns.peakHistory != config.options.returns.multibandPeakHistory )
+    if( config.options.returns.peakHistory !== config.options.returns.multibandPeakHistory )
     {
       if( UserConfig.showerrors ) console.error( 'Due to the conception of the analyser, the ' )
     }
@@ -191,7 +191,7 @@ export class AudioAnalyser
   computePeakDetection( energy, energyAverage, peak, peakHistory, currentTimer, threshold, peakPersistency, ignoreTime, interpolationFunction )
   {
     // if a peak has already been detected
-    if( peak.timer != null )
+    if( peak.timer !== null )
     {
       // if a peak has been detected recently, we can't detect a new peak during ignoreTime
       // we only decrease the value of the peak
@@ -336,4 +336,4 @@ export class AudioAnalyser
   {
     return Math.max( 0.0, easingFunction( 1.0 - (currentTimer - peakTimer) / peakPersistency ) )
   }
-};
+}
