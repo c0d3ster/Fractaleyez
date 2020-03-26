@@ -30,9 +30,9 @@ export class AudioAnalyser {
 
   /**
    * Analyse the data provided by the AudioStream
-   * 
+   *
    * This method looks horrible but the logical tests are useful to save CPU usage
-   * if all the analysis are not required by the visualizer   
+   * if all the analysis are not required by the visualizer
    *
    * @param {AudioData} audioData Data provided by the AudioStream.getAudioData()
    * @param deltaTime Elapsed time since last analysis

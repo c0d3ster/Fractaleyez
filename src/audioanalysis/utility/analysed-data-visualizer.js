@@ -9,8 +9,8 @@ import { AudioAnalysedData } from '../audio-analysed-data'
  * pannels
  */
 const PANNEL_SIGNAL = {
-    pos_x: 0, pos_y: 0, size_x: 256, size_y: 128
-  }
+  pos_x: 0, pos_y: 0, size_x: 256, size_y: 128
+}
 const PANNEL_SPECTRUM = {
   pos_x: 256, pos_y: 0, size_x: 256, size_y: 128
 }
