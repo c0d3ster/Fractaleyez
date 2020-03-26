@@ -54,4 +54,4 @@ export default {
 
   cameraBound_SEP_SIZE: 20
 
-};
+}

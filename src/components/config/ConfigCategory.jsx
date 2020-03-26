@@ -4,16 +4,16 @@ import './ConfigCategory.css'
 
 import ConfigSlider from './ConfigSlider'
 import ConfigCheckbox from './ConfigCheckbox'
-import { connectConfig } from './context/ConfigProvider';
+import { connectConfig } from './context/ConfigProvider'
 
 class ConfigCategory extends React.Component {
 
   // this helper function allows us to re render categories only when necessary using state
   // it passes along the change to the categoryWindow to update our config.js file for visual updates
   updateConfig = (event) => {
-    const target = event.target;
-    const item = target.name;
-    const value = target.type === 'checkbox' ? target.checked : target.value;
+    const target = event.target
+    const item = target.name
+    const value = target.type === 'checkbox' ? target.checked : target.value
 
     this.props.onChange(this.props.name, item, value)
   }
@@ -38,7 +38,7 @@ class ConfigCategory extends React.Component {
     Object.keys(this.props.config[this.props.name]).map((configItem) => {
       const { type, name, value, min, max, step } = this.props.config[this.props.name][configItem]
 
-      if (type == 'checkbox') {
+      if (type === 'checkbox') {
         return(
           <ConfigCheckbox
             name={name}
@@ -48,7 +48,7 @@ class ConfigCategory extends React.Component {
           />
         )
       }
-      else if (type == 'slider') {
+      else if (type === 'slider') {
         return(
           <ConfigSlider
             name={name}

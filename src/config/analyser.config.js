@@ -1,26 +1,21 @@
-import { EASINGS } from '../utility/easings';
+import { EASINGS } from '../tools/easings'
 
-
-export default
-{
+export default {
   /**
    * These are the options the analyser is checking to see which algorithm is going
    * to run.
    */
   options: {
-
     /**
      * The peak detection algorithm compares the moment energy to the recent average
      * energy of the signal.
      */
     peakDetection: {
-
       // If this boolean is set to true, the analyser will run the algorithm
       enabled: true,
 
       // options used by the peak detection algorithm
       options: {
-
         // the higher the threshold is, the harder a peak has to hit compared to
         // the rest of the audio
         threshold_DEFAULT: 2,
@@ -48,7 +43,6 @@ export default
 
         // This function is used to ease the decreasing value of a peak over time
         easing: EASINGS.linear
-
       }
     },
 
@@ -64,7 +58,6 @@ export default
 
       // options used by the multi-band peak detection algorithm
       options: {
-
         // number of bands in which the frequencies will be split, must be a pow of 2
         bands: 8,
 
@@ -84,7 +77,6 @@ export default
 
         // This function is used to ease the decreasing value of a peak over time
         easing: EASINGS.linear
-
       }
     },
 
@@ -95,7 +87,6 @@ export default
      * the algorithms computing them are not enabled
      */
     returns: {
-
       // if the analyser returns the time domain data
       timedomainData: true,
 
@@ -131,7 +122,6 @@ export default
 
       // history of each band detected peaks !!! MUST BE EQUAL TO peakHistory due to poor conception (also good optimization)
       multibandPeakHistory: true
-
     }
   },
-};
+}

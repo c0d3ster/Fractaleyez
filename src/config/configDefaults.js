@@ -1,8 +1,8 @@
-import AnalyserConfig from './analyser.config';
-import UserConfig from './user.config';
-import VisualizerConfig from './visualizer.config';
-import OrbitConfig from './orbit.config';
-import ParticleConfig from './particle.config';
+import AnalyserConfig from './analyser.config'
+import UserConfig from './user.config'
+import VisualizerConfig from './visualizer.config'
+import OrbitConfig from './orbit.config'
+import ParticleConfig from './particle.config'
 
 export default {
   user : {
@@ -195,12 +195,12 @@ export default {
       step: ParticleConfig.saturation_STEP_SIZE
     },
     sprites: {
-      name: "Sprites",
-      type: "multiselect",
+      name: 'Sprites',
+      type: 'multiselect',
       defaultValue: ParticleConfig.sprites_DEFAULT,
       value: ParticleConfig.sprites_DEFAULT,
       min: ParticleConfig.sprites_MIN,
       max: ParticleConfig.sprites_MAX
     }
   }
-};
+}

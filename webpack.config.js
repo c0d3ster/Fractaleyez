@@ -1,10 +1,10 @@
-const path = require('path');
+const path = require('path')
 
-const BUILD_DIR = path.join( __dirname, 'public' );
-const APP_DIR = path.join( __dirname, 'src' );
+const BUILD_DIR = path.join( __dirname, 'public' )
+const APP_DIR = path.join( __dirname, 'src' )
 
 module.exports = {
-  //with webpack 4 entry and output configuration is optional
+  // with webpack 4 entry and output configuration is optional
   entry: ['@babel/polyfill', APP_DIR + '/index.jsx'],
   output:
   {
@@ -12,7 +12,7 @@ module.exports = {
     filename: 'app.js',
     publicPath: '/'
   },
-  //must include modules for webpack to integrate with babel for es6 syntax
+  // must include modules for webpack to integrate with babel for es6 syntax
   module: {
     rules: [
       {
@@ -29,17 +29,17 @@ module.exports = {
       {
         test: /\.(css|less)$/,
         use: [{
-            loader: 'style-loader'
-          },
-          {
-            loader: 'css-loader',
-            options: {
-              importLoaders: 1
-            }
-          },
-          {
-            loader: 'postcss-loader'
+          loader: 'style-loader'
+        },
+        {
+          loader: 'css-loader',
+          options: {
+            importLoaders: 1
           }
+        },
+        {
+          loader: 'postcss-loader'
+        }
         ]
       },
       {
@@ -60,12 +60,12 @@ module.exports = {
     port: 3000,
     open: false,
     proxy: {
-      "/api": "http://localhost:8080"
+      '/api': 'http://localhost:8080'
     }
   },
-  //resolves directory to look for modules and resolves extensions
+  // resolves directory to look for modules and resolves extensions
   resolve: {
     extensions: ['.js', '.jsx'],
     modules: ['node_modules']
   },
-};
+}

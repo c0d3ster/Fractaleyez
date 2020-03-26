@@ -42,8 +42,8 @@ class ConfigProvider extends Component {
     const camelItem = this.titleToCamelCase(item)
     const camelCategory = this.titleToCamelCase(category)
 
-    if(this.state.config[camelCategory][camelItem].type == "slider") {
-      value = parseFloat(value);
+    if(this.state.config[camelCategory][camelItem].type === "slider") {
+      value = parseFloat(value)
     }
     
     this.setState((prevState) => { // update state for React context

@@ -1,6 +1,6 @@
-import React from 'react';
-import '../styles/App.css';
-import 'bootstrap/dist/css/bootstrap.min.css';
+import React from 'react'
+import '../styles/App.css'
+import 'bootstrap/dist/css/bootstrap.min.css'
 
 import { initWithMicrophone } from '../main'
 import { connectConfig } from './config/context/ConfigProvider'
@@ -20,16 +20,14 @@ class App extends React.Component {
     this.setState({ configWindowVisible: !this.state.configWindowVisible})
   }
 
-  render() {
-    return (
-        <div>
-          {this.state.configWindowVisible && <ConfigWindow onClose={this.setConfigWindow} />}
-          <Sidebar 
-            setConfigWindow={this.setConfigWindow} 
-            configWindowVisible={this.state.configWindowVisible} />
-        </div>
-    );
-  }
+  render = () => (
+    <div>
+      {this.state.configWindowVisible && <ConfigWindow onClose={this.setConfigWindow} />}
+      <Sidebar 
+        setConfigWindow={this.setConfigWindow} 
+        configWindowVisible={this.state.configWindowVisible} />
+    </div>
+  )
 }
 
 export default connectConfig(App)

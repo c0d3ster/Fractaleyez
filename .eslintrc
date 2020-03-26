@@ -1,0 +1,64 @@
+{
+    "env": {
+    "browser": true,
+    "es6": true,
+    "node": true,
+    "jest": true
+    },
+    "parser": "babel-eslint",
+    "parserOptions": {
+        "ecmaVersion": 2018,
+        "sourceType": "module"
+    },
+    "plugins": [
+        "jsdoc",
+        "prefer-arrow"
+    ],
+    "rules": {
+        "comma-dangle": ["error", {
+        "arrays": "only-multiline",
+        "objects": "only-multiline",
+        "imports": "only-multiline",
+        "exports": "only-multiline",
+        "functions": "only-multiline"
+        }],
+        "constructor-super": "error",
+        "dot-notation": "error",
+        "eqeqeq": ["error", "smart"],
+        "guard-for-in": "error",
+        "jsdoc/check-alignment": "error",
+        "jsdoc/check-indentation": "error",
+        "jsdoc/newline-after-description": "error",
+        "indent": ["error", 2],
+        "max-classes-per-file": ["error", 1],
+        "new-parens": "error",
+        "no-bitwise": "error",
+        "no-caller": "error",
+        "no-cond-assign": "error",
+        "no-console": ["error", {"allow": ["info", "warn", "error"]}],
+        "no-debugger": "error",
+        "no-empty": "error",
+        "no-eval": "error",
+        "no-multiple-empty-lines": ["error", {"max": 2, "maxEOF": 1}],
+        "no-new-wrappers": "error",
+        "no-redeclare": "error",
+        "no-shadow": ["error", {"hoist": "all"}],
+        "no-trailing-spaces": "error",
+        "no-undef-init": "error",
+        "no-underscore-dangle": "error",
+        "no-unsafe-finally": "error",
+        "no-unused-expressions": "error",
+        "no-unused-labels": "error",
+        "no-var": "error",
+        "object-shorthand": "error",
+        "one-var": ["error", "never"],
+        "prefer-arrow/prefer-arrow-functions": "error",
+        "prefer-const": "error",
+        "quotes": ["error", "single"],
+        "radix": "error",
+        "semi": ["error", "never"],
+        "spaced-comment": "error",
+        "use-isnan": "error",
+        "valid-typeof": "off"
+    }
+}

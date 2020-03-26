@@ -52,7 +52,7 @@ class Sidebar extends React.Component {
   render() {
     const sidebarContentClasses = classNames('sidebar-content', {
       'slide-in': this.state.sidebarVisible,
-      'slide-out': this.state.sidebarVisible == false
+      'slide-out': this.state.sidebarVisible === false
     })
     const tabClasses = classNames('tab', {
       'tab-fade-in': this.state.tabVisible,
@@ -76,7 +76,7 @@ class Sidebar extends React.Component {
             <h2 className='sidebar-title'>Presets</h2>
             <button 
               className={expandConfigClasses} 
-              onClick={() => {console.log(JSON.stringify(this.props.config))}}>
+              onClick={() => {console.info(JSON.stringify(this.props.config))}}>
               Log Config
             </button>
           </Row>
