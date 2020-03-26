@@ -1,25 +1,21 @@
 import StatsJS from 'stats-js'
 import UserConfig from '../configDefaults/user.config'
 
-
 /**
  * This class provides an abstraction for controlling stats
  */
-export class Stats
-{
+export class Stats {
   /**
    * @param {number=} position 0: top-left / 1: top-right / 2: bottom-left / 3: bottom-right (optional)
    */
-  constructor( position )
-  {
+  constructor( position ) {
     if( typeof(position) === 'undefined' )
       position = 0
 
     this.stats = new StatsJS()
     this.stats.domElement.style.position = 'absolute'
 
-    switch( position )
-    {
+    switch( position ) {
     case 1:
       this.stats.domElement.style.right = '0'
     case 0:
@@ -36,44 +32,36 @@ export class Stats
     if( UserConfig.showloginfos ) console.info('Stats initiliazed\n------------')
   }
 
-
   /**
    * hide/show the HUD
    *
    * @param {boolean} show
    */
-  toggle( show )
-  {
+  toggle( show ) {
     if( show && this.stats.domElement.hasAttribute('hidden') )
       this.stats.domElement.removeAttribute('hidden')
     else if( !show )
       this.stats.domElement.setAttribute('hidden', true)
   }
 
-
   /**
    * Positions
    */
-  static get POSITIONS()
-  {
-    return {
-      TOP_LEFT: 0, TOP_RIGHT: 1, BOTTOM_LEFT: 2, BOTTOM_RIGHT: 3
-    }
+  static get POSITIONS() {
+    return { TOP_LEFT: 0, TOP_RIGHT: 1, BOTTOM_LEFT: 2, BOTTOM_RIGHT: 3 }
   }
 
   /**
    * needs to be called when a stat analysis is desired
    */
-  begin()
-  {
+  begin() {
     this.stats.begin()
   }
 
   /**
    * needs to be called when a stat analysis is done
    */
-  end()
-  {
+  end() {
     this.stats.end()
   }
 }
