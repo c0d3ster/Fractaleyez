@@ -4,8 +4,7 @@ import configDefaults from '../config/configDefaults'
 
 import { AudioData } from '../audiostream/audio-data'
 import { AudioAnalysedData, AudioAnalysedDataForVisualization, Peak } from './audio-analysed-data'
-import { EASINGS } from '../utility/easings'
-
+import { EASINGS } from '../tools/easings'
 
 /**
  * Provides a flexible analysis to an audio stream
