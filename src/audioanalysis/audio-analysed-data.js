@@ -5,8 +5,7 @@ import AnalyserConfig from '../config/analyser.config'
  * Stores the analysed data into a structured object
  * Handles the history of required datas
  */
-export class AudioAnalysedData
-{
+export class AudioAnalysedData {
   /**
    * frequenciesData
    * timedomainData
@@ -32,8 +31,7 @@ export class AudioAnalysedData
   /**
    * @param {number} bufferSize Size of the data buffer
    */
-  constructor( bufferSize )
-  {
+  constructor( bufferSize ) {
     this.bufferSize = bufferSize
 
     this.frequenciesData = new Uint8Array( bufferSize )
@@ -54,68 +52,56 @@ export class AudioAnalysedData
 
     this.multibandPeak = new Array( AnalyserConfig.options.multibandPeakDetection.options.bands )
     this.multibandPeakHistory = new Array( AnalyserConfig.options.multibandPeakDetection.options.bands )
-    for( let i = 0; i < AnalyserConfig.options.multibandPeakDetection.options.bands; i++ )
-    {
+    for( let i = 0; i < AnalyserConfig.options.multibandPeakDetection.options.bands; i++ ) {
       this.multibandPeak[i] = new Peak( 0.0, null, 0 )
       this.multibandPeakHistory[i] = new Array()
     }
   }
-
 
   /**
    * Set the timedomain data to the new values
    *
    * @param {Uint8Array} newTimedomainData New timedomain informations
    */
-  setTimedomainData( newTimedomainData )
-  {
+  setTimedomainData( newTimedomainData ) {
     this.timedomainData = newTimedomainData
   }
-
 
   /**
    * Get the timedomain data values
    *
    * @return {Uint8Array} Timedomain data values
    */
-  getTimedomainData()
-  {
+  getTimedomainData() {
     return this.timedomainData
   }
-
 
   /**
    * Set the frequenciesData to the new values
    *
    * @param {Uint8Array} newFrequenciesData New frequencies informations
    */
-  setFrequenciesData( newFrequenciesData )
-  {
+  setFrequenciesData( newFrequenciesData ) {
     this.frequenciesData = newFrequenciesData
   }
-
 
   /**
    * Get the frequencies data values
    *
    * @return {Uint8Array} Frequencies data values
    */
-  getFrequenciesData()
-  {
+  getFrequenciesData() {
     return this.frequenciesData
   }
-
 
   /**
    * set energy
    *
    * @param {number} newEnergy New energy
    */
-  setEnergy( newEnergy )
-  {
+  setEnergy( newEnergy ) {
     this.energy = newEnergy
   }
-
 
   /**
    * Get the energy of the signal
@@ -123,64 +109,51 @@ export class AudioAnalysedData
    *
    * @return {number} Current energy of the signal
    */
-  getEnergy()
-  {
+  getEnergy() {
     return this.energy
   }
-
 
   /**
    * @param {number} newEnergyAverage New energy Average
    */
-  setEnergyAverage( newEnergyAverage )
-  {
+  setEnergyAverage( newEnergyAverage ) {
     this.energyAverage = newEnergyAverage
   }
-
 
   /**
    * @return {number} Current local energy average of the signal
    */
-  getEnergyAverage()
-  {
+  getEnergyAverage() {
     return this.energyAverage
   }
-
 
   /**
    * @param {Array} newEnergies The energies to set
    */
-  setMultibandEnergy( newEnergies )
-  {
+  setMultibandEnergy( newEnergies ) {
     this.multibandEnergy = newEnergies
   }
-
 
   /**
    * @returns an array of all the bands energy
    */
-  getMultibandEnergy()
-  {
+  getMultibandEnergy() {
     return this.multibandEnergy
   }
 
   /**
    * @param {Array} newEnergiesAverage the new energies average to set
    */
-  setMultibandEnergyAverage( newEnergiesAverage )
-  {
+  setMultibandEnergyAverage( newEnergiesAverage ) {
     this.multibandEnergyAverage = newEnergiesAverage
   }
-
 
   /**
    * @returns an array of all the bands average energy
    */
-  getMultibandEnergyAverage()
-  {
+  getMultibandEnergyAverage() {
     return this.multibandEnergyAverage
   }
-
 
   /**
    * Push the new energy to the history
@@ -189,8 +162,7 @@ export class AudioAnalysedData
    * @param {number} energy New energy to push
    * @param deltaTime Time since the last registered energy
    */
-  pushNewEnergy( energy, deltaTime )
-  {
+  pushNewEnergy( energy, deltaTime ) {
     this.setEnergy( energy )
     this.energyHistory.push( energy )
     this.energyHistoryDeltaTime.push( deltaTime )
@@ -208,24 +180,19 @@ export class AudioAnalysedData
     }
   }
 
-
   /**
    * @return {Array} The history of the energies
    */
-  getEnergyHistory()
-  {
+  getEnergyHistory() {
     return this.energyHistory
   }
-
 
   /**
    * @return {Array} the history of each band energies
    */
-  getMultibandEnergyHistory()
-  {
+  getMultibandEnergyHistory() {
     return this.multibandEnergyHistory
   }
-
 
   /**
    * Push a new Array of energies to the history
@@ -233,8 +200,7 @@ export class AudioAnalysedData
    * @param {Array} multibandEnergy An array of each band energy
    * @param {*} deltaTime Time since the last mesure
    */
-  pushNewMultibandEnergy( multibandEnergy, deltaTime )
-  {
+  pushNewMultibandEnergy( multibandEnergy, deltaTime ) {
     this.setMultibandEnergy( multibandEnergy )
     this.multibandEnergyHistory.push( multibandEnergy )
     this.multibandEnergyHistoryDeltaTime.push( deltaTime )
@@ -253,19 +219,16 @@ export class AudioAnalysedData
   }
 }
 
-
 /**
  * This class is used to select only the desired options
  * for the visualization
  */
-export class AudioAnalysedDataForVisualization
-{
+export class AudioAnalysedDataForVisualization {
   /**
    *
    * @param {AudioAnalysedData} analysedData
    */
-  constructor( analysedData )
-  {
+  constructor( analysedData ) {
     this.bufferSize = analysedData.bufferSize
 
     if( AnalyserConfig.options.returns.frequenciesData )
@@ -302,12 +265,10 @@ export class AudioAnalysedDataForVisualization
   }
 }
 
-
 /**
  * Peak data informations
  */
-export class Peak
-{
+export class Peak {
   /**
    *
    * @param {number} value [0.0; 1.0] Current value of the peak - decrease over time depending on the
@@ -315,16 +276,13 @@ export class Peak
    * @param {*} timer Absolute timer on which the peak has been detected.
    * @param {number} energy Strength of the peak
    */
-  constructor( value, timer, energy )
-  {
+  constructor( value, timer, energy ) {
     this.value = value
     this.timer = timer
     this.energy = energy
   }
 
-
-  copy( peak )
-  {
+  copy( peak ) {
     this.value = peak.value
     this.timer = peak.timer
     this.energy = peak.energy

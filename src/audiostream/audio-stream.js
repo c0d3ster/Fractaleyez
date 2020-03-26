@@ -3,20 +3,17 @@ import UserConfig from '../config/user.config'
 import { AudioSource } from './audio-source'
 import { AudioData } from './audio-data'
 
-
 /**
  * Reads data from an audio source
  * The audio source provided to this class must be an
  * instance of AudioSource
  */
-export class AudioStream
-{
+export class AudioStream {
   /**
    * @param {AudioSource} audiosource Audio source from which the data is gathered
    * @param {number} fftSize Size of the fourier transform. Must be pow of 2
    */
-  constructor( audiosource, fftsize )
-  {
+  constructor( audiosource, fftsize ) {
     this.audioSource = audiosource
     this.audioContext = audiosource.getAudioContext()
     this.volume = UserConfig.volume
@@ -37,19 +34,15 @@ export class AudioStream
     this.dataArray = new Uint8Array( this.bufferLength )
   }
 
-
   /**
    * Function called once the audio source is set up
    */
-  init()
-  {
+  init() {
     this.sourceNode = this.audioSource.getSourceNode()
-    if( !this.sourceNode )
-    {
+    if( !this.sourceNode ) {
       if( UserConfig.showerrors ) console.error( 'Couldn\'t init the audio stream class. The audio source is empty.' )
     }
-    else
-    {
+    else {
       this.sourceNode.connect( this.gainNode )
       this.gainNode.connect( this.analyserNode )
       // this.filterNode.connect( this.analyserNode )
@@ -59,12 +52,10 @@ export class AudioStream
     }
   }
 
-
   /**
    * @returns {AudioData} Audio data containing time domain data and frequency data
    */
-  getAudioData()
-  {
+  getAudioData() {
     const tdData = new Uint8Array( this.bufferLength )
     const fData = new Uint8Array( this.bufferLength )
     this.analyserNode.getByteTimeDomainData( tdData )
@@ -73,33 +64,27 @@ export class AudioStream
     return new AudioData( tdData, fData, this.bufferLength )
   }
 
-
   /**
    * Changes the volume
    *
    * @param {number} volume [0.0; 1.0] New Volume
    */
-  setVolume( volume )
-  {
+  setVolume( volume ) {
     this.volume = volume
     this.gainNode.gain.setValueAtTime( volume, this.audioContext.currentTime )
   }
 
-
   /**
    * @returns The current volume
    */
-  getVolume()
-  {
+  getVolume() {
     return this.volume
   }
-
 
   /**
    * @return Size of the data buffer
    */
-  getBufferSize()
-  {
+  getBufferSize() {
     return this.bufferLength
   }
 }

@@ -8,8 +8,7 @@ import { AudioAnalysedData } from '../audio-analysed-data'
  * This values are used to set the position/size of the differents
  * pannels
  */
-const
-  PANNEL_SIGNAL = {
+const PANNEL_SIGNAL = {
     pos_x: 0, pos_y: 0, size_x: 256, size_y: 128
   }
 const PANNEL_SPECTRUM = {
@@ -34,11 +33,9 @@ const PANNEL_ALGO_2 = {
  * This should only be used in development since this is only
  * non-optimized helper
  */
-export class AnalysedDataVisualizer
-{
+export class AnalysedDataVisualizer {
   /** */
-  constructor()
-  {
+  constructor() {
     this.canvas = null
     this.context = null
     this.frame = 0
@@ -49,8 +46,7 @@ export class AnalysedDataVisualizer
    * Add a canvas to the body
    * This canvas will be used by the draw() function
    */
-  init()
-  {
+  init() {
     this.canvas = document.createElement( 'canvas' )
     this.canvas.setAttribute( 'width', 1025 )
     this.canvas.setAttribute( 'height', 1024 )
@@ -66,8 +62,7 @@ export class AnalysedDataVisualizer
    * @param {AudioAnalysedData} analysedData Data processed by the AudioAnalyser
    * @param {*} startTimer Start timer of the visualization
    */
-  draw( analysedData, startTimer )
-  {
+  draw( analysedData, startTimer ) {
     this.frame++
 
     // we clear the canvas
@@ -86,8 +81,7 @@ export class AnalysedDataVisualizer
    *
    * @param {Uint8Array} frequencyData
    */
-  drawSpectrum( frequencyData )
-  {
+  drawSpectrum( frequencyData ) {
     const pannel = PANNEL_SPECTRUM
 
     // d'abord on dessine l'interface
@@ -100,8 +94,7 @@ export class AnalysedDataVisualizer
     const freqWidth = pannel.size_x / frequencyData.length
     const heightRatio = pannel.size_y / 255
 
-    for( let i = 0; i < frequencyData.length; i++ )
-    {
+    for( let i = 0; i < frequencyData.length; i++ ) {
       this.context.fillStyle = `hsl(${i/frequencyData.length*180}, 100%, 50%)`
       this.context.fillRect( pannel.pos_x+freqWidth*i+1, pannel.pos_y+pannel.size_y-frequencyData[i]*heightRatio, freqWidth, frequencyData[i]*heightRatio)
     }
@@ -115,8 +108,7 @@ export class AnalysedDataVisualizer
    * @param {Array} energyHistory History of the energies
    * @param {number} energyAverage The local average energy
    */
-  drawEnergyHistogram( energyHistory, energyAverage )
-  {
+  drawEnergyHistogram( energyHistory, energyAverage ) {
     const rect = PANNEL_ENERGY
 
     // first we draw the interface
@@ -141,8 +133,10 @@ export class AnalysedDataVisualizer
     // we draw it
     this.context.beginPath()
 
-    for( let i = 0; i < energyHistory.length; i++ )
+    for( let i = 0; i < energyHistory.length; i++ ) {
       this.context.lineTo( rect.pos_x+rect.size_x - i*2, rect.pos_y+rect.size_y - energyHistory[energyHistory.length-i-1] )
+    }
+
     this.context.strokeStyle = 'red'
     this.context.stroke()
     this.context.closePath()
@@ -156,8 +150,7 @@ export class AnalysedDataVisualizer
    * @param {Array} peakHistory Array of all the detected peaks
    * @param {*} startTimer Absolute timer of the beginning of analysis
    */
-  drawPeakDetection( peak, peakHistory, startTimer )
-  {
+  drawPeakDetection( peak, peakHistory, startTimer ) {
     const rect = PANNEL_ALGO_1
     // d'abord on dessine l'interface
     this.context.strokeStyle = 'white'
@@ -167,8 +160,7 @@ export class AnalysedDataVisualizer
     this.context.fillText( `ALGO1 / threshold: ${AnalyserConfig.options.peakDetection.options.threshold} / ignoreTime: ${AnalyserConfig.options.peakDetection.options.ignoreTime} / results: ${peakHistory.length}`, rect.pos_x+5, rect.pos_y - 2 )
 
 
-    for( let i = 0; i < peakHistory.length; i++ )
-    {
+    for( let i = 0; i < peakHistory.length; i++ ) {
       this.context.beginPath()
       this.context.moveTo( rect.pos_x + (peakHistory[i].timer - startTimer)/1000*3, rect.pos_y + rect.size_y )
       this.context.lineTo( rect.pos_x + (peakHistory[i].timer - startTimer)/1000*3, rect.pos_y+1 )
@@ -200,8 +192,7 @@ export class AnalysedDataVisualizer
    *
    * @param {Array} energiesHistory array history of the computed energies of each band over time
    */
-  drawMultibandHistogram( energiesHistory )
-  {
+  drawMultibandHistogram( energiesHistory ) {
     const pannel = PANNEL_MULTIBAND_ENERGIES
 
     // interface
@@ -218,11 +209,9 @@ export class AnalysedDataVisualizer
     let bands_x = margin
 
     // parcours des bandes
-    for( let band = 0; (band < AnalyserConfig.options.multibandPeakDetection.options.bands && band < 28); band++ )
-    {
+    for( let band = 0; (band < AnalyserConfig.options.multibandPeakDetection.options.bands && band < 28); band++ ) {
       // passage à la ligne
-      if( bands_x + margin + band_histogram_width > this.canvas.width )
-      {
+      if( bands_x + margin + band_histogram_width > this.canvas.width ) {
         bands_x = margin
         bands_y+= margin+band_histogram_height
       }
@@ -233,16 +222,14 @@ export class AnalysedDataVisualizer
 
       // on va seulement parcourir une valeur sur 2 de chaque histogramme
       this.context.beginPath()
-      for( let i = 0; i < energiesHistory.length; i++ )
-      {
+      for( let i = 0; i < energiesHistory.length; i++ ) {
         this.context.lineTo( pannel.pos_x + bands_x + 0.5 + band_histogram_width - i / 2, pannel.pos_y + bands_y + band_histogram_height - 0.5 - energiesHistory[energiesHistory.length-i-1][band] * band_histogram_height / 256 )
       }
       this.context.strokeStyle = 'red'
       this.context.stroke()
       this.context.closePath()
 
-      if( !(bands_x + margin + band_histogram_width > this.canvas.width) )
-      {
+      if( !(bands_x + margin + band_histogram_width > this.canvas.width) ) {
         bands_x+= margin+band_histogram_width
       }
     }
@@ -256,8 +243,7 @@ export class AnalysedDataVisualizer
    * @param {Array} peaksHistory array of each band peaks hisory
    * @param {*} startTimer absolute timer of the start of analysis
    */
-  drawMultibandPeakDetection( peaks, peaksHistory, startTimer )
-  {
+  drawMultibandPeakDetection( peaks, peaksHistory, startTimer ) {
     const rect = PANNEL_ALGO_2
 
     // first we draw the interface
@@ -271,10 +257,8 @@ export class AnalysedDataVisualizer
     const margin = 5
     const currentTimer = new Date()
 
-    for( let b = 0; b < AnalyserConfig.options.multibandPeakDetection.options.bands; b++ )
-    {
-      for( let i = 0; i < peaksHistory[b].length; i++ )
-      {
+    for( let b = 0; b < AnalyserConfig.options.multibandPeakDetection.options.bands; b++ ) {
+      for( let i = 0; i < peaksHistory[b].length; i++ ) {
         this.context.beginPath()
         this.context.moveTo( 1+rect.pos_x + margin + (peaksHistory[b][i].timer-startTimer)/1000*3, rect.pos_y + b*band_height + margin*(b+1) )
         this.context.lineTo( 1+rect.pos_x + margin + (peaksHistory[b][i].timer-startTimer)/1000*3, rect.pos_y + b*band_height + margin*(b+1) + band_height )
