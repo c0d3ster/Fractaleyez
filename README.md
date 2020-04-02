@@ -31,7 +31,7 @@ Adjust variables in the algorithm that generates each "layer" of particles. Thes
 #### Particle Config
 
 Modify characteristics of each particle and layers of particles. Changing settings in this category will force a re-render of the entire visual space.
-*WARNING: Modifying this category can seriously impact performance and overload your GPU, causing the application to crash*
+*WARNING: Increasing values too much in this category can seriously impact performance and overload your GPU, causing the application to crash*
 
 ### Presets
 
