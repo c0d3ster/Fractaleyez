@@ -22,12 +22,17 @@ class Presets extends React.Component {
           <button onClick={this.props.retrieveConfigPreset}>Side Swirl</button> 
           <button onClick={this.props.retrieveConfigPreset}>Circles</button>
           <button onClick={this.props.retrieveConfigPreset}>Weed</button>  
-          <button onClick={this.props.retrieveConfigPreset}>Actual Garbage</button>   
+          {/*<button onClick={this.props.retrieveConfigPreset}>Actual Garbage</button>   
           <button onClick={this.props.retrieveConfigPreset}>Actual Garbage Salad</button>   
           <button onClick={this.props.retrieveConfigPreset}>Actual Garbage Spin</button>   
           <button onClick={this.props.retrieveConfigPreset}>Hyper Actual Garbage</button>               
           <button onClick={this.props.retrieveConfigPreset}>Garbage Monsters</button>
-          <button onClick={this.props.retrieveConfigPreset}>Garbage Man</button>                              
+          <button onClick={this.props.retrieveConfigPreset}>Garbage Man</button> 
+          <button onClick={this.props.retrieveConfigPreset}>Snikka</button>   
+          <button onClick={this.props.retrieveConfigPreset}>Snikka Salad</button>   
+          <button onClick={this.props.retrieveConfigPreset}>Snikka Spin</button>   
+          <button onClick={this.props.retrieveConfigPreset}>Hyper Snikka</button>
+          <button onClick={this.props.retrieveConfigPreset}>Snikka Trippy</button>*/}                                        
           <button onClick={this.props.retrieveConfigPreset}>Bassyndicate</button>
         </Col>
       </Row>
