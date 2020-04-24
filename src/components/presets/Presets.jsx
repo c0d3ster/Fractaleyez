@@ -22,7 +22,11 @@ class Presets extends React.Component {
           <button onClick={this.props.retrieveConfigPreset}>Eye Chase</button>
           <button onClick={this.props.retrieveConfigPreset}>Side Swirl</button> 
           <button onClick={this.props.retrieveConfigPreset}>Circles</button>
-          <button onClick={this.props.retrieveConfigPreset}>Weed</button>  
+          <button onClick={this.props.retrieveConfigPreset}>Square Mandala</button>
+          <button onClick={this.props.retrieveConfigPreset}>Notes</button>
+          <button onClick={this.props.retrieveConfigPreset}>Note Explosion</button>
+          <button onClick={this.props.retrieveConfigPreset}>Fire</button>    
+          <button onClick={this.props.retrieveConfigPreset}>Weed</button>    
           {/*<button onClick={this.props.retrieveConfigPreset}>Actual Garbage</button>   
           <button onClick={this.props.retrieveConfigPreset}>Actual Garbage Salad</button>   
           <button onClick={this.props.retrieveConfigPreset}>Actual Garbage Spin</button>   
@@ -38,7 +42,10 @@ class Presets extends React.Component {
           <button onClick={this.props.retrieveConfigPreset}>Drezza Salad</button>   
           <button onClick={this.props.retrieveConfigPreset}>Drezza Spin</button>   
           <button onClick={this.props.retrieveConfigPreset}>Hyper Drezza</button>
-          <button onClick={this.props.retrieveConfigPreset}>Drezza Transmission</button>                                        
+          <button onClick={this.props.retrieveConfigPreset}>Drezza Transmission</button>
+          <button onClick={this.props.retrieveConfigPreset}>Be In</button>   
+          <button onClick={this.props.retrieveConfigPreset}>Be In Spin</button>
+          <button onClick={this.props.retrieveConfigPreset}>Hyper Be In</button>                                            
           <button onClick={this.props.retrieveConfigPreset}>Bassyndicate</button>
         </Col>
       </Row>
