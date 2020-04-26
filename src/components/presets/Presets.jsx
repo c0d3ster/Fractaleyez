@@ -38,14 +38,26 @@ class Presets extends React.Component {
           <button onClick={this.props.retrieveConfigPreset}>Snikka Spin</button>   
           <button onClick={this.props.retrieveConfigPreset}>Hyper Snikka</button>
           <button onClick={this.props.retrieveConfigPreset}>Snikka Trippy</button>*/}
-          <button onClick={this.props.retrieveConfigPreset}>Drezza</button>   
+          {/*<button onClick={this.props.retrieveConfigPreset}>Drezza</button>   
           <button onClick={this.props.retrieveConfigPreset}>Drezza Salad</button>   
           <button onClick={this.props.retrieveConfigPreset}>Drezza Spin</button>   
           <button onClick={this.props.retrieveConfigPreset}>Hyper Drezza</button>
           <button onClick={this.props.retrieveConfigPreset}>Drezza Transmission</button>
           <button onClick={this.props.retrieveConfigPreset}>Be In</button>   
           <button onClick={this.props.retrieveConfigPreset}>Be In Spin</button>
-          <button onClick={this.props.retrieveConfigPreset}>Hyper Be In</button>                                            
+          <button onClick={this.props.retrieveConfigPreset}>Hyper Be In</button>*/}
+          <button onClick={this.props.retrieveConfigPreset}>Choppy Oppy</button>   
+          <button onClick={this.props.retrieveConfigPreset}>Choppy Oppy Spin</button>                                          
+          <button onClick={this.props.retrieveConfigPreset}>Choppy Oppy Salad</button>
+          <button onClick={this.props.retrieveConfigPreset}>Hyper Choppy Oppy</button>
+          <button onClick={this.props.retrieveConfigPreset}>Chopping Men</button>    
+          <button onClick={this.props.retrieveConfigPreset}>Chopping Hands</button>    
+          <button onClick={this.props.retrieveConfigPreset}>Slime Hands</button>  
+          <button onClick={this.props.retrieveConfigPreset}>Niraya</button>   
+          <button onClick={this.props.retrieveConfigPreset}>Niraya Cultured</button>
+          <button onClick={this.props.retrieveConfigPreset}>Niraya Realms</button>    
+          <button onClick={this.props.retrieveConfigPreset}>Niraya Salad</button>   
+          <button onClick={this.props.retrieveConfigPreset}>Hyper Niraya</button>  
           <button onClick={this.props.retrieveConfigPreset}>Bassyndicate</button>
         </Col>
       </Row>
