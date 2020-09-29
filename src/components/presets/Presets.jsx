@@ -17,6 +17,7 @@ class Presets extends React.Component {
           <button onClick={this.props.retrieveConfigPreset}>Galaxy Space</button>
           <button onClick={this.props.retrieveConfigPreset}>Galaxy Salad</button>
           <button onClick={this.props.retrieveConfigPreset}>Galaxy Portal</button>
+          <button onClick={this.props.retrieveConfigPreset}>Galaxy Spiral</button>
           <button onClick={this.props.retrieveConfigPreset}>Color Portal</button>
           <button onClick={this.props.retrieveConfigPreset}>Oh Sprite</button>
           <button onClick={this.props.retrieveConfigPreset}>Eye Chase</button>
@@ -35,6 +36,7 @@ class Presets extends React.Component {
           <button onClick={this.props.retrieveConfigPreset}>Bassyndicate</button>
           <button onClick={this.props.retrieveConfigPreset}>Beez</button>
           <button onClick={this.props.retrieveConfigPreset}>Honeycomb</button>
+          <button onClick={this.props.retrieveConfigPreset}>dinoz</button>
         </Col>
       </Row>
     )
