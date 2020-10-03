@@ -28,7 +28,7 @@ class ConfigProvider extends Component {
   componentDidMount() {
     const localPresets = JSON.parse(localStorage.getItem('presets'))
 
-    if (!localPresets || presets.length > localPresets) {
+    if (!localPresets || presets.length > localPresets.length) {
       localStorage.setItem('presets', JSON.stringify(presets))
     }
   }
