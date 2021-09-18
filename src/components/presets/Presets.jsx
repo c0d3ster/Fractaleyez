@@ -28,15 +28,22 @@ class Presets extends React.Component {
           <button onClick={this.props.retrieveConfigPreset}>Note Explosion</button>
           <button onClick={this.props.retrieveConfigPreset}>Fire</button>    
           <button onClick={this.props.retrieveConfigPreset}>Weed</button>                   
-          <button onClick={this.props.retrieveConfigPreset}>Garbage Monsters</button>
-          <button onClick={this.props.retrieveConfigPreset}>Garbage Man</button> 
-          <button onClick={this.props.retrieveConfigPreset}>Chopping Men</button>    
           <button onClick={this.props.retrieveConfigPreset}>Chopping Hands</button>    
           <button onClick={this.props.retrieveConfigPreset}>Slime Hands</button>   
           <button onClick={this.props.retrieveConfigPreset}>Bassyndicate</button>
-          <button onClick={this.props.retrieveConfigPreset}>Beez</button>
           <button onClick={this.props.retrieveConfigPreset}>Honeycomb</button>
-          <button onClick={this.props.retrieveConfigPreset}>dinoz</button>
+          <button onClick={this.props.retrieveConfigPreset}>Vibe Emissions</button>
+          <button onClick={this.props.retrieveConfigPreset}>Vibe Emissions Pyramid</button>
+          <button onClick={this.props.retrieveConfigPreset}>Hyper Vibe Emissions</button>
+          <button onClick={this.props.retrieveConfigPreset}>Vibe Emissions Spin</button>
+          <button onClick={this.props.retrieveConfigPreset}>Vibe Emissions Salad</button>
+          <button onClick={this.props.retrieveConfigPreset}>Lyk Magik</button>
+          <button onClick={this.props.retrieveConfigPreset}>Hyper Lyk Magik</button>
+          <button onClick={this.props.retrieveConfigPreset}>Lyk Magik Spin</button>
+          <button onClick={this.props.retrieveConfigPreset}>Deep Jeep</button>
+          <button onClick={this.props.retrieveConfigPreset}>Deep Jeep Salad</button>
+          <button onClick={this.props.retrieveConfigPreset}>Ganix</button>
+          <button onClick={this.props.retrieveConfigPreset}>Psychotrope</button>
         </Col>
       </Row>
     )
