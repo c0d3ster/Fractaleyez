@@ -18,7 +18,7 @@
   "license": "ISC",
   "dependencies": {
     "@babel/polyfill": "^7.2.5",
-    "axios": "^0.18.1",
+    "axios": "^0.21.2",
     "bootstrap": "^3.4.1",
     "classnames": "^2.2.6",
     "esm": "^3.2.25",
