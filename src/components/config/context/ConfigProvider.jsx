@@ -86,16 +86,12 @@ class ConfigProvider extends Component {
       const name = event.target.innerHTML
       const key = this.titleToCamelCase(name)
       config = this.retrieveCachedPreset(key)
-      console.log('config before api call', config)
-
 
       if (!config) {
         const result = await axios.get(`/api/getConfig/${key}`)
         console.log(result.data)
         config = result.data
       }
-      console.log('config after api call', config)
-      await this.saveConfig(name, config)
 
     } catch (error) {
       const errorMessage = error.message
