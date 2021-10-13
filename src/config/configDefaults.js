@@ -40,7 +40,7 @@ export default {
       value: UserConfig.cameraBound_DEFAULT,
       min: UserConfig.cameraBound_MIN,
       max: UserConfig.cameraBound_MAX,
-      step: UserConfig.cameraBound_SEP_SIZE
+      step: UserConfig.cameraBound_STEP_SIZE
     }
   },
   audio : {

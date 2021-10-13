@@ -3,7 +3,7 @@ import PropTypes from 'prop-types'
 import axios from 'axios'
 
 import configDefaults from "../../../config/configDefaults"
-import { presets } from '../../../config/presets'
+// import { presets } from '../../../config/presets'
 
 const ConfigContext = React.createContext()
 
@@ -19,6 +19,7 @@ class ConfigProvider extends Component {
     this.state = {
       config: configDefaults,
       updateConfigItem: this.updateConfigItem,
+      saveConfig: this.saveConfig,
       retrieveConfigPreset: this.retrieveConfigPreset,
       resetConfig: this.resetConfig
     }
@@ -26,11 +27,12 @@ class ConfigProvider extends Component {
   }
 
   componentDidMount() {
-    const localPresets = JSON.parse(localStorage.getItem('presets'))
+    console.log('mounted')
+    /* const localPresets = JSON.parse(localStorage.getItem('presets'))
 
     if (!localPresets || presets.length > localPresets.length) {
       localStorage.setItem('presets', JSON.stringify(presets))
-    }
+    }*/
   }
 
   titleToCamelCase = (string) => (
@@ -64,27 +66,47 @@ class ConfigProvider extends Component {
     })
   }
 
+  saveConfig = async (name, config) => {
+    try {
+      const key = this.titleToCamelCase(name)
+
+      const result = await axios.post(`/api/saveConfig/${key}`, { config, name })
+      console.log(result.data)
+    } catch (error) {
+      const errorMessage = error.message
+      console.error( `Error saving ${name} preset: ${errorMessage}`)
+      return
+    }
+  }
+
   retrieveConfigPreset = async (event) => {
     let config
-    let name
+
     try {
-      name = this.titleToCamelCase(event.target.innerHTML);
-      config = this.retrieveCachedPreset(name)
+      const name = event.target.innerHTML
+      const key = this.titleToCamelCase(name)
+      config = this.retrieveCachedPreset(key)
+      console.log('config before api call', config)
+
 
       if (!config) {
-        const result = await axios.get(`/api/getConfig/${name}`);
+        const result = await axios.get(`/api/getConfig/${key}`)
+        console.log(result.data)
         config = result.data
       }
+      console.log('config after api call', config)
+      await this.saveConfig(name, config)
+
     } catch (error) {
-      const errorMessage = error.response.data || error.message
+      const errorMessage = error.message
       console.error( `Error retrieving ${name} preset: ${errorMessage}`)
       return
     }
-
+    
     this.setState({ config }, () => window.config = this.state.config)
   }
 
-  retrieveCachedPreset = (name) => JSON.parse(localStorage.getItem('presets'))[name]
+  retrieveCachedPreset = (key) => JSON.parse(localStorage.getItem('presets'))[key]
 
   resetConfig = async () => this.retrieveConfigPreset('default')
 

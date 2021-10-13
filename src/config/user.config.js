@@ -52,6 +52,6 @@ export default {
 
   cameraBound_MAX: 500,
 
-  cameraBound_SEP_SIZE: 20
+  cameraBound_STEP_SIZE: 20
 
 }
