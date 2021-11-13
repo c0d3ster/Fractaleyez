@@ -44,6 +44,7 @@ class Presets extends React.Component {
           <button onClick={this.props.retrieveConfigPreset}>Deep Jeep Salad</button>
           <button onClick={this.props.retrieveConfigPreset}>Ganix</button>
           <button onClick={this.props.retrieveConfigPreset}>Psychotrope</button>
+          <button onClick={this.props.retrieveConfigPreset}>So Down</button>
         </Col>
       </Row>
     )
