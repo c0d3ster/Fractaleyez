@@ -1,0 +1,11 @@
+version: '3'
+services:
+  fractaleyez:
+    build: .docker/fractaleyez
+    container_name: fractaleyez
+    ports:
+      - 6969:80
+      - 7070:8080
+    volumes:
+      - .:/home/wwwroot/fractaleyez/
+    command: tail -f /dev/null

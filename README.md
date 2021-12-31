@@ -42,3 +42,17 @@ The Preset section of the menu provides users with previously configured visual 
 Audio Visualization Starter Pack by bcrespy: https://github.com/bcrespy/audio-visualization-starter
 
 Barry Martin's Hopalong Orbits Visualizer by Iacopo Sassarini: http://iacopoapps.appspot.com/hopalongwebgl/
+
+## Day to day usage
+
+Maintenance operation can be run using command in `package.json`.
+    - `yarn start`|`yarn start-dev` to start prod / dev environment
+
+## Docker integration
+
+Run docker containers \
+`docker-compose build && docker-compose up -d && docker-compose exec fractaleyez sh`
+
+Just run day to day commands directly inside `fractaleyez` container.
+
+Access to `localhost:6969` or `localhost:7070` to access prod or dev environment.

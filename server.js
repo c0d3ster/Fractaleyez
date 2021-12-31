@@ -1,19 +1,19 @@
 const path = require('path')
 const fs = require('fs')
 const express = require('express')
-const https = require('https')
+const http = require('http')
 
 const BUILD_DIR = path.join(__dirname, 'public/')
 const SSL_DIR = '/etc/letsencrypt/live/fractaleyez.com/'
-const PORT = 443
+const PORT = 80
 
 const options = {
-  key: fs.readFileSync(path.join(SSL_DIR, 'privkey.pem')),
-  cert: fs.readFileSync(path.join(SSL_DIR, 'fullchain.pem'))
+  // key: fs.readFileSync(path.join(SSL_DIR, 'privkey.pem')),
+  // cert: fs.readFileSync(path.join(SSL_DIR, 'fullchain.pem'))
 }
 
 const app = express()
-const server = https.createServer(options, app)
+const server = http.createServer(options, app)
 
 app.use(express.static(BUILD_DIR))
 
@@ -45,11 +45,5 @@ app.get('/api/getConfig/:name', (req, res) => {
 })
 
 
-server.listen(PORT, () => console.info('Node server listening on port ' + PORT))
+server.listen(80, () => console.info('Node server listening on port ' + 80))
 
-// Redirect from http port 80 to https
-const http = require('http')
-http.createServer((req, res) => {
-  res.writeHead(301, { 'Location': 'https://' + req.headers.host + req.url })
-  res.end()
-}).listen(80)

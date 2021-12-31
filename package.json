@@ -29,7 +29,7 @@
     "react-bootstrap": "^0.32.4",
     "react-dom": "^16.6.0",
     "stats-js": "^1.0.0-alpha1",
-    "three": "^0.125.0"
+    "three": "0.102.0"
   },
   "devDependencies": {
     "@babel/core": "^7.1.5",
