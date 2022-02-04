@@ -32,19 +32,18 @@ class Presets extends React.Component {
           <button onClick={this.props.retrieveConfigPreset}>Slime Hands</button>   
           <button onClick={this.props.retrieveConfigPreset}>Bassyndicate</button>
           <button onClick={this.props.retrieveConfigPreset}>Honeycomb</button>
-          <button onClick={this.props.retrieveConfigPreset}>Vibe Emissions</button>
-          <button onClick={this.props.retrieveConfigPreset}>Vibe Emissions Pyramid</button>
-          <button onClick={this.props.retrieveConfigPreset}>Hyper Vibe Emissions</button>
-          <button onClick={this.props.retrieveConfigPreset}>Vibe Emissions Spin</button>
-          <button onClick={this.props.retrieveConfigPreset}>Vibe Emissions Salad</button>
-          <button onClick={this.props.retrieveConfigPreset}>Lyk Magik</button>
-          <button onClick={this.props.retrieveConfigPreset}>Hyper Lyk Magik</button>
-          <button onClick={this.props.retrieveConfigPreset}>Lyk Magik Spin</button>
-          <button onClick={this.props.retrieveConfigPreset}>Deep Jeep</button>
-          <button onClick={this.props.retrieveConfigPreset}>Deep Jeep Salad</button>
-          <button onClick={this.props.retrieveConfigPreset}>Ganix</button>
-          <button onClick={this.props.retrieveConfigPreset}>Psychotrope</button>
-          <button onClick={this.props.retrieveConfigPreset}>So Down</button>
+          <button onClick={this.props.retrieveConfigPreset}>Shlump</button>
+          <button onClick={this.props.retrieveConfigPreset}>Shlump Skull</button>
+          <button onClick={this.props.retrieveConfigPreset}>Hyper Shlump</button>
+          <button onClick={this.props.retrieveConfigPreset}>Shlump Spin</button>
+          <button onClick={this.props.retrieveConfigPreset}>Shlump Salad</button>
+          <button onClick={this.props.retrieveConfigPreset}>Kaipora</button>
+          <button onClick={this.props.retrieveConfigPreset}>Hyper Kaipora</button>
+          <button onClick={this.props.retrieveConfigPreset}>Kaipora Spin</button>
+          <button onClick={this.props.retrieveConfigPreset}>Hunthux</button>
+          <button onClick={this.props.retrieveConfigPreset}>Hunthux Spin</button>
+          <button onClick={this.props.retrieveConfigPreset}>ZeBeatz</button>
+          <button onClick={this.props.retrieveConfigPreset}>ZeBeatz Salad</button>
         </Col>
       </Row>
     )
