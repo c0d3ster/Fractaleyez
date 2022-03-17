@@ -38,3 +38,8 @@ button:hover, .selected {
   background: green;
   color: #ccc;
 }
+
+.row-configuration {
+  overflow-y: scroll;
+  max-height: 740px;
+}
