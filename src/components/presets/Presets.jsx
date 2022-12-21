@@ -32,16 +32,15 @@ class Presets extends React.Component {
           <button onClick={this.props.retrieveConfigPreset}>Slime Hands</button>   
           <button onClick={this.props.retrieveConfigPreset}>Bassyndicate</button>
           <button onClick={this.props.retrieveConfigPreset}>Honeycomb</button>
-          <button onClick={this.props.retrieveConfigPreset}>Jantsen</button>
-          <button onClick={this.props.retrieveConfigPreset}>Jantsen Monster</button>
-          <button onClick={this.props.retrieveConfigPreset}>Hyper Jantsen</button>
-          <button onClick={this.props.retrieveConfigPreset}>Jantsen Spin</button>
-          <button onClick={this.props.retrieveConfigPreset}>Jantsen Salad</button>
-          <button onClick={this.props.retrieveConfigPreset}>Illanthropy</button>
-          <button onClick={this.props.retrieveConfigPreset}>Hyper Illanthropy</button>
-          <button onClick={this.props.retrieveConfigPreset}>Illanthropy Spin</button>
-          <button onClick={this.props.retrieveConfigPreset}>Lyk Magik</button>
-          <button onClick={this.props.retrieveConfigPreset}>Lyk Magik Spin</button>
+          <button onClick={this.props.retrieveConfigPreset}>Antennae</button>
+          <button onClick={this.props.retrieveConfigPreset}>Hyper Antennae</button>
+          <button onClick={this.props.retrieveConfigPreset}>Antennae Spin</button>
+          <button onClick={this.props.retrieveConfigPreset}>Antennae Salad</button>
+          <button onClick={this.props.retrieveConfigPreset}>Laika</button>
+          <button onClick={this.props.retrieveConfigPreset}>Hyper Laika</button>
+          <button onClick={this.props.retrieveConfigPreset}>Laika Spin</button>
+          <button onClick={this.props.retrieveConfigPreset}>Shortcvke</button>
+          <button onClick={this.props.retrieveConfigPreset}>Shortcvke Spin</button>
           <button onClick={this.props.retrieveConfigPreset}>ZeBeatz</button>
           <button onClick={this.props.retrieveConfigPreset}>ZeBeatz Salad</button>
         </Col>
