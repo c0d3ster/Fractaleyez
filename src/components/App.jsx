@@ -8,6 +8,7 @@ import { connectConfig } from './config/context/ConfigProvider'
 import ConfigWindow from './config/ConfigWindow'
 import Sidebar from './sidebar/Sidebar'
 import { gaTag } from '../settings'
+
 class App extends React.Component {
   state = {
     configWindowVisible: false,
