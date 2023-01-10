@@ -1,4 +1,5 @@
 import React from 'react'
+import ReactGA from 'react-ga'
 import '../styles/App.css'
 import 'bootstrap/dist/css/bootstrap.min.css'
 
@@ -6,13 +7,15 @@ import { initWithMicrophone } from '../main'
 import { connectConfig } from './config/context/ConfigProvider'
 import ConfigWindow from './config/ConfigWindow'
 import Sidebar from './sidebar/Sidebar'
-
+import { gaTag } from '../settings'
 class App extends React.Component {
   state = {
     configWindowVisible: false,
   }
 
   componentDidMount() {
+    ReactGA.initialize(gaTag)
+    ReactGA.pageview(window.location.pathname)
     initWithMicrophone()
   }
 
@@ -23,8 +26,8 @@ class App extends React.Component {
   render = () => (
     <div>
       {this.state.configWindowVisible && <ConfigWindow onClose={this.setConfigWindow} />}
-      <Sidebar 
-        setConfigWindow={this.setConfigWindow} 
+      <Sidebar
+        setConfigWindow={this.setConfigWindow}
         configWindowVisible={this.state.configWindowVisible} />
     </div>
   )
