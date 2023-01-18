@@ -69,12 +69,12 @@ export default class HopalongVisualizer {
     for( let level = 0; level < this.levels; level++ ) {
       for( let s = 0; s < this.layers; s++ ) {
 
-
-        const geometry = new THREE.Geometry()
+        const points = []
         for (let i = 0; i < this.particlesPerLayer; i++) {
-          geometry.vertices.push(this.orbit.subsets[s][i].vertex)
+          const { subsets } = this.orbit
+          points.push(subsets[s][i].vertex)
         }
-
+        const geometry = new THREE.BufferGeometry().setFromPoints(points)
 
         particleIndex = count % this.sprites.length
         sprite = new THREE.TextureLoader().load( this.sprites[particleIndex] )
