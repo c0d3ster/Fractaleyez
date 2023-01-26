@@ -3,6 +3,7 @@ import UserConfig from './user.config'
 import VisualizerConfig from './visualizer.config'
 import OrbitConfig from './orbit.config'
 import ParticleConfig from './particle.config'
+import VideoConfig from './video.config'
 
 export default {
   user : {
@@ -202,5 +203,9 @@ export default {
       min: ParticleConfig.sprites_MIN,
       max: ParticleConfig.sprites_MAX
     }
+  },
+  video: {
+    clips: VideoConfig.clips,
+    index: VideoConfig.index
   }
 }
