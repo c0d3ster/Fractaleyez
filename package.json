@@ -24,7 +24,7 @@
     "esm": "^3.2.25",
     "mongoose": "^5.7.5",
     "nodemon": "^1.18.9",
-    "postprocessing": "^5.0.0",
+    "postprocessing": "^6.29.3",
     "react": "^16.6.3",
     "react-bootstrap": "^0.32.4",
     "react-dom": "^16.6.0",

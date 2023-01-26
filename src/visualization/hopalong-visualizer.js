@@ -66,6 +66,41 @@ export default class HopalongVisualizer {
 
     this.generateOrbit()
 
+    if (window.config.video && window.config.video.clips.length) {
+      const videoElement = document.createElement('video')
+      videoElement.src = window.config.video.clips[window.config.video.index]
+      videoElement.autoplay = true
+
+      videoElement.addEventListener('ended', () => {
+        window.config.video.index++
+        if (window.config.video.index >= window.config.video.clips.length) {
+          window.config.video.index = 0
+        }
+        console.info(window.config.video.clips[window.config.video.index])
+        videoElement.src = window.config.video.clips[window.config.video.index]
+        videoElement.play()
+      })
+
+
+      // Create a texture from the video
+      const videoTexture = new THREE.VideoTexture(videoElement)
+
+      // Create a plane geometry
+      const planeGeometry = new THREE.PlaneGeometry(window.innerWidth, window.innerHeight)
+
+      // Create a material with the video texture
+      const planeMaterial = new THREE.MeshBasicMaterial({ map: videoTexture })
+
+      // Create a mesh from the geometry and material
+      const plane = new THREE.Mesh(planeGeometry, planeMaterial)
+
+      // Position the plane behind all other objects in the scene
+      plane.position.z = 5
+
+      // Add the plane to the scene
+      this.scene.add(plane)
+    }
+
     for( let level = 0; level < this.levels; level++ ) {
       for( let s = 0; s < this.layers; s++ ) {
 
@@ -172,31 +207,6 @@ export default class HopalongVisualizer {
         obj.rotation.z += (window.config.user.rotationSpeed.value / 1000) * musicSpeedMultiplier
       }
       count++
-      /* if (obj.position.z < SCALE_FACTOR / 15) {
-        obj.position.x += -cameraManager.getMouseX() * 0.003;
-        obj.position.y -= cameraManager.getMouseY() * 0.003;
-      }
-      else if (obj.position.z < SCALE_FACTOR / 10) {
-        obj.position.x += -cameraManager.getMouseX() * 0.003;
-        obj.position.y -= cameraManager.getMouseY() * 0.003;
-      }
-      else {//if (obj.position.z < SCALE_FACTOR / 2) {
-        obj.position.x = -cameraManager.getMouseX() * 0;
-        obj.position.y = cameraManager.getMouseY() * 0;
-      }*/
-
-      // obj.rotation.x = cameraManager.getMouseY() * 0.001;
-      // obj.rotation.y = -cameraManager.getMouseX() * 0.001;
-
-      // cameraManager.getCamera().rotation.x = -obj.rotation.y * 0.001;
-      // cameraManager.getCamera().rotation.y = -obj.rotation.y * 0.001;
-
-      // cameraManager.getCamera().lookAt(new  THREE.Vector3(0,0,0));
-      // obj.geometry.verticesNeedUpdate = true;
-
-      // obj.lookAt(new THREE.Vector3(cameraManager.getMouseX() *1 , cameraManager.getMouseY() * 1, 10 ));
-      // cameraManager.getCamera().position.x = -obj.position.x;
-      // cameraManager.getCamera().position.y = -obj.position.y;
     })
     renderer.render(this.scene, cameraManager.getCamera())
   }
