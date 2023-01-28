@@ -76,7 +76,6 @@ export default class HopalongVisualizer {
         if (window.config.video.index >= window.config.video.clips.length) {
           window.config.video.index = 0
         }
-        console.info(window.config.video.clips[window.config.video.index])
         videoElement.src = window.config.video.clips[window.config.video.index]
         videoElement.play()
       })
@@ -328,6 +327,32 @@ export default class HopalongVisualizer {
 
   destroyVisualization() {
     clearInterval(this.updateInterval)
-    delete this.scene
+    this.disposeScene(this.scene)
+  }
+
+  disposeScene(scene) {
+    if(scene.geometries) {
+      scene.geometries.forEach((geometry) => {
+        geometry.dispose()
+      })
+    }
+
+    if(scene.textures) {
+      scene.textures.forEach((texture) => {
+        texture.dispose()
+      })
+    }
+
+    if(scene.materials) {
+      scene.geometries.forEach((material) => {
+        material.dispose()
+      })
+    }
+
+    if(scene.images) {
+      scene.images.forEach((image) => {
+        image.dispose()
+      })
+    }
   }
 }
