@@ -21,6 +21,7 @@ export default class HopalongVisualizer {
     this.particleSize = window.config.particle.particleSize.value
     this.needsParticleReset = false
     this.lights = []
+    this.video = null
     this.objects = []
     this.hueValues = []
     this.scene = new THREE.Scene()
@@ -67,23 +68,14 @@ export default class HopalongVisualizer {
     this.generateOrbit()
 
     if (window.config.video && window.config.video.clips.length) {
-      const videoElement = document.createElement('video')
-      videoElement.src = window.config.video.clips[window.config.video.index]
-      videoElement.autoplay = true
+      this.video = document.createElement('video')
+      this.video.src = window.config.video.clips[window.config.video.index]
+      this.video.autoplay = true
 
-      videoElement.addEventListener('ended', () => {
-        window.config.video.index++
-        if (window.config.video.index >= window.config.video.clips.length) {
-          window.config.video.index = 0
-        }
-        console.info(window.config.video.clips[window.config.video.index])
-        videoElement.src = window.config.video.clips[window.config.video.index]
-        videoElement.play()
-      })
-
+      this.video.addEventListener('ended', this.nextVideo(this.video))
 
       // Create a texture from the video
-      const videoTexture = new THREE.VideoTexture(videoElement)
+      const videoTexture = new THREE.VideoTexture(this.video)
 
       // Create a plane geometry
       const planeGeometry = new THREE.PlaneGeometry(window.innerWidth, window.innerHeight)
@@ -137,6 +129,15 @@ export default class HopalongVisualizer {
     }
 
     this.updateInterval = setInterval( () => { this.updateOrbit() }, 300)
+  }
+
+  nextVideo(videoElement) {
+    window.config.video.index++
+    if (window.config.video.index >= window.config.video.clips.length) {
+      window.config.video.index = 0
+    }
+    videoElement.src = window.config.video.clips[window.config.video.index]
+    videoElement.play()
   }
 
   /**
@@ -328,6 +329,41 @@ export default class HopalongVisualizer {
 
   destroyVisualization() {
     clearInterval(this.updateInterval)
-    delete this.scene
+    this.disposeScene(this.scene)
+  }
+
+  disposeScene(scene) {
+    if(this.video) {
+      console.info(this.video)
+      this.video.removeEventListener('ended', this.nextVideo)
+      this.video.pause()
+      this.video.remove()
+      delete this.video
+    }
+
+    if(scene.geometries) {
+      scene.geometries.forEach((geometry) => {
+        geometry.dispose()
+      })
+    }
+
+    if(scene.textures) {
+      scene.textures.forEach((texture) => {
+        texture.dispose()
+      })
+    }
+
+    if(scene.materials) {
+      scene.geometries.forEach((material) => {
+        material.dispose()
+      })
+    }
+
+    if(scene.images) {
+      scene.images.forEach((image) => {
+        image.dispose()
+      })
+    }
+
   }
 }
