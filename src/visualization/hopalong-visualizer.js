@@ -72,7 +72,9 @@ export default class HopalongVisualizer {
       this.video.src = window.config.video.clips[window.config.video.index]
       this.video.autoplay = true
 
-      this.video.addEventListener('ended', this.nextVideo(this.video))
+      this.video.addEventListener('ended', () => (
+        this.nextVideo(this.video)
+      ))
 
       // Create a texture from the video
       const videoTexture = new THREE.VideoTexture(this.video)
@@ -335,7 +337,6 @@ export default class HopalongVisualizer {
   disposeScene(scene) {
     if(this.video) {
       console.info(this.video)
-      this.video.removeEventListener('ended', this.nextVideo)
       this.video.pause()
       this.video.remove()
       delete this.video
