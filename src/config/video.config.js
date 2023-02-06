@@ -1,4 +1,4 @@
 export default {
-  clips: ['EMORFIK10.mp4', 'EMORFIK16.mp4'],
+  clips: ['galaxy.mp4', 'earth.mp4'],
   index: 0,
 }

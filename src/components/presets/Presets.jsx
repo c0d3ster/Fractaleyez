@@ -10,6 +10,7 @@ class Presets extends React.Component {
       <Row>
         <Col className='presets-container'>
           <button onClick={this.props.retrieveConfigPreset}>Default</button>
+          <button onClick={this.props.retrieveConfigPreset}>Bassyndicate</button>
           <button onClick={this.props.retrieveConfigPreset}>Edge Chase Spin</button>
           <button onClick={this.props.retrieveConfigPreset}>Dispersion Tunnel Spin</button>
           <button onClick={this.props.retrieveConfigPreset}>Crossheir Spin</button>
@@ -31,7 +32,6 @@ class Presets extends React.Component {
           <button onClick={this.props.retrieveConfigPreset}>Chopping Hands</button>
           <button onClick={this.props.retrieveConfigPreset}>Slime Hands</button>
           <button onClick={this.props.retrieveConfigPreset}>Honeycomb</button>
-          <button onClick={this.props.retrieveConfigPreset}>Organizers</button>
           <button onClick={this.props.retrieveConfigPreset}>Blackout</button>
           <button onClick={this.props.retrieveConfigPreset}>Emorfik</button>
           <button onClick={this.props.retrieveConfigPreset}>Emorfik Intro Jumpy</button>
@@ -46,23 +46,6 @@ class Presets extends React.Component {
           <button onClick={this.props.retrieveConfigPreset}>Emorfik Spin</button>
           <button onClick={this.props.retrieveConfigPreset}>Emorfik Salad Color</button>
           <button onClick={this.props.retrieveConfigPreset}>Emorfik Salad</button>
-          <button onClick={this.props.retrieveConfigPreset}>Zerotonin Intro Ultimate</button>
-          <button onClick={this.props.retrieveConfigPreset}>Zerotonin Intro Possessed</button>
-          <button onClick={this.props.retrieveConfigPreset}>Zero Dnd Salad</button>
-          <button onClick={this.props.retrieveConfigPreset}>Zerotonin</button>
-          <button onClick={this.props.retrieveConfigPreset}>dnd</button>
-          <button onClick={this.props.retrieveConfigPreset}>Hyper Zerotonin</button>
-          <button onClick={this.props.retrieveConfigPreset}>Zerotonin Spin</button>
-          <button onClick={this.props.retrieveConfigPreset}>Gorilla T White</button>
-          <button onClick={this.props.retrieveConfigPreset}>Gorilla T</button>
-          <button onClick={this.props.retrieveConfigPreset}>Gorilla T Spin</button>
-          <button onClick={this.props.retrieveConfigPreset}>Lizard White</button>
-          <button onClick={this.props.retrieveConfigPreset}>Lizard</button>
-          <button onClick={this.props.retrieveConfigPreset}>Lizard Spin</button>
-          <button onClick={this.props.retrieveConfigPreset}>Mumbo Color</button>
-          <button onClick={this.props.retrieveConfigPreset}>Mumbo</button>
-          <button onClick={this.props.retrieveConfigPreset}>Mumbo Spin</button>
-          <button onClick={this.props.retrieveConfigPreset}>Kill Phil</button>
         </Col>
       </Row>
     )
