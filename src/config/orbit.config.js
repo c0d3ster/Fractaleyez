@@ -8,7 +8,7 @@ export default {
 
   A_MAX: 10,
 
-  A_DEFAULT: 2.8,
+  A_DEFAULT: 2.5,
 
   A_STEP_SIZE: 0.1,
 
@@ -17,7 +17,7 @@ export default {
 
   B_MAX: 1,
 
-  B_DEFAULT: 0.16,
+  B_DEFAULT: 0.5,
 
   B_STEP_SIZE: 0.01,
 
@@ -26,7 +26,7 @@ export default {
 
   C_MAX: 6,
 
-  C_DEFAULT: 5.8,
+  C_DEFAULT: 5.5,
 
   C_STEP_SIZE: 0.1,
 
@@ -35,7 +35,7 @@ export default {
 
   D_MAX: 1,
 
-  D_DEFAULT: 0.8,
+  D_DEFAULT: 0.5,
 
   D_STEP_SIZE: 0.1,
 
@@ -44,7 +44,7 @@ export default {
 
   E_MAX: 1,
 
-  E_DEFAULT: .1,
+  E_DEFAULT: .5,
 
   E_STEP_SIZE: 0.1
 }

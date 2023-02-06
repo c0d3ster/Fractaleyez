@@ -8,5 +8,3 @@ export const firebaseConfig = {
   appId: '1:647407444379:web:a4c959d0c426b67103813e',
   measurementId: 'G-VS63TSTCWL'
 }
-
-export const gaTag = 'G-VS63TSTCWL'

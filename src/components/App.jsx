@@ -1,5 +1,4 @@
 import React from 'react'
-import ReactGA from 'react-ga'
 import '../styles/App.css'
 import 'bootstrap/dist/css/bootstrap.min.css'
 
@@ -15,8 +14,6 @@ class App extends React.Component {
   }
 
   componentDidMount() {
-    ReactGA.initialize(gaTag)
-    ReactGA.pageview(window.location.pathname)
     initWithMicrophone()
   }
 
