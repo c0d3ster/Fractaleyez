@@ -47,6 +47,7 @@ class Presets extends React.Component {
           <button onClick={this.props.retrieveConfigPreset}>ATYYA Salad Color</button>
           <button onClick={this.props.retrieveConfigPreset}>ATYYA Salad</button>
           <button onClick={this.props.retrieveConfigPreset}>Finnoh</button>
+          <button onClick={this.props.retrieveConfigPreset}>Finnoh Red</button>
           <button onClick={this.props.retrieveConfigPreset}>Finnoh Spin</button>
           <button onClick={this.props.retrieveConfigPreset}>Finnoh Salad</button>
           <button onClick={this.props.retrieveConfigPreset}>ZeBeatz</button>
