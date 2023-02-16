@@ -4,6 +4,7 @@ import VisualizerConfig from './visualizer.config'
 import OrbitConfig from './orbit.config'
 import ParticleConfig from './particle.config'
 import VideoConfig from './video.config'
+import videoConfig from './video.config'
 
 export default {
   user : {
@@ -205,7 +206,14 @@ export default {
     }
   },
   video: {
-    clips: VideoConfig.clips,
-    index: VideoConfig.index
+    clips: {
+      name: 'Clips',
+      type: 'multiselect',
+      defaultValue: VideoConfig.clips_DEFAULT,
+      value: VideoConfig.clips_DEFAULT,
+      min: VideoConfig.clips_MIN,
+      max: VideoConfig.clips_MAX
+    },
+    index: videoConfig.index
   }
 }

@@ -33,19 +33,26 @@ class Presets extends React.Component {
           <button onClick={this.props.retrieveConfigPreset}>Slime Hands</button>
           <button onClick={this.props.retrieveConfigPreset}>Honeycomb</button>
           <button onClick={this.props.retrieveConfigPreset}>Blackout</button>
-          <button onClick={this.props.retrieveConfigPreset}>Emorfik</button>
-          <button onClick={this.props.retrieveConfigPreset}>Emorfik Intro Jumpy</button>
-          <button onClick={this.props.retrieveConfigPreset}>Emorfik Zombie Wave</button>
-          <button onClick={this.props.retrieveConfigPreset}>Emorfik Wire White</button>
-          <button onClick={this.props.retrieveConfigPreset}>Emorfik Wire</button>
-          <button onClick={this.props.retrieveConfigPreset}>Emorfik Wire Logo</button>
-          <button onClick={this.props.retrieveConfigPreset}>Emorfik Fire</button>
-          <button onClick={this.props.retrieveConfigPreset}>Emorfik Skull</button>
-          <button onClick={this.props.retrieveConfigPreset}>Emorfik Skull Vid</button>
-          <button onClick={this.props.retrieveConfigPreset}>Hyper Emorfik</button>
-          <button onClick={this.props.retrieveConfigPreset}>Emorfik Spin</button>
-          <button onClick={this.props.retrieveConfigPreset}>Emorfik Salad Color</button>
-          <button onClick={this.props.retrieveConfigPreset}>Emorfik Salad</button>
+          <button onClick={this.props.retrieveConfigPreset}>ATYYA</button>
+          <button onClick={this.props.retrieveConfigPreset}>ATYYA Intro Jumpy</button>
+          <button onClick={this.props.retrieveConfigPreset}>ATYYA Zombie Wave</button>
+          <button onClick={this.props.retrieveConfigPreset}>ATYYA Wire White</button>
+          <button onClick={this.props.retrieveConfigPreset}>ATYYA Wire</button>
+          <button onClick={this.props.retrieveConfigPreset}>ATYYA Wire Logo</button>
+          <button onClick={this.props.retrieveConfigPreset}>ATYYA Fire</button>
+          <button onClick={this.props.retrieveConfigPreset}>ATYYA Skull</button>
+          <button onClick={this.props.retrieveConfigPreset}>ATYYA Skull Vid</button>
+          <button onClick={this.props.retrieveConfigPreset}>Hyper ATYYA</button>
+          <button onClick={this.props.retrieveConfigPreset}>ATYYA Spin</button>
+          <button onClick={this.props.retrieveConfigPreset}>ATYYA Salad Color</button>
+          <button onClick={this.props.retrieveConfigPreset}>ATYYA Salad</button>
+          <button onClick={this.props.retrieveConfigPreset}>Finnoh</button>
+          <button onClick={this.props.retrieveConfigPreset}>Finnoh Spin</button>
+          <button onClick={this.props.retrieveConfigPreset}>Finnoh Salad</button>
+          <button onClick={this.props.retrieveConfigPreset}>ZeBeatz</button>
+          <button onClick={this.props.retrieveConfigPreset}>ZeBeatz Salad</button>
+          <button onClick={this.props.retrieveConfigPreset}>Nix</button>
+          <button onClick={this.props.retrieveConfigPreset}>Nix Spin</button>
         </Col>
       </Row>
     )
