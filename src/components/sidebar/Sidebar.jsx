@@ -1,7 +1,7 @@
-import React from 'react';
-import classNames from 'classnames';
-import { Grid, Row } from 'react-bootstrap';
-import './Sidebar.css';
+import React from 'react'
+import classNames from 'classnames'
+import { Grid, Row } from 'react-bootstrap'
+import './Sidebar.css'
 
 import Presets from '../presets/Presets'
 import ConfigAccordion from '../config/ConfigAccordion'
@@ -32,7 +32,7 @@ class Sidebar extends React.Component {
 
   showTab = () => {
     if(this.state.hideTimer) {
-      window.clearTimeout(this.state.hideTimer);
+      window.clearTimeout(this.state.hideTimer)
     }
     this.setState({
       tabVisible: true,
@@ -44,8 +44,8 @@ class Sidebar extends React.Component {
     if(!this.state.hideTabTimer) {
       const hideTimer = window.setTimeout(() => {
         this.setState({ tabVisible: false })
-      }, Number.isInteger(waitTime) ? waitTime : 1000);
-      this.setState({ hideTimer });
+      }, Number.isInteger(waitTime) ? waitTime : 1000)
+      this.setState({ hideTimer })
     }
   }
 
@@ -62,20 +62,20 @@ class Sidebar extends React.Component {
       'expanded': this.props.configWindowVisible
     })
     return (
-      <div 
+      <div
         className='sidebar-container'
-        onMouseEnter={this.showTab} 
+        onMouseEnter={this.showTab}
         onMouseLeave={this.hideTabDelayed}>
         <Grid bsClass={sidebarContentClasses}>
-          <button 
-            className={tabClasses} 
+          <button
+            className={tabClasses}
             onClick={this.setSidebarVisibility}>
             Menu
           </button>
           <Row>
             <h2 className='sidebar-title'>Presets</h2>
-            <button 
-              className={expandConfigClasses} 
+            <button
+              className={expandConfigClasses}
               onClick={() => {console.info(JSON.stringify(this.props.config))}}>
               Log Config
             </button>
@@ -83,8 +83,8 @@ class Sidebar extends React.Component {
           <Presets/>
           <Row>
             <h2 className='sidebar-title'>Configuration</h2>
-            <button 
-              className={expandConfigClasses} 
+            <button
+              className={expandConfigClasses}
               onClick={this.setConfigWindow}
               onKeyDown={this.onKeyDown}>
               expand
@@ -93,7 +93,7 @@ class Sidebar extends React.Component {
           <ConfigAccordion canOpenMultiple={false} />
         </Grid>
       </div>
-    );
+    )
   }
 }
 

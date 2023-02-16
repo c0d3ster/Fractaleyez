@@ -2,7 +2,7 @@ import React, { Component } from 'react'
 import PropTypes from 'prop-types'
 import axios from 'axios'
 
-import configDefaults from "../../../config/configDefaults"
+import configDefaults from '../../../config/configDefaults'
 import { presets } from '../../../config/presets'
 
 const ConfigContext = React.createContext()
@@ -35,17 +35,17 @@ class ConfigProvider extends Component {
 
   titleToCamelCase = (string) => (
     string.toLowerCase().trim().split(/[.\-_\s]/g)
-      .reduce((string, word) => string + word[0].toUpperCase() + word.slice(1))
+      .reduce((input, word) => input + word[0].toUpperCase() + word.slice(1))
   )
 
   updateConfigItem = (category, item, value) => {
     const camelItem = this.titleToCamelCase(item)
     const camelCategory = this.titleToCamelCase(category)
 
-    if(this.state.config[camelCategory][camelItem].type === "slider") {
+    if(this.state.config[camelCategory][camelItem].type === 'slider') {
       value = parseFloat(value)
     }
-    
+
     this.setState((prevState) => { // update state for React context
       return {
         config: {
@@ -68,11 +68,11 @@ class ConfigProvider extends Component {
     let config
     let name
     try {
-      name = this.titleToCamelCase(event.target.innerHTML);
+      name = this.titleToCamelCase(event.target.innerHTML)
       config = this.retrieveCachedPreset(name)
 
       if (!config) {
-        const result = await axios.get(`/api/getConfig/${name}`);
+        const result = await axios.get(`/api/getConfig/${name}`)
         config = result.data
       }
     } catch (error) {

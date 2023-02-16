@@ -1,6 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom'
 import { Grid, Row, Col } from 'react-bootstrap'
+import './ConfigWindow.css'
 
 import Presets from '../presets/Presets'
 import ConfigCategory from './ConfigCategory'
@@ -17,7 +18,7 @@ class ConfigWindow extends React.Component {
 
   componentDidMount() {
     this.externalWindow = window.open('', '', `width=${this.state.width}, height=${this.state.height}, location=no`)
-    this.externalWindow.document.title = "Configuration"
+    this.externalWindow.document.title = 'Configuration'
     this.externalWindow.document.body.appendChild(this.containerEl)
     this.externalWindow.addEventListener('resize', this.updateDimensions)
     this.externalWindow.addEventListener('beforeunload', this.props.onClose)
@@ -36,7 +37,7 @@ class ConfigWindow extends React.Component {
 
   render = () => ReactDOM.createPortal(
     <div width={this.state.width} height={this.state.height}>
-      <Grid>
+      <Grid bsClass={'config-container'}>
         <Row>
           <Presets />
         </Row>

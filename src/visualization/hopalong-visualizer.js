@@ -60,6 +60,8 @@ export default class HopalongVisualizer {
 
 
   init() {
+    const { config } = window
+    const { video } = config
     let sprite = new THREE.TextureLoader().load( this.sprites[0] )
     let count = 1
     let particleIndex = 0
@@ -67,9 +69,9 @@ export default class HopalongVisualizer {
 
     this.generateOrbit()
 
-    if (window.config.video && window.config.video.clips.length) {
+    if (video && video.clips.value.length) {
       this.video = document.createElement('video')
-      this.video.src = window.config.video.clips[window.config.video.index]
+      this.video.src = video.clips.value[video.index.value]
       this.video.autoplay = true
 
       this.video.addEventListener('ended', () => (
@@ -134,11 +136,14 @@ export default class HopalongVisualizer {
   }
 
   nextVideo(videoElement) {
-    window.config.video.index++
-    if (window.config.video.index >= window.config.video.clips.length) {
-      window.config.video.index = 0
+    const { config } = window
+    const { video } = config
+
+    video.index.value++
+    if (video.index.value >= video.clips.value.length) {
+      video.index.value = 0
     }
-    videoElement.src = window.config.video.clips[window.config.video.index]
+    videoElement.src = video.clips.value[video.index.value]
     videoElement.play()
   }
 

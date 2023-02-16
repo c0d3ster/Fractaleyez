@@ -11,6 +11,8 @@ class Presets extends React.Component {
         <Col className='presets-container'>
           <button onClick={this.props.retrieveConfigPreset}>Default</button>
           <button onClick={this.props.retrieveConfigPreset}>Bassyndicate</button>
+          <button onClick={this.props.retrieveConfigPreset}>Heart</button>
+          <button onClick={this.props.retrieveConfigPreset}>Bassyndicate Heart</button>
           <button onClick={this.props.retrieveConfigPreset}>Edge Chase Spin</button>
           <button onClick={this.props.retrieveConfigPreset}>Dispersion Tunnel Spin</button>
           <button onClick={this.props.retrieveConfigPreset}>Crossheir Spin</button>
@@ -52,6 +54,7 @@ class Presets extends React.Component {
           <button onClick={this.props.retrieveConfigPreset}>Finnoh Salad</button>
           <button onClick={this.props.retrieveConfigPreset}>ZeBeatz</button>
           <button onClick={this.props.retrieveConfigPreset}>ZeBeatz Salad</button>
+          <button onClick={this.props.retrieveConfigPreset}>Nix Bright</button>
           <button onClick={this.props.retrieveConfigPreset}>Nix</button>
           <button onClick={this.props.retrieveConfigPreset}>Nix Spin</button>
         </Col>

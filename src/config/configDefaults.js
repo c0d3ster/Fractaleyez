@@ -214,6 +214,12 @@ export default {
       min: VideoConfig.clips_MIN,
       max: VideoConfig.clips_MAX
     },
-    index: videoConfig.index
+    index: {
+      name: 'Index',
+      type: 'slider',
+      value: VideoConfig.index_DEFAULT,
+      min: VideoConfig.index_MIN,
+      max: VideoConfig.clips_DEFAULT.length - 1,
+    }
   }
 }
