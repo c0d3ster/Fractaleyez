@@ -26,11 +26,12 @@ class ConfigProvider extends Component {
   }
 
   componentDidMount() {
-    const localPresets = JSON.parse(localStorage.getItem('presets'))
+    // const localPresets = JSON.parse(localStorage.getItem('presets'))
 
-    if (!localPresets || presets.length > localPresets.length) {
-      localStorage.setItem('presets', JSON.stringify(presets))
-    }
+    // if (!localPresets || presets.length !== localPresets.length) {
+    //   localStorage.setItem('presets', JSON.stringify(presets))
+    // }
+    localStorage.setItem('presets', JSON.stringify(presets))
   }
 
   titleToCamelCase = (string) => (

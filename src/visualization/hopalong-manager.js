@@ -117,6 +117,16 @@ export default class HopalongManager {
     return hasChanged
   }
 
+  // videoConfigChanged = () => {
+  //   let hasChanged = false
+  //   Object.keys(window.config.video).map(setting => {
+  //     if(this.hopalongVisualizer[setting] !== window.config.video[setting].value) {
+  //       hasChanged = true
+  //     }
+  //   })
+  //   return hasChanged
+  // }
+
   resetVisualization = () => {
     document.mousemove = () => {}
     document.keydown  = () => {}

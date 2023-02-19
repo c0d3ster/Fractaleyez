@@ -24,14 +24,14 @@ class ConfigCategory extends React.Component {
       'hide-content': !isOpen
     })
     return(
-    <div className='category-container'>
-      <h3 className='category-title' onClick={() => toggleOpen(name)}>
-        {name} config
-      </h3>
-      <div className={categoryContentClasses}>
-        {this.mapConfigItems()}
-      </div>
-    </div>)
+      <div className='category-container'>
+        <h3 className='category-title' onClick={() => toggleOpen(name)}>
+          {name} config
+        </h3>
+        <div className={categoryContentClasses}>
+          {this.mapConfigItems()}
+        </div>
+      </div>)
   }
 
   mapConfigItems = () => (

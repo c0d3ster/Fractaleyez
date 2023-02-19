@@ -30,7 +30,7 @@ class ConfigAccordion extends React.Component {
   }
 
   isCategoryOpen = (category) => this.state.openCategories.indexOf(category) !== -1
-  
+
   render() {
     return(
       Object.keys(this.props.config).map((category) => (

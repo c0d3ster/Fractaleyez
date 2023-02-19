@@ -91,7 +91,7 @@ export default class HopalongVisualizer {
       const plane = new THREE.Mesh(planeGeometry, planeMaterial)
 
       // Position the plane behind all other objects in the scene
-      plane.position.z = 5
+      plane.position.z = 10
 
       // Add the plane to the scene
       this.scene.add(plane)
@@ -132,7 +132,7 @@ export default class HopalongVisualizer {
       }
     }
 
-    this.updateInterval = setInterval( () => { this.updateOrbit() }, 300)
+    this.updateInterval = setInterval( () => { this.updateOrbit() }, 500)
   }
 
   nextVideo(videoElement) {
@@ -341,7 +341,6 @@ export default class HopalongVisualizer {
 
   disposeScene(scene) {
     if(this.video) {
-      console.info(this.video)
       this.video.pause()
       this.video.remove()
       delete this.video
