@@ -10,7 +10,7 @@ class Presets extends React.Component {
       <Row>
         <Col className='presets-container'>
           <button onClick={this.props.retrieveConfigPreset}>Default</button>
-          <button onClick={this.props.retrieveConfigPreset}>Bassyndicate</button>
+          <button onClick={this.props.retrieveConfigPreset}>Kaiber</button>
           <button onClick={this.props.retrieveConfigPreset}>Edge Chase Spin</button>
           <button onClick={this.props.retrieveConfigPreset}>Dispersion Tunnel Spin</button>
           <button onClick={this.props.retrieveConfigPreset}>Crossheir Spin</button>
