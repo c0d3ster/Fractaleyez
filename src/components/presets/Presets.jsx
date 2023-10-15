@@ -33,19 +33,19 @@ class Presets extends React.Component {
           <button onClick={this.props.retrieveConfigPreset}>Slime Hands</button>
           <button onClick={this.props.retrieveConfigPreset}>Honeycomb</button>
           <button onClick={this.props.retrieveConfigPreset}>Blackout</button>
-          <button onClick={this.props.retrieveConfigPreset}>Emorfik</button>
-          <button onClick={this.props.retrieveConfigPreset}>Emorfik Intro Jumpy</button>
-          <button onClick={this.props.retrieveConfigPreset}>Emorfik Zombie Wave</button>
-          <button onClick={this.props.retrieveConfigPreset}>Emorfik Wire White</button>
-          <button onClick={this.props.retrieveConfigPreset}>Emorfik Wire</button>
-          <button onClick={this.props.retrieveConfigPreset}>Emorfik Wire Logo</button>
-          <button onClick={this.props.retrieveConfigPreset}>Emorfik Fire</button>
-          <button onClick={this.props.retrieveConfigPreset}>Emorfik Skull</button>
-          <button onClick={this.props.retrieveConfigPreset}>Emorfik Skull Vid</button>
-          <button onClick={this.props.retrieveConfigPreset}>Hyper Emorfik</button>
-          <button onClick={this.props.retrieveConfigPreset}>Emorfik Spin</button>
-          <button onClick={this.props.retrieveConfigPreset}>Emorfik Salad Color</button>
-          <button onClick={this.props.retrieveConfigPreset}>Emorfik Salad</button>
+          <button onClick={this.props.retrieveConfigPreset}>Tape</button>
+          <button onClick={this.props.retrieveConfigPreset}>Tape Cassette</button>
+          <button onClick={this.props.retrieveConfigPreset}>Tape Zombie Wave</button>
+          <button onClick={this.props.retrieveConfigPreset}>Tape Wire White</button>
+          <button onClick={this.props.retrieveConfigPreset}>Tape Wire</button>
+          <button onClick={this.props.retrieveConfigPreset}>Tape Wire Logo</button>
+          <button onClick={this.props.retrieveConfigPreset}>Tape Fire</button>
+          <button onClick={this.props.retrieveConfigPreset}>Tape Skull</button>
+          <button onClick={this.props.retrieveConfigPreset}>Tape Skull Vid</button>
+          <button onClick={this.props.retrieveConfigPreset}>Hyper Tape</button>
+          <button onClick={this.props.retrieveConfigPreset}>Tape Spin</button>
+          <button onClick={this.props.retrieveConfigPreset}>Tape Salad Color</button>
+          <button onClick={this.props.retrieveConfigPreset}>Tape Salad</button>
         </Col>
       </Row>
     )
