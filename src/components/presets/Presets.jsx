@@ -33,9 +33,9 @@ class Presets extends React.Component {
           <button onClick={this.props.retrieveConfigPreset}>Slime Hands</button>
           <button onClick={this.props.retrieveConfigPreset}>Honeycomb</button>
           <button onClick={this.props.retrieveConfigPreset}>Blackout</button>
-          <button onClick={this.props.retrieveConfigPreset}>vzn</button>
-          <button onClick={this.props.retrieveConfigPreset}>vzn Space</button>
-          <button onClick={this.props.retrieveConfigPreset}>vzn Cassette</button>
+          <button onClick={this.props.retrieveConfigPreset}>Vzn</button>
+          <button onClick={this.props.retrieveConfigPreset}>Vzn Space</button>
+          <button onClick={this.props.retrieveConfigPreset}>Vzn Cassette</button>
           <button onClick={this.props.retrieveConfigPreset}>Tape</button>
           <button onClick={this.props.retrieveConfigPreset}>Tape Space</button>
           <button onClick={this.props.retrieveConfigPreset}>Tape Cassette</button>
