@@ -16,3 +16,6 @@ ssl/
 
 # In Case iOS makes these extra files, ignore them
 *.DS_Store
+
+# Claude Code
+.claude/
