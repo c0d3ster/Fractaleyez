@@ -23,16 +23,16 @@ export default {
 
   speed_MIN: 0,
 
-  speed_MAX: 40,
+  speed_MAX: 20,
 
   speed_STEP_SIZE: 0.5,
 
   // Speed at which particles rotate
   rotationSpeed_DEFAULT: 2,
 
-  rotationSpeed_MIN: -50,
+  rotationSpeed_MIN: -20,
 
-  rotationSpeed_MAX: 50,
+  rotationSpeed_MAX: 20,
 
   rotationSpeed_STEP_SIZE: 0.25,
 
