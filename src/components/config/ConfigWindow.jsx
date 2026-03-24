@@ -1,65 +1,70 @@
-import React from 'react'
+import React, { useEffect, useRef } from 'react'
 import ReactDOM from 'react-dom'
 import { Grid, Row, Col } from 'react-bootstrap'
 
 import Presets from '../presets/Presets'
 import ConfigCategory from './ConfigCategory'
 import { copyStyles } from '../../styles/AppStyleCopier.js'
-import { connectConfig } from './context/ConfigProvider'
+import { connectConfig, ConfigContext } from './context/ConfigProvider'
 
-class ConfigWindow extends React.Component {
-  externalWindow = null
-  containerEl = document.createElement('div')
-  state = {
-    width:  1200,
-    height: 750
-  }
+// Renders inside the external window's React root, bridging ConfigContext from the main window
+const ExternalWindowBridge = ({ config, updateConfigItem, retrieveConfigPreset, resetConfig }) => (
+  <ConfigContext.Provider value={{ config, updateConfigItem, retrieveConfigPreset, resetConfig }}>
+    <Grid>
+      <Row>
+        <Presets />
+      </Row>
+      <Row>
+        {Object.keys(config).map((category) => (
+          <Col sm={2} key={category}>
+            <ConfigCategory
+              name={category}
+              onChange={updateConfigItem}
+              isOpen={true}
+              toggleOpen={() => null} />
+          </Col>
+        ))}
+      </Row>
+    </Grid>
+  </ConfigContext.Provider>
+)
 
-  componentDidMount() {
-    this.externalWindow = window.open('', '', `width=${this.state.width}, height=${this.state.height}, location=no`)
-    this.externalWindow.document.title = "Configuration"
-    this.externalWindow.document.body.appendChild(this.containerEl)
-    this.externalWindow.addEventListener('resize', this.updateDimensions)
-    this.externalWindow.addEventListener('beforeunload', this.props.onClose)
+const ConfigWindow = ({ config, updateConfigItem, retrieveConfigPreset, resetConfig, onClose }) => {
+  const containerElRef = useRef(null)
 
-    copyStyles(document, this.externalWindow.document)
-  }
+  // Open the external window once on mount
+  useEffect(() => {
+    const externalWindow = window.open('', '', 'width=1200,height=750,location=no')
+    if (!externalWindow) return
 
-  componentWillUnmount() {
-    this.externalWindow.removeEventListener('resize', this.updateDimensions)
-    this.externalWindow.close()
-  }
+    const container = externalWindow.document.createElement('div')
+    containerElRef.current = container
+    externalWindow.document.title = 'Configuration'
+    externalWindow.document.body.appendChild(container)
+    externalWindow.addEventListener('beforeunload', onClose)
+    copyStyles(document, externalWindow.document)
 
-  updateDimensions = () => {
-    this.setState({ width: this.externalWindow.innerWidth, height: this.externalWindow.innerHeight })
-  }
+    return () => {
+      ReactDOM.unmountComponentAtNode(container)
+      externalWindow.close()
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  render = () => ReactDOM.createPortal(
-    <div width={this.state.width} height={this.state.height}>
-      <Grid>
-        <Row>
-          <Presets />
-        </Row>
-        <Row>
-          {this.mapConfigCategories()}
-        </Row>
-      </Grid>
-    </div>
-    ,
-    this.containerEl
-  )
+  // Re-render the external root whenever config changes, keeping both windows in sync
+  useEffect(() => {
+    if (!containerElRef.current) return
+    ReactDOM.render(
+      <ExternalWindowBridge
+        config={config}
+        updateConfigItem={updateConfigItem}
+        retrieveConfigPreset={retrieveConfigPreset}
+        resetConfig={resetConfig}
+      />,
+      containerElRef.current
+    )
+  }, [config, updateConfigItem, retrieveConfigPreset, resetConfig])
 
-  mapConfigCategories = () => (
-    Object.keys(this.props.config).map((category) => (
-      <Col sm={2} key={category}>
-        <ConfigCategory
-          name={category}
-          onChange={this.props.updateConfigItem}
-          isOpen={true}
-          toggleOpen={() => null}/>
-      </Col>
-    ))
-  )
+  return null
 }
 
 export default connectConfig(ConfigWindow)

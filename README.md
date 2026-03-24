@@ -24,6 +24,15 @@ Adjust how the visual detects "beats" from your microphone.
 
 Add a variety of preconfigured effects which adjust how the visuals respond to a "beat". These options can affect individual particles, particle layers, or overlay on the entire visual space.
 
+| Effect | Description |
+|--------|-------------|
+| Cyclone | Splits particle layers into groups that rotate in alternating directions, creating a cyclone-like spin rather than uniform rotation. |
+| Wob Wob | On each beat, pushes particles backward along the z-axis opposite to the direction of travel, producing a surging pulse toward and away from the camera. |
+| Switcheroo | On each beat, regenerates the fractal orbit geometry for every other particle layer, causing sudden shape-shifts that alternate across layers. |
+| Color Shift | On each beat, re-applies each layer's randomly assigned hue, flashing colors in sync with audio peaks. Colors are re-randomized whenever orbit parameters change. |
+| Glow | Scales the bloom post-processing effect proportionally to audio peak energy, making the entire scene glow brighter on louder sounds. |
+| Shockwave | Triggers a radial shockwave post-processing effect emanating from the center of the scene whenever the audio peak exceeds a high threshold. |
+
 #### Orbit Config
 
 Adjust variables in the algorithm that generates each "layer" of particles. These variables can be adjusted in real-time to create unique visual progressions.

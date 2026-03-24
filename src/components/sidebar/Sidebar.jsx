@@ -1,100 +1,94 @@
-import React from 'react';
-import classNames from 'classnames';
-import { Grid, Row } from 'react-bootstrap';
-import './Sidebar.css';
+import React, { useState, useEffect, useCallback, useRef } from 'react'
+import classNames from 'classnames'
+import { Grid, Row } from 'react-bootstrap'
+import './Sidebar.css'
 
 import Presets from '../presets/Presets'
 import ConfigAccordion from '../config/ConfigAccordion'
 import { connectConfig } from '../config/context/ConfigProvider'
 
-class Sidebar extends React.Component {
-  state = {
-    sidebarVisible: null, // set to null to prevent slide out animation on page load
-    tabVisible: true,
-    hideTimer: null,
-  }
+const Sidebar = ({ config, setConfigWindow, configWindowVisible }) => {
+  const [sidebarVisible, setSidebarVisible] = useState(null)
+  const [tabVisible, setTabVisible] = useState(true)
+  const hideTimerRef = useRef(null)
 
-  componentDidMount() {
-    this.hideTabDelayed(5000)
-
-    document.addEventListener('keyup', (e) => {
-      if (e.key === 'e') {
-        this.setConfigWindow()
-      } else if (e.key === 'm') {
-        this.setSidebarVisibility()
-      }
-    })
-  }
-
-  setConfigWindow = () => this.props.setConfigWindow(!this.props.configWindowVisible)
-
-  setSidebarVisibility = () => this.setState((prevState) => ({ sidebarVisible: !prevState.sidebarVisible }))
-
-  showTab = () => {
-    if(this.state.hideTimer) {
-      window.clearTimeout(this.state.hideTimer);
+  const hideTabDelayed = useCallback((waitTime) => {
+    if (!hideTimerRef.current) {
+      hideTimerRef.current = window.setTimeout(() => {
+        setTabVisible(false)
+        hideTimerRef.current = null
+      }, Number.isInteger(waitTime) ? waitTime : 1000)
     }
-    this.setState({
-      tabVisible: true,
-      hideTimer: null
-    })
-  }
+  }, [])
 
-  hideTabDelayed = (waitTime) => {
-    if(!this.state.hideTabTimer) {
-      const hideTimer = window.setTimeout(() => {
-        this.setState({ tabVisible: false })
-      }, Number.isInteger(waitTime) ? waitTime : 1000);
-      this.setState({ hideTimer });
+  const showTab = useCallback(() => {
+    if (hideTimerRef.current) {
+      window.clearTimeout(hideTimerRef.current)
+      hideTimerRef.current = null
     }
-  }
+    setTabVisible(true)
+  }, [])
 
-  render() {
-    const sidebarContentClasses = classNames('sidebar-content', {
-      'slide-in': this.state.sidebarVisible,
-      'slide-out': this.state.sidebarVisible === false
-    })
-    const tabClasses = classNames('tab', {
-      'tab-fade-in': this.state.tabVisible,
-      'tab-fade-out': !this.state.tabVisible
-    })
-    const expandConfigClasses = classNames('expand-config', {
-      'expanded': this.props.configWindowVisible
-    })
-    return (
-      <div 
-        className='sidebar-container'
-        onMouseEnter={this.showTab} 
-        onMouseLeave={this.hideTabDelayed}>
-        <Grid bsClass={sidebarContentClasses}>
-          <button 
-            className={tabClasses} 
-            onClick={this.setSidebarVisibility}>
-            Menu
+  const toggleSidebar = useCallback(() => setSidebarVisible((prev) => !prev), [])
+
+  const handleSetConfigWindow = useCallback(() => setConfigWindow(!configWindowVisible), [setConfigWindow, configWindowVisible])
+
+  useEffect(() => {
+    hideTabDelayed(5000)
+
+    const handleKeyUp = (e) => {
+      if (e.key === 'e') handleSetConfigWindow()
+      else if (e.key === 'm') toggleSidebar()
+    }
+
+    document.addEventListener('keyup', handleKeyUp)
+    return () => document.removeEventListener('keyup', handleKeyUp)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const sidebarContentClasses = classNames('sidebar-content', {
+    'slide-in': sidebarVisible,
+    'slide-out': sidebarVisible === false
+  })
+  const tabClasses = classNames('tab', {
+    'tab-fade-in': tabVisible,
+    'tab-fade-out': !tabVisible
+  })
+  const expandConfigClasses = classNames('expand-config', {
+    'expanded': configWindowVisible
+  })
+
+  return (
+    <div
+      className='sidebar-container'
+      onMouseEnter={showTab}
+      onMouseLeave={hideTabDelayed}>
+      <Grid bsClass={sidebarContentClasses}>
+        <button
+          className={tabClasses}
+          onClick={toggleSidebar}>
+          Menu
+        </button>
+        <Row>
+          <h2 className='sidebar-title'>Presets</h2>
+          <button
+            className={expandConfigClasses}
+            onClick={() => { console.info(JSON.stringify(config)) }}>
+            Log Config
           </button>
-          <Row>
-            <h2 className='sidebar-title'>Presets</h2>
-            <button 
-              className={expandConfigClasses} 
-              onClick={() => {console.info(JSON.stringify(this.props.config))}}>
-              Log Config
-            </button>
-          </Row>
-          <Presets/>
-          <Row>
-            <h2 className='sidebar-title'>Configuration</h2>
-            <button 
-              className={expandConfigClasses} 
-              onClick={this.setConfigWindow}
-              onKeyDown={this.onKeyDown}>
-              expand
-            </button>
-          </Row>
-          <ConfigAccordion canOpenMultiple={false} />
-        </Grid>
-      </div>
-    );
-  }
+        </Row>
+        <Presets />
+        <Row>
+          <h2 className='sidebar-title'>Configuration</h2>
+          <button
+            className={expandConfigClasses}
+            onClick={handleSetConfigWindow}>
+            expand
+          </button>
+        </Row>
+        <ConfigAccordion canOpenMultiple={false} />
+      </Grid>
+    </div>
+  )
 }
 
 export default connectConfig(Sidebar)

@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useCallback } from 'react'
 import classNames from 'classnames'
 import './ConfigCategory.css'
 
@@ -6,64 +6,59 @@ import ConfigSlider from './ConfigSlider'
 import ConfigCheckbox from './ConfigCheckbox'
 import { connectConfig } from './context/ConfigProvider'
 
-class ConfigCategory extends React.Component {
-
-  // this helper function allows us to re render categories only when necessary using state
-  // it passes along the change to the categoryWindow to update our config.js file for visual updates
-  updateConfig = (event) => {
+const ConfigCategory = React.memo(({ name, config, isOpen, toggleOpen, onChange }) => {
+  const handleChange = useCallback((event) => {
     const target = event.target
     const item = target.name
     const value = target.type === 'checkbox' ? target.checked : target.value
+    onChange(name, item, value)
+  }, [name, onChange])
 
-    this.props.onChange(this.props.name, item, value)
-  }
+  const handleToggle = useCallback(() => {
+    toggleOpen(name)
+  }, [name, toggleOpen])
 
-  render() {
-    const { name, toggleOpen, isOpen } = this.props
-    const categoryContentClasses = classNames('category-content', {
-      'hide-content': !isOpen
-    })
-    return(
+  const categoryContentClasses = classNames('category-content', {
+    'hide-content': !isOpen
+  })
+
+  return (
     <div className='category-container'>
-      <h3 className='category-title' onClick={() => toggleOpen(name)}>
+      <h3 className='category-title' onClick={handleToggle}>
         {name} config
       </h3>
       <div className={categoryContentClasses}>
-        {this.mapConfigItems()}
+        {Object.keys(config[name]).map((configItem) => {
+          const { type, name: itemName, value, min, max, step } = config[name][configItem]
+
+          if (type === 'checkbox') {
+            return (
+              <ConfigCheckbox
+                name={itemName}
+                key={itemName}
+                checked={value}
+                onChange={handleChange}
+              />
+            )
+          }
+          if (type === 'slider') {
+            return (
+              <ConfigSlider
+                name={itemName}
+                key={itemName}
+                value={value}
+                min={min}
+                max={max}
+                step={step}
+                onChange={handleChange}
+              />
+            )
+          }
+          return null
+        })}
       </div>
-    </div>)
-  }
-
-  mapConfigItems = () => (
-    Object.keys(this.props.config[this.props.name]).map((configItem) => {
-      const { type, name, value, min, max, step } = this.props.config[this.props.name][configItem]
-
-      if (type === 'checkbox') {
-        return(
-          <ConfigCheckbox
-            name={name}
-            key={name}
-            checked={value}
-            onChange={(e) => this.updateConfig(e)}
-          />
-        )
-      }
-      else if (type === 'slider') {
-        return(
-          <ConfigSlider
-            name={name}
-            key={name}
-            value={value}
-            min={min}
-            max={max}
-            step={step}
-            onChange={(e) => this.updateConfig(e)}
-          />
-        )
-      }
-      return null
-    })
+    </div>
   )
-}
+})
 
 export default connectConfig(ConfigCategory)

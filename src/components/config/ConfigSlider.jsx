@@ -1,7 +1,7 @@
 import React from 'react'
 import "./Slider.css"
 
-const ConfigSlider = ({ name, value, min, max, step, onChange }) => (
+const ConfigSlider = React.memo(({ name, value, min, max, step, onChange }) => (
   <div>
     <div className="slider-info">
       <h4 className="slider-name">{name}: </h4>
@@ -16,6 +16,6 @@ const ConfigSlider = ({ name, value, min, max, step, onChange }) => (
       step={step}
       onChange={onChange}/>
   </div>
-)
+))
 
 export default ConfigSlider
