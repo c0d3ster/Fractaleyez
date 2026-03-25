@@ -44,7 +44,7 @@ export default {
 
   E_MAX: 1,
 
-  E_DEFAULT: .5,
+  E_DEFAULT: 0,
 
   E_STEP_SIZE: 0.1
 }

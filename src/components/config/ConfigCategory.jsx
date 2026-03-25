@@ -29,13 +29,14 @@ const ConfigCategory = React.memo(({ name, config, isOpen, toggleOpen, onChange 
       </h3>
       <div className={categoryContentClasses}>
         {Object.keys(config[name]).map((configItem) => {
-          const { type, name: itemName, value, min, max, step } = config[name][configItem]
+          const { type, name: label, value, min, max, step } = config[name][configItem]
 
           if (type === 'checkbox') {
             return (
               <ConfigCheckbox
-                name={itemName}
-                key={itemName}
+                name={configItem}
+                label={label}
+                key={configItem}
                 checked={value}
                 onChange={handleChange}
               />
@@ -44,8 +45,9 @@ const ConfigCategory = React.memo(({ name, config, isOpen, toggleOpen, onChange 
           if (type === 'slider') {
             return (
               <ConfigSlider
-                name={itemName}
-                key={itemName}
+                name={configItem}
+                label={label}
+                key={configItem}
                 value={value}
                 min={min}
                 max={max}
