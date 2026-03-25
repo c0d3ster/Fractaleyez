@@ -32,7 +32,7 @@ export default class HopalongVisualizer {
     this.elapsedTime = 0
     this.audioPeak = false
     this.peakCountdown = 0
-    this.lastOrbitParams = { a: null, b: null, c: null, d: null, e: null }
+    this.lastOrbitParams = { a: null, b: null, c: null, d: null, e: null, scaleFactor: null }
     this.orbit = {
       subsets: [],
       xMin: 0,
@@ -230,16 +230,22 @@ export default class HopalongVisualizer {
     const newC = window.config.orbit.c.value
     const newD = window.config.orbit.d.value
     const newE = window.config.orbit.e.value
+    const newScaleFactor = window.config.user.scaleFactor.value
 
     const paramsChanged = newA !== this.lastOrbitParams.a
       || newB !== this.lastOrbitParams.b
       || newC !== this.lastOrbitParams.c
       || newD !== this.lastOrbitParams.d
       || newE !== this.lastOrbitParams.e
+      || newScaleFactor !== this.lastOrbitParams.scaleFactor
 
     if ( !paramsChanged ) return
 
-    this.lastOrbitParams = { a: newA, b: newB, c: newC, d: newD, e: newE }
+    const prevScaleFactor = this.lastOrbitParams.scaleFactor
+
+    this.lastOrbitParams = {
+      a: newA, b: newB, c: newC, d: newD, e: newE, scaleFactor: newScaleFactor
+    }
 
     // Generate new Pattern
     this.generateOrbit()
@@ -261,6 +267,13 @@ export default class HopalongVisualizer {
       }
       obj.geometry.attributes.position.needsUpdate = true
     })
+
+    if (prevScaleFactor !== null && newScaleFactor !== prevScaleFactor) {
+      const dz = (newScaleFactor - prevScaleFactor) / 2
+      this.objects.forEach((obj) => {
+        obj.position.z += dz
+      })
+    }
   }
 
   generateOrbit() {
