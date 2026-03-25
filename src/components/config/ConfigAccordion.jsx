@@ -1,51 +1,38 @@
-import React from 'react'
+import React, { useState, useCallback } from 'react'
 import { Row, Col } from 'react-bootstrap'
 
 import ConfigCategory from '../config/ConfigCategory'
 import { connectConfig } from './context/ConfigProvider'
 
-class ConfigAccordion extends React.Component {
-  state = {
-    openCategories: ['user']
-  }
+const ConfigAccordion = ({ config, updateConfigItem, canOpenMultiple }) => {
+  const [openCategories, setOpenCategories] = useState(['user'])
 
-  toggleOpen = (id) => {
-    const { canOpenMultiple } = this.props
-    const { openCategories } = this.state
+  const toggleOpen = useCallback((id) => {
+    setOpenCategories((prev) => {
+      const index = prev.indexOf(id)
+      if (canOpenMultiple && index === -1) {
+        return [...prev, id]
+      } else if (index === -1) {
+        return [id]
+      } else {
+        return prev.filter((c) => c !== id)
+      }
+    })
+  }, [canOpenMultiple])
 
-    const index = openCategories.indexOf(id)
-    if (canOpenMultiple && index === -1) {
-      this.setState((prevState) => ({
-        openCategories: [...prevState.openCategories, id],
-      }))
-    } else if (index === -1) {
-      this.setState({
-        openCategories: [id],
-      })
-    } else {
-      this.setState((prevState) => ({
-        openCategories: prevState.openCategories.slice(0, index).concat(prevState.openCategories.slice(index + 1)),
-      }))
-    }
-  }
+  const isCategoryOpen = useCallback((category) => openCategories.indexOf(category) !== -1, [openCategories])
 
-  isCategoryOpen = (category) => this.state.openCategories.indexOf(category) !== -1
-  
-  render() {
-    return(
-      Object.keys(this.props.config).map((category) => (
-        <Row key={category}>
-          <Col>
-            <ConfigCategory
-              name={category}
-              onChange={this.props.updateConfigItem}
-              isOpen={this.isCategoryOpen(category)}
-              toggleOpen={this.toggleOpen} />
-          </Col>
-        </Row>
-      ))
-    )
-  }
+  return Object.keys(config).map((category) => (
+    <Row key={category}>
+      <Col>
+        <ConfigCategory
+          name={category}
+          onChange={updateConfigItem}
+          isOpen={isCategoryOpen(category)}
+          toggleOpen={toggleOpen} />
+      </Col>
+    </Row>
+  ))
 }
 
 export default connectConfig(ConfigAccordion)

@@ -32,6 +32,7 @@ export default class HopalongVisualizer {
     this.elapsedTime = 0
     this.audioPeak = false
     this.peakCountdown = 0
+    this.lastOrbitParams = { a: null, b: null, c: null, d: null, e: null, scaleFactor: null }
     this.orbit = {
       subsets: [],
       xMin: 0,
@@ -162,6 +163,7 @@ export default class HopalongVisualizer {
     // console.info(window.config.speed * musicSpeedMultiplier);
 
     let count = 0 // keep track of which layer to apply settings on
+    let switcherooGenerated = false // only regenerate orbit once per peak
 
     // Process all children in scene and update them applying effects as needed
     this.objects.forEach( (obj) => {
@@ -175,8 +177,18 @@ export default class HopalongVisualizer {
         }
 
         if ( count % 2 === 0 && window.config.effects.switcheroo.value ) { // change geometry of every other orbit on peak
-          obj.geometry.verticesNeedUpdate = true
-          obj.needsUpdate = 0
+          if ( !switcherooGenerated ) {
+            this.generateOrbit()
+            switcherooGenerated = true
+          }
+          const currentSubset = this.orbit.subsets[obj.mySubset]
+          const posArray = obj.geometry.attributes.position.array
+          for( let i = 0; i < this.particlesPerLayer; i++ )
+          {
+            posArray[i * 3]     = currentSubset[i].vertex.x
+            posArray[i * 3 + 1] = currentSubset[i].vertex.y
+          }
+          obj.geometry.attributes.position.needsUpdate = true
         }
 
         if ( window.config.effects.wobWob.value ) { // wobwob effect
@@ -190,12 +202,6 @@ export default class HopalongVisualizer {
 
       if ( obj.position.z > window.config.user.scaleFactor.value / 2 ) {
         obj.position.setZ( -(this.levels-1) * this.levelDepth + this.levelDepth)
-
-        if ( obj.needsUpdate === 1 )
-        {
-          obj.geometry.verticesNeedUpdate = true
-          obj.needsUpdate = 0
-        }
       }
 
       if ( window.config.effects.cyclone.value ) {
@@ -219,6 +225,28 @@ export default class HopalongVisualizer {
   }
 
   updateOrbit() {
+    const newA = window.config.orbit.a.value
+    const newB = window.config.orbit.b.value
+    const newC = window.config.orbit.c.value
+    const newD = window.config.orbit.d.value
+    const newE = window.config.orbit.e.value
+    const newScaleFactor = window.config.user.scaleFactor.value
+
+    const paramsChanged = newA !== this.lastOrbitParams.a
+      || newB !== this.lastOrbitParams.b
+      || newC !== this.lastOrbitParams.c
+      || newD !== this.lastOrbitParams.d
+      || newE !== this.lastOrbitParams.e
+      || newScaleFactor !== this.lastOrbitParams.scaleFactor
+
+    if ( !paramsChanged ) return
+
+    const prevScaleFactor = this.lastOrbitParams.scaleFactor
+
+    this.lastOrbitParams = {
+      a: newA, b: newB, c: newC, d: newD, e: newE, scaleFactor: newScaleFactor
+    }
+
     // Generate new Pattern
     this.generateOrbit()
 
@@ -228,9 +256,24 @@ export default class HopalongVisualizer {
       this.hueValues[s] = Math.random()
     }
 
+    // Write updated orbit positions directly into each geometry's buffer
     this.objects.forEach( (obj) => {
-      obj.needsUpdate = 1
+      const currentSubset = this.orbit.subsets[obj.mySubset]
+      const posArray = obj.geometry.attributes.position.array
+      for( let i = 0; i < this.particlesPerLayer; i++ )
+      {
+        posArray[i * 3]     = currentSubset[i].vertex.x
+        posArray[i * 3 + 1] = currentSubset[i].vertex.y
+      }
+      obj.geometry.attributes.position.needsUpdate = true
     })
+
+    if (prevScaleFactor !== null && newScaleFactor !== prevScaleFactor) {
+      const dz = (newScaleFactor - prevScaleFactor) / 2
+      this.objects.forEach((obj) => {
+        obj.position.z += dz
+      })
+    }
   }
 
   generateOrbit() {

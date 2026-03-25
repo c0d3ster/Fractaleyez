@@ -104,7 +104,7 @@ export default {
   },
   orbit: {
     a : {
-      name: 'A',
+      name: 'Radius',
       type: 'slider',
       defaultValue: OrbitConfig.A_DEFAULT,
       value: OrbitConfig.A_DEFAULT,
@@ -113,7 +113,7 @@ export default {
       step: OrbitConfig.A_STEP_SIZE
     },
     b : {
-      name: 'B',
+      name: 'Spread',
       type: 'slider',
       defaultValue: OrbitConfig.B_DEFAULT,
       value: OrbitConfig.B_DEFAULT,
@@ -122,7 +122,7 @@ export default {
       step: OrbitConfig.B_STEP_SIZE
     },
     c : {
-      name: 'C',
+      name: 'Sharpness',
       type: 'slider',
       defaultValue: OrbitConfig.C_DEFAULT,
       value: OrbitConfig.C_DEFAULT,
@@ -131,7 +131,7 @@ export default {
       step: OrbitConfig.C_STEP_SIZE
     },
     d : {
-      name: 'D',
+      name: 'Shift',
       type: 'slider',
       defaultValue: OrbitConfig.D_DEFAULT,
       value: OrbitConfig.D_DEFAULT,
@@ -140,7 +140,7 @@ export default {
       step: OrbitConfig.D_STEP_SIZE
     },
     e : {
-      name: 'E',
+      name: 'Drift',
       type: 'slider',
       defaultValue: OrbitConfig.E_DEFAULT,
       value: OrbitConfig.E_DEFAULT,

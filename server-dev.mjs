@@ -1,9 +1,11 @@
 import path from 'path'
+import { fileURLToPath } from 'url'
 import express from 'express'
 import bodyParser from 'body-parser'
-import { presets } from './src/config/presets'
+import { presets } from './src/config/presets.js'
 
-const BUILD_DIR = path.join(__dirname, 'public/')
+const projectRoot = path.dirname(fileURLToPath(import.meta.url))
+const BUILD_DIR = path.join(projectRoot, 'public/')
 
 const app = express()
 

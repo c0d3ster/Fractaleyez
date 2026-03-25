@@ -1,5 +1,4 @@
-import React, { Component } from 'react'
-import PropTypes from 'prop-types'
+import React, { useState, useCallback, useEffect } from 'react'
 import axios from 'axios'
 
 import configDefaults from "../../../config/configDefaults"
@@ -13,97 +12,80 @@ const connectConfig = WrappedComponent => props => (
   </ConfigContext.Consumer>
 )
 
-class ConfigProvider extends Component {
-  constructor(props) {
-    super(props)
-    this.state = {
-      config: configDefaults,
-      updateConfigItem: this.updateConfigItem,
-      retrieveConfigPreset: this.retrieveConfigPreset,
-      resetConfig: this.resetConfig
-    }
-    window.config = this.state.config
-  }
+/** Preset button labels ("Galaxy Space") → object keys ("galaxySpace") */
+const labelToCamelCaseKey = (string) => {
+  const words = string.toLowerCase().trim().split(/[.\-_\s]+/).filter(Boolean)
+  if (!words.length) return ''
+  return words[0] + words.slice(1).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join('')
+}
 
-  componentDidMount() {
+const ConfigProvider = ({ children }) => {
+  const [config, setConfig] = useState(() => {
+    window.config = configDefaults
+    return configDefaults
+  })
+
+  useEffect(() => {
     const localPresets = JSON.parse(localStorage.getItem('presets'))
-
     if (!localPresets || presets.length > localPresets.length) {
       localStorage.setItem('presets', JSON.stringify(presets))
     }
-  }
+  }, [])
 
-  titleToCamelCase = (string) => (
-    string.toLowerCase().trim().split(/[.\-_\s]/g)
-      .reduce((string, word) => string + word[0].toUpperCase() + word.slice(1))
-  )
+  const updateConfigItem = useCallback((category, item, value) => {
+    const parsed = parseFloat(value)
+    const parsedValue = isNaN(parsed) ? value : parsed
 
-  updateConfigItem = (category, item, value) => {
-    const camelItem = this.titleToCamelCase(item)
-    const camelCategory = this.titleToCamelCase(category)
-
-    if(this.state.config[camelCategory][camelItem].type === "slider") {
-      value = parseFloat(value)
-    }
-    
-    this.setState((prevState) => { // update state for React context
-      return {
-        config: {
-          ...prevState.config,
-          [camelCategory]: {
-            ...prevState.config[camelCategory],
-            [camelItem]: {
-              ...prevState.config[camelCategory][camelItem],
-              value
-            },
-          },
+    setConfig((prev) => {
+      const next = {
+        ...prev,
+        [category]: {
+          ...prev[category],
+          [item]: {
+            ...prev[category][item],
+            value: parsedValue
+          }
         }
       }
-    }, () => {
-      window.config = this.state.config
+      window.config = next
+      return next
     })
-  }
+  }, [])
 
-  retrieveConfigPreset = async (event) => {
-    let config
+  const retrieveCachedPreset = useCallback((name) => JSON.parse(localStorage.getItem('presets'))[name], [])
+
+  const retrieveConfigPreset = useCallback(async (event) => {
+    let cfg
     let name
     try {
-      name = this.titleToCamelCase(event.target.innerHTML);
-      config = this.retrieveCachedPreset(name)
+      name = labelToCamelCaseKey(event.target.innerHTML)
+      cfg = retrieveCachedPreset(name)
 
-      if (!config) {
-        const result = await axios.get(`/api/getConfig/${name}`);
-        config = result.data
+      if (!cfg) {
+        const result = await axios.get(`/api/getConfig/${name}`)
+        cfg = result.data
       }
     } catch (error) {
-      const errorMessage = error.response.data || error.message
-      console.error( `Error retrieving ${name} preset: ${errorMessage}`)
+      const errorMessage = error.response?.data || error.message
+      console.error(`Error retrieving ${name} preset: ${errorMessage}`)
       return
     }
 
-    this.setState({ config }, () => window.config = this.state.config)
-  }
+    setConfig(cfg)
+    window.config = cfg
+  }, [retrieveCachedPreset])
 
-  retrieveCachedPreset = (name) => JSON.parse(localStorage.getItem('presets'))[name]
+  const resetConfig = useCallback(() => retrieveConfigPreset({ target: { innerHTML: 'default' } }), [retrieveConfigPreset])
 
-  resetConfig = async () => this.retrieveConfigPreset('default')
-
-  render() {
-    return (
-      <ConfigContext.Provider value={this.state}>
-        {this.props.children}
-      </ConfigContext.Provider>
-    )
-  }
-}
-
-ConfigProvider.propTypes = {
-  config: PropTypes.object,
-  updateConfigItem: PropTypes.func,
-  updateConfigPreset: PropTypes.func
+  return (
+    <ConfigContext.Provider value={{ config, updateConfigItem, retrieveConfigPreset, resetConfig }}>
+      {children}
+    </ConfigContext.Provider>
+  )
 }
 
 export {
   ConfigProvider,
   connectConfig,
+  ConfigContext,
 }

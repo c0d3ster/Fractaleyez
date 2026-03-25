@@ -22,9 +22,9 @@ export default {
   B_STEP_SIZE: 0.01,
 
   // Config for the "C" input parameter into the hopalong orbit
-  C_MIN: 5,
+  C_MIN: 0,
 
-  C_MAX: 6,
+  C_MAX: 10,
 
   C_DEFAULT: 5.5,
 
@@ -44,7 +44,7 @@ export default {
 
   E_MAX: 1,
 
-  E_DEFAULT: .5,
+  E_DEFAULT: 0,
 
   E_STEP_SIZE: 0.1
 }
