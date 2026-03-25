@@ -12,10 +12,12 @@ const connectConfig = WrappedComponent => props => (
   </ConfigContext.Consumer>
 )
 
-const titleToCamelCase = (string) => (
-  string.toLowerCase().trim().split(/[.\-_\s]/g)
-    .reduce((str, word) => str + word[0].toUpperCase() + word.slice(1))
-)
+/** Preset button labels ("Galaxy Space") → object keys ("galaxySpace") */
+const labelToCamelCaseKey = (string) => {
+  const words = string.toLowerCase().trim().split(/[.\-_\s]+/).filter(Boolean)
+  if (!words.length) return ''
+  return words[0] + words.slice(1).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join('')
+}
 
 const ConfigProvider = ({ children }) => {
   const [config, setConfig] = useState(() => {
@@ -31,19 +33,16 @@ const ConfigProvider = ({ children }) => {
   }, [])
 
   const updateConfigItem = useCallback((category, item, value) => {
-    const camelItem = titleToCamelCase(item)
-    const camelCategory = titleToCamelCase(category)
-
     const parsed = parseFloat(value)
     const parsedValue = isNaN(parsed) ? value : parsed
 
     setConfig((prev) => {
       const next = {
         ...prev,
-        [camelCategory]: {
-          ...prev[camelCategory],
-          [camelItem]: {
-            ...prev[camelCategory][camelItem],
+        [category]: {
+          ...prev[category],
+          [item]: {
+            ...prev[category][item],
             value: parsedValue
           }
         }
@@ -59,7 +58,7 @@ const ConfigProvider = ({ children }) => {
     let cfg
     let name
     try {
-      name = titleToCamelCase(event.target.innerHTML)
+      name = labelToCamelCaseKey(event.target.innerHTML)
       cfg = retrieveCachedPreset(name)
 
       if (!cfg) {
