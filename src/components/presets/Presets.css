@@ -1,9 +1,30 @@
 .presets-container {
-  display: block;
+  display: flex;
+  flex-wrap: wrap;
   margin: 1rem 1.5rem;
 }
 
-.presets-container button {
-  margin: .5rem 1rem !important;
-  color: #333;
+.preset-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.4rem 0.5rem !important;
+  padding: 0.3rem 0.6rem;
+  color: #999;
+  background: none;
+  border: 1px solid #555;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.preset-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: #999;
+}
+
+.preset-sprite {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  flex-shrink: 0;
 }
