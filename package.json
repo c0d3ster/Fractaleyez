@@ -21,7 +21,6 @@
     "axios": "^1.7.0",
     "bootstrap": "^3.4.1",
     "classnames": "^2.2.6",
-    "nodemon": "^1.18.9",
     "postprocessing": "6.29.3",
     "react": "^16.6.3",
     "react-bootstrap": "^0.32.4",
