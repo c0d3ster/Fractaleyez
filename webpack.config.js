@@ -10,7 +10,8 @@ module.exports = {
   {
     path: BUILD_DIR,
     filename: 'app.js',
-    publicPath: '/'
+    publicPath: '/',
+    hashFunction: 'sha256'
   },
   // must include modules for webpack to integrate with babel for es6 syntax
   module: {
