@@ -45,8 +45,11 @@ const PRESETS = [
   { name: 'dispersionTunnelSpin', label: 'Dispersion Tunnel Spin', pack: 'Sacred' },
   // Sprites
   { name: 'choppingHands',        label: 'Chopping Hands',        pack: 'Sprites' },
+  { name: 'choppingMen',          label: 'Chopping Men',          pack: 'Sprites' },
   { name: 'ohSprite',             label: 'Oh Sprite',             pack: 'Sprites' },
   { name: 'slimeHands',           label: 'Slime Hands',           pack: 'Sprites' },
+  { name: 'garbageMan',           label: 'Garbage Man',           pack: 'Sprites' },
+  { name: 'garbageMonsters',      label: 'Garbage Monsters',      pack: 'Sprites' },
   // Elemental
   { name: 'fire',                 label: 'Fire',                  pack: 'Elemental' },
 ]
