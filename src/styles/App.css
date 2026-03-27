@@ -35,6 +35,6 @@ button:focus {
 }
 
 button:hover, .selected {
-  background: green;
+  background: #004400;
   color: #ccc;
 }

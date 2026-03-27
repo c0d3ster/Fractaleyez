@@ -12,13 +12,6 @@ const connectConfig = WrappedComponent => props => (
   </ConfigContext.Consumer>
 )
 
-/** Preset button labels ("Galaxy Space") → object keys ("galaxySpace") */
-const labelToCamelCaseKey = (string) => {
-  const words = string.toLowerCase().trim().split(/[.\-_\s]+/).filter(Boolean)
-  if (!words.length) return ''
-  return words[0] + words.slice(1).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join('')
-}
-
 const ConfigProvider = ({ children }) => {
   const [config, setConfig] = useState(() => {
     window.config = configDefaults
@@ -56,9 +49,8 @@ const ConfigProvider = ({ children }) => {
 
   const retrieveConfigPreset = useCallback(async (event) => {
     let cfg
-    let name
+    const name = event.currentTarget.dataset.name
     try {
-      name = labelToCamelCaseKey(event.target.innerHTML)
       cfg = retrieveCachedPreset(name)
 
       if (!cfg) {
@@ -75,7 +67,7 @@ const ConfigProvider = ({ children }) => {
     window.config = cfg
   }, [retrieveCachedPreset])
 
-  const resetConfig = useCallback(() => retrieveConfigPreset({ target: { innerHTML: 'default' } }), [retrieveConfigPreset])
+  const resetConfig = useCallback(() => retrieveConfigPreset({ currentTarget: { dataset: { name: 'default' } } }), [retrieveConfigPreset])
 
   return (
     <ConfigContext.Provider value={{ config, updateConfigItem, retrieveConfigPreset, resetConfig }}>

@@ -16,7 +16,7 @@
 }
 
 .config-checkbox-container input:checked + label {
-  background: #060;
+  background: #005500;
   color: white;
 }
 

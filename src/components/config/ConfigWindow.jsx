@@ -12,7 +12,7 @@ const ExternalWindowBridge = ({ config, updateConfigItem, retrieveConfigPreset, 
   <ConfigContext.Provider value={{ config, updateConfigItem, retrieveConfigPreset, resetConfig }}>
     <Grid>
       <Row>
-        <Presets />
+        <Presets expanded />
       </Row>
       <Row>
         {Object.keys(config).map((category) => (
