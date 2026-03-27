@@ -48,7 +48,7 @@ const ConfigWindow = ({ config, updateConfigItem, retrieveConfigPreset, resetCon
       ReactDOM.unmountComponentAtNode(container)
       externalWindow.close()
     }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [])
 
   // Re-render the external root whenever config changes, keeping both windows in sync
   useEffect(() => {

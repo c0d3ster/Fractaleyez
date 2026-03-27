@@ -1,7 +1,7 @@
 .presets-container {
   display: flex;
   flex-direction: column;
-  margin: 1rem 1.5rem;
+  margin: 1rem;
 }
 
 /* Pack filter tabs */

@@ -36,6 +36,7 @@
   font-weight: bold;
   overflow: hidden;
   margin: 1rem 2rem;
+  font-size: 2.75rem;
 }
 
 .sidebar-content:not(.slide-in) > .row > .sidebar-title {
@@ -44,10 +45,15 @@
 
 .expand-config {
   float: right;
-  margin: 1.5rem 1rem 0 0;
+  margin: 1rem 1rem 0 0;
   vertical-align: top;
   border-radius: 10px;
-  color: #333;
+  color: #666;
+  font-size: 2.75rem;
+  padding: 4px 10px;
+  line-height: 1;
+  background: transparent;
+  border: none;
 }
 
 .expand-config:focus {

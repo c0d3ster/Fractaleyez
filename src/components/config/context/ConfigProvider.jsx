@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react'
 import axios from 'axios'
 
-import configDefaults from "../../../config/configDefaults"
+import configDefaults from '../../../config/configDefaults'
 import { presets } from '../../../config/presets'
 
 const ConfigContext = React.createContext()

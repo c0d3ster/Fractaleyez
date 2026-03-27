@@ -77,7 +77,7 @@ const Sidebar = ({ config, setConfigWindow, configWindowVisible }) => {
           <button
             className={expandConfigClasses}
             onClick={handleSetConfigWindow}>
-            expand
+            ⤢
           </button>
         </Row>
         <ConfigAccordion canOpenMultiple={false} />
