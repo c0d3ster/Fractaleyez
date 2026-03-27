@@ -20,7 +20,8 @@ const ConfigProvider = ({ children }) => {
 
   useEffect(() => {
     const localPresets = JSON.parse(localStorage.getItem('presets'))
-    if (!localPresets || presets.length > localPresets.length) {
+    const hasNewPresets = !localPresets || Object.keys(presets).some(key => !localPresets[key])
+    if (hasNewPresets) {
       localStorage.setItem('presets', JSON.stringify(presets))
     }
   }, [])
