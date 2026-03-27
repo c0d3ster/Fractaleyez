@@ -5,12 +5,14 @@
     "node": true,
     "jest": true
     },
-    "parser": "babel-eslint",
+    "parser": "@typescript-eslint/parser",
     "parserOptions": {
         "ecmaVersion": 2018,
-        "sourceType": "module"
+        "sourceType": "module",
+        "project": "./tsconfig.json"
     },
     "plugins": [
+        "@typescript-eslint",
         "jsdoc",
         "prefer-arrow"
     ],

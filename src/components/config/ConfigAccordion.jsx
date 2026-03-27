@@ -23,7 +23,9 @@ const ConfigAccordion = ({ config, updateConfigItem, canOpenMultiple }) => {
 
   const isCategoryOpen = useCallback((category) => openCategories.indexOf(category) !== -1, [openCategories])
 
-  return Object.keys(config).map((category) => (
+  const CONFIG_CATEGORIES = ['user', 'audio', 'effects', 'orbit', 'particle', 'video']
+
+  return Object.keys(config).filter(k => CONFIG_CATEGORIES.includes(k)).map((category) => (
     <Row key={category}>
       <Col>
         {category === 'video'
