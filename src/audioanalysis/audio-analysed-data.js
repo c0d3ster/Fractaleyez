@@ -1,5 +1,5 @@
 /* eslint-disable max-classes-per-file */
-import AnalyserConfig from '../config/analyser.config'
+import { analyserConfig as AnalyserConfig } from '../config/analyser.config'
 
 /**
  * Stores the analysed data into a structured object

@@ -1,4 +1,4 @@
-import UserConfig from '../config/user.config'
+import { userConfig as UserConfig } from '../config/user.config'
 
 import { AudioSource } from './audio-source'
 import { AudioData } from './audio-data'
