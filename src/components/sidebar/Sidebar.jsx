@@ -70,11 +70,6 @@ const Sidebar = ({ config, setConfigWindow, configWindowVisible }) => {
         </button>
         <Row>
           <h2 className='sidebar-title'>Presets</h2>
-          <button
-            className={expandConfigClasses}
-            onClick={() => { console.info(JSON.stringify(config)) }}>
-            Log Config
-          </button>
         </Row>
         <Presets />
         <Row>
@@ -82,7 +77,7 @@ const Sidebar = ({ config, setConfigWindow, configWindowVisible }) => {
           <button
             className={expandConfigClasses}
             onClick={handleSetConfigWindow}>
-            expand
+            ⤢
           </button>
         </Row>
         <ConfigAccordion canOpenMultiple={false} />

@@ -206,6 +206,7 @@ export default {
   },
   video: {
     clips: VideoConfig.clips,
+    allClips: VideoConfig.allClips,
     index: VideoConfig.index
   }
 }
