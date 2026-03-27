@@ -69,32 +69,10 @@ export default class HopalongVisualizer {
     this.generateOrbit()
 
     if (window.config.video && window.config.video.clips.length) {
-      this.video = document.createElement('video')
-      this.video.src = window.config.video.clips[window.config.video.index]
-      this.video.autoplay = true
-
-      this.video.addEventListener('ended', () => (
-        this.nextVideo(this.video)
-      ))
-
-      // Create a texture from the video
-      const videoTexture = new THREE.VideoTexture(this.video)
-
-      // Create a plane geometry
-      const planeGeometry = new THREE.PlaneGeometry(window.innerWidth, window.innerHeight)
-
-      // Create a material with the video texture
-      const planeMaterial = new THREE.MeshBasicMaterial({ map: videoTexture })
-
-      // Create a mesh from the geometry and material
-      const plane = new THREE.Mesh(planeGeometry, planeMaterial)
-
-      // Position the plane behind all other objects in the scene
-      plane.position.z = 5
-
-      // Add the plane to the scene
-      this.scene.add(plane)
+      this.createVideoPlane(window.config.video.clips)
     }
+
+    window.addEventListener('videoClipsRestored', (e) => this.createVideoPlane(e.detail.clips))
 
     for( let level = 0; level < this.levels; level++ ) {
       for( let s = 0; s < this.layers; s++ ) {
@@ -134,12 +112,41 @@ export default class HopalongVisualizer {
     this.updateInterval = setInterval( () => { this.updateOrbit() }, 300)
   }
 
+  createVideoPlane(clips) {
+    this.video = document.createElement('video')
+    this.video.src = clips[0]
+    this.video.autoplay = true
+    window.config.video.index = 0
+
+    this.video.addEventListener('ended', () => this.nextVideo(this.video))
+
+    const videoTexture = new THREE.VideoTexture(this.video)
+    const planeGeometry = new THREE.PlaneGeometry(window.innerWidth, window.innerHeight)
+    const planeMaterial = new THREE.MeshBasicMaterial({ map: videoTexture })
+    this.videoPlane = new THREE.Mesh(planeGeometry, planeMaterial)
+    this.videoPlane.position.z = 5
+    this.scene.add(this.videoPlane)
+  }
+
   nextVideo(videoElement) {
+    const clips = window.config.video.clips
+    if (!clips.length) {
+      videoElement.pause()
+      videoElement.src = ''
+      if (this.videoPlane) {
+        this.scene.remove(this.videoPlane)
+        this.videoPlane.geometry.dispose()
+        this.videoPlane.material.map.dispose()
+        this.videoPlane.material.dispose()
+        this.videoPlane = null
+      }
+      return
+    }
     window.config.video.index++
-    if (window.config.video.index >= window.config.video.clips.length) {
+    if (window.config.video.index >= clips.length) {
       window.config.video.index = 0
     }
-    videoElement.src = window.config.video.clips[window.config.video.index]
+    videoElement.src = clips[window.config.video.index]
     videoElement.play()
   }
 

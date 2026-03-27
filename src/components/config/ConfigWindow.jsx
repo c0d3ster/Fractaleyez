@@ -4,24 +4,28 @@ import { Grid, Row, Col } from 'react-bootstrap'
 
 import Presets from '../presets/Presets'
 import ConfigCategory from './ConfigCategory'
+import ConfigVideo from './ConfigVideo'
 import { copyStyles } from '../../styles/AppStyleCopier.js'
 import { connectConfig, ConfigContext } from './context/ConfigProvider'
 
 // Renders inside the external window's React root, bridging ConfigContext from the main window
-const ExternalWindowBridge = ({ config, updateConfigItem, retrieveConfigPreset, resetConfig }) => (
-  <ConfigContext.Provider value={{ config, updateConfigItem, retrieveConfigPreset, resetConfig }}>
+const ExternalWindowBridge = ({ config, updateConfigItem, updateVideoClips, retrieveConfigPreset, resetConfig }) => (
+  <ConfigContext.Provider value={{ config, updateConfigItem, updateVideoClips, retrieveConfigPreset, resetConfig }}>
     <Grid>
       <Row>
         <Presets expanded />
       </Row>
       <Row>
         {Object.keys(config).map((category) => (
-          <Col sm={2} key={category}>
-            <ConfigCategory
-              name={category}
-              onChange={updateConfigItem}
-              isOpen={true}
-              toggleOpen={() => null} />
+          <Col sm={2} key={category} style={{ paddingLeft: '8px', paddingRight: '8px' }}>
+            {category === 'video'
+              ? <ConfigVideo isOpen={true} toggleOpen={() => null} />
+              : <ConfigCategory
+                name={category}
+                onChange={updateConfigItem}
+                isOpen={true}
+                toggleOpen={() => null} />
+            }
           </Col>
         ))}
       </Row>
@@ -29,7 +33,7 @@ const ExternalWindowBridge = ({ config, updateConfigItem, retrieveConfigPreset, 
   </ConfigContext.Provider>
 )
 
-const ConfigWindow = ({ config, updateConfigItem, retrieveConfigPreset, resetConfig, onClose }) => {
+const ConfigWindow = ({ config, updateConfigItem, updateVideoClips, retrieveConfigPreset, resetConfig, onClose }) => {
   const containerElRef = useRef(null)
 
   // Open the external window once on mount
@@ -57,12 +61,13 @@ const ConfigWindow = ({ config, updateConfigItem, retrieveConfigPreset, resetCon
       <ExternalWindowBridge
         config={config}
         updateConfigItem={updateConfigItem}
+        updateVideoClips={updateVideoClips}
         retrieveConfigPreset={retrieveConfigPreset}
         resetConfig={resetConfig}
       />,
       containerElRef.current
     )
-  }, [config, updateConfigItem, retrieveConfigPreset, resetConfig])
+  }, [config, updateConfigItem, updateVideoClips, retrieveConfigPreset, resetConfig])
 
   return null
 }

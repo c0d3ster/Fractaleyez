@@ -2,6 +2,7 @@
   display: flex;
   flex-direction: column;
   margin: 1rem;
+  margin-top: .5rem;
 }
 
 /* Pack filter tabs */
@@ -110,6 +111,10 @@
 }
 
 /* Expanded window overrides */
+.presets-container--expanded {
+  margin: 2.25rem;
+}
+
 .presets-container--expanded .preset-item {
   font-size: 1.35em;
 }

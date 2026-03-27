@@ -2,6 +2,7 @@ import React, { useState, useCallback } from 'react'
 import { Row, Col } from 'react-bootstrap'
 
 import ConfigCategory from '../config/ConfigCategory'
+import ConfigVideo from '../config/ConfigVideo'
 import { connectConfig } from './context/ConfigProvider'
 
 const ConfigAccordion = ({ config, updateConfigItem, canOpenMultiple }) => {
@@ -25,11 +26,14 @@ const ConfigAccordion = ({ config, updateConfigItem, canOpenMultiple }) => {
   return Object.keys(config).map((category) => (
     <Row key={category}>
       <Col>
-        <ConfigCategory
-          name={category}
-          onChange={updateConfigItem}
-          isOpen={isCategoryOpen(category)}
-          toggleOpen={toggleOpen} />
+        {category === 'video'
+          ? <ConfigVideo isOpen={isCategoryOpen(category)} toggleOpen={toggleOpen} />
+          : <ConfigCategory
+              name={category}
+              onChange={updateConfigItem}
+              isOpen={isCategoryOpen(category)}
+              toggleOpen={toggleOpen} />
+        }
       </Col>
     </Row>
   ))
