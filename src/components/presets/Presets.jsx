@@ -52,6 +52,7 @@ const PRESETS = [
   { name: 'garbageMonsters',      label: 'Garbage Monsters',      pack: 'Sprites' },
   // Elemental
   { name: 'fire',                 label: 'Fire',                  pack: 'Elemental' },
+  { name: 'ice',                  label: 'Ice',                   pack: 'Elemental' },
 ]
 
 const PACKS = ['All', 'Essentials', 'Galaxy', 'Emorfik', 'Sacred', 'Sprites', 'Elemental']
