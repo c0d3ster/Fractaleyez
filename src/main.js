@@ -1,7 +1,7 @@
 import { AudioSource } from './audiostream/audio-source'
 import { AudioStream } from './audiostream/audio-stream'
 import { AudioAnalyser } from './audioanalysis/audio-analyser'
-import HopalongManager from './visualization/hopalong-manager.js'
+import { HopalongManager } from './visualization/hopalong-manager'
 
 // Size of the fft transform performed on audio stream
 const FFT_SIZE = 512
