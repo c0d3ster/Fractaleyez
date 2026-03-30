@@ -3,21 +3,28 @@ import classNames from 'classnames'
 import { Grid, Row } from 'react-bootstrap'
 import './Sidebar.css'
 
-import Presets from '../presets/Presets'
-import ConfigAccordion from '../config/ConfigAccordion'
+import { Presets } from '../presets/Presets'
+import { ConfigAccordion } from '../config/ConfigAccordion'
 import { connectConfig } from '../config/context/ConfigProvider'
+import { AppConfig } from '../../config/configDefaults'
 
-const Sidebar = ({ config, setConfigWindow, configWindowVisible }) => {
-  const [sidebarVisible, setSidebarVisible] = useState(null)
+type SidebarProps = {
+  config: AppConfig
+  setConfigWindow: () => void
+  configWindowVisible: boolean
+}
+
+const SidebarInner = ({ config: _config, setConfigWindow, configWindowVisible }: SidebarProps): React.ReactElement => {
+  const [sidebarVisible, setSidebarVisible] = useState<boolean | null>(null)
   const [tabVisible, setTabVisible] = useState(true)
-  const hideTimerRef = useRef(null)
+  const hideTimerRef = useRef<ReturnType<typeof window.setTimeout> | null>(null)
 
-  const hideTabDelayed = useCallback((waitTime) => {
+  const hideTabDelayed = useCallback((waitTime: number | React.MouseEvent<HTMLDivElement>) => {
     if (!hideTimerRef.current) {
       hideTimerRef.current = window.setTimeout(() => {
         setTabVisible(false)
         hideTimerRef.current = null
-      }, Number.isInteger(waitTime) ? waitTime : 1000)
+      }, Number.isInteger(waitTime) ? (waitTime as number) : 1000)
     }
   }, [])
 
@@ -31,12 +38,12 @@ const Sidebar = ({ config, setConfigWindow, configWindowVisible }) => {
 
   const toggleSidebar = useCallback(() => setSidebarVisible((prev) => !prev), [])
 
-  const handleSetConfigWindow = useCallback(() => setConfigWindow(!configWindowVisible), [setConfigWindow, configWindowVisible])
+  const handleSetConfigWindow = useCallback(() => setConfigWindow(), [setConfigWindow])
 
   useEffect(() => {
     hideTabDelayed(5000)
 
-    const handleKeyUp = (e) => {
+    const handleKeyUp = (e: KeyboardEvent): void => {
       if (e.key === 'e') handleSetConfigWindow()
       else if (e.key === 'm') toggleSidebar()
     }
@@ -86,4 +93,4 @@ const Sidebar = ({ config, setConfigWindow, configWindowVisible }) => {
   )
 }
 
-export default connectConfig(Sidebar)
+export const Sidebar = connectConfig(SidebarInner)

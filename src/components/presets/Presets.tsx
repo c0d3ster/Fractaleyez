@@ -3,20 +3,29 @@ import { Row, Col } from 'react-bootstrap'
 import './Presets.css'
 
 import { connectConfig } from '../config/context/ConfigProvider'
+import { PresetRetrieveEvent } from '../config/context/ConfigProvider'
 import { presets } from '../../config/presets'
 
-const toLabel = (name) => name.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())
-const getPresetSprite = (name) => presets[name]?.particle?.sprites?.value?.[0] ?? 'fractaleye.png'
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const presetsAny = presets as Record<string, any>
+
+const toLabel = (name: string): string => name.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())
+const getPresetSprite = (name: string): string => presetsAny[name]?.particle?.sprites?.value?.[0] ?? 'fractaleye.png'
 
 const PRESETS = Object.keys(presets).map(name => ({
   name,
   label: toLabel(name),
-  pack: presets[name]?.pack ?? 'Other',
+  pack: (presetsAny[name]?.pack ?? 'Other') as string,
 }))
 
 const PACKS = ['All', ...new Set(PRESETS.map(p => p.pack))]
 
-const Presets = ({ retrieveConfigPreset, expanded = false }) => {
+type PresetsProps = {
+  retrieveConfigPreset: (event: PresetRetrieveEvent) => Promise<void>
+  expanded?: boolean
+}
+
+const PresetsInner = ({ retrieveConfigPreset, expanded = false }: PresetsProps): React.ReactElement => {
   const [activePack, setActivePack] = useState('All')
   const [page, setPage] = useState(0)
   const [paging, setPaging] = useState(false)
@@ -26,7 +35,7 @@ const Presets = ({ retrieveConfigPreset, expanded = false }) => {
   const totalPages = Math.ceil(filtered.length / itemsPerPage)
   const visible = filtered.slice(page * itemsPerPage, (page + 1) * itemsPerPage)
 
-  const changePage = useCallback((next) => {
+  const changePage = useCallback((next: number) => {
     setPaging(true)
     setTimeout(() => {
       setPage(next)
@@ -34,7 +43,7 @@ const Presets = ({ retrieveConfigPreset, expanded = false }) => {
     }, 150)
   }, [])
 
-  const selectPack = (pack) => {
+  const selectPack = (pack: string): void => {
     setActivePack(pack)
     setPage(0)
   }
@@ -59,7 +68,7 @@ const Presets = ({ retrieveConfigPreset, expanded = false }) => {
               key={name}
               className='preset-item'
               data-name={name}
-              onClick={retrieveConfigPreset}
+              onClick={retrieveConfigPreset as React.MouseEventHandler<HTMLButtonElement>}
             >
               <img src={`/${getPresetSprite(name)}`} alt='' className='preset-sprite' />
               <span>{label}</span>
@@ -88,4 +97,4 @@ const Presets = ({ retrieveConfigPreset, expanded = false }) => {
   )
 }
 
-export default connectConfig(Presets)
+export const Presets = connectConfig(PresetsInner)

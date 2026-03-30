@@ -2,14 +2,16 @@ import React, { useEffect, useRef } from 'react'
 import ReactDOM from 'react-dom'
 import { Grid, Row, Col } from 'react-bootstrap'
 
-import Presets from '../presets/Presets'
-import ConfigCategory from './ConfigCategory'
-import ConfigVideo from './ConfigVideo'
+import { Presets } from '../presets/Presets'
+import { ConfigCategory } from './ConfigCategory'
+import { ConfigVideo } from './ConfigVideo'
 import { copyStyles } from '../../styles/AppStyleCopier.js'
-import { connectConfig, ConfigContext } from './context/ConfigProvider'
+import { connectConfig, ConfigContext, ConfigContextValue } from './context/ConfigProvider'
+
+type ExternalWindowBridgeProps = ConfigContextValue
 
 // Renders inside the external window's React root, bridging ConfigContext from the main window
-const ExternalWindowBridge = ({ config, updateConfigItem, updateVideoClips, retrieveConfigPreset, resetConfig }) => (
+const ExternalWindowBridge = ({ config, updateConfigItem, updateVideoClips, retrieveConfigPreset, resetConfig }: ExternalWindowBridgeProps): React.ReactElement => (
   <ConfigContext.Provider value={{ config, updateConfigItem, updateVideoClips, retrieveConfigPreset, resetConfig }}>
     <Grid>
       <Row>
@@ -33,8 +35,12 @@ const ExternalWindowBridge = ({ config, updateConfigItem, updateVideoClips, retr
   </ConfigContext.Provider>
 )
 
-const ConfigWindow = ({ config, updateConfigItem, updateVideoClips, retrieveConfigPreset, resetConfig, onClose }) => {
-  const containerElRef = useRef(null)
+type ConfigWindowProps = ConfigContextValue & {
+  onClose: () => void
+}
+
+const ConfigWindowInner = ({ config, updateConfigItem, updateVideoClips, retrieveConfigPreset, resetConfig, onClose }: ConfigWindowProps): null => {
+  const containerElRef = useRef<HTMLDivElement | null>(null)
 
   // Open the external window once on mount
   useEffect(() => {
@@ -49,15 +55,17 @@ const ConfigWindow = ({ config, updateConfigItem, updateVideoClips, retrieveConf
     copyStyles(document, externalWindow.document)
 
     return () => {
-      ReactDOM.unmountComponentAtNode(container)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ;(ReactDOM as any).unmountComponentAtNode(container)
       externalWindow.close()
     }
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Re-render the external root whenever config changes, keeping both windows in sync
   useEffect(() => {
     if (!containerElRef.current) return
-    ReactDOM.render(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(ReactDOM as any).render(
       <ExternalWindowBridge
         config={config}
         updateConfigItem={updateConfigItem}
@@ -72,4 +80,4 @@ const ConfigWindow = ({ config, updateConfigItem, updateVideoClips, retrieveConf
   return null
 }
 
-export default connectConfig(ConfigWindow)
+export const ConfigWindow = connectConfig(ConfigWindowInner)

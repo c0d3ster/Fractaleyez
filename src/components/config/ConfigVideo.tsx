@@ -3,11 +3,19 @@ import './Checkbox.css'
 import './ConfigCategory.css'
 
 import { connectConfig } from './context/ConfigProvider'
+import { AppConfig } from '../../config/configDefaults'
 
-const ConfigVideo = ({ config, updateVideoClips, isOpen, toggleOpen }) => {
+type ConfigVideoProps = {
+  config: AppConfig
+  updateVideoClips: (clips: string[]) => void
+  isOpen: boolean
+  toggleOpen: (name: string) => void
+}
+
+const ConfigVideoInner = ({ config, updateVideoClips, isOpen, toggleOpen }: ConfigVideoProps): React.ReactElement => {
   const { clips, allClips = clips } = config.video
 
-  const toggle = (clip) => {
+  const toggle = (clip: string): void => {
     const isActive = clips.includes(clip)
     const next = isActive ? clips.filter(c => c !== clip) : [...clips, clip]
     updateVideoClips(next)
@@ -35,4 +43,4 @@ const ConfigVideo = ({ config, updateVideoClips, isOpen, toggleOpen }) => {
   )
 }
 
-export default connectConfig(ConfigVideo)
+export const ConfigVideo = connectConfig(ConfigVideoInner)

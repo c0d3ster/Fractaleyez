@@ -2,12 +2,21 @@ import React, { useCallback } from 'react'
 import classNames from 'classnames'
 import './ConfigCategory.css'
 
-import ConfigSlider from './ConfigSlider'
-import ConfigCheckbox from './ConfigCheckbox'
+import { ConfigSlider } from './ConfigSlider'
+import { ConfigCheckbox } from './ConfigCheckbox'
 import { connectConfig } from './context/ConfigProvider'
+import { AppConfig, ConfigItem, SliderItem } from '../../config/configDefaults'
 
-const ConfigCategory = React.memo(({ name, config, isOpen, toggleOpen, onChange }) => {
-  const handleChange = useCallback((event) => {
+type ConfigCategoryProps = {
+  name: string
+  config: AppConfig
+  isOpen: boolean
+  toggleOpen: (name: string) => void
+  onChange: (category: string, item: string, value: string | boolean) => void
+}
+
+const ConfigCategoryInner = React.memo(({ name, config, isOpen, toggleOpen, onChange }: ConfigCategoryProps) => {
+  const handleChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const target = event.target
     const item = target.name
     const value = target.type === 'checkbox' ? target.checked : target.value
@@ -22,14 +31,17 @@ const ConfigCategory = React.memo(({ name, config, isOpen, toggleOpen, onChange 
     'hide-content': !isOpen
   })
 
+  const categoryConfig = (config as unknown as Record<string, Record<string, ConfigItem>>)[name] ?? {}
+
   return (
     <div className='category-container'>
       <h3 className='category-title' onClick={handleToggle}>
         {name} config
       </h3>
       <div className={categoryContentClasses}>
-        {Object.keys(config[name]).map((configItem) => {
-          const { type, name: label, value, min, max, step } = config[name][configItem]
+        {Object.keys(categoryConfig).map((configItem) => {
+          const item = categoryConfig[configItem]!
+          const { type, name: label, value } = item
 
           if (type === 'checkbox') {
             return (
@@ -37,18 +49,19 @@ const ConfigCategory = React.memo(({ name, config, isOpen, toggleOpen, onChange 
                 name={configItem}
                 label={label}
                 key={configItem}
-                checked={value}
+                checked={value as boolean}
                 onChange={handleChange}
               />
             )
           }
           if (type === 'slider') {
+            const { min, max, step } = item as SliderItem
             return (
               <ConfigSlider
                 name={configItem}
                 label={label}
                 key={configItem}
-                value={value}
+                value={value as number}
                 min={min}
                 max={max}
                 step={step}
@@ -63,4 +76,4 @@ const ConfigCategory = React.memo(({ name, config, isOpen, toggleOpen, onChange 
   )
 })
 
-export default connectConfig(ConfigCategory)
+export const ConfigCategory = connectConfig(ConfigCategoryInner)
