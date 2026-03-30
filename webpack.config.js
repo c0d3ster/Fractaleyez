@@ -5,7 +5,7 @@ const APP_DIR = path.join( __dirname, 'src' )
 
 module.exports = {
   // with webpack 4 entry and output configuration is optional
-  entry: ['@babel/polyfill', APP_DIR + '/index.jsx'],
+  entry: ['@babel/polyfill', APP_DIR + '/index.tsx'],
   output:
   {
     path: BUILD_DIR,

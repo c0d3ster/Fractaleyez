@@ -8,28 +8,28 @@ const FFT_SIZE = 512
 
 // Create the audio components required for analysis
 const audiosource = new AudioSource()
-const audiostream = new AudioStream( audiosource, FFT_SIZE )
-const audioAnalyser = new AudioAnalyser( audiostream.getBufferSize() )
+const audiostream = new AudioStream(audiosource, FFT_SIZE)
+const audioAnalyser = new AudioAnalyser(audiostream.getBufferSize())
 
 // Create the Visualization Manager
 const hopalongManager = new HopalongManager()
 
 // Create timing mechanism
-let startTimer = null
-let lastFrameTimer = null
+let startTimer: Date | null = null
+let lastFrameTimer: Date | null = null
 
 // Initialize variables to track mouse movement and hide mouse after timeout
-let idleMouseTimer = 0
+let idleMouseTimer: ReturnType<typeof setTimeout> | number = 0
 let forceMouseHide = false
 let idleSoundTimer = 0
 
 // Intiatialize Mic input stream & then set up Audio Analysis
-export const initWithMicrophone = () => {
+export const initWithMicrophone = (): void => {
   audiosource.getStreamFromMicrophone(false).then(init) // set input to be from mic by default
 }
 
 // Set up the Audio Analysis, Visualization manager
-const init = () => {
+const init = (): void => {
   hideCursorOnInactivity()
 
   audiostream.init()
@@ -41,15 +41,16 @@ const init = () => {
   analyze()
 }
 
-const hideCursorOnInactivity = () => {
-  document.addEventListener('mousemove', (ev) => {
+const hideCursorOnInactivity = (): void => {
+  document.addEventListener('mousemove', () => {
     const canvas = document.getElementsByTagName('canvas')
-    if(!forceMouseHide) {
-      canvas[0].style.cursor = 'crosshair'
+    const el = canvas[0]
+    if (!forceMouseHide && el) {
+      el.style.cursor = 'crosshair'
 
-      clearTimeout(idleMouseTimer)
+      clearTimeout(idleMouseTimer as number)
       idleMouseTimer = setTimeout(() => {
-        canvas[0].style.cursor = 'none'
+        if (el) el.style.cursor = 'none'
 
         forceMouseHide = true
         setTimeout(() => {
@@ -61,27 +62,19 @@ const hideCursorOnInactivity = () => {
 }
 
 // This function will be called in a loop for each frame
-const analyze = () => {
-  window.requestAnimationFrame( analyze )
+const analyze = (): void => {
+  window.requestAnimationFrame(analyze)
 
-  // console.info("Analyzing Audio Data...");
   const currentTimer = new Date()
-  const deltaTime    = currentTimer - lastFrameTimer
+  const deltaTime = currentTimer.getTime() - lastFrameTimer!.getTime()
 
   // Send the audio data to the analyser for analysis
-  audioAnalyser.analyse( audiostream.getAudioData(), deltaTime, currentTimer )
-  const analysedData = audioAnalyser.getAnalysedData() // we get the analysed data
+  audioAnalyser.analyse(audiostream.getAudioData(), deltaTime, currentTimer)
+  const analysedData = audioAnalyser.getAnalysedData()
 
-  // console.info("Analyzed Data:\nTime Domain Data = " + analysedData.getTimedomainData());
-  // console.info("\nFrequencies Data = " + analysedData.getFrequenciesData());
-  // console.info("\nEnergy Data = " + analysedData.getEnergy());
-  // console.info("\nEnergy Average = " + analysedData.getEnergyAverage());
-  // console.info("\nMultiBand Energy = " + analysedData.getMultibandEnergy());
-  // console.info("\npeak.value = " + analysedData.peak.value);
-  // console.info("\npeak.energy = " + analysedData.peak.energy);
-  if(!analysedData.getEnergy()) { // if the user hasnt clicked the page, the audio context wont be allowed to start automatically
+  if (!analysedData.getEnergy()) { // if the user hasnt clicked the page, the audio context wont be allowed to start automatically
     idleSoundTimer++
-    if(idleSoundTimer > 100) {
+    if (idleSoundTimer > 100) {
       console.info('retrying sound')
       idleSoundTimer = 0
       audiosource.getAudioContext().resume()
@@ -89,6 +82,6 @@ const analyze = () => {
   }
 
   // feed data to our visualization manager for next frame
-  hopalongManager.update( deltaTime, analysedData )
+  hopalongManager.update(deltaTime, audioAnalyser.getAnalysedDataForVisualization())
   lastFrameTimer = currentTimer
 }
