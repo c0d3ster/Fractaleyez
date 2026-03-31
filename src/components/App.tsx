@@ -29,5 +29,3 @@ const AppInner = (): React.ReactElement => {
 }
 
 export const App = connectConfig(AppInner)
-// default export retained for index.jsx compatibility (remove in Phase 5)
-export default App

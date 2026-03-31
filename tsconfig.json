@@ -2,7 +2,6 @@
   "compilerOptions": {
     // Output — babel handles transpilation, tsc is type-check only
     "noEmit": true,
-    "allowJs": true,
 
     // Language
     "target": "ES2017",

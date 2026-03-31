@@ -5,7 +5,7 @@ import { Grid, Row, Col } from 'react-bootstrap'
 import { Presets } from '../presets/Presets'
 import { ConfigCategory } from './ConfigCategory'
 import { ConfigVideo } from './ConfigVideo'
-import { copyStyles } from '../../styles/AppStyleCopier.js'
+import { copyStyles } from '../../styles/AppStyleCopier'
 import { connectConfig, ConfigContext, ConfigContextValue } from './context/ConfigProvider'
 
 type ExternalWindowBridgeProps = ConfigContextValue
