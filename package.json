@@ -6,7 +6,7 @@
   "scripts": {
     "build-dev": "webpack --mode development --watch",
     "client-dev": "webpack-dev-server --mode development --content-base public/",
-    "server-dev": "node server-dev.mjs",
+    "server-dev": "node server-dev.js",
     "build": "webpack --mode production",
     "start": "yarn build && supervisor server.js",
     "dev": "concurrently --kill-others \"yarn server-dev\" \"yarn client-dev\"",
@@ -42,6 +42,7 @@
     "@babel/preset-env": "^7.1.5",
     "@babel/preset-react": "^7.0.0",
     "@babel/preset-typescript": "^7.28.5",
+    "@babel/register": "^7.28.6",
     "@types/classnames": "^2.3.4",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
@@ -78,5 +79,8 @@
   "bugs": {
     "url": "https://github.com/c0d3ster/Fractaleyez/issues"
   },
-  "homepage": "https://github.com/c0d3ster/Fractaleyez#readme"
+  "homepage": "https://github.com/c0d3ster/Fractaleyez#readme",
+  "resolutions": {
+    "@types/minimatch": "5.1.2"
+  }
 }

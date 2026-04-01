@@ -34,11 +34,10 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
 
   useEffect(() => {
     const stored = localStorage.getItem('presets')
-    const localPresets = stored ? (JSON.parse(stored) as Record<string, unknown>) : null
-    const hasNewPresets = !localPresets || Object.keys(presets).some(key => !localPresets[key])
-    if (hasNewPresets) {
-      localStorage.setItem('presets', JSON.stringify(presets))
-    }
+    const localPresets = stored ? (JSON.parse(stored) as Record<string, unknown>) : {}
+    // Always sync bundled presets into localStorage so updates to presets.ts are picked up.
+    // API-fetched presets (future MongoDB) are preserved if not present in the bundle.
+    localStorage.setItem('presets', JSON.stringify({ ...localPresets, ...presets }))
   }, [])
 
   const updateConfigItem = useCallback((category: string, item: string, value: string | boolean | number) => {
@@ -87,26 +86,37 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let cfg: any
-    try {
-      cfg = retrieveCachedPreset(name)
 
-      if (!cfg) {
+    cfg = retrieveCachedPreset(name)
+
+    if (!cfg) {
+      try {
         const result = await axios.get(`/api/getConfig/${name}`)
         cfg = result.data
+        const stored = localStorage.getItem('presets')
+        const cached = stored ? (JSON.parse(stored) as Record<string, unknown>) : {}
+        localStorage.setItem('presets', JSON.stringify({ ...cached, [name]: cfg }))
+      } catch {
+        cfg = (presets as Record<string, unknown>)[name] ?? null
+        if (!cfg) {
+          console.error(`Preset "${name}" not found locally or via API`)
+          return
+        }
+        console.warn(`Using bundled preset for "${name}" (offline fallback)`)
       }
-    } catch (error) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const errorMessage = (error as any).response?.data || (error as any).message
-      console.error(`Error retrieving ${name} preset: ${errorMessage}`)
-      return
     }
 
-    if (cfg.video && !cfg.video.allClips) {
-      cfg = { ...cfg, video: { ...cfg.video, allClips: cfg.video.clips } }
+    // Strip metadata fields that aren't part of AppConfig
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const cfgAny = cfg as Record<string, any>
+    delete cfgAny['pack']
+
+    if (cfgAny['video'] && !cfgAny['video'].allClips) {
+      cfgAny['video'] = { ...cfgAny['video'], allClips: cfgAny['video'].clips }
     }
 
-    setConfig(cfg as AppConfig)
-    window.config = cfg as AppConfig
+    setConfig(cfgAny as AppConfig)
+    window.config = cfgAny as AppConfig
   }, [retrieveCachedPreset])
 
   const resetConfig = useCallback(
