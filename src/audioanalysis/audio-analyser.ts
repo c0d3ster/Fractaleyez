@@ -71,7 +71,11 @@ export class AudioAnalyser {
     }
 
     if (config.options.returns.peakHistory !== config.options.returns.multibandPeakHistory) {
-      if (UserConfig.showerrors) console.error('Due to the conception of the analyser, the ')
+      if (UserConfig.showerrors) {
+        console.error(
+          'peakHistory and multibandPeakHistory must match in the analyser config (both enabled or both disabled).'
+        )
+      }
     }
 
     if (!config.options.multibandPeakDetection.enabled) {

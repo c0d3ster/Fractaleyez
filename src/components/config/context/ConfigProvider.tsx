@@ -70,11 +70,22 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
 
   const updateVideoClips = useCallback((clips: string[]) => {
     setConfig((prev) => {
-      const wasEmpty = !prev.video.clips.length
-      const next = { ...prev, video: { ...prev.video, clips } }
+      const hadClips = prev.video.clips.length > 0
+      const hasClips = clips.length > 0
+      let video = { ...prev.video, clips }
+      if (!hasClips) {
+        video = { ...video, index: 0 }
+      } else if (video.index >= clips.length) {
+        video = { ...video, index: clips.length - 1 }
+      }
+      const next = { ...prev, video } as AppConfig
       window.config = next
-      if (wasEmpty && clips.length) {
+      // Only (re)create or tear down the WebGL video plane when clips go on/off.
+      // If we dispatched on every checkbox change, createVideoPlane would restart playback.
+      if (!hadClips && hasClips) {
         window.dispatchEvent(new CustomEvent('videoClipsRestored', { detail: { clips } }))
+      } else if (hadClips && !hasClips) {
+        window.dispatchEvent(new CustomEvent('videoClipsRestored', { detail: { clips: [] } }))
       }
       return next
     })
@@ -103,6 +114,7 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
           return
         }
         console.warn(`Using bundled preset for "${name}" (offline fallback)`)
+        cfg = structuredClone(cfg)
       }
     }
 

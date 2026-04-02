@@ -19,6 +19,7 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noImplicitOverride": true,
+    "isolatedModules": true,
 
     // Interop
     "skipLibCheck": true,

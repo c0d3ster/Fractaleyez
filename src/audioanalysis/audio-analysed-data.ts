@@ -121,8 +121,8 @@ export class AudioAnalysedData {
     for (let i = this.energyHistoryDeltaTime.length - 1; i >= 0; i--) {
       deltaTimeSum += this.energyHistoryDeltaTime[i] ?? 0
       if (deltaTimeSum >= AnalyserConfig.options.peakDetection.options.energyPersistence) {
-        this.energyHistoryDeltaTime.splice(0, i - 1)
-        this.energyHistory.splice(0, i - 1)
+        this.energyHistoryDeltaTime.splice(0, i)
+        this.energyHistory.splice(0, i)
         break
       }
     }
@@ -145,8 +145,8 @@ export class AudioAnalysedData {
     for (let i = this.multibandEnergyHistory.length - 1; i >= 0; i--) {
       deltaTimeSum += this.multibandEnergyHistoryDeltaTime[i] ?? 0
       if (deltaTimeSum >= AnalyserConfig.options.multibandPeakDetection.options.energyPersistence) {
-        this.multibandEnergyHistory.splice(0, i - 1)
-        this.multibandEnergyHistoryDeltaTime.splice(0, i - 1)
+        this.multibandEnergyHistory.splice(0, i)
+        this.multibandEnergyHistoryDeltaTime.splice(0, i)
         break
       }
     }

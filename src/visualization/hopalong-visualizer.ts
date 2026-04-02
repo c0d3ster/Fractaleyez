@@ -49,6 +49,15 @@ export class HopalongVisualizer {
   orbit: { subsets: SubsetPoint[][]; xMin: number; xMax: number; yMin: number; yMax: number; scaleX: number; scaleY: number }
   private updateInterval: number
 
+  private onVideoClipsRestored = (e: Event): void => {
+    const ce = e as CustomEvent<{ clips: string[] }>
+    this.createVideoPlane(ce.detail.clips)
+  }
+
+  private onVideoEnded = (): void => {
+    if (this.video) this.nextVideo(this.video)
+  }
+
   constructor() {
     this.particlesPerLayer = window.config.particle.particlesPerLayer.value
     this.layers = window.config.particle.layers.value
@@ -96,10 +105,7 @@ export class HopalongVisualizer {
       this.createVideoPlane(window.config.video.clips)
     }
 
-    window.addEventListener('videoClipsRestored', (e) => {
-      const ce = e as CustomEvent<{ clips: string[] }>
-      this.createVideoPlane(ce.detail.clips)
-    })
+    window.addEventListener('videoClipsRestored', this.onVideoClipsRestored)
 
     for (let level = 0; level < this.levels; level++) {
       for (let s = 0; s < this.layers; s++) {
@@ -139,12 +145,15 @@ export class HopalongVisualizer {
   }
 
   createVideoPlane(clips: string[]): void {
+    this.disposeVideoPlane()
+    if (!clips.length) return
+
     this.video = document.createElement('video')
     this.video.src = clips[0]!
     this.video.autoplay = true
     window.config.video.index = 0
 
-    this.video.addEventListener('ended', () => this.nextVideo(this.video!))
+    this.video.addEventListener('ended', this.onVideoEnded)
 
     const videoTexture = new THREE.VideoTexture(this.video)
     const planeGeometry = new THREE.PlaneGeometry(window.innerWidth, window.innerHeight)
@@ -159,14 +168,7 @@ export class HopalongVisualizer {
     if (!clips.length) {
       videoElement.pause()
       videoElement.src = ''
-      if (this.videoPlane) {
-        this.scene.remove(this.videoPlane)
-        this.videoPlane.geometry.dispose()
-        const mat = this.videoPlane.material as THREE.MeshBasicMaterial
-        mat.map?.dispose()
-        mat.dispose()
-        this.videoPlane = null
-      }
+      this.disposeVideoPlane()
       return
     }
     window.config.video.index++
@@ -374,17 +376,31 @@ export class HopalongVisualizer {
   }
 
   destroyVisualization(): void {
+    window.removeEventListener('videoClipsRestored', this.onVideoClipsRestored)
     clearInterval(this.updateInterval)
+    this.disposeVideoPlane()
     this.disposeScene(this.scene)
   }
 
-  disposeScene(scene: THREE.Scene): void {
+  disposeVideoPlane(): void {
+    if (this.videoPlane) {
+      this.scene.remove(this.videoPlane)
+      this.videoPlane.geometry.dispose()
+      const mat = this.videoPlane.material as THREE.MeshBasicMaterial
+      mat.map?.dispose()
+      mat.dispose()
+      this.videoPlane = null
+    }
     if (this.video) {
-      console.info(this.video)
+      this.video.removeEventListener('ended', this.onVideoEnded)
       this.video.pause()
-      this.video.remove()
+      this.video.removeAttribute('src')
+      this.video.load()
       this.video = null
     }
+  }
+
+  disposeScene(scene: THREE.Scene): void {
 
     if ((scene as unknown as { geometries?: THREE.BufferGeometry[] }).geometries) {
       (scene as unknown as { geometries: THREE.BufferGeometry[] }).geometries.forEach((geometry) => {
