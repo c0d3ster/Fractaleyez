@@ -17,7 +17,12 @@ export const connectDB = async (): Promise<typeof mongoose> => {
     globalForMongoose.mongoose.promise = mongoose.connect(requireEnv.MONGO_URI())
   }
 
-  globalForMongoose.mongoose.conn = await globalForMongoose.mongoose.promise
+  try {
+    globalForMongoose.mongoose.conn = await globalForMongoose.mongoose.promise
+  } catch (err) {
+    globalForMongoose.mongoose.promise = null
+    throw err
+  }
   console.info('MongoDB connected')
   return globalForMongoose.mongoose.conn
 }

@@ -28,6 +28,9 @@ app.get('/api/getConfig/:name', async (req, res) => {
   res.send(preset.config)
 })
 
-connectDB().then(() => {
-  app.listen(8080, () => console.info('Listening on port 8080!'))
-})
+connectDB()
+  .then(() => app.listen(8080, () => console.info('Listening on port 8080!')))
+  .catch(err => {
+    console.error('Failed to connect to MongoDB:', err)
+    process.exit(1)
+  })

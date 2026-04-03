@@ -5,6 +5,7 @@ import './Presets.css'
 
 import { connectConfig } from '../config/context/ConfigProvider'
 import { PresetRetrieveEvent } from '../config/context/ConfigProvider'
+import { presets as bundledPresets } from '../../config/presets'
 
 type PresetMeta = {
   name: string
@@ -35,7 +36,17 @@ const PresetsInner = ({ retrieveConfigPreset, expanded = false }: PresetsProps):
   useEffect(() => {
     axios.get<ApiPreset[]>('/api/getPresets')
       .then(({ data }) => setPresets(data.map(p => ({ ...p, label: toLabel(p.name) }))))
-      .catch(err => console.error('Failed to load presets', err))
+      .catch(err => {
+        console.error('Failed to load presets from API, falling back to bundled', err)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const bundled = Object.entries(bundledPresets).map(([name, data]: [string, any]) => ({
+          name,
+          label: toLabel(name),
+          pack: (data.pack ?? '') as string,
+          sprite: (data.particle?.sprites?.value?.[0] ?? 'fractaleye.png') as string,
+        }))
+        setPresets(bundled)
+      })
   }, [])
 
   const packs = ['All', ...new Set(presets.map(p => p.pack))]

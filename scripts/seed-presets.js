@@ -21,7 +21,7 @@ const seed = async () => {
     await Preset.findOneAndUpdate(
       { name },
       { name, pack: data.pack ?? '', sprite, config: data },
-      { upsert: true, new: true }
+      { upsert: true, new: true, runValidators: true }
     )
     console.info(`Seeded: ${name}`)
   }
