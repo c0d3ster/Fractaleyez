@@ -17,6 +17,9 @@ ssl/
 # In Case iOS makes these extra files, ignore them
 *.DS_Store
 
+# Env
+.env
+
 # Claude Code
 .claude/
 drive-download-*

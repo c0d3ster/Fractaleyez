@@ -116,11 +116,11 @@
 }
 
 .presets-container--expanded .preset-item {
-  font-size: 1.35em;
+  font-size: 1.2em;
 }
 
 .presets-container--expanded .pack-tab,
 .presets-container--expanded .pagination-arrow,
 .presets-container--expanded .pagination-label {
-  font-size: 1.15em;
+  font-size: 1em;
 }

@@ -33,11 +33,9 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
   })
 
   useEffect(() => {
-    const stored = localStorage.getItem('presets')
-    const localPresets = stored ? (JSON.parse(stored) as Record<string, unknown>) : {}
-    // Always sync bundled presets into localStorage so updates to presets.ts are picked up.
-    // API-fetched presets (future MongoDB) are preserved if not present in the bundle.
-    localStorage.setItem('presets', JSON.stringify({ ...localPresets, ...presets }))
+    if (!localStorage.getItem('presets')) {
+      localStorage.setItem('presets', JSON.stringify(presets))
+    }
   }, [])
 
   const updateConfigItem = useCallback((category: string, item: string, value: string | boolean | number) => {
