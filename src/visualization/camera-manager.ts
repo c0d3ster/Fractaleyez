@@ -1,5 +1,7 @@
 import * as THREE from 'three'
 
+import { userConfig } from '../config/user.config'
+
 export class CameraManager {
   camera: THREE.PerspectiveCamera | null
   cameraBound: number
@@ -20,9 +22,19 @@ export class CameraManager {
   }
 
   init(): void {
-    this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1, 3 * window.config.user.scaleFactor.value)
-    this.camera.position.z = window.config.user.scaleFactor.value / 3
+    // Keep camera distance fixed to the default scale framing. Tying position.z to the
+    // live scale slider dolly-zooms the whole scene (including the fullscreen video at z≈5).
+    const defaultScale = userConfig.scaleFactor_DEFAULT
+    const cameraZ = defaultScale / 3
+    const far = CameraManager.farForScale(window.config.user.scaleFactor.value)
+    this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1, far)
+    this.camera.position.z = cameraZ
     this.cameraBound = window.config.user.cameraBound.value
+  }
+
+  private static farForScale(scaleFactor: number): number {
+    // Always deep enough for the fixed camera + background video; still grows with scale for particles.
+    return Math.max(3 * scaleFactor, 3 * userConfig.scaleFactor_DEFAULT)
   }
 
   getMouseX(): number {
@@ -55,6 +67,12 @@ export class CameraManager {
       this.camera!.position.y = 0
       this.camera!.position.x = 0
       this.cameraBound = window.config.user.cameraBound.value
+    }
+
+    const nextFar = CameraManager.farForScale(window.config.user.scaleFactor.value)
+    if (this.camera!.far !== nextFar) {
+      this.camera!.far = nextFar
+      this.camera!.updateProjectionMatrix()
     }
   }
 

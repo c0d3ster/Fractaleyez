@@ -25,7 +25,13 @@ let idleSoundTimer = 0
 
 // Intiatialize Mic input stream & then set up Audio Analysis
 export const initWithMicrophone = (): void => {
-  audiosource.getStreamFromMicrophone(false).then(init) // set input to be from mic by default
+  audiosource
+    .getStreamFromMicrophone(false)
+    .then(init)
+    .catch((err) => {
+      console.error('Microphone setup failed:', err)
+      init()
+    })
 }
 
 // Set up the Audio Analysis, Visualization manager

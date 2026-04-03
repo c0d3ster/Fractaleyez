@@ -58,25 +58,39 @@ export class AudioSource {
     this.audioFeedback = typeof audioFeedback === 'undefined' ? false : audioFeedback
 
     return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        console.info('Microphone Attempt Timeout')
-        resolve()
-      }, 2000)
-      if (navigator.mediaDevices) {
-        navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
-          console.info('inside callback')
-          this.source = this.audioContext.createMediaStreamSource(stream)
-          this.sourceType = 'microphone'
-          if (UserConfig.showloginfos) console.info('Audio stream is coming from microphone')
-          resolve()
-        }).catch((error) => {
-          if (UserConfig.showerrors) console.error(`The following gUM error occured: ${error}`)
-          reject(`The following gUM error occured: ${error}`)
-        })
-      } else {
+      if (!navigator.mediaDevices) {
         if (UserConfig.showerrors) console.info('getUserMedia is not supported on this browser')
-        reject('getUserMedia is not supported on this browser')
+        reject(new Error('getUserMedia is not supported on this browser'))
+        return
       }
+
+      const timeoutMs = 30000
+      let timeoutId: ReturnType<typeof setTimeout> | undefined
+
+      const clearWait = (): void => {
+        if (timeoutId !== undefined) {
+          clearTimeout(timeoutId)
+          timeoutId = undefined
+        }
+      }
+
+      timeoutId = setTimeout(() => {
+        timeoutId = undefined
+        if (UserConfig.showloginfos) console.info('Microphone attempt timed out')
+        reject(new Error('Microphone getUserMedia timed out'))
+      }, timeoutMs)
+
+      navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
+        clearWait()
+        this.source = this.audioContext.createMediaStreamSource(stream)
+        this.sourceType = 'microphone'
+        if (UserConfig.showloginfos) console.info('Audio stream is coming from microphone')
+        resolve()
+      }).catch((error) => {
+        clearWait()
+        if (UserConfig.showerrors) console.error(`The following gUM error occured: ${error}`)
+        reject(error)
+      })
     })
   }
 

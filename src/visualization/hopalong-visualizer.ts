@@ -1,7 +1,12 @@
 import * as THREE from 'three'
 
 import { AudioAnalysedDataForVisualization } from '../audioanalysis/audio-analysed-data'
-import { CameraManager } from './camera-manager'
+import { userConfig } from '../config/user.config'
+
+/** Matches CameraManager: fixed viewer distance from default scale (not the live slider). */
+const VIEW_CAMERA_Z = userConfig.scaleFactor_DEFAULT / 3
+/** Far behind particle z so the plane stays a true backdrop (particles can reach z ≈ scaleFactor/2). */
+const VIDEO_BACKGROUND_Z = -4800
 
 /*
  * ORIGINAL AUTHOR: Iacopo Sassarini
@@ -156,10 +161,14 @@ export class HopalongVisualizer {
     this.video.addEventListener('ended', this.onVideoEnded)
 
     const videoTexture = new THREE.VideoTexture(this.video)
-    const planeGeometry = new THREE.PlaneGeometry(window.innerWidth, window.innerHeight)
+    const dist = VIEW_CAMERA_Z - VIDEO_BACKGROUND_Z
+    const fovRad = (60 * Math.PI) / 180
+    const planeH = 2 * Math.tan(fovRad / 2) * dist
+    const planeW = planeH * (window.innerWidth / window.innerHeight)
+    const planeGeometry = new THREE.PlaneGeometry(planeW, planeH)
     const planeMaterial = new THREE.MeshBasicMaterial({ map: videoTexture })
     this.videoPlane = new THREE.Mesh(planeGeometry, planeMaterial)
-    this.videoPlane.position.z = 5
+    this.videoPlane.position.z = VIDEO_BACKGROUND_Z
     this.scene.add(this.videoPlane)
   }
 
@@ -179,15 +188,15 @@ export class HopalongVisualizer {
     videoElement.play()
   }
 
-  update(deltaTime: number, audioData: AudioAnalysedDataForVisualization, renderer: THREE.WebGLRenderer, cameraManager: CameraManager): void {
-    if (audioData.peak!.value > 0.8) {
+  update(deltaTime: number, audioData: AudioAnalysedDataForVisualization): void {
+    if ((audioData.peak?.value ?? 0) > 0.8) {
       this.audioPeak = true
     }
 
     this.deltaTime = deltaTime
     this.elapsedTime += deltaTime
 
-    const musicSpeed = (audioData.energyAverage! + audioData.energy!)
+    const musicSpeed = (audioData.energyAverage ?? 0) + (audioData.energy ?? 0)
     const musicSpeedMultiplier = 1 + musicSpeed / 10
 
     let count = 0
@@ -241,7 +250,6 @@ export class HopalongVisualizer {
       }
       count++
     })
-    renderer.render(this.scene, cameraManager.getCamera())
   }
 
   getScene(): THREE.Scene {
@@ -401,29 +409,30 @@ export class HopalongVisualizer {
   }
 
   disposeScene(scene: THREE.Scene): void {
+    scene.traverse((object) => {
+      if (
+        object instanceof THREE.Mesh
+        || object instanceof THREE.Points
+        || object instanceof THREE.Line
+        || object instanceof THREE.LineSegments
+      ) {
+        object.geometry?.dispose()
+        const mat = object.material
+        if (Array.isArray(mat)) {
+          mat.forEach((m) => this.disposeMaterial(m))
+        } else if (mat) {
+          this.disposeMaterial(mat)
+        }
+      }
+    })
+  }
 
-    if ((scene as unknown as { geometries?: THREE.BufferGeometry[] }).geometries) {
-      (scene as unknown as { geometries: THREE.BufferGeometry[] }).geometries.forEach((geometry) => {
-        geometry.dispose()
-      })
+  private disposeMaterial(material: THREE.Material): void {
+    for (const v of Object.values(material)) {
+      if (v instanceof THREE.Texture) {
+        v.dispose()
+      }
     }
-
-    if ((scene as unknown as { textures?: THREE.Texture[] }).textures) {
-      (scene as unknown as { textures: THREE.Texture[] }).textures.forEach((texture) => {
-        texture.dispose()
-      })
-    }
-
-    if ((scene as unknown as { materials?: THREE.Material[] }).materials) {
-      (scene as unknown as { materials: THREE.Material[] }).materials.forEach((material) => {
-        material.dispose()
-      })
-    }
-
-    if ((scene as unknown as { images?: { dispose(): void }[] }).images) {
-      (scene as unknown as { images: { dispose(): void }[] }).images.forEach((image) => {
-        image.dispose()
-      })
-    }
+    material.dispose()
   }
 }

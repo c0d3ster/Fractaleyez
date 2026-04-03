@@ -37,13 +37,10 @@ export class HopalongManager {
 
     this.clock = new THREE.Clock()
 
-    this.renderer = new THREE.WebGLRenderer({
-      clearColor: 0x000000,
-      clearAlpha: 1,
-      antialias: false,
-      gammaInput: true,
-      gammaOutput: true
-    } as ConstructorParameters<typeof THREE.WebGLRenderer>[0])
+    this.renderer = new THREE.WebGLRenderer({ antialias: false })
+    this.renderer.setClearColor(0x000000, 1)
+    // Keep default outputEncoding (LinearEncoding). Old gammaOutput/gammaInput ctor
+    // flags were ignored by Three r125; forcing sRGBEncoding changed video/texture look.
     this.renderer.setSize(window.innerWidth, window.innerHeight)
     document.body.appendChild(this.renderer.domElement)
 
@@ -77,20 +74,21 @@ export class HopalongManager {
   update = (deltaTime: number, audioData: AudioAnalysedDataForVisualization): void => {
     this.elapsedTime += deltaTime
 
+    const peakVal = audioData.peak?.value ?? 0
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ;(this.shockwaveEffect as any).speed = (window.config.user.speed.value / 15) + audioData.peak!.value * 1.25
+    ;(this.shockwaveEffect as any).speed = (window.config.user.speed.value / 15) + peakVal * 1.25
 
     if (this.particleConfigChanged()) {
       this.resetVisualization()
     }
-    this.hopalongVisualizer!.update(deltaTime, audioData, this.renderer!, this.cameraManager!)
+    this.hopalongVisualizer!.update(deltaTime, audioData)
 
-    if (window.config.effects.glow.value) {
+    if (window.config.effects.glow.value && audioData.peak) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ;(this.bloomEffect as any).blendMode.opacity.value = audioData.peak!.value * audioData.peak!.energy
+      ;(this.bloomEffect as any).blendMode.opacity.value = audioData.peak.value * audioData.peak.energy
     }
 
-    if (audioData.peak!.value > 0.8 && window.config.effects.shockwave.value) {
+    if (audioData.peak && audioData.peak.value > 0.8 && window.config.effects.shockwave.value) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ;(this.shockwaveEffect as any).explode()
     }
