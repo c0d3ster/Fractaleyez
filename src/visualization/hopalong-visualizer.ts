@@ -3,11 +3,6 @@ import * as THREE from 'three'
 import { AudioAnalysedDataForVisualization } from '../audioanalysis/audio-analysed-data'
 import { userConfig } from '../config/user.config'
 
-/** Matches CameraManager: fixed viewer distance from default scale (not the live slider). */
-const VIEW_CAMERA_Z = userConfig.scaleFactor_DEFAULT / 3
-/** Far behind particle z so the plane stays a true backdrop (particles can reach z ≈ scaleFactor/2). */
-const VIDEO_BACKGROUND_Z = -4800
-
 /*
  * ORIGINAL AUTHOR: Iacopo Sassarini
  * Modifications made by Cody Douglass and Conor O'Neill
@@ -161,14 +156,16 @@ export class HopalongVisualizer {
     this.video.addEventListener('ended', this.onVideoEnded)
 
     const videoTexture = new THREE.VideoTexture(this.video)
-    const dist = VIEW_CAMERA_Z - VIDEO_BACKGROUND_Z
-    const fovRad = (60 * Math.PI) / 180
-    const planeH = 2 * Math.tan(fovRad / 2) * dist
-    const planeW = planeH * (window.innerWidth / window.innerHeight)
+    // Overscan: camera can pan up to cameraBound in x/y; enlarge the plane so edges stay
+    // covered at max bound (same world-units hack as innerWidth/innerHeight sizing).
+    const maxPan = userConfig.cameraBound_MAX
+    const panMargin = 1 + (2 * maxPan) / Math.min(window.innerWidth, window.innerHeight)
+    const planeW = window.innerWidth * panMargin
+    const planeH = window.innerHeight * panMargin
     const planeGeometry = new THREE.PlaneGeometry(planeW, planeH)
     const planeMaterial = new THREE.MeshBasicMaterial({ map: videoTexture })
     this.videoPlane = new THREE.Mesh(planeGeometry, planeMaterial)
-    this.videoPlane.position.z = VIDEO_BACKGROUND_Z
+    this.videoPlane.position.z = 5
     this.scene.add(this.videoPlane)
   }
 

@@ -22,10 +22,9 @@ export class CameraManager {
   }
 
   init(): void {
-    // Keep camera distance fixed to the default scale framing. Tying position.z to the
-    // live scale slider dolly-zooms the whole scene (including the fullscreen video at z≈5).
-    const defaultScale = userConfig.scaleFactor_DEFAULT
-    const cameraZ = defaultScale / 3
+    // Match original startup: camera z from config scale at load (preset/default).
+    // Do not update z when the scale slider moves — that dolly-zooms the video background.
+    const cameraZ = window.config.user.scaleFactor.value / 3
     const far = CameraManager.farForScale(window.config.user.scaleFactor.value)
     this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1, far)
     this.camera.position.z = cameraZ
@@ -33,7 +32,6 @@ export class CameraManager {
   }
 
   private static farForScale(scaleFactor: number): number {
-    // Always deep enough for the fixed camera + background video; still grows with scale for particles.
     return Math.max(3 * scaleFactor, 3 * userConfig.scaleFactor_DEFAULT)
   }
 
