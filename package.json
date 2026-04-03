@@ -6,13 +6,14 @@
   "scripts": {
     "build-dev": "webpack --mode development --watch",
     "client-dev": "webpack-dev-server --mode development --content-base public/",
-    "server-dev": "node server-dev.mjs",
+    "server-dev": "node server-dev.js",
     "build": "webpack --mode production",
     "start": "yarn build && supervisor server.js",
-    "start-dev": "concurrently --kill-others \"yarn server-dev\" \"yarn client-dev\"",
+    "dev": "concurrently --kill-others \"yarn server-dev\" \"yarn client-dev\"",
     "predeploy": "yarn build",
     "deploy": "gh-pages -d public",
-    "lint": "eslint src --fix"
+    "lint": "eslint src --fix",
+    "typecheck": "tsc --noEmit"
   },
   "author": "Cody Douglass",
   "license": "ISC",
@@ -40,6 +41,14 @@
     "@babel/plugin-syntax-dynamic-import": "^7.0.0",
     "@babel/preset-env": "^7.1.5",
     "@babel/preset-react": "^7.0.0",
+    "@babel/preset-typescript": "^7.28.5",
+    "@babel/register": "^7.28.6",
+    "@types/classnames": "^2.3.4",
+    "@types/react": "^16.14.0",
+    "@types/react-dom": "^16.9.0",
+    "@types/three": "^0.183.1",
+    "@typescript-eslint/eslint-plugin": "^8.57.2",
+    "@typescript-eslint/parser": "^8.57.2",
     "autoprefixer": "^9.1.5",
     "babel-eslint": "^10.1.0",
     "babel-loader": "^8.0.4",
@@ -57,6 +66,7 @@
     "react-dev-utils": "^12.0.0",
     "style-loader": "^0.23.0",
     "supervisor": "^0.12.0",
+    "typescript": "^6.0.2",
     "url-loader": "^1.1.1",
     "webpack": "^4.25.1",
     "webpack-cli": "^3.1.2",
@@ -69,5 +79,8 @@
   "bugs": {
     "url": "https://github.com/c0d3ster/Fractaleyez/issues"
   },
-  "homepage": "https://github.com/c0d3ster/Fractaleyez#readme"
+  "homepage": "https://github.com/c0d3ster/Fractaleyez#readme",
+  "resolutions": {
+    "@types/minimatch": "5.1.2"
+  }
 }
