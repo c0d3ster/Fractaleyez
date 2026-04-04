@@ -47,7 +47,7 @@ export class HopalongVisualizer {
   peakCountdown: number
   lastOrbitParams: { a: number | null; b: number | null; c: number | null; d: number | null; e: number | null; scaleFactor: number | null }
   orbit: { subsets: SubsetPoint[][]; xMin: number; xMax: number; yMin: number; yMax: number; scaleX: number; scaleY: number }
-  private updateInterval: number
+  private updateInterval: ReturnType<typeof setInterval> | undefined
 
   private onVideoClipsRestored = (e: Event): void => {
     const ce = e as CustomEvent<{ clips: string[] }>
@@ -81,7 +81,7 @@ export class HopalongVisualizer {
     this.peakCountdown = 0
     this.lastOrbitParams = { a: null, b: null, c: null, d: null, e: null, scaleFactor: null }
     this.orbit = { subsets: [], xMin: 0, xMax: 0, yMin: 0, yMax: 0, scaleX: 0, scaleY: 0 }
-    this.updateInterval = 0
+    this.updateInterval = undefined
 
     for (let i = 0; i < this.layers; i++) {
       const subsetPoints: SubsetPoint[] = []
@@ -382,7 +382,7 @@ export class HopalongVisualizer {
 
   destroyVisualization(): void {
     window.removeEventListener('videoClipsRestored', this.onVideoClipsRestored)
-    clearInterval(this.updateInterval)
+    if (this.updateInterval !== undefined) clearInterval(this.updateInterval)
     this.disposeVideoPlane()
     this.disposeScene(this.scene)
   }

@@ -7,6 +7,27 @@ html {
   padding: 0;
 }
 
+.cl-modalBackdrop {
+  position: fixed !important;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: auto !important;
+  z-index: 9999;
+  cursor: auto;
+}
+
+.cl-modalContent {
+  width: 100vw;
+  min-height: 100vh;
+  display: flex;
+  align-items: flex-start;
+  padding-top: 8vh;
+  justify-content: center;
+  cursor: auto;
+}
+
 body {
   background-color: rgba(14, 21, 31, 1) !important;
   font-family: 'Acme', sans-serif !important;

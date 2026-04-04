@@ -1,0 +1,67 @@
+.topbar-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100px;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.topbar-content {
+  pointer-events: none;
+  cursor: none;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.85) 0%, transparent 100%);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 1rem 2rem;
+}
+
+.topbar-content > * {
+  pointer-events: all;
+}
+
+.topbar-fade-in {
+  opacity: 1;
+  animation: topbar-fade-in .3s;
+}
+
+.topbar-fade-out {
+  opacity: 0;
+  animation: topbar-fade-out .5s;
+  pointer-events: none;
+}
+
+@keyframes topbar-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes topbar-fade-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+.topbar-signin-btn {
+  background: transparent;
+  border: 2px solid rgba(255, 255, 255, 0.6);
+  color: rgba(255, 255, 255, 0.6);
+  border-radius: 50px;
+  padding: 10px 20px;
+  font-size: 1em;
+  cursor: pointer;
+  transition: border-color 0.2s ease, color 0.2s ease;
+}
+
+.topbar-signin-btn:hover {
+  border-color: white;
+  color: white;
+}
+
+.topbar-signin-btn:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.95);
+  outline-offset: 3px;
+}

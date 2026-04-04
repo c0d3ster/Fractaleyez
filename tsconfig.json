@@ -26,6 +26,7 @@
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "resolveJsonModule": true,
+    "types": ["node"],
 
     // Paths — baseUrl deprecated in TS 6, use rootDir instead
     "rootDir": "."

@@ -17,7 +17,7 @@ type SidebarProps = {
 const SidebarInner = ({ config: _config, setConfigWindow, configWindowVisible }: SidebarProps): React.ReactElement => {
   const [sidebarVisible, setSidebarVisible] = useState<boolean | null>(null)
   const [tabVisible, setTabVisible] = useState(true)
-  const hideTimerRef = useRef<ReturnType<typeof window.setTimeout> | null>(null)
+  const hideTimerRef = useRef<number | null>(null)
 
   const hideTabDelayed = useCallback((waitTime: number | React.MouseEvent<HTMLDivElement>) => {
     if (!hideTimerRef.current) {
