@@ -57,6 +57,7 @@ const ConfigWindowInner = ({ config, updateConfigItem, updateVideoClips, retriev
     reactRootRef.current = reactRoot
 
     return () => {
+      externalWindow.removeEventListener('beforeunload', onClose)
       reactRoot.unmount()
       reactRootRef.current = null
       externalWindow.close()

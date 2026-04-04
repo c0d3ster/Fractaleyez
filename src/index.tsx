@@ -5,7 +5,12 @@ import { ClerkProvider } from '@clerk/clerk-react'
 import { ConfigProvider } from './components/config/context/ConfigProvider'
 import { App } from './components/App'
 
-const publishableKey = process.env.CLERK_PUBLISHABLE_KEY
+const publishableKey = process.env.CLERK_PUBLISHABLE_KEY?.trim()
+if (!publishableKey || !/^pk_(test|live)_/.test(publishableKey)) {
+  throw new Error(
+    'CLERK_PUBLISHABLE_KEY must be set to a valid Clerk publishable key (pk_test_... or pk_live_...).'
+  )
+}
 
 window.onload = () => {
   const rootEl = document.getElementById('root')
@@ -13,7 +18,7 @@ window.onload = () => {
   const root = createRoot(rootEl)
   root.render(
     <ClerkProvider
-      publishableKey={publishableKey ?? ''}
+      publishableKey={publishableKey}
       appearance={{
         variables: {
           colorBackground: '#0a0a0a',

@@ -37,7 +37,13 @@ export const TopBar = (): React.ReactElement => {
       }
     }
     document.addEventListener('mousemove', onMouseMove)
-    return () => document.removeEventListener('mousemove', onMouseMove)
+    return () => {
+      document.removeEventListener('mousemove', onMouseMove)
+      if (hideTimerRef.current !== null) {
+        window.clearTimeout(hideTimerRef.current)
+        hideTimerRef.current = null
+      }
+    }
   }, [show, hideDelayed])
 
   const contentClasses = classNames('topbar-content', {

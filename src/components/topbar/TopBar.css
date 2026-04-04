@@ -60,3 +60,8 @@
   border-color: white;
   color: white;
 }
+
+.topbar-signin-btn:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.95);
+  outline-offset: 3px;
+}

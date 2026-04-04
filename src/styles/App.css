@@ -15,7 +15,7 @@ html {
   height: 100vh;
   overflow: auto !important;
   z-index: 9999;
-  cursor: none;
+  cursor: auto;
 }
 
 .cl-modalContent {
@@ -25,7 +25,7 @@ html {
   align-items: flex-start;
   padding-top: 8vh;
   justify-content: center;
-  cursor: none;
+  cursor: auto;
 }
 
 body {
