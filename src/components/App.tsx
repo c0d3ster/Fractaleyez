@@ -6,6 +6,7 @@ import { initWithMicrophone } from '../main'
 import { connectConfig } from './config/context/ConfigProvider'
 import { ConfigWindow } from './config/ConfigWindow'
 import { Sidebar } from './sidebar/Sidebar'
+import { TopBar } from './topbar/TopBar'
 
 const AppInner = (): React.ReactElement => {
   const [configWindowVisible, setConfigWindowVisible] = useState(false)
@@ -24,6 +25,7 @@ const AppInner = (): React.ReactElement => {
       <Sidebar
         setConfigWindow={toggleConfigWindow}
         configWindowVisible={configWindowVisible} />
+      <TopBar />
     </div>
   )
 }

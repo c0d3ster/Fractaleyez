@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react'
-import ReactDOM from 'react-dom'
+import { createRoot, type Root } from 'react-dom/client'
 import { Grid, Row, Col } from 'react-bootstrap'
 
 import { Presets } from '../presets/Presets'
@@ -40,7 +40,7 @@ type ConfigWindowProps = ConfigContextValue & {
 }
 
 const ConfigWindowInner = ({ config, updateConfigItem, updateVideoClips, retrieveConfigPreset, resetConfig, onClose }: ConfigWindowProps): null => {
-  const containerElRef = useRef<HTMLDivElement | null>(null)
+  const reactRootRef = useRef<Root | null>(null)
 
   // Open the external window once on mount
   useEffect(() => {
@@ -48,32 +48,32 @@ const ConfigWindowInner = ({ config, updateConfigItem, updateVideoClips, retriev
     if (!externalWindow) return
 
     const container = externalWindow.document.createElement('div')
-    containerElRef.current = container
     externalWindow.document.title = 'Configuration'
     externalWindow.document.body.appendChild(container)
     externalWindow.addEventListener('beforeunload', onClose)
     copyStyles(document, externalWindow.document)
 
+    const reactRoot = createRoot(container)
+    reactRootRef.current = reactRoot
+
     return () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ;(ReactDOM as any).unmountComponentAtNode(container)
+      reactRoot.unmount()
+      reactRootRef.current = null
       externalWindow.close()
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Re-render the external root whenever config changes, keeping both windows in sync
   useEffect(() => {
-    if (!containerElRef.current) return
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ;(ReactDOM as any).render(
+    if (!reactRootRef.current) return
+    reactRootRef.current.render(
       <ExternalWindowBridge
         config={config}
         updateConfigItem={updateConfigItem}
         updateVideoClips={updateVideoClips}
         retrieveConfigPreset={retrieveConfigPreset}
         resetConfig={resetConfig}
-      />,
-      containerElRef.current
+      />
     )
   }, [config, updateConfigItem, updateVideoClips, retrieveConfigPreset, resetConfig])
 

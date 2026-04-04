@@ -1,4 +1,8 @@
 const path = require('path')
+const webpack = require('webpack')
+
+// Load .env before EnvironmentPlugin reads process.env (client bundle is separate from server-dev.js).
+require('dotenv').config({ path: path.join(__dirname, '.env') })
 
 const BUILD_DIR = path.join( __dirname, 'public' )
 const APP_DIR = path.join( __dirname, 'src' )
@@ -16,6 +20,12 @@ module.exports = {
   // must include modules for webpack to integrate with babel for es6 syntax
   module: {
     rules: [
+      // Webpack 4 treats .mjs as strict ESM; SWR + CJS react breaks without this.
+      {
+        test: /\.mjs$/,
+        include: /node_modules/,
+        type: 'javascript/auto'
+      },
       {
         test: /\.(js|jsx|ts|tsx)$/,
         use: {
@@ -26,10 +36,16 @@ module.exports = {
               '@babel/preset-react',
               '@babel/preset-typescript'
             ],
-            plugins: ['@babel/plugin-proposal-class-properties']
+            plugins: [
+              '@babel/plugin-proposal-class-properties',
+              '@babel/plugin-proposal-optional-chaining',
+              '@babel/plugin-proposal-nullish-coalescing-operator'
+            ]
           }
         },
-        exclude: /node_modules/
+        // Transpile @clerk/* (optional chaining); skip other node_modules
+        exclude: (modulePath) =>
+          /node_modules/.test(modulePath) && !/node_modules[\\/]@clerk/.test(modulePath)
       },
       {
         test: /\.(css|less)$/,
@@ -68,9 +84,12 @@ module.exports = {
       '/api': 'http://localhost:8080'
     }
   },
+  plugins: [
+    new webpack.EnvironmentPlugin({ CLERK_PUBLISHABLE_KEY: '' }),
+  ],
   // resolves directory to look for modules and resolves extensions
   resolve: {
-    extensions: ['.ts', '.tsx', '.js', '.jsx'],
+    extensions: ['.ts', '.tsx', '.js', '.jsx', '.mjs'],
     modules: ['node_modules']
   },
 }
