@@ -6,6 +6,17 @@
 }
 
 /* Pack filter tabs */
+.pack-tabs-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.pack-tabs-row .pack-tabs {
+  margin-bottom: 0;
+}
+
 .pack-tabs {
   display: flex;
   flex-wrap: wrap;

@@ -32,6 +32,100 @@
   }
 }
 
+.sidebar-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0 2rem 0.75em;
+}
+
+.sidebar-title-row .sidebar-title {
+  margin: 1rem 0;
+}
+
+.save-preset-wrapper {
+  position: relative;
+  max-width: 100%;
+}
+
+.save-preset {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.save-preset-status {
+  position: absolute;
+  top: 100%;
+  left: 2px;
+  margin-top: 0.25em;
+  font-size: 0.8em;
+  white-space: nowrap;
+}
+
+.save-preset-status--saved {
+  color: rgba(100, 200, 100, 0.9);
+}
+
+.save-preset-status--error {
+  color: rgba(220, 80, 80, 0.9);
+}
+
+.save-preset-input--pack {
+  flex: 0 0 70px;
+}
+
+.save-preset-input {
+  flex: 1;
+  min-width: 80px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  color: rgba(220, 220, 220, 0.9);
+  padding: 5px 10px;
+  font-size: 0.85em;
+  outline: none;
+}
+
+.save-preset-input::placeholder {
+  color: rgba(180, 180, 180, 0.5);
+}
+
+.save-preset-input:focus {
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.save-preset-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  color: rgba(220, 220, 220, 0.9);
+  padding: 5px 12px;
+  font-size: 0.85em;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+
+.save-preset-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.save-preset-btn--confirm {
+  border-color: rgba(255, 160, 50, 0.6);
+  color: rgba(255, 160, 50, 0.9);
+}
+
+.save-preset-btn--confirm:hover {
+  background: rgba(255, 160, 50, 0.15);
+  border-color: rgba(255, 160, 50, 0.9);
+}
+
 .sidebar-title {
   display: inline-block;
   font-weight: bold;

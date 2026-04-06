@@ -3,8 +3,9 @@ import classNames from 'classnames'
 import { SignInButton, UserButton, useUser } from '@clerk/clerk-react'
 import './TopBar.css'
 
-const TRIGGER_PX = 100
-const HIDE_AFTER_PX = 120
+const TRIGGER_Y_PX = 100
+const HIDE_AFTER_Y_PX = 120
+const TRIGGER_X_FROM_RIGHT_PX = 200
 
 export const TopBar = (): React.ReactElement => {
   const { isSignedIn, isLoaded } = useUser()
@@ -30,9 +31,10 @@ export const TopBar = (): React.ReactElement => {
 
   useEffect(() => {
     const onMouseMove = (e: MouseEvent): void => {
-      if (e.clientY <= TRIGGER_PX) {
+      const nearRight = e.clientX >= window.innerWidth - TRIGGER_X_FROM_RIGHT_PX
+      if (e.clientY <= TRIGGER_Y_PX && nearRight) {
         show()
-      } else if (e.clientY > HIDE_AFTER_PX) {
+      } else if (e.clientY > HIDE_AFTER_Y_PX || !nearRight) {
         hideDelayed()
       }
     }

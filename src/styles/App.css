@@ -33,6 +33,19 @@ body {
   font-family: 'Acme', sans-serif !important;
 }
 
+.config-window-root {
+  font-size: 1.2rem;
+}
+
+.config-window-root .save-preset-input,
+.config-window-root .save-preset-btn {
+  font-size: 1.3rem;
+}
+
+.config-window-root .save-preset-input--pack {
+  flex: 0 0 90px;
+}
+
 canvas {
   margin: 0;
   padding: 0;

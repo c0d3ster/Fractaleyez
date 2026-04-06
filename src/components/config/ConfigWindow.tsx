@@ -1,8 +1,9 @@
-import React, { useEffect, useRef } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { Grid, Row, Col } from 'react-bootstrap'
 
-import { Presets } from '../presets/Presets'
+import { Presets, PresetSelection } from '../presets/Presets'
+import { SavePreset } from '../presets/SavePreset'
 import { ConfigCategory } from './ConfigCategory'
 import { ConfigVideo } from './ConfigVideo'
 import { copyStyles } from '../../styles/AppStyleCopier'
@@ -11,12 +12,19 @@ import { connectConfig, ConfigContext, ConfigContextValue } from './context/Conf
 type ExternalWindowBridgeProps = ConfigContextValue
 
 // Renders inside the external window's React root, bridging ConfigContext from the main window
-const ExternalWindowBridge = ({ config, updateConfigItem, updateVideoClips, retrieveConfigPreset, resetConfig }: ExternalWindowBridgeProps): React.ReactElement => (
-  <ConfigContext.Provider value={{ config, updateConfigItem, updateVideoClips, retrieveConfigPreset, resetConfig }}>
-    <Grid>
-      <Row>
-        <Presets expanded />
-      </Row>
+const ExternalWindowBridge = ({ config, updateConfigItem, updateVideoClips, retrieveConfigPreset, resetConfig, savePreset, isSignedIn }: ExternalWindowBridgeProps): React.ReactElement => {
+  const [prefill, setPrefill] = useState<PresetSelection | null>(null)
+  return (
+    <ConfigContext.Provider value={{ config, updateConfigItem, updateVideoClips, retrieveConfigPreset, resetConfig, savePreset, isSignedIn }}>
+      <Grid>
+        <Row>
+          <Presets
+            expanded
+            onSelect={setPrefill}
+            onPackSelect={(pack) => setPrefill(prev => prev ? { ...prev, pack } : { name: '', label: '', pack, isOwn: false })}
+            headerActions={<SavePreset prefill={prefill} onSaved={() => setPrefill(null)} />}
+          />
+        </Row>
       <Row>
         {Object.keys(config).map((category) => (
           <Col sm={2} key={category} style={{ paddingLeft: '8px', paddingRight: '8px' }}>
@@ -31,15 +39,16 @@ const ExternalWindowBridge = ({ config, updateConfigItem, updateVideoClips, retr
           </Col>
         ))}
       </Row>
-    </Grid>
-  </ConfigContext.Provider>
-)
+      </Grid>
+    </ConfigContext.Provider>
+  )
+}
 
 type ConfigWindowProps = ConfigContextValue & {
   onClose: () => void
 }
 
-const ConfigWindowInner = ({ config, updateConfigItem, updateVideoClips, retrieveConfigPreset, resetConfig, onClose }: ConfigWindowProps): null => {
+const ConfigWindowInner = ({ config, updateConfigItem, updateVideoClips, retrieveConfigPreset, resetConfig, savePreset, isSignedIn, onClose }: ConfigWindowProps): null => {
   const reactRootRef = useRef<Root | null>(null)
 
   // Open the external window once on mount
@@ -48,6 +57,7 @@ const ConfigWindowInner = ({ config, updateConfigItem, updateVideoClips, retriev
     if (!externalWindow) return
 
     const container = externalWindow.document.createElement('div')
+    container.className = 'config-window-root'
     externalWindow.document.title = 'Configuration'
     externalWindow.document.body.appendChild(container)
     externalWindow.addEventListener('beforeunload', onClose)
@@ -74,9 +84,11 @@ const ConfigWindowInner = ({ config, updateConfigItem, updateVideoClips, retriev
         updateVideoClips={updateVideoClips}
         retrieveConfigPreset={retrieveConfigPreset}
         resetConfig={resetConfig}
+        savePreset={savePreset}
+        isSignedIn={isSignedIn}
       />
     )
-  }, [config, updateConfigItem, updateVideoClips, retrieveConfigPreset, resetConfig])
+  }, [config, updateConfigItem, updateVideoClips, retrieveConfigPreset, resetConfig, savePreset, isSignedIn])
 
   return null
 }

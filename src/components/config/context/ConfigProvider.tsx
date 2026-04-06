@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react'
 import axios from 'axios'
+import { useAuth, useUser } from '@clerk/clerk-react'
 
 import { AppConfig, configDefaults } from '../../../config/configDefaults'
 import { presets } from '../../../config/presets'
@@ -14,6 +15,9 @@ export type ConfigContextValue = {
   updateVideoClips: (clips: string[]) => void
   retrieveConfigPreset: (event: PresetRetrieveEvent) => Promise<void>
   resetConfig: () => void
+  savePreset: (name: string, pack: string, force?: boolean) => Promise<void>
+  isSignedIn: boolean
+  currentUserId: string | null
 }
 
 export const ConfigContext = React.createContext<ConfigContextValue | undefined>(undefined)
@@ -27,6 +31,9 @@ export const connectConfig = (WrappedComponent: React.ComponentType<any>) =>
   )
 
 export const ConfigProvider = ({ children }: { children: React.ReactNode }): React.ReactElement => {
+  const { getToken } = useAuth()
+  const { isSignedIn, user } = useUser()
+
   const [config, setConfig] = useState<AppConfig>(() => {
     window.config = configDefaults
     return configDefaults
@@ -134,8 +141,21 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
     [retrieveConfigPreset]
   )
 
+  const savePreset = useCallback(async (name: string, pack: string, force?: boolean) => {
+    const token = await getToken()
+    if (!token) throw Object.assign(new Error('Not authenticated'), { response: { status: 401, data: { error: 'Not authenticated — try signing out and back in' } } })
+    await axios.post('/api/savePreset', {
+      name,
+      pack,
+      config,
+      force: force ?? false,
+    }, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+  }, [config, getToken])
+
   return (
-    <ConfigContext.Provider value={{ config, updateConfigItem, updateVideoClips, retrieveConfigPreset, resetConfig }}>
+    <ConfigContext.Provider value={{ config, updateConfigItem, updateVideoClips, retrieveConfigPreset, resetConfig, savePreset, isSignedIn: isSignedIn ?? false, currentUserId: user?.id ?? null }}>
       {children}
     </ConfigContext.Provider>
   )
