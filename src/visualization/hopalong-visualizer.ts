@@ -157,9 +157,9 @@ export class HopalongVisualizer {
 
     const videoTexture = new THREE.VideoTexture(this.video)
     // Overscan: camera can pan up to cameraBound in x/y; enlarge the plane so edges stay
-    // covered at max bound (same world-units hack as innerWidth/innerHeight sizing).
-    const maxPan = userConfig.cameraBound_MAX
-    const panMargin = 1 + (2 * maxPan) / Math.min(window.innerWidth, window.innerHeight)
+    // covered at the current bound setting.
+    const currentBound = window.config.user.cameraBound.value
+    const panMargin = 1 + (2 * currentBound) / Math.min(window.innerWidth, window.innerHeight)
     const planeW = window.innerWidth * panMargin
     const planeH = window.innerHeight * panMargin
     const planeGeometry = new THREE.PlaneGeometry(planeW, planeH)

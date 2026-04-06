@@ -3,7 +3,8 @@ import classNames from 'classnames'
 import { Grid, Row } from 'react-bootstrap'
 import './Sidebar.css'
 
-import { Presets } from '../presets/Presets'
+import { Presets, PresetSelection } from '../presets/Presets'
+import { SavePreset } from '../presets/SavePreset'
 import { ConfigAccordion } from '../config/ConfigAccordion'
 import { connectConfig } from '../config/context/ConfigProvider'
 import { AppConfig } from '../../config/configDefaults'
@@ -17,6 +18,7 @@ type SidebarProps = {
 const SidebarInner = ({ config: _config, setConfigWindow, configWindowVisible }: SidebarProps): React.ReactElement => {
   const [sidebarVisible, setSidebarVisible] = useState<boolean | null>(null)
   const [tabVisible, setTabVisible] = useState(true)
+  const [prefill, setPrefill] = useState<PresetSelection | null>(null)
   const hideTimerRef = useRef<number | null>(null)
 
   const hideTabDelayed = useCallback((waitTime: number | React.MouseEvent<HTMLDivElement>) => {
@@ -44,6 +46,7 @@ const SidebarInner = ({ config: _config, setConfigWindow, configWindowVisible }:
     hideTabDelayed(5000)
 
     const handleKeyUp = (e: KeyboardEvent): void => {
+      if (document.activeElement?.tagName === 'INPUT') return
       if (e.key === 'e') handleSetConfigWindow()
       else if (e.key === 'm') toggleSidebar()
     }
@@ -76,9 +79,15 @@ const SidebarInner = ({ config: _config, setConfigWindow, configWindowVisible }:
           Menu
         </button>
         <Row>
-          <h2 className='sidebar-title'>Presets</h2>
+          <div className='sidebar-title-row'>
+            <h2 className='sidebar-title'>Presets</h2>
+            <SavePreset prefill={prefill} onSaved={() => setPrefill(null)} />
+          </div>
         </Row>
-        <Presets />
+        <Presets
+          onSelect={setPrefill}
+          onPackSelect={(pack: string) => setPrefill(prev => prev ? { ...prev, pack } : { name: '', label: '', pack, isOwn: false })}
+        />
         <Row>
           <h2 className='sidebar-title'>Configuration</h2>
           <button

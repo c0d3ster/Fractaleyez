@@ -12,22 +12,30 @@ type PresetMeta = {
   label: string
   pack: string
   sprite: string
+  userId?: string
 }
 
 type ApiPreset = {
   name: string
   pack: string
   sprite: string
+  userId?: string
 }
 
 const toLabel = (name: string): string => name.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())
 
+export type PresetSelection = { name: string; label: string; pack: string; isOwn: boolean }
+
 type PresetsProps = {
   retrieveConfigPreset: (event: PresetRetrieveEvent) => Promise<void>
+  currentUserId?: string | null
   expanded?: boolean
+  onSelect?: (preset: PresetSelection) => void
+  onPackSelect?: (pack: string) => void
+  headerActions?: React.ReactNode
 }
 
-const PresetsInner = ({ retrieveConfigPreset, expanded = false }: PresetsProps): React.ReactElement => {
+const PresetsInner = ({ retrieveConfigPreset, currentUserId, expanded = false, onSelect, onPackSelect, headerActions }: PresetsProps): React.ReactElement => {
   const [presets, setPresets] = useState<PresetMeta[]>([])
   const [activePack, setActivePack] = useState('All')
   const [page, setPage] = useState(0)
@@ -35,7 +43,7 @@ const PresetsInner = ({ retrieveConfigPreset, expanded = false }: PresetsProps):
 
   useEffect(() => {
     axios.get<ApiPreset[]>('/api/getPresets')
-      .then(({ data }) => setPresets(data.map(p => ({ ...p, label: toLabel(p.name) }))))
+      .then(({ data }) => setPresets(data.map(p => ({ ...p, label: toLabel(p.name), userId: p.userId }))))
       .catch(err => {
         console.error('Failed to load presets from API, falling back to bundled', err)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -66,29 +74,37 @@ const PresetsInner = ({ retrieveConfigPreset, expanded = false }: PresetsProps):
   const selectPack = (pack: string): void => {
     setActivePack(pack)
     setPage(0)
+    onPackSelect?.(pack === 'All' ? '' : pack)
   }
 
   return (
     <Row>
       <Col className={`presets-container${expanded ? ' presets-container--expanded' : ''}`}>
-        <div className='pack-tabs'>
-          {packs.map(pack => (
-            <button
-              key={pack}
-              className={`pack-tab${activePack === pack ? ' active' : ''}`}
-              onClick={() => selectPack(pack)}
-            >
-              {pack}
-            </button>
-          ))}
+        <div className='pack-tabs-row'>
+          <div className='pack-tabs'>
+            {packs.map(pack => (
+              <button
+                key={pack}
+                className={`pack-tab${activePack === pack ? ' active' : ''}`}
+                onClick={() => selectPack(pack)}
+              >
+                {pack}
+              </button>
+            ))}
+          </div>
+          {headerActions}
         </div>
         <div className={`presets-grid${expanded ? ' presets-grid--expanded' : ''}${paging ? ' paging' : ''}`}>
-          {visible.map(({ name, label, sprite }) => (
+          {visible.map(({ name, label, sprite, pack, userId }) => (
             <button
               key={name}
               className='preset-item'
               data-name={name}
-              onClick={retrieveConfigPreset as React.MouseEventHandler<HTMLButtonElement>}
+              onClick={(e) => {
+                retrieveConfigPreset(e as unknown as PresetRetrieveEvent)
+                const isOwn = !!currentUserId && currentUserId === userId
+                onSelect?.({ name, label, pack, isOwn })
+              }}
             >
               <img src={`/${sprite}`} alt='' className='preset-sprite' />
               <span>{label}</span>
