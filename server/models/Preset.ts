@@ -2,7 +2,7 @@ import { Schema, model, Document } from 'mongoose'
 
 export interface IPreset extends Document {
   name: string
-  pack: string
+  pack?: string
   sprite: string
   config: Record<string, unknown>
   userId?: string
@@ -10,7 +10,7 @@ export interface IPreset extends Document {
 
 const presetSchema = new Schema<IPreset>({
   name: { type: String, required: true },
-  pack: { type: String, required: true },
+  pack: { type: String, default: '' },
   sprite: { type: String, required: true },
   config: { type: Schema.Types.Mixed, required: true },
   userId: { type: String },

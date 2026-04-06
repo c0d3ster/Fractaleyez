@@ -34,36 +34,48 @@
 
 .sidebar-title-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  margin: 0 2rem 0.75em;
+  gap: 0.75rem 1.25rem;
+  margin: 0 2rem ;
 }
 
 .sidebar-title-row .sidebar-title {
   margin: 1rem 0;
+  flex: 0 1 auto;
+}
+
+/* flex-basis so the form row wraps below the title when the row is too narrow */
+.sidebar-title-row .save-preset-wrapper {
+  margin: 1rem 0 0;
+  flex: 1 1 220px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .save-preset-wrapper {
-  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  min-width: 0;
   max-width: 100%;
 }
 
 .save-preset {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 8px;
   align-items: center;
+  min-width: 0;
 }
 
 .save-preset-status {
-  position: absolute;
-  top: 100%;
-  left: 2px;
-  margin-top: 0.25em;
+  display: block;
+  margin: 0.25em 0 0 2px;
   font-size: 0.8em;
-  white-space: nowrap;
+  line-height: 1.2;
+  min-height: 0;
 }
 
 .save-preset-status--saved {
@@ -78,9 +90,37 @@
   flex: 0 0 70px;
 }
 
+.save-preset-input--pack-reserved {
+  opacity: 0.55;
+  border-color: rgba(120, 120, 120, 0.4);
+  color: rgba(170, 170, 170, 0.85);
+}
+
+.save-preset-pack-hint {
+  margin: 0.75em 0 0 2px;
+  padding: 0;
+  font-size: 0.75em;
+  line-height: 1.2;
+  color: rgba(160, 160, 160, 0.5);
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  white-space: normal;
+  min-height: 0.35em;
+  box-sizing: border-box;
+}
+
+.save-preset-pack-hint--inactive {
+  visibility: hidden;
+  user-select: none;
+}
+
 .save-preset-input {
   flex: 1;
   min-width: 80px;
+  max-width: 100%;
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 6px;

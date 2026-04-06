@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
+import { Types } from 'mongoose'
 import { connectDB } from '../../server/db'
 import { Preset } from '../../server/models/Preset'
 
@@ -11,7 +12,7 @@ export default async (req: VercelRequest, res: VercelResponse): Promise<void> =>
 
   try {
     await connectDB()
-    const preset = await Preset.findOne({ name })
+    const preset = Types.ObjectId.isValid(name) ? await Preset.findById(name) : await Preset.findOne({ name })
     if (!preset) {
       res.status(404).json({ error: `${name} preset could not be found` })
       return

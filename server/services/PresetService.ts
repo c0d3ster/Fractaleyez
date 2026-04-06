@@ -1,4 +1,4 @@
-import { presetRepository, PresetMeta } from '../repositories/PresetRepository'
+import { presetRepository } from '../repositories/PresetRepository'
 import { IPreset } from '../models/Preset'
 
 type SavePresetParams = {
@@ -18,9 +18,13 @@ const serviceError = (message: string, status: number, presetName?: string): Ser
   return err
 }
 
+const isDuplicateKeyError = (e: unknown): boolean =>
+  typeof e === 'object' && e !== null && 'code' in e && (e as { code: number }).code === 11000
+
 export type PublicPresetMeta = {
+  id: string
   name: string
-  pack: string
+  pack: string  // always a string; empty when no pack assigned
   sprite: string
   isOwn: boolean
 }
@@ -29,27 +33,35 @@ export class PresetService {
   async listPresetsForViewer(viewerId: string | null): Promise<PublicPresetMeta[]> {
     const rows = await presetRepository.findAll()
     return rows.map((p) => ({
+      id: String(p._id),
       name: p.name,
-      pack: p.pack,
+      pack: p.pack ?? '',
       sprite: p.sprite,
       isOwn: !!viewerId && !!p.userId && p.userId === viewerId,
     }))
   }
 
-  async getPreset(name: string): Promise<IPreset> {
-    const preset = await presetRepository.findByName(name)
-    if (!preset) throw serviceError(`Preset "${name}" not found`, 404)
+  async getPresetById(id: string): Promise<IPreset> {
+    const preset = await presetRepository.findById(id)
+    if (!preset) throw serviceError('Preset not found', 404)
     return preset
   }
 
   async savePreset({ name, pack, config, userId, force }: SavePresetParams): Promise<IPreset> {
-    if (!force) {
-      const existing = await presetRepository.findOwned(name, userId)
-      if (existing) throw serviceError('Preset already exists', 409, name)
-    }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sprite = (config as any)?.particle?.sprites?.value?.[0] ?? 'fractaleye.png'
-    return presetRepository.upsert({ name, pack, sprite, config, userId })
+    const payload = { name, pack, sprite, config, userId }
+
+    if (!force) {
+      try {
+        return await presetRepository.create(payload)
+      } catch (e: unknown) {
+        if (isDuplicateKeyError(e)) throw serviceError('Preset already exists', 409, name)
+        throw e
+      }
+    }
+
+    return presetRepository.upsert(payload)
   }
 }
 

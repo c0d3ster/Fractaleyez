@@ -12,10 +12,22 @@ import { connectConfig, ConfigContext, ConfigContextValue } from './context/Conf
 type ExternalWindowBridgeProps = ConfigContextValue
 
 // Renders inside the external window's React root, bridging ConfigContext from the main window
-const ExternalWindowBridge = ({ config, updateConfigItem, updateVideoClips, retrieveConfigPreset, resetConfig, savePreset, isSignedIn, currentUserId }: ExternalWindowBridgeProps): React.ReactElement => {
+const ExternalWindowBridge = ({
+  config,
+  updateConfigItem,
+  updateVideoClips,
+  retrieveConfigPreset,
+  resetConfig,
+  savePreset,
+  isSignedIn,
+  currentUserId,
+  presets,
+}: ExternalWindowBridgeProps): React.ReactElement => {
   const [prefill, setPrefill] = useState<PresetSelection | null>(null)
   return (
-    <ConfigContext.Provider value={{ config, updateConfigItem, updateVideoClips, retrieveConfigPreset, resetConfig, savePreset, isSignedIn, currentUserId }}>
+    <ConfigContext.Provider
+      value={{ config, updateConfigItem, updateVideoClips, retrieveConfigPreset, resetConfig, savePreset, isSignedIn, currentUserId, presets }}
+    >
       <Grid>
         <Row>
           <Presets
@@ -48,7 +60,18 @@ type ConfigWindowProps = ConfigContextValue & {
   onClose: () => void
 }
 
-const ConfigWindowInner = ({ config, updateConfigItem, updateVideoClips, retrieveConfigPreset, resetConfig, savePreset, isSignedIn, currentUserId, onClose }: ConfigWindowProps): null => {
+const ConfigWindowInner = ({
+  config,
+  updateConfigItem,
+  updateVideoClips,
+  retrieveConfigPreset,
+  resetConfig,
+  savePreset,
+  isSignedIn,
+  currentUserId,
+  presets,
+  onClose,
+}: ConfigWindowProps): null => {
   const reactRootRef = useRef<Root | null>(null)
 
   // Open the external window once on mount
@@ -87,9 +110,10 @@ const ConfigWindowInner = ({ config, updateConfigItem, updateVideoClips, retriev
         savePreset={savePreset}
         isSignedIn={isSignedIn}
         currentUserId={currentUserId}
+        presets={presets}
       />
     )
-  }, [config, updateConfigItem, updateVideoClips, retrieveConfigPreset, resetConfig, savePreset, isSignedIn, currentUserId])
+  }, [config, updateConfigItem, updateVideoClips, retrieveConfigPreset, resetConfig, savePreset, isSignedIn, currentUserId, presets])
 
   return null
 }

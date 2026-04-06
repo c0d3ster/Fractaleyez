@@ -2,13 +2,13 @@ import type { Request, Response } from 'express'
 import { presetService } from '../services/PresetService'
 
 export const presetHandler = async (req: Request, res: Response): Promise<void> => {
-  const name = req.query.name as string | undefined
-  if (!name) {
-    res.status(400).json({ error: 'name query param is required' })
+  const id = typeof req.query.id === 'string' ? req.query.id.trim() : ''
+  if (!id) {
+    res.status(400).json({ error: 'id query param is required' })
     return
   }
   try {
-    const preset = await presetService.getPreset(name)
+    const preset = await presetService.getPresetById(id)
     res.json(preset)
   } catch (err: unknown) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

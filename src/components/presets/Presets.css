@@ -8,9 +8,18 @@
 /* Pack filter tabs */
 .pack-tabs-row {
   display: flex;
-  align-items: center;
+  flex-wrap: wrap;
+  align-items: flex-start;
   justify-content: space-between;
+  gap: 0.5rem 1rem;
   margin-bottom: 0.75rem;
+}
+
+/* Pack tabs + SavePreset: wrap when narrow (same idea as sidebar title row) */
+.pack-tabs-row .save-preset-wrapper {
+  flex: 1 1 220px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .pack-tabs-row .pack-tabs {

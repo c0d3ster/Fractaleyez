@@ -16,20 +16,22 @@ export const savePresetHandler = async (req: Request, res: Response): Promise<vo
     return
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { name, pack, config, force } = req.body as any
+  const body = req.body && typeof req.body === 'object' ? req.body : {}
+  const { name, pack, config, force: forceRaw } = body as Record<string, unknown>
   if (!name || typeof name !== 'string' || !name.trim()) {
     res.status(400).json({ error: 'name is required' })
     return
   }
 
+  const force = forceRaw === true || forceRaw === 'true'
+
   try {
     const preset = await presetService.savePreset({
       name: name.trim(),
       pack: typeof pack === 'string' ? pack.trim() : '',
-      config,
+      config: (config ?? {}) as Record<string, unknown>,
       userId,
-      force: !!force,
+      force,
     })
     res.status(200).json({ id: preset._id, name: preset.name })
   } catch (err: unknown) {
