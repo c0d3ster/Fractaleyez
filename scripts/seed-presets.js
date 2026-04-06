@@ -18,8 +18,9 @@ const seed = async () => {
 
   for (const [name, data] of Object.entries(presets)) {
     const sprite = data.particle?.sprites?.value?.[0] ?? 'fractaleye.png'
+    // Target only global (unowned) rows so we never overwrite a user's preset with the same name.
     await Preset.findOneAndUpdate(
-      { name },
+      { name, $or: [{ userId: { $exists: false } }, { userId: null }] },
       { name, pack: data.pack ?? '', sprite, config: data },
       { upsert: true, new: true, runValidators: true }
     )

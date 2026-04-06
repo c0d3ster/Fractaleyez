@@ -18,9 +18,22 @@ const serviceError = (message: string, status: number, presetName?: string): Ser
   return err
 }
 
+export type PublicPresetMeta = {
+  name: string
+  pack: string
+  sprite: string
+  isOwn: boolean
+}
+
 export class PresetService {
-  async listPresets(): Promise<PresetMeta[]> {
-    return presetRepository.findAll()
+  async listPresetsForViewer(viewerId: string | null): Promise<PublicPresetMeta[]> {
+    const rows = await presetRepository.findAll()
+    return rows.map((p) => ({
+      name: p.name,
+      pack: p.pack,
+      sprite: p.sprite,
+      isOwn: !!viewerId && !!p.userId && p.userId === viewerId,
+    }))
   }
 
   async getPreset(name: string): Promise<IPreset> {

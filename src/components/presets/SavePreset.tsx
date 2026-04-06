@@ -18,6 +18,8 @@ export const SavePreset = ({ prefill, onSaved }: SavePresetProps): React.ReactEl
     if (prefill) {
       setName(prefill.label)
       setPack(prefill.pack)
+      setStatus('idle')
+      setErrorMessage('')
     }
   }, [prefill])
 

@@ -1,14 +1,18 @@
 import type { Request, Response } from 'express'
 import { presetService } from '../services/PresetService'
-import { verifyAuth } from '../auth'
+import { AuthUnauthorizedError, verifyAuth } from '../auth'
 
 export const savePresetHandler = async (req: Request, res: Response): Promise<void> => {
   let userId: string
   try {
     userId = await verifyAuth(req.headers.authorization)
   } catch (err) {
+    if (err instanceof AuthUnauthorizedError) {
+      res.status(401).json({ error: 'Unauthorized' })
+      return
+    }
     console.error('auth failed:', err)
-    res.status(401).json({ error: 'Unauthorized' })
+    res.status(500).json({ error: 'Internal server error' })
     return
   }
 
