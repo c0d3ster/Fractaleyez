@@ -42,7 +42,7 @@ const PresetsInner = ({ retrieveConfigPreset, currentUserId, expanded = false, o
   const [paging, setPaging] = useState(false)
 
   useEffect(() => {
-    axios.get<ApiPreset[]>('/api/getPresets')
+    axios.get<ApiPreset[]>('/api/presets')
       .then(({ data }) => setPresets(data.map(p => ({ ...p, label: toLabel(p.name), userId: p.userId }))))
       .catch(err => {
         console.error('Failed to load presets from API, falling back to bundled', err)

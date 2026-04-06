@@ -107,8 +107,8 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
 
     if (!cfg) {
       try {
-        const result = await axios.get(`/api/getConfig/${name}`)
-        cfg = result.data
+        const result = await axios.get('/api/preset', { params: { name } })
+        cfg = result.data.config
         const stored = localStorage.getItem('presets')
         const cached = stored ? (JSON.parse(stored) as Record<string, unknown>) : {}
         localStorage.setItem('presets', JSON.stringify({ ...cached, [name]: cfg }))

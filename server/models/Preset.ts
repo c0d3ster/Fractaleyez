@@ -1,6 +1,6 @@
 import { Schema, model, Document } from 'mongoose'
 
-interface IPreset extends Document {
+export interface IPreset extends Document {
   name: string
   pack: string
   sprite: string
