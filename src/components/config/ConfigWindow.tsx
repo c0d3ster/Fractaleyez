@@ -85,7 +85,7 @@ const ConfigWindowInner = ({
 
   // Open the external window once on mount
   useEffect(() => {
-    const externalWindow = window.open('', '', 'width=1200,height=850,location=no')
+    const externalWindow = window.open('', '', 'width=1200,height=860,location=no')
     if (!externalWindow) return
 
     const container = externalWindow.document.createElement('div')

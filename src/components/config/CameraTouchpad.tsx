@@ -91,7 +91,9 @@ export const CameraTouchpad = (): React.ReactElement => {
       >
         <div className='camera-touchpad-crosshair camera-touchpad-crosshair--h' />
         <div className='camera-touchpad-crosshair camera-touchpad-crosshair--v' />
-        <div
+        <img
+          src='/crossheir.png'
+          alt=''
           className='camera-touchpad-dot'
           style={{ left: valToPixelX(pos.x, PAD_W, getRange()), top: valToPixelY(pos.y, h, getRange()) }}
         />

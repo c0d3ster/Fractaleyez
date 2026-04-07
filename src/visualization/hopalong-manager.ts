@@ -50,8 +50,8 @@ export class HopalongManager {
     window.setVirtualCameraPosition = (x: number, y: number) => this.cameraManager!.setVirtualMousePosition(x, y)
     window.getVirtualCameraPosition = () => ({ x: this.cameraManager!.mouseX, y: this.cameraManager!.mouseY })
     window.getAudioData = () => this.lastAudioData
-    // Default: visible bands (sub–hi = 0–4) enabled; pre/bri/air (5–7) disabled
-    window.enabledFreqBands = [true, true, true, true, true, false, false, false]
+    // Default: all visible bands enabled; bri/air (6–7) disabled (near-ultrasonic)
+    window.enabledFreqBands = [true, true, true, true, true, true, false, false]
     document.addEventListener('mousemove', this.onDocumentMouseMove)
     document.addEventListener('keydown', this.onKeyDown)
     window.addEventListener('resize', this.onWindowResize)

@@ -1,14 +1,14 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react'
 import './FrequencyHud.css'
 
-const VISIBLE_BANDS = 5
-const LABELS = ['sub', 'bass', 'lo', 'mid', 'hi']
+const VISIBLE_BANDS = 7
+const LABELS = ['sub', 'bass', 'lo', 'mid', 'hi', 'pre', 'bri']
 const W = 180
 const LABEL_H = 14
 const BAR_AREA_H = 90
 const H = BAR_AREA_H + LABEL_H
 const GAP = 4
-const BAR_W = Math.floor((W - (VISIBLE_BANDS - 1) * GAP) / VISIBLE_BANDS)  // 32px
+const BAR_W = Math.floor((W - (VISIBLE_BANDS - 1) * GAP) / VISIBLE_BANDS)  // 22px
 const RADIUS = 3
 
 const roundRect = (ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void => {
@@ -145,7 +145,7 @@ export const FrequencyHud = (): React.ReactElement => {
         onClick={handleClick}
         style={{ cursor: 'pointer' }}
       />
-      <span className='frequency-hud-hint'>click to toggle shockwave trigger</span>
+      <span className='frequency-hud-hint'>click to toggle</span>
     </div>
   )
 }

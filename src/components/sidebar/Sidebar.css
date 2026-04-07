@@ -64,7 +64,7 @@
 
 .save-preset {
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   gap: 8px;
   align-items: center;
   min-width: 0;
@@ -117,8 +117,8 @@
 }
 
 .save-preset-input {
-  flex: 1;
-  min-width: 80px;
+  flex: 1 1 80px;
+  min-width: 0;
   max-width: 360px;
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.2);
@@ -188,7 +188,7 @@
   vertical-align: top;
   border-radius: 10px;
   color: #666;
-  font-size: 2.75rem;
+  font-size: 3rem;
   padding: 4px 10px;
   line-height: 1;
   background: transparent;
