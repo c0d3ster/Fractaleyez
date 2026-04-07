@@ -24,7 +24,7 @@ export const analyserConfig = {
       enabled: true,
       options: {
         bands: 8,
-        threshold: 1.2,
+        threshold: 1.1,
         ignoreTime: 300,
         energyPersistence: 1200,
         peakPersistency: 300,

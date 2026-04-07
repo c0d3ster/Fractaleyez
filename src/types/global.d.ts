@@ -12,7 +12,12 @@ declare global {
       multibandPeak?: Array<{ value: number }>
     } | null
     enabledFreqBands?: boolean[]
-    getPerfData?: () => { fps: number; frameMs: number; pingMs: number | null }
+    getPerfData?: () => {
+      fps: number
+      frameMs: number
+      pingMs: number | null
+      estimatedLagMs: number
+    }
   }
 }
 

@@ -9,8 +9,7 @@ import { ConfigVideo } from './ConfigVideo'
 import { copyStyles } from '../../styles/AppStyleCopier'
 import { connectConfig, ConfigContext, ConfigContextValue } from './context/ConfigProvider'
 import { CameraTouchpad } from './CameraTouchpad'
-import { FrequencyHud } from './FrequencyHud'
-import { PerfHud } from './PerfHud'
+import { FrequencyHud, PerfHud } from '../huds'
 
 type ExternalWindowBridgeProps = ConfigContextValue
 

@@ -57,7 +57,7 @@
 .save-preset-wrapper {
   display: flex;
   flex-direction: column;
-  align-items: stretch;
+  align-items: flex-end;
   min-width: 0;
   max-width: 100%;
 }
@@ -104,7 +104,7 @@
   color: rgba(160, 160, 160, 0.5);
   min-width: 0;
   width: 100%;
-  max-width: 100%;
+  max-width: 300px;
   overflow-wrap: break-word;
   white-space: normal;
   min-height: 0.35em;
@@ -119,7 +119,7 @@
 .save-preset-input {
   flex: 1;
   min-width: 80px;
-  max-width: 100%;
+  max-width: 360px;
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 6px;
