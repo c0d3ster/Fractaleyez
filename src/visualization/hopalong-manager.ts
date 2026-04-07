@@ -15,10 +15,12 @@ export class HopalongManager {
   private bloomEffect: BloomEffect | null
   private shockwaveEffect: ShockWaveEffect | null
   private effectPass: EffectPass | null
+  private lastAudioData: AudioAnalysedDataForVisualization | null
 
   constructor() {
     this.elapsedTime = 0
     this.cameraManager = null
+    this.lastAudioData = null
     this.hopalongVisualizer = null
     this.renderer = null
     this.composer = null
@@ -47,6 +49,9 @@ export class HopalongManager {
     this.setupEffects()
     window.setVirtualCameraPosition = (x: number, y: number) => this.cameraManager!.setVirtualMousePosition(x, y)
     window.getVirtualCameraPosition = () => ({ x: this.cameraManager!.mouseX, y: this.cameraManager!.mouseY })
+    window.getAudioData = () => this.lastAudioData
+    // Default: visible bands (sub–hi = 0–4) enabled; pre/bri/air (5–7) disabled
+    window.enabledFreqBands = [true, true, true, true, true, false, false, false]
     document.addEventListener('mousemove', this.onDocumentMouseMove)
     document.addEventListener('keydown', this.onKeyDown)
     window.addEventListener('resize', this.onWindowResize)
@@ -74,6 +79,7 @@ export class HopalongManager {
   }
 
   update = (deltaTime: number, audioData: AudioAnalysedDataForVisualization): void => {
+    this.lastAudioData = audioData
     this.elapsedTime += deltaTime
 
     const peakVal = audioData.peak?.value ?? 0
@@ -90,7 +96,14 @@ export class HopalongManager {
       ;(this.bloomEffect as any).blendMode.opacity.value = audioData.peak.value * audioData.peak.energy
     }
 
-    if (audioData.peak && audioData.peak.value > 0.8 && window.config.effects.shockwave.value) {
+    const enabledBands = window.enabledFreqBands ?? [true, true, true, true, true, false, false, false]
+    const allEnabled = enabledBands.every(Boolean)
+    const anyEnabledBandElevated = allEnabled || (audioData.multibandEnergy?.some((e, i) => {
+      if (!enabledBands[i]) return false
+      const avg = audioData.multibandEnergyAverage?.[i] ?? 0
+      return avg > 0 && e / avg > 1.0
+    }) ?? true)
+    if (audioData.peak && audioData.peak.value > 0.8 && anyEnabledBandElevated && window.config.effects.shockwave.value) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ;(this.shockwaveEffect as any).explode()
     }

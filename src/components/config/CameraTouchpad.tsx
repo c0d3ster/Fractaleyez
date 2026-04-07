@@ -1,15 +1,19 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react'
 import './CameraTouchpad.css'
 
-const PAD_W = 160
-const RANGE = 500
+const PAD_W = 180
 
 const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v))
-const padH = (): number => Math.round(PAD_W / (window.innerWidth / window.innerHeight))
-const valToPixelX = (v: number, w: number): number => ((v / RANGE) + 1) * (w / 2)
-const valToPixelY = (v: number, h: number): number => ((v / RANGE) + 1) * (h / 2)
-const pixelToValX = (px: number, w: number): number => ((px / w) * 2 - 1) * RANGE
-const pixelToValY = (py: number, h: number): number => ((py / h) * 2 - 1) * RANGE
+
+/** Main app window when config runs in a popup; otherwise `window`. */
+const mainWindow = (): Window => window.opener ?? window
+
+const padH = (): number => Math.round(PAD_W / (mainWindow().innerWidth / mainWindow().innerHeight))
+const getRange = (): number => mainWindow().config?.user?.cameraBound?.value ?? 100
+const valToPixelX = (v: number, w: number, range: number): number => ((v / range) + 1) * (w / 2)
+const valToPixelY = (v: number, h: number, range: number): number => ((v / range) + 1) * (h / 2)
+const pixelToValX = (px: number, w: number, range: number): number => ((px / w) * 2 - 1) * range
+const pixelToValY = (py: number, h: number, range: number): number => ((py / h) * 2 - 1) * range
 
 type Pos = { x: number; y: number }
 
@@ -25,8 +29,9 @@ export const CameraTouchpad = (): React.ReactElement => {
   useEffect(() => {
     const tick = (): void => {
       if (!dragging.current) {
-        const cam = window.getVirtualCameraPosition?.()
-        if (cam) setPos({ x: clamp(cam.x, -RANGE, RANGE), y: clamp(cam.y, -RANGE, RANGE) })
+        const cam = mainWindow().getVirtualCameraPosition?.()
+        const range = getRange()
+        if (cam) setPos({ x: clamp(cam.x, -range, range), y: clamp(cam.y, -range, range) })
       }
       rafRef.current = requestAnimationFrame(tick)
     }
@@ -35,9 +40,10 @@ export const CameraTouchpad = (): React.ReactElement => {
   }, [])
 
   const applyPos = useCallback((x: number, y: number) => {
-    const next = { x: clamp(x, -RANGE, RANGE), y: clamp(y, -RANGE, RANGE) }
+    const range = getRange()
+    const next = { x: clamp(x, -range, range), y: clamp(y, -range, range) }
     setPos(next)
-    window.setVirtualCameraPosition?.(next.x, next.y)
+    mainWindow().setVirtualCameraPosition?.(next.x, next.y)
   }, [])
 
   const handleMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
@@ -48,8 +54,8 @@ export const CameraTouchpad = (): React.ReactElement => {
     const ph = padH()
     const rect = pad.getBoundingClientRect()
     applyPos(
-      pixelToValX(clamp(e.clientX - rect.left, 0, PAD_W), PAD_W),
-      pixelToValY(clamp(e.clientY - rect.top, 0, ph), ph),
+      pixelToValX(clamp(e.clientX - rect.left, 0, PAD_W), PAD_W, getRange()),
+      pixelToValY(clamp(e.clientY - rect.top, 0, ph), ph, getRange()),
     )
 
     const doc = pad.ownerDocument
@@ -58,8 +64,8 @@ export const CameraTouchpad = (): React.ReactElement => {
       const r = padRef.current.getBoundingClientRect()
       const ph2 = padH()
       applyPos(
-        pixelToValX(clamp(ev.clientX - r.left, 0, PAD_W), PAD_W),
-        pixelToValY(clamp(ev.clientY - r.top, 0, ph2), ph2),
+        pixelToValX(clamp(ev.clientX - r.left, 0, PAD_W), PAD_W, getRange()),
+        pixelToValY(clamp(ev.clientY - r.top, 0, ph2), ph2, getRange()),
       )
     }
     const onUp = (): void => {
@@ -87,7 +93,7 @@ export const CameraTouchpad = (): React.ReactElement => {
         <div className='camera-touchpad-crosshair camera-touchpad-crosshair--v' />
         <div
           className='camera-touchpad-dot'
-          style={{ left: valToPixelX(pos.x, PAD_W), top: valToPixelY(pos.y, h) }}
+          style={{ left: valToPixelX(pos.x, PAD_W, getRange()), top: valToPixelY(pos.y, h, getRange()) }}
         />
       </div>
       <div className='camera-touchpad-values'>
