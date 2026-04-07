@@ -46,6 +46,10 @@ body {
   flex: 0 0 90px;
 }
 
+.config-window-root .save-preset-pack-hint {
+  font-size: 0.85em;
+}
+
 canvas {
   margin: 0;
   padding: 0;

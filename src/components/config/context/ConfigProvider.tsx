@@ -9,6 +9,25 @@ export type PresetRetrieveEvent = {
   currentTarget: { dataset: { [key: string]: string | undefined } }
 }
 
+export type PresetMeta = {
+  id?: string
+  name: string
+  label: string
+  pack: string
+  sprite: string
+  isOwn: boolean
+}
+
+type ApiPreset = {
+  id: string
+  name: string
+  pack: string
+  sprite: string
+  isOwn: boolean
+}
+
+const toLabel = (name: string): string => name.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase()).trim()
+
 export type ConfigContextValue = {
   config: AppConfig
   updateConfigItem: (category: string, item: string, value: string | boolean | number) => void
@@ -18,6 +37,7 @@ export type ConfigContextValue = {
   savePreset: (name: string, pack: string, force?: boolean) => Promise<void>
   isSignedIn: boolean
   currentUserId: string | null
+  presets: PresetMeta[]
 }
 
 export const ConfigContext = React.createContext<ConfigContextValue | undefined>(undefined)
@@ -39,11 +59,42 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
     return configDefaults
   })
 
+  const [presetList, setPresetList] = useState<PresetMeta[]>([])
+
   useEffect(() => {
     if (!localStorage.getItem('presets')) {
       localStorage.setItem('presets', JSON.stringify(presets))
     }
   }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    const load = async (): Promise<void> => {
+      try {
+        const token = await getToken()
+        const { data } = await axios.get<ApiPreset[]>('/api/presets', {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        })
+        if (cancelled) return
+        setPresetList(data.map(p => ({ ...p, label: toLabel(p.name) })))
+      } catch (err) {
+        console.error('Failed to load presets from API, falling back to bundled', err)
+        if (cancelled) return
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const bundled = Object.entries(presets).map(([name, data]: [string, any]) => ({
+          name,
+          label: toLabel(name),
+          pack: (data.pack ?? '') as string,
+          sprite: (data.particle?.sprites?.value?.[0] ?? 'fractaleye.png') as string,
+          isOwn: false,
+          id: undefined,
+        }))
+        setPresetList(bundled)
+      }
+    }
+    void load()
+    return () => { cancelled = true }
+  }, [getToken])
 
   const updateConfigItem = useCallback((category: string, item: string, value: string | boolean | number) => {
     const parsed = typeof value === 'string' ? parseFloat(value) : value
@@ -67,10 +118,10 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
     })
   }, [])
 
-  const retrieveCachedPreset = useCallback((name: string): AppConfig | null => {
+  const retrieveCachedPreset = useCallback((cacheKey: string): AppConfig | null => {
     const stored = localStorage.getItem('presets')
     if (!stored) return null
-    return (JSON.parse(stored) as Record<string, AppConfig>)[name] ?? null
+    return (JSON.parse(stored) as Record<string, AppConfig>)[cacheKey] ?? null
   }, [])
 
   const updateVideoClips = useCallback((clips: string[]) => {
@@ -98,21 +149,34 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
 
   const retrieveConfigPreset = useCallback(async (event: PresetRetrieveEvent) => {
     const name = event.currentTarget.dataset['name']
+    const id = event.currentTarget.dataset['id']
     if (!name) return
+
+    const cacheKey = id || name
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let cfg: any
 
-    cfg = retrieveCachedPreset(name)
+    cfg = retrieveCachedPreset(cacheKey)
 
     if (!cfg) {
-      try {
-        const result = await axios.get(`/api/getConfig/${name}`)
-        cfg = result.data
-        const stored = localStorage.getItem('presets')
-        const cached = stored ? (JSON.parse(stored) as Record<string, unknown>) : {}
-        localStorage.setItem('presets', JSON.stringify({ ...cached, [name]: cfg }))
-      } catch {
+      if (id) {
+        try {
+          const result = await axios.get('/api/preset', { params: { id } })
+          cfg = result.data.config
+          const stored = localStorage.getItem('presets')
+          const cached = stored ? (JSON.parse(stored) as Record<string, unknown>) : {}
+          localStorage.setItem('presets', JSON.stringify({ ...cached, [cacheKey]: cfg }))
+        } catch {
+          cfg = (presets as Record<string, unknown>)[name] ?? null
+          if (!cfg) {
+            console.error(`Preset "${name}" not found locally or via API`)
+            return
+          }
+          console.warn(`Using bundled preset for "${name}" (offline fallback)`)
+          cfg = structuredClone(cfg)
+        }
+      } else {
         cfg = (presets as Record<string, unknown>)[name] ?? null
         if (!cfg) {
           console.error(`Preset "${name}" not found locally or via API`)
@@ -144,7 +208,7 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
   const savePreset = useCallback(async (name: string, pack: string, force?: boolean) => {
     const token = await getToken()
     if (!token) throw Object.assign(new Error('Not authenticated'), { response: { status: 401, data: { error: 'Not authenticated — try signing out and back in' } } })
-    await axios.post('/api/savePreset', {
+    const { data } = await axios.post<{ id: string; name: string }>('/api/savePreset', {
       name,
       pack,
       config,
@@ -152,10 +216,17 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
     }, {
       headers: { Authorization: `Bearer ${token}` },
     })
+    const sprite = config.particle.sprites.value[0] ?? 'fractaleye.png'
+    const newPreset: PresetMeta = { id: data.id, name: data.name, label: toLabel(data.name), pack, sprite, isOwn: true }
+    setPresetList(prev => {
+      const matches = (p: PresetMeta): boolean => p.id === data.id || p.name === data.name
+      const exists = prev.some(matches)
+      return exists ? prev.map(p => (matches(p) ? newPreset : p)) : [...prev, newPreset]
+    })
   }, [config, getToken])
 
   return (
-    <ConfigContext.Provider value={{ config, updateConfigItem, updateVideoClips, retrieveConfigPreset, resetConfig, savePreset, isSignedIn: isSignedIn ?? false, currentUserId: user?.id ?? null }}>
+    <ConfigContext.Provider value={{ config, updateConfigItem, updateVideoClips, retrieveConfigPreset, resetConfig, savePreset, isSignedIn: isSignedIn ?? false, currentUserId: user?.id ?? null, presets: presetList }}>
       {children}
     </ConfigContext.Provider>
   )

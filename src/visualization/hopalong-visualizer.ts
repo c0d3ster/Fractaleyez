@@ -1,7 +1,6 @@
 import * as THREE from 'three'
 
 import { AudioAnalysedDataForVisualization } from '../audioanalysis/audio-analysed-data'
-import { userConfig } from '../config/user.config'
 
 /*
  * ORIGINAL AUTHOR: Iacopo Sassarini
@@ -36,6 +35,8 @@ export class HopalongVisualizer {
   lights: THREE.PointLight[]
   video: HTMLVideoElement | null
   videoPlane: THREE.Mesh | null
+  /** Tracks bound + viewport so the plane can grow when cameraBound or window size changes. */
+  private lastVideoPlaneSizeKey: string | null
   objects: ParticleSystem[]
   hueValues: number[]
   scene: THREE.Scene
@@ -69,6 +70,7 @@ export class HopalongVisualizer {
     this.lights = []
     this.video = null
     this.videoPlane = null
+    this.lastVideoPlaneSizeKey = null
     this.objects = []
     this.hueValues = []
     this.scene = new THREE.Scene()
@@ -167,6 +169,23 @@ export class HopalongVisualizer {
     this.videoPlane = new THREE.Mesh(planeGeometry, planeMaterial)
     this.videoPlane.position.z = 5
     this.scene.add(this.videoPlane)
+    this.lastVideoPlaneSizeKey = this.computeVideoPlaneSizeKey()
+  }
+
+  private computeVideoPlaneSizeKey(): string {
+    const b = window.config.user.cameraBound.value
+    return `${b}:${window.innerWidth}x${window.innerHeight}`
+  }
+
+  private resizeVideoPlaneGeometry(): void {
+    if (!this.videoPlane) return
+    const currentBound = window.config.user.cameraBound.value
+    const panMargin = 1 + (2 * currentBound) / Math.min(window.innerWidth, window.innerHeight)
+    const planeW = window.innerWidth * panMargin
+    const planeH = window.innerHeight * panMargin
+    const oldGeo = this.videoPlane.geometry
+    this.videoPlane.geometry = new THREE.PlaneGeometry(planeW, planeH)
+    oldGeo.dispose()
   }
 
   nextVideo(videoElement: HTMLVideoElement): void {
@@ -186,6 +205,14 @@ export class HopalongVisualizer {
   }
 
   update(deltaTime: number, audioData: AudioAnalysedDataForVisualization): void {
+    if (this.videoPlane) {
+      const key = this.computeVideoPlaneSizeKey()
+      if (key !== this.lastVideoPlaneSizeKey) {
+        this.lastVideoPlaneSizeKey = key
+        this.resizeVideoPlaneGeometry()
+      }
+    }
+
     if ((audioData.peak?.value ?? 0) > 0.8) {
       this.audioPeak = true
     }
@@ -388,6 +415,7 @@ export class HopalongVisualizer {
   }
 
   disposeVideoPlane(): void {
+    this.lastVideoPlaneSizeKey = null
     if (this.videoPlane) {
       this.scene.remove(this.videoPlane)
       this.videoPlane.geometry.dispose()
