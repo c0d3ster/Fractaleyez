@@ -219,8 +219,9 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
     const sprite = config.particle.sprites.value[0] ?? 'fractaleye.png'
     const newPreset: PresetMeta = { id: data.id, name: data.name, label: toLabel(data.name), pack, sprite, isOwn: true }
     setPresetList(prev => {
-      const exists = prev.some(p => p.id === data.id || p.name === data.name)
-      return exists ? prev.map(p => (p.name === data.name ? newPreset : p)) : [...prev, newPreset]
+      const matches = (p: PresetMeta): boolean => p.id === data.id || p.name === data.name
+      const exists = prev.some(matches)
+      return exists ? prev.map(p => (matches(p) ? newPreset : p)) : [...prev, newPreset]
     })
   }, [config, getToken])
 
