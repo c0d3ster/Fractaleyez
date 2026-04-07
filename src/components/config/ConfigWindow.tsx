@@ -8,6 +8,7 @@ import { ConfigCategory } from './ConfigCategory'
 import { ConfigVideo } from './ConfigVideo'
 import { copyStyles } from '../../styles/AppStyleCopier'
 import { connectConfig, ConfigContext, ConfigContextValue } from './context/ConfigProvider'
+import { CameraTouchpad } from './CameraTouchpad'
 
 type ExternalWindowBridgeProps = ConfigContextValue
 
@@ -37,20 +38,25 @@ const ExternalWindowBridge = ({
             headerActions={<SavePreset prefill={prefill} onSaved={() => setPrefill(null)} />}
           />
         </Row>
-      <Row>
-        {Object.keys(config).map((category) => (
-          <Col sm={2} key={category} style={{ paddingLeft: '8px', paddingRight: '8px' }}>
-            {category === 'video'
-              ? <ConfigVideo isOpen={true} toggleOpen={() => null} />
-              : <ConfigCategory
-                name={category}
-                onChange={updateConfigItem}
-                isOpen={true}
-                toggleOpen={() => null} />
-            }
-          </Col>
-        ))}
-      </Row>
+        <Row>
+          <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+            <div style={{ flex: 1, display: 'flex', flexWrap: 'wrap' }}>
+              {Object.keys(config).map((category) => (
+                <div key={category} style={{ width: '16.66%', paddingLeft: '8px', paddingRight: '8px', boxSizing: 'border-box' }}>
+                  {category === 'video'
+                    ? <ConfigVideo isOpen={true} toggleOpen={() => null} />
+                    : <ConfigCategory
+                      name={category}
+                      onChange={updateConfigItem}
+                      isOpen={true}
+                      toggleOpen={() => null} />
+                  }
+                </div>
+              ))}
+            </div>
+            <CameraTouchpad />
+          </div>
+        </Row>
       </Grid>
     </ConfigContext.Provider>
   )

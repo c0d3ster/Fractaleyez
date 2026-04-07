@@ -45,6 +45,8 @@ export class HopalongManager {
     document.body.appendChild(this.renderer.domElement)
 
     this.setupEffects()
+    window.setVirtualCameraPosition = (x: number, y: number) => this.cameraManager!.setVirtualMousePosition(x, y)
+    window.getVirtualCameraPosition = () => ({ x: this.cameraManager!.mouseX, y: this.cameraManager!.mouseY })
     document.addEventListener('mousemove', this.onDocumentMouseMove)
     document.addEventListener('keydown', this.onKeyDown)
     window.addEventListener('resize', this.onWindowResize)
