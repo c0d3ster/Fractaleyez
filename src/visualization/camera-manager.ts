@@ -79,6 +79,11 @@ export class CameraManager {
     this.mouseY = event.clientY - (window.innerHeight / 2)
   }
 
+  setVirtualMousePosition(x: number, y: number): void {
+    this.mouseX = x
+    this.mouseY = y
+  }
+
   onResize(): void {
     this.camera!.aspect = window.innerWidth / window.innerHeight
     this.camera!.updateProjectionMatrix()

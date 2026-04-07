@@ -57,14 +57,14 @@
 .save-preset-wrapper {
   display: flex;
   flex-direction: column;
-  align-items: stretch;
+  align-items: flex-end;
   min-width: 0;
   max-width: 100%;
 }
 
 .save-preset {
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   gap: 8px;
   align-items: center;
   min-width: 0;
@@ -96,15 +96,16 @@
   color: rgba(170, 170, 170, 0.85);
 }
 
+/* Full-width wrap row: same width as Pack+Name+Save line so text lines up with Pack’s left edge */
 .save-preset-pack-hint {
-  margin: 0.75em 0 0 2px;
+  flex-basis: 100%;
+  margin: 0;
   padding: 0;
   font-size: 0.75em;
   line-height: 1.2;
   color: rgba(160, 160, 160, 0.5);
   min-width: 0;
-  width: 100%;
-  max-width: 100%;
+  max-width: 300px;
   overflow-wrap: break-word;
   white-space: normal;
   min-height: 0.35em;
@@ -116,10 +117,14 @@
   user-select: none;
 }
 
+.save-preset-pack-hint--action {
+  cursor: pointer;
+}
+
 .save-preset-input {
-  flex: 1;
-  min-width: 80px;
-  max-width: 100%;
+  flex: 1 1 80px;
+  min-width: 0;
+  max-width: 360px;
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 6px;
@@ -135,6 +140,22 @@
 
 .save-preset-input:focus {
   border-color: rgba(255, 255, 255, 0.4);
+}
+
+.save-preset-input:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: rgba(160, 160, 160, 0.65);
+}
+
+.save-preset-input:disabled::placeholder {
+  color: rgba(140, 140, 140, 0.35);
+}
+
+.save-preset-input--pack-reserved:disabled {
+  opacity: 0.45;
 }
 
 .save-preset-btn {
@@ -155,9 +176,19 @@
 
 
 .save-preset-btn:disabled {
-  opacity: 0.4;
+  opacity: 0.5;
   cursor: not-allowed;
   pointer-events: none;
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: rgba(140, 140, 140, 0.75);
+  box-shadow: none;
+  filter: grayscale(0.35);
+}
+
+.save-preset-btn:disabled.save-preset-btn--confirm {
+  border-color: rgba(255, 160, 50, 0.2);
+  color: rgba(200, 140, 80, 0.45);
 }
 
 .save-preset-btn--confirm {
@@ -188,7 +219,7 @@
   vertical-align: top;
   border-radius: 10px;
   color: #666;
-  font-size: 2.75rem;
+  font-size: 3rem;
   padding: 4px 10px;
   line-height: 1;
   background: transparent;

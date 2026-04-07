@@ -1,0 +1,76 @@
+.perf-hud-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 0 4px;
+  margin: 1.25rem 0 0;
+  user-select: none;
+}
+
+.perf-hud-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #888;
+}
+
+.perf-hud-panel {
+  width: 180px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  background: #0d0d0d;
+  border: 1px solid #2a2a2a;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.perf-hud-row {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.03em;
+}
+
+.perf-hud-row + .perf-hud-row {
+  border-top: 1px solid #222;
+}
+
+.perf-hud-metric {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  align-items: baseline;
+  gap: 4px;
+  min-width: 0;
+}
+
+.perf-hud-metric--ping {
+  flex-shrink: 0;
+}
+
+.perf-hud-frame-ms {
+  font-size: 10px;
+  color: #666;
+  letter-spacing: 0.02em;
+}
+
+.perf-hud-key {
+  color: #666;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.perf-hud-value {
+  color: #ccc;
+}
+
+.perf-hud-value--muted {
+  color: #555;
+}

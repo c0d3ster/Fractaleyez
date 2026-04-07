@@ -8,6 +8,8 @@ import { ConfigCategory } from './ConfigCategory'
 import { ConfigVideo } from './ConfigVideo'
 import { copyStyles } from '../../styles/AppStyleCopier'
 import { connectConfig, ConfigContext, ConfigContextValue } from './context/ConfigProvider'
+import { CameraTouchpad } from './CameraTouchpad'
+import { FrequencyHud, PerfHud } from '../huds'
 
 type ExternalWindowBridgeProps = ConfigContextValue
 
@@ -37,20 +39,27 @@ const ExternalWindowBridge = ({
             headerActions={<SavePreset prefill={prefill} onSaved={() => setPrefill(null)} />}
           />
         </Row>
-      <Row>
-        {Object.keys(config).map((category) => (
-          <Col sm={2} key={category} style={{ paddingLeft: '8px', paddingRight: '8px' }}>
-            {category === 'video'
-              ? <ConfigVideo isOpen={true} toggleOpen={() => null} />
-              : <ConfigCategory
-                name={category}
-                onChange={updateConfigItem}
-                isOpen={true}
-                toggleOpen={() => null} />
-            }
-          </Col>
-        ))}
-      </Row>
+        <Row>
+          {Object.keys(config).map((category) => (
+            <Col sm={2} key={category} style={{ paddingLeft: '8px', paddingRight: '8px' }}>
+              {category === 'video'
+                ? <>
+                    <ConfigVideo isOpen={true} toggleOpen={() => null} />
+                    <PerfHud />
+                    <CameraTouchpad />
+                  </>
+                : <>
+                    <ConfigCategory
+                      name={category}
+                      onChange={updateConfigItem}
+                      isOpen={true}
+                      toggleOpen={() => null} />
+                    {category === 'audio' && <FrequencyHud />}
+                  </>
+              }
+            </Col>
+            ))}
+        </Row>
       </Grid>
     </ConfigContext.Provider>
   )
@@ -76,7 +85,7 @@ const ConfigWindowInner = ({
 
   // Open the external window once on mount
   useEffect(() => {
-    const externalWindow = window.open('', '', 'width=1200,height=850,location=no')
+    const externalWindow = window.open('', '', 'width=1200,height=860,location=no')
     if (!externalWindow) return
 
     const container = externalWindow.document.createElement('div')
