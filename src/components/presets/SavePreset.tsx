@@ -1,4 +1,4 @@
-import React, { useState, useContext, useCallback, useEffect, useMemo } from 'react'
+import React, { useState, useContext, useCallback, useEffect, useMemo, useRef } from 'react'
 import { ConfigContext } from '../config/context/ConfigProvider'
 import { PresetSelection } from './Presets'
 
@@ -9,6 +9,7 @@ type SavePresetProps = {
 
 export const SavePreset = ({ prefill, onSaved }: SavePresetProps): React.ReactElement | null => {
   const context = useContext(ConfigContext)
+  const packInputRef = useRef<HTMLInputElement>(null)
   const [name, setName] = useState('')
   const [pack, setPack] = useState('')
   const [status, setStatus] = useState<'idle' | 'saving' | 'confirm' | 'saved' | 'error'>('idle')
@@ -16,7 +17,7 @@ export const SavePreset = ({ prefill, onSaved }: SavePresetProps): React.ReactEl
 
   useEffect(() => {
     if (prefill) {
-      setName(prefill.name)
+      setName(prefill.label || prefill.name)
       setPack(prefill.pack)
       setStatus('idle')
       setErrorMessage('')
@@ -33,6 +34,13 @@ export const SavePreset = ({ prefill, onSaved }: SavePresetProps): React.ReactEl
 
   const packTrimmed = pack.trim()
   const packReserved = packTrimmed.length > 0 && systemPacks.has(packTrimmed)
+
+  const selectReservedPackText = useCallback((el: HTMLInputElement): void => {
+    if (!packReserved) return
+    requestAnimationFrame(() => {
+      el.select()
+    })
+  }, [packReserved])
 
   const handleSave = useCallback(async (force = false) => {
     if (!name.trim() || !context) return
@@ -71,14 +79,17 @@ export const SavePreset = ({ prefill, onSaved }: SavePresetProps): React.ReactEl
     <div className='save-preset-wrapper'>
       <div className='save-preset'>
         <input
+          ref={packInputRef}
           className={`save-preset-input save-preset-input--pack${packReserved ? ' save-preset-input--pack-reserved' : ''}`}
           type='text'
           placeholder='Pack'
           value={pack}
           onChange={(e) => setPack(e.target.value)}
+          onFocus={(e) => selectReservedPackText(e.currentTarget)}
+          onClick={(e) => selectReservedPackText(e.currentTarget)}
           disabled={status === 'saving'}
           aria-invalid={packReserved}
-          title={packReserved ? 'This pack name is reserved for built-in presets — use a different name' : undefined}
+          title={packReserved ? 'Built-in presets use this pack name — choose another' : undefined}
           autoComplete='off'
         />
         <input
@@ -115,14 +126,20 @@ export const SavePreset = ({ prefill, onSaved }: SavePresetProps): React.ReactEl
             {status === 'saving' ? '...' : 'Save'}
           </button>
         )}
+        <p
+          className={`save-preset-pack-hint${packReserved ? ' save-preset-pack-hint--action' : ' save-preset-pack-hint--inactive'}`}
+          role={packReserved ? 'status' : undefined}
+          aria-hidden={!packReserved}
+          onClick={packReserved ? () => {
+            const el = packInputRef.current
+            if (!el) return
+            el.focus()
+            selectReservedPackText(el)
+          } : undefined}
+        >
+          {packReserved ? 'Reserved pack. Use a new pack name.' : '\u00a0'}
+        </p>
       </div>
-      <p
-        className={`save-preset-pack-hint${packReserved ? '' : ' save-preset-pack-hint--inactive'}`}
-        role={packReserved ? 'status' : undefined}
-        aria-hidden={!packReserved}
-      >
-        {packReserved ? 'Reserved pack. Use a different pack to save.' : '\u00a0'}
-      </p>
       <span className={`save-preset-status save-preset-status--${status}`}>{statusMessage}</span>
     </div>
   )
