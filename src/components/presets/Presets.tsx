@@ -65,8 +65,10 @@ const PresetsInner = ({ retrieveConfigPreset, presets, expanded = false, onSelec
               className='preset-item'
               data-name={name}
               data-id={id ?? ''}
-              onClick={(e) => {
-                retrieveConfigPreset(e as unknown as PresetRetrieveEvent)
+              onClick={() => {
+                void retrieveConfigPreset({
+                  currentTarget: { dataset: { name: String(name), id: id ?? '' } },
+                } as PresetRetrieveEvent)
                 onSelect?.({ name, label, pack, isOwn })
               }}
             >

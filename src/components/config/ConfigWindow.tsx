@@ -7,9 +7,10 @@ import { SavePreset } from '../presets/SavePreset'
 import { ConfigCategory } from './ConfigCategory'
 import { ConfigVideo } from './ConfigVideo'
 import { copyStyles } from '../../styles/AppStyleCopier'
+import { CONFIG_WINDOW_COLUMN_ORDER } from '../../config/configDefaults'
 import { connectConfig, ConfigContext, ConfigContextValue } from './context/ConfigProvider'
 import { CameraTouchpad } from './CameraTouchpad'
-import { FrequencyHud, PerfHud } from '../huds'
+import { FrequencyHud, PerfHud, ParticleSpriteHud } from '../huds'
 
 type ExternalWindowBridgeProps = ConfigContextValue
 
@@ -18,6 +19,7 @@ const ExternalWindowBridge = ({
   config,
   updateConfigItem,
   updateVideoClips,
+  updateParticleSprites,
   retrieveConfigPreset,
   resetConfig,
   savePreset,
@@ -28,7 +30,18 @@ const ExternalWindowBridge = ({
   const [prefill, setPrefill] = useState<PresetSelection | null>(null)
   return (
     <ConfigContext.Provider
-      value={{ config, updateConfigItem, updateVideoClips, retrieveConfigPreset, resetConfig, savePreset, isSignedIn, currentUserId, presets }}
+      value={{
+        config,
+        updateConfigItem,
+        updateVideoClips,
+        updateParticleSprites,
+        retrieveConfigPreset,
+        resetConfig,
+        savePreset,
+        isSignedIn,
+        currentUserId,
+        presets,
+      }}
     >
       <Grid>
         <Row>
@@ -40,25 +53,42 @@ const ExternalWindowBridge = ({
           />
         </Row>
         <Row>
-          {Object.keys(config).map((category) => (
-            <Col sm={2} key={category} style={{ paddingLeft: '8px', paddingRight: '8px' }}>
-              {category === 'video'
-                ? <>
-                    <ConfigVideo isOpen={true} toggleOpen={() => null} />
-                    <PerfHud />
-                    <CameraTouchpad />
-                  </>
-                : <>
-                    <ConfigCategory
-                      name={category}
-                      onChange={updateConfigItem}
-                      isOpen={true}
-                      toggleOpen={() => null} />
-                    {category === 'audio' && <FrequencyHud />}
-                  </>
-              }
-            </Col>
-            ))}
+          {CONFIG_WINDOW_COLUMN_ORDER.map((segment) => {
+            const colStyle = { paddingLeft: '8px', paddingRight: '8px' }
+            if (segment === 'effects_particle') {
+              return (
+                <Col sm={2} key='effects_particle' style={colStyle}>
+                  <ConfigCategory
+                    name='effects'
+                    onChange={updateConfigItem}
+                    isOpen={true}
+                    toggleOpen={() => null}
+                  />
+                  <ParticleSpriteHud />
+                </Col>
+              )
+            }
+            if (segment === 'video') {
+              return (
+                <Col sm={2} key='video' style={colStyle}>
+                  <ConfigVideo isOpen={true} toggleOpen={() => null} />
+                  <PerfHud />
+                  <CameraTouchpad />
+                </Col>
+              )
+            }
+            return (
+              <Col sm={2} key={segment} style={colStyle}>
+                <ConfigCategory
+                  name={segment}
+                  onChange={updateConfigItem}
+                  isOpen={true}
+                  toggleOpen={() => null}
+                />
+                {segment === 'audio' ? <FrequencyHud /> : null}
+              </Col>
+            )
+          })}
         </Row>
       </Grid>
     </ConfigContext.Provider>
@@ -73,6 +103,7 @@ const ConfigWindowInner = ({
   config,
   updateConfigItem,
   updateVideoClips,
+  updateParticleSprites,
   retrieveConfigPreset,
   resetConfig,
   savePreset,
@@ -114,6 +145,7 @@ const ConfigWindowInner = ({
         config={config}
         updateConfigItem={updateConfigItem}
         updateVideoClips={updateVideoClips}
+        updateParticleSprites={updateParticleSprites}
         retrieveConfigPreset={retrieveConfigPreset}
         resetConfig={resetConfig}
         savePreset={savePreset}
@@ -122,7 +154,18 @@ const ConfigWindowInner = ({
         presets={presets}
       />
     )
-  }, [config, updateConfigItem, updateVideoClips, retrieveConfigPreset, resetConfig, savePreset, isSignedIn, currentUserId, presets])
+  }, [
+    config,
+    updateConfigItem,
+    updateVideoClips,
+    updateParticleSprites,
+    retrieveConfigPreset,
+    resetConfig,
+    savePreset,
+    isSignedIn,
+    currentUserId,
+    presets,
+  ])
 
   return null
 }

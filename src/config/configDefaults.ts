@@ -81,10 +81,31 @@ export type AppConfig = {
   user: UserConfigSection
   audio: AudioConfigSection
   effects: EffectsConfigSection
-  orbit: OrbitConfigSection
   particle: ParticleConfigSection
+  orbit: OrbitConfigSection
   video: VideoConfigSection
 }
+
+/** Sidebar accordion row order (effects, then particle, then orbit). */
+export const CONFIG_CATEGORY_ORDER: (keyof AppConfig)[] = [
+  'user',
+  'audio',
+  'effects',
+  'particle',
+  'orbit',
+  'video',
+]
+
+export type ConfigWindowColumnKey = keyof AppConfig | 'effects_particle'
+
+export const CONFIG_WINDOW_COLUMN_ORDER: ConfigWindowColumnKey[] = [
+  'user',
+  'audio',
+  'effects_particle',
+  'particle',
+  'orbit',
+  'video',
+]
 
 const pd = analyserConfig.options.peakDetection.options
 
@@ -155,13 +176,6 @@ export const configDefaults: AppConfig = {
     glow: { name: 'Glow', type: 'checkbox', defaultValue: visualizerConfig.glow, value: visualizerConfig.glow },
     shockwave: { name: 'Shockwave', type: 'checkbox', defaultValue: visualizerConfig.shockwave, value: visualizerConfig.shockwave },
   },
-  orbit: {
-    a: { name: 'Radius', type: 'slider', defaultValue: orbitConfig.A_DEFAULT, value: orbitConfig.A_DEFAULT, min: orbitConfig.A_MIN, max: orbitConfig.A_MAX, step: orbitConfig.A_STEP_SIZE },
-    b: { name: 'Spread', type: 'slider', defaultValue: orbitConfig.B_DEFAULT, value: orbitConfig.B_DEFAULT, min: orbitConfig.B_MIN, max: orbitConfig.B_MAX, step: orbitConfig.B_STEP_SIZE },
-    c: { name: 'Sharpness', type: 'slider', defaultValue: orbitConfig.C_DEFAULT, value: orbitConfig.C_DEFAULT, min: orbitConfig.C_MIN, max: orbitConfig.C_MAX, step: orbitConfig.C_STEP_SIZE },
-    d: { name: 'Shift', type: 'slider', defaultValue: orbitConfig.D_DEFAULT, value: orbitConfig.D_DEFAULT, min: orbitConfig.D_MIN, max: orbitConfig.D_MAX, step: orbitConfig.D_STEP_SIZE },
-    e: { name: 'Drift', type: 'slider', defaultValue: orbitConfig.E_DEFAULT, value: orbitConfig.E_DEFAULT, min: orbitConfig.E_MIN, max: orbitConfig.E_MAX, step: orbitConfig.E_STEP_SIZE },
-  },
   particle: {
     particleSize: { name: 'Particle Size', type: 'slider', defaultValue: particleConfig.size_DEFAULT, value: particleConfig.size_DEFAULT, min: particleConfig.size_MIN, max: particleConfig.size_MAX, step: particleConfig.size_STEP_SIZE },
     particlesPerLayer: { name: 'Particles Per Layer', type: 'slider', defaultValue: particleConfig.particles_DEFAULT, value: particleConfig.particles_DEFAULT, min: particleConfig.particles_MIN, max: particleConfig.particles_MAX, step: particleConfig.particles_STEP_SIZE },
@@ -169,6 +183,13 @@ export const configDefaults: AppConfig = {
     levels: { name: 'Levels', type: 'slider', defaultValue: particleConfig.levels_DEFAULT, value: particleConfig.levels_DEFAULT, min: particleConfig.levels_MIN, max: particleConfig.levels_MAX, step: particleConfig.levels_STEP_SIZE },
     saturation: { name: 'Saturation', type: 'slider', defaultValue: particleConfig.saturation_DEFAULT, value: particleConfig.saturation_DEFAULT, min: particleConfig.saturation_MIN, max: particleConfig.saturation_MAX, step: particleConfig.saturation_STEP_SIZE },
     sprites: { name: 'Sprites', type: 'multiselect', defaultValue: [...particleConfig.sprites_DEFAULT], value: [...particleConfig.sprites_DEFAULT], min: particleConfig.sprites_MIN, max: particleConfig.sprites_MAX },
+  },
+  orbit: {
+    a: { name: 'Radius', type: 'slider', defaultValue: orbitConfig.A_DEFAULT, value: orbitConfig.A_DEFAULT, min: orbitConfig.A_MIN, max: orbitConfig.A_MAX, step: orbitConfig.A_STEP_SIZE },
+    b: { name: 'Spread', type: 'slider', defaultValue: orbitConfig.B_DEFAULT, value: orbitConfig.B_DEFAULT, min: orbitConfig.B_MIN, max: orbitConfig.B_MAX, step: orbitConfig.B_STEP_SIZE },
+    c: { name: 'Sharpness', type: 'slider', defaultValue: orbitConfig.C_DEFAULT, value: orbitConfig.C_DEFAULT, min: orbitConfig.C_MIN, max: orbitConfig.C_MAX, step: orbitConfig.C_STEP_SIZE },
+    d: { name: 'Shift', type: 'slider', defaultValue: orbitConfig.D_DEFAULT, value: orbitConfig.D_DEFAULT, min: orbitConfig.D_MIN, max: orbitConfig.D_MAX, step: orbitConfig.D_STEP_SIZE },
+    e: { name: 'Drift', type: 'slider', defaultValue: orbitConfig.E_DEFAULT, value: orbitConfig.E_DEFAULT, min: orbitConfig.E_MIN, max: orbitConfig.E_MAX, step: orbitConfig.E_STEP_SIZE },
   },
   video: {
     clips: [...videoConfig.clips],
