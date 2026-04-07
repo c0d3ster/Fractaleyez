@@ -26,7 +26,7 @@ type ApiPreset = {
   isOwn: boolean
 }
 
-const toLabel = (name: string): string => name.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())
+const toLabel = (name: string): string => name.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase()).trim()
 
 export type ConfigContextValue = {
   config: AppConfig
