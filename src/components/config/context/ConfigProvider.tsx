@@ -27,7 +27,13 @@ type ApiPreset = {
   isOwn: boolean
 }
 
-const toLabel = (name: string): string => name.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase()).trim()
+/** Human-readable label: camelCase → words; does not add spaces before capitals that already follow a space. */
+const toLabel = (name: string): string => {
+  const collapsed = name.trim().replace(/\s+/g, ' ')
+  if (!collapsed) return collapsed
+  const spaced = collapsed.replace(/([a-z\d])([A-Z])/g, '$1 $2').replace(/\s+/g, ' ').trim()
+  return spaced.replace(/^./, c => c.toUpperCase())
+}
 
 type ConfigSectionKey = 'user' | 'audio' | 'effects' | 'particle' | 'orbit'
 
@@ -59,14 +65,15 @@ function normalizeParticleSpritesValue(sprites: unknown): string[] {
 }
 
 function mergeVideo(loaded: unknown): AppConfig['video'] {
-  const v = configDefaults.video
+  const catalog = [...configDefaults.video.allClips]
   if (!loaded || typeof loaded !== 'object') {
-    return { ...v }
+    return { clips: [], allClips: catalog, index: 0 }
   }
   const l = loaded as Record<string, unknown>
-  const clips = Array.isArray(l.clips) ? (l.clips as string[]) : v.clips
-  const allClips = Array.isArray(l.allClips) ? (l.allClips as string[]) : clips
-  const index = typeof l.index === 'number' && Number.isFinite(l.index) ? l.index : v.index
+  const clips = Array.isArray(l.clips) ? (l.clips as string[]) : []
+  const allClips = [...new Set([...catalog, ...clips])]
+  const indexRaw = typeof l.index === 'number' && Number.isFinite(l.index) ? Math.floor(l.index) : 0
+  const index = clips.length === 0 ? 0 : Math.min(Math.max(0, indexRaw), clips.length - 1)
   return { clips, allClips, index }
 }
 
@@ -282,13 +289,10 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
     const cfgAny = cfg as Record<string, any>
     delete cfgAny['pack']
 
-    if (cfgAny['video'] && !cfgAny['video'].allClips) {
-      cfgAny['video'] = { ...cfgAny['video'], allClips: cfgAny['video'].clips }
-    }
-
     const next = normalizeLoadedPreset(cfgAny)
     setConfig(next)
     window.config = next
+    window.dispatchEvent(new CustomEvent('videoClipsRestored', { detail: { clips: next.video.clips } }))
   }, [retrieveCachedPreset])
 
   const resetConfig = useCallback(

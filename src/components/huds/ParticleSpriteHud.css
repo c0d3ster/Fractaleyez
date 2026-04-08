@@ -27,12 +27,6 @@
   gap: 10px;
 }
 
-.particle-sprite-hud__meta {
-  font-size: 10px;
-  color: #555;
-  letter-spacing: 0.03em;
-}
-
 .particle-sprite-hud__section-heading {
   display: flex;
   flex-wrap: wrap;
@@ -70,7 +64,7 @@
   width: 40px;
   height: 40px;
   border-radius: 6px;
-  overflow: hidden;
+  overflow: visible;
   border: 2px solid #3a3a3a;
   flex-shrink: 0;
   background: #111;
@@ -86,31 +80,7 @@
   height: 100%;
   object-fit: cover;
   display: block;
-}
-
-.particle-sprite-hud__chip-remove {
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: 16px;
-  height: 16px;
-  padding: 0;
-  margin: 0;
-  border: none;
-  border-radius: 0 0 0 4px;
-  background: rgba(0, 0, 0, 0.65);
-  color: #ccc;
-  font-size: 11px;
-  line-height: 1;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.particle-sprite-hud__chip-remove:hover {
-  background: rgba(180, 60, 60, 0.85);
-  color: #fff;
+  border-radius: 4px;
 }
 
 .particle-sprite-hud__library {
@@ -132,8 +102,10 @@
   transition: opacity 0.15s ease, border-color 0.15s ease;
 }
 
+/* Match App.css button:hover (Save) */
 .particle-sprite-hud__lib-btn:hover {
   opacity: 0.85;
+  border-color: #004400;
 }
 
 .particle-sprite-hud__lib-btn--selected {
@@ -167,8 +139,8 @@
 }
 
 .particle-sprite-hud__upload-label:hover {
-  border-color: #666;
-  color: #999;
+  border-color: #004400;
+  color: #ccc;
 }
 
 .particle-sprite-hud__upload-label--disabled {

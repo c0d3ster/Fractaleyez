@@ -1,11 +1,50 @@
-import React, { useCallback } from 'react'
+import React, { useCallback, useEffect, useRef } from 'react'
 import './ParticleSpriteHud.css'
 
 import { connectConfig } from '../config/context/ConfigProvider'
 import { AppConfig } from '../../config/configDefaults'
 import { BUILTIN_PARTICLE_SPRITES, particleConfig } from '../../config/particle.config'
 
-const MAX_DATA_URL_BYTES = 400 * 1024
+const MAX_DATA_URL_BYTES = 2 * 1024 * 1024
+const SPRITE_MAX_SIDE_PX = 512
+
+function prepareSpriteDataUrl(dataUrl: string, maxSide: number): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => {
+      const w = img.naturalWidth
+      const h = img.naturalHeight
+      const maxDim = Math.max(w, h)
+      if (maxDim <= maxSide || maxDim === 0) {
+        resolve(dataUrl)
+        return
+      }
+      const scale = maxSide / maxDim
+      const newW = Math.max(1, Math.round(w * scale))
+      const newH = Math.max(1, Math.round(h * scale))
+      const canvas = document.createElement('canvas')
+      canvas.width = newW
+      canvas.height = newH
+      const ctx = canvas.getContext('2d')
+      if (!ctx) {
+        resolve(dataUrl)
+        return
+      }
+      ctx.imageSmoothingEnabled = true
+      ctx.imageSmoothingQuality = 'high'
+      ctx.drawImage(img, 0, 0, newW, newH)
+      resolve(canvas.toDataURL('image/png'))
+    }
+    img.onerror = () => reject(new Error('decode'))
+    img.src = dataUrl
+  })
+}
+
+async function dataUrlByteSize(dataUrl: string): Promise<number> {
+  const res = await fetch(dataUrl)
+  const blob = await res.blob()
+  return blob.size
+}
 
 const spriteLabel = (src: string): string => {
   if (src.startsWith('data:')) return 'Custom'
@@ -20,6 +59,10 @@ type ParticleSpriteHudProps = {
 
 const ParticleSpriteHudInner = ({ config, updateParticleSprites }: ParticleSpriteHudProps): React.ReactElement => {
   const sprites = config.particle.sprites.value
+  const spritesRef = useRef(sprites)
+  useEffect(() => {
+    spritesRef.current = sprites
+  }, [sprites])
   const { sprites_MIN: minN, sprites_MAX: maxN } = particleConfig
   const atCapacity = sprites.length >= maxN
 
@@ -59,7 +102,7 @@ const ParticleSpriteHudInner = ({ config, updateParticleSprites }: ParticleSprit
       const file = files[0]
       if (!file || !file.type.startsWith('image/')) return
       if (file.size > MAX_DATA_URL_BYTES) {
-        window.alert(`Image is too large (max ${Math.round(MAX_DATA_URL_BYTES / 1024)} KB).`)
+        window.alert(`Image is too large (max ${MAX_DATA_URL_BYTES / (1024 * 1024)} MB per file).`)
         e.target.value = ''
         return
       }
@@ -69,9 +112,23 @@ const ParticleSpriteHudInner = ({ config, updateParticleSprites }: ParticleSprit
       }
       const reader = new FileReader()
       reader.onload = () => {
-        const dataUrl = typeof reader.result === 'string' ? reader.result : ''
-        if (!dataUrl) return
-        setSprites([...sprites, dataUrl])
+        const raw = typeof reader.result === 'string' ? reader.result : ''
+        if (!raw) return
+        void (async () => {
+          try {
+            const processed = await prepareSpriteDataUrl(raw, SPRITE_MAX_SIDE_PX)
+            const bytes = await dataUrlByteSize(processed)
+            if (bytes > MAX_DATA_URL_BYTES) {
+              window.alert(
+                `After scaling, the image is still over ${MAX_DATA_URL_BYTES / (1024 * 1024)} MB. Try a smaller or simpler image.`,
+              )
+              return
+            }
+            setSprites([...spritesRef.current, processed])
+          } catch {
+            window.alert('Could not process this image.')
+          }
+        })()
       }
       reader.readAsDataURL(file)
       e.target.value = ''
@@ -101,7 +158,7 @@ const ParticleSpriteHudInner = ({ config, updateParticleSprites }: ParticleSprit
                 {sprites.length > minN ? (
                   <button
                     type='button'
-                    className='particle-sprite-hud__chip-remove'
+                    className='ui-dismiss-bubble'
                     aria-label={`Remove ${spriteLabel(src)}`}
                     onClick={() => removeAt(index)}
                   >
@@ -144,7 +201,6 @@ const ParticleSpriteHudInner = ({ config, updateParticleSprites }: ParticleSprit
               onChange={onFiles}
             />
           </label>
-          <span className='particle-sprite-hud__meta'>PNG / JPG / WebP · stored in session</span>
         </div>
       </div>
     </div>

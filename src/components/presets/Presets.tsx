@@ -7,6 +7,20 @@ import { PresetRetrieveEvent, PresetMeta } from '../config/context/ConfigProvide
 
 export type PresetSelection = { name: string; label: string; pack: string; isOwn: boolean }
 
+/** Public path like `sprites/foo.png`, or inlined `data:image/...` from saved presets */
+function presetSpriteSrc(sprite: string): string {
+  if (!sprite) return '/fractaleye.png'
+  if (
+    sprite.startsWith('data:') ||
+    sprite.startsWith('blob:') ||
+    sprite.startsWith('http://') ||
+    sprite.startsWith('https://')
+  ) {
+    return sprite
+  }
+  return sprite.startsWith('/') ? sprite : `/${sprite}`
+}
+
 type PresetsProps = {
   retrieveConfigPreset: (event: PresetRetrieveEvent) => Promise<void>
   presets: PresetMeta[]
@@ -72,7 +86,7 @@ const PresetsInner = ({ retrieveConfigPreset, presets, expanded = false, onSelec
                 onSelect?.({ name, label, pack, isOwn })
               }}
             >
-              <img src={`/${sprite}`} alt='' className='preset-sprite' />
+              <img src={presetSpriteSrc(sprite)} alt='' className='preset-sprite' />
               <span>{label}</span>
             </button>
           ))}
