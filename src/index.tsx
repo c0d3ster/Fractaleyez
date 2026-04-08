@@ -1,6 +1,7 @@
 import React from 'react'
 import { createRoot } from 'react-dom/client'
 import { ClerkProvider } from '@clerk/clerk-react'
+import { Analytics } from '@vercel/analytics/react'
 
 import { ConfigProvider } from './components/config/context/ConfigProvider'
 import { App } from './components/App'
@@ -42,6 +43,7 @@ window.onload = () => {
       <ConfigProvider>
         <App />
       </ConfigProvider>
+      <Analytics />
     </ClerkProvider>
   )
 }

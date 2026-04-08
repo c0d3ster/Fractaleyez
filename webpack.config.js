@@ -43,9 +43,11 @@ module.exports = {
             ]
           }
         },
-        // Transpile @clerk/* (optional chaining); skip other node_modules
+        // Transpile @clerk/* (optional chaining), @vercel/analytics (?? / modern syntax); skip other node_modules
         exclude: (modulePath) =>
-          /node_modules/.test(modulePath) && !/node_modules[\\/]@clerk/.test(modulePath)
+          /node_modules/.test(modulePath) &&
+          !/node_modules[\\/]@clerk/.test(modulePath) &&
+          !/node_modules[\\/]@vercel[\\/]analytics/.test(modulePath)
       },
       {
         test: /\.(css|less)$/,
@@ -90,6 +92,13 @@ module.exports = {
   // resolves directory to look for modules and resolves extensions
   resolve: {
     extensions: ['.ts', '.tsx', '.js', '.jsx', '.mjs'],
-    modules: ['node_modules']
+    modules: ['node_modules'],
+    // Webpack 4 ignores package "exports"; @vercel/analytics only exposes ./react via exports
+    alias: {
+      '@vercel/analytics/react': path.join(
+        __dirname,
+        'node_modules/@vercel/analytics/dist/react/index.js'
+      ),
+    },
   },
 }
