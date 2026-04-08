@@ -46,7 +46,8 @@ function mergeConfigSection<C extends ConfigSectionKey>(category: C, loaded: Rec
   for (const key of Object.keys(def)) {
     const l = loaded[key]
     if (l && typeof l === 'object' && 'value' in (l as object)) {
-      out[key] = { ...def[key], ...(l as ConfigItem) } as ConfigItem
+      const loadedItem = l as ConfigItem
+      out[key] = { ...def[key], value: loadedItem.value } as ConfigItem
     }
   }
   return out as AppConfig[C]
@@ -289,10 +290,16 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
     const cfgAny = cfg as Record<string, any>
     delete cfgAny['pack']
 
+    const prevClips = window.config.video.clips
     const next = normalizeLoadedPreset(cfgAny)
     setConfig(next)
     window.config = next
-    window.dispatchEvent(new CustomEvent('videoClipsRestored', { detail: { clips: next.video.clips } }))
+    const sameClips =
+      prevClips.length === next.video.clips.length &&
+      prevClips.every((c, i) => c === next.video.clips[i])
+    if (!sameClips) {
+      window.dispatchEvent(new CustomEvent('videoClipsRestored', { detail: { clips: next.video.clips } }))
+    }
   }, [retrieveCachedPreset])
 
   const resetConfig = useCallback(

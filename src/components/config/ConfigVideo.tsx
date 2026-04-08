@@ -21,13 +21,23 @@ const ClipRow = ({ clip, active, onToggle }: ClipRowProps): React.ReactElement =
   const [duration, setDuration] = useState<string | null>(null)
 
   useEffect(() => {
+    let cancelled = false
     const video = document.createElement('video')
     video.preload = 'metadata'
-    video.onloadedmetadata = () => {
+    const onLoaded = (): void => {
+      if (cancelled) return
       setDuration(formatDuration(video.duration))
-      video.src = ''
+      video.removeAttribute('src')
+      video.load()
     }
+    video.onloadedmetadata = onLoaded
     video.src = `/${clip}`
+    return () => {
+      cancelled = true
+      video.onloadedmetadata = null
+      video.removeAttribute('src')
+      video.load()
+    }
   }, [clip])
 
   const name = clip.replace(/\.[^.]+$/, '')

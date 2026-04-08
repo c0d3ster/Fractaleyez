@@ -4,22 +4,9 @@ import './Presets.css'
 
 import { connectConfig } from '../config/context/ConfigProvider'
 import { PresetRetrieveEvent, PresetMeta } from '../config/context/ConfigProvider'
+import { presetSpriteSrc } from '../../utils/presetSpriteSrc'
 
 export type PresetSelection = { name: string; label: string; pack: string; isOwn: boolean }
-
-/** Public path like `sprites/foo.png`, or inlined `data:image/...` from saved presets */
-function presetSpriteSrc(sprite: string): string {
-  if (!sprite) return '/fractaleye.png'
-  if (
-    sprite.startsWith('data:') ||
-    sprite.startsWith('blob:') ||
-    sprite.startsWith('http://') ||
-    sprite.startsWith('https://')
-  ) {
-    return sprite
-  }
-  return sprite.startsWith('/') ? sprite : `/${sprite}`
-}
 
 type PresetsProps = {
   retrieveConfigPreset: (event: PresetRetrieveEvent) => Promise<void>

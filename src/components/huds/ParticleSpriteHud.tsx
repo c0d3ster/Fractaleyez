@@ -1,9 +1,10 @@
-import React, { useCallback, useEffect, useRef } from 'react'
+import React, { useCallback, useRef } from 'react'
 import './ParticleSpriteHud.css'
 
 import { connectConfig } from '../config/context/ConfigProvider'
 import { AppConfig } from '../../config/configDefaults'
 import { BUILTIN_PARTICLE_SPRITES, particleConfig } from '../../config/particle.config'
+import { presetSpriteSrc } from '../../utils/presetSpriteSrc'
 
 const MAX_DATA_URL_BYTES = 2 * 1024 * 1024
 const SPRITE_MAX_SIDE_PX = 512
@@ -60,9 +61,7 @@ type ParticleSpriteHudProps = {
 const ParticleSpriteHudInner = ({ config, updateParticleSprites }: ParticleSpriteHudProps): React.ReactElement => {
   const sprites = config.particle.sprites.value
   const spritesRef = useRef(sprites)
-  useEffect(() => {
-    spritesRef.current = sprites
-  }, [sprites])
+  spritesRef.current = sprites
   const { sprites_MIN: minN, sprites_MAX: maxN } = particleConfig
   const atCapacity = sprites.length >= maxN
 
@@ -154,7 +153,7 @@ const ParticleSpriteHudInner = ({ config, updateParticleSprites }: ParticleSprit
                 className='particle-sprite-hud__chip particle-sprite-hud__chip--on'
                 title={spriteLabel(src)}
               >
-                <img src={src.startsWith('data:') ? src : `/${src}`} alt='' />
+                <img src={presetSpriteSrc(src)} alt='' />
                 {sprites.length > minN ? (
                   <button
                     type='button'

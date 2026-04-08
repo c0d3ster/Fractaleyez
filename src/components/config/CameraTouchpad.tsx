@@ -31,10 +31,14 @@ export const CameraTouchpad = (): React.ReactElement => {
       if (!dragging.current) {
         const range = getRange()
         if (range === 0) {
-          setPos({ x: 0, y: 0 })
+          setPos((p) => (p.x === 0 && p.y === 0 ? p : { x: 0, y: 0 }))
         } else {
           const cam = mainWindow().getVirtualCameraPosition?.()
-          if (cam) setPos({ x: clamp(cam.x, -range, range), y: clamp(cam.y, -range, range) })
+          if (cam) {
+            const nx = clamp(cam.x, -range, range)
+            const ny = clamp(cam.y, -range, range)
+            setPos((p) => (p.x === nx && p.y === ny ? p : { x: nx, y: ny }))
+          }
         }
       }
       rafRef.current = requestAnimationFrame(tick)
