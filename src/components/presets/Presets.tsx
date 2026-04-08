@@ -4,6 +4,7 @@ import './Presets.css'
 
 import { connectConfig } from '../config/context/ConfigProvider'
 import { PresetRetrieveEvent, PresetMeta } from '../config/context/ConfigProvider'
+import { presetSpriteSrc } from '../../utils/presetSpriteSrc'
 
 export type PresetSelection = { name: string; label: string; pack: string; isOwn: boolean }
 
@@ -65,12 +66,14 @@ const PresetsInner = ({ retrieveConfigPreset, presets, expanded = false, onSelec
               className='preset-item'
               data-name={name}
               data-id={id ?? ''}
-              onClick={(e) => {
-                retrieveConfigPreset(e as unknown as PresetRetrieveEvent)
+              onClick={() => {
+                void retrieveConfigPreset({
+                  currentTarget: { dataset: { name: String(name), id: id ?? '' } },
+                } as PresetRetrieveEvent)
                 onSelect?.({ name, label, pack, isOwn })
               }}
             >
-              <img src={`/${sprite}`} alt='' className='preset-sprite' />
+              <img src={presetSpriteSrc(sprite)} alt='' className='preset-sprite' />
               <span>{label}</span>
             </button>
           ))}

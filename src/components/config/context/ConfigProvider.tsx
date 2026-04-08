@@ -2,7 +2,8 @@ import React, { useState, useCallback, useEffect } from 'react'
 import axios from 'axios'
 import { useAuth, useUser } from '@clerk/clerk-react'
 
-import { AppConfig, configDefaults } from '../../../config/configDefaults'
+import { AppConfig, ConfigItem, ParticleConfigSection, configDefaults } from '../../../config/configDefaults'
+import { particleConfig } from '../../../config/particle.config'
 import { presets } from '../../../config/presets'
 
 export type PresetRetrieveEvent = {
@@ -26,12 +27,81 @@ type ApiPreset = {
   isOwn: boolean
 }
 
-const toLabel = (name: string): string => name.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase()).trim()
+/** Human-readable label: camelCase → words; does not add spaces before capitals that already follow a space. */
+const toLabel = (name: string): string => {
+  const collapsed = name.trim().replace(/\s+/g, ' ')
+  if (!collapsed) return collapsed
+  const spaced = collapsed.replace(/([a-z\d])([A-Z])/g, '$1 $2').replace(/\s+/g, ' ').trim()
+  return spaced.replace(/^./, c => c.toUpperCase())
+}
+
+type ConfigSectionKey = 'user' | 'audio' | 'effects' | 'particle' | 'orbit'
+
+function mergeConfigSection<C extends ConfigSectionKey>(category: C, loaded: Record<string, unknown> | undefined | null): AppConfig[C] {
+  const def = configDefaults[category] as Record<string, ConfigItem>
+  if (!loaded || typeof loaded !== 'object') {
+    return configDefaults[category]
+  }
+  const out = { ...def } as Record<string, ConfigItem>
+  for (const key of Object.keys(def)) {
+    const l = loaded[key]
+    if (l && typeof l === 'object' && 'value' in (l as object)) {
+      const loadedItem = l as ConfigItem
+      out[key] = { ...def[key], value: loadedItem.value } as ConfigItem
+    }
+  }
+  return out as AppConfig[C]
+}
+
+function normalizeParticleSpritesValue(sprites: unknown): string[] {
+  const raw = Array.isArray(sprites) ? sprites.filter((s): s is string => typeof s === 'string') : []
+  const { sprites_MIN: spritesMin, sprites_MAX: spritesMax } = particleConfig
+  const deduped = [...new Set(raw)].slice(0, spritesMax)
+  let next = deduped
+  if (next.length < spritesMin) {
+    const pad = configDefaults.particle.sprites.value[0] ?? 'fractaleye.png'
+    next = [...next, ...Array(spritesMin - next.length).fill(pad)].slice(0, spritesMax)
+  }
+  return next
+}
+
+function mergeVideo(loaded: unknown): AppConfig['video'] {
+  const catalog = [...configDefaults.video.allClips]
+  if (!loaded || typeof loaded !== 'object') {
+    return { clips: [], allClips: catalog, index: 0 }
+  }
+  const l = loaded as Record<string, unknown>
+  const clips = Array.isArray(l.clips) ? (l.clips as string[]) : []
+  const allClips = [...new Set([...catalog, ...clips])]
+  const indexRaw = typeof l.index === 'number' && Number.isFinite(l.index) ? Math.floor(l.index) : 0
+  const index = clips.length === 0 ? 0 : Math.min(Math.max(0, indexRaw), clips.length - 1)
+  return { clips, allClips, index }
+}
+
+/** Presets from disk/API may omit multiselect metadata or use older shapes — merge with defaults so UI + viz stay valid. */
+function normalizeLoadedPreset(cfg: Record<string, unknown>): AppConfig {
+  const particle = mergeConfigSection('particle', cfg.particle as Record<string, unknown> | undefined) as ParticleConfigSection
+  return {
+    user: mergeConfigSection('user', cfg.user as Record<string, unknown> | undefined),
+    audio: mergeConfigSection('audio', cfg.audio as Record<string, unknown> | undefined),
+    effects: mergeConfigSection('effects', cfg.effects as Record<string, unknown> | undefined),
+    particle: {
+      ...particle,
+      sprites: {
+        ...particle.sprites,
+        value: normalizeParticleSpritesValue(particle.sprites.value),
+      },
+    },
+    orbit: mergeConfigSection('orbit', cfg.orbit as Record<string, unknown> | undefined),
+    video: mergeVideo(cfg.video),
+  }
+}
 
 export type ConfigContextValue = {
   config: AppConfig
   updateConfigItem: (category: string, item: string, value: string | boolean | number) => void
   updateVideoClips: (clips: string[]) => void
+  updateParticleSprites: (sprites: string[]) => void
   retrieveConfigPreset: (event: PresetRetrieveEvent) => Promise<void>
   resetConfig: () => void
   savePreset: (name: string, pack: string, force?: boolean) => Promise<void>
@@ -119,9 +189,37 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
   }, [])
 
   const retrieveCachedPreset = useCallback((cacheKey: string): AppConfig | null => {
-    const stored = localStorage.getItem('presets')
-    if (!stored) return null
-    return (JSON.parse(stored) as Record<string, AppConfig>)[cacheKey] ?? null
+    try {
+      const stored = localStorage.getItem('presets')
+      if (!stored) return null
+      return (JSON.parse(stored) as Record<string, AppConfig>)[cacheKey] ?? null
+    } catch {
+      return null
+    }
+  }, [])
+
+  const updateParticleSprites = useCallback((sprites: string[]) => {
+    const { sprites_MIN: spritesMin, sprites_MAX: spritesMax } = particleConfig
+    const deduped = [...new Set(sprites)].slice(0, spritesMax)
+    let next = deduped
+    if (next.length < spritesMin) {
+      const pad = configDefaults.particle.sprites.value[0] ?? 'fractaleye.png'
+      next = [...next, ...Array(spritesMin - next.length).fill(pad)].slice(0, spritesMax)
+    }
+    setConfig((prev) => {
+      const n = {
+        ...prev,
+        particle: {
+          ...prev.particle,
+          sprites: {
+            ...prev.particle.sprites,
+            value: next,
+          },
+        },
+      } as AppConfig
+      window.config = n
+      return n
+    })
   }, [])
 
   const updateVideoClips = useCallback((clips: string[]) => {
@@ -148,8 +246,8 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
   }, [])
 
   const retrieveConfigPreset = useCallback(async (event: PresetRetrieveEvent) => {
-    const name = event.currentTarget.dataset['name']
-    const id = event.currentTarget.dataset['id']
+    const name = event.currentTarget?.dataset?.name
+    const id = event.currentTarget?.dataset?.id
     if (!name) return
 
     const cacheKey = id || name
@@ -192,12 +290,16 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
     const cfgAny = cfg as Record<string, any>
     delete cfgAny['pack']
 
-    if (cfgAny['video'] && !cfgAny['video'].allClips) {
-      cfgAny['video'] = { ...cfgAny['video'], allClips: cfgAny['video'].clips }
+    const prevClips = window.config.video.clips
+    const next = normalizeLoadedPreset(cfgAny)
+    setConfig(next)
+    window.config = next
+    const sameClips =
+      prevClips.length === next.video.clips.length &&
+      prevClips.every((c, i) => c === next.video.clips[i])
+    if (!sameClips) {
+      window.dispatchEvent(new CustomEvent('videoClipsRestored', { detail: { clips: next.video.clips } }))
     }
-
-    setConfig(cfgAny as AppConfig)
-    window.config = cfgAny as AppConfig
   }, [retrieveCachedPreset])
 
   const resetConfig = useCallback(
@@ -226,7 +328,7 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
   }, [config, getToken])
 
   return (
-    <ConfigContext.Provider value={{ config, updateConfigItem, updateVideoClips, retrieveConfigPreset, resetConfig, savePreset, isSignedIn: isSignedIn ?? false, currentUserId: user?.id ?? null, presets: presetList }}>
+    <ConfigContext.Provider value={{ config, updateConfigItem, updateVideoClips, updateParticleSprites, retrieveConfigPreset, resetConfig, savePreset, isSignedIn: isSignedIn ?? false, currentUserId: user?.id ?? null, presets: presetList }}>
       {children}
     </ConfigContext.Provider>
   )

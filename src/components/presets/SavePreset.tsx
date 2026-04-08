@@ -51,8 +51,6 @@ export const SavePreset = ({ prefill, onSaved }: SavePresetProps): React.ReactEl
     try {
       await context.savePreset(name.trim(), pack.trim(), force)
       setStatus('saved')
-      setName('')
-      setPack('')
       onSaved?.()
       setTimeout(() => setStatus('idle'), 2000)
     } catch (err: unknown) {
@@ -93,7 +91,7 @@ export const SavePreset = ({ prefill, onSaved }: SavePresetProps): React.ReactEl
           autoComplete='off'
         />
         <input
-          className='save-preset-input'
+          className='save-preset-input save-preset-input--name'
           type='text'
           placeholder='Preset Name'
           value={name}
@@ -101,46 +99,54 @@ export const SavePreset = ({ prefill, onSaved }: SavePresetProps): React.ReactEl
           onKeyDown={(e) => e.key === 'Enter' && !packReserved && handleSave(false)}
           disabled={status === 'saving'}
         />
-        {status === 'confirm' ? (
-          <>
+        <div className='save-preset-actions'>
+          {status === 'confirm' ? (
+            <div className='save-preset-btn-wrap save-preset-btn-wrap--confirm'>
+              <button
+                type='button'
+                className='ui-dismiss-bubble'
+                aria-label='Cancel overwrite'
+                onClick={() => setStatus('idle')}
+              >
+                ×
+              </button>
+              <button
+                type='button'
+                className='save-preset-btn save-preset-btn--confirm'
+                onClick={() => handleSave(true)}
+                disabled={packReserved}
+              >
+                Overwrite
+              </button>
+            </div>
+          ) : (
             <button
-              className='save-preset-btn save-preset-btn--confirm'
-              onClick={() => handleSave(true)}
-              disabled={packReserved}
-            >
-              Overwrite?
-            </button>
-            <button
+              type='button'
               className='save-preset-btn'
-              onClick={() => setStatus('idle')}
+              onClick={() => handleSave(false)}
+              disabled={!name.trim() || status === 'saving' || packReserved}
             >
-              ✕
+              {status === 'saving' ? '...' : 'Save'}
             </button>
-          </>
-        ) : (
-          <button
-            className='save-preset-btn'
-            onClick={() => handleSave(false)}
-            disabled={!name.trim() || status === 'saving' || packReserved}
+          )}
+        </div>
+        <div className='save-preset-bottom-row'>
+          <p
+            className={`save-preset-pack-hint${packReserved ? ' save-preset-pack-hint--action' : ' save-preset-pack-hint--inactive'}`}
+            role={packReserved ? 'status' : undefined}
+            aria-hidden={!packReserved}
+            onClick={packReserved ? () => {
+              const el = packInputRef.current
+              if (!el) return
+              el.focus()
+              selectReservedPackText(el)
+            } : undefined}
           >
-            {status === 'saving' ? '...' : 'Save'}
-          </button>
-        )}
-        <p
-          className={`save-preset-pack-hint${packReserved ? ' save-preset-pack-hint--action' : ' save-preset-pack-hint--inactive'}`}
-          role={packReserved ? 'status' : undefined}
-          aria-hidden={!packReserved}
-          onClick={packReserved ? () => {
-            const el = packInputRef.current
-            if (!el) return
-            el.focus()
-            selectReservedPackText(el)
-          } : undefined}
-        >
-          {packReserved ? 'Reserved pack. Use a new pack name.' : '\u00a0'}
-        </p>
+            {packReserved ? 'Reserved pack. Use a new pack name.' : '\u00a0'}
+          </p>
+          <span className={`save-preset-status save-preset-status--${status}`}>{statusMessage}</span>
+        </div>
       </div>
-      <span className={`save-preset-status save-preset-status--${status}`}>{statusMessage}</span>
     </div>
   )
 }

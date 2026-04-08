@@ -4,7 +4,7 @@
   align-items: center;
   gap: 6px;
   padding: 12px 0;
-  margin: 1.5rem 0 0;
+  margin: 7rem 0 0;
   user-select: none;
 }
 
@@ -13,6 +13,7 @@
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: #888;
+  margin-bottom: .5rem;
 }
 
 .camera-touchpad {

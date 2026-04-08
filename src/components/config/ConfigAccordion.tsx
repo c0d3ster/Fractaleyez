@@ -4,7 +4,7 @@ import { Row, Col } from 'react-bootstrap'
 import { ConfigCategory } from '../config/ConfigCategory'
 import { ConfigVideo } from '../config/ConfigVideo'
 import { connectConfig } from './context/ConfigProvider'
-import { AppConfig } from '../../config/configDefaults'
+import { AppConfig, CONFIG_CATEGORY_ORDER } from '../../config/configDefaults'
 
 type ConfigAccordionProps = {
   config: AppConfig
@@ -30,11 +30,9 @@ const ConfigAccordionInner = ({ config, updateConfigItem, canOpenMultiple }: Con
 
   const isCategoryOpen = useCallback((category: string) => openCategories.indexOf(category) !== -1, [openCategories])
 
-  const CONFIG_CATEGORIES = ['user', 'audio', 'effects', 'orbit', 'particle', 'video']
-
   return (
     <>
-      {Object.keys(config).filter(k => CONFIG_CATEGORIES.includes(k)).map((category) => (
+      {CONFIG_CATEGORY_ORDER.filter((k) => k in config).map((category) => (
         <Row key={category}>
           <Col>
             {category === 'video'

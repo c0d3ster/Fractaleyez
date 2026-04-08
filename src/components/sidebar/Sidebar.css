@@ -57,24 +57,55 @@
 .save-preset-wrapper {
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
+  align-items: stretch;
   min-width: 0;
   max-width: 100%;
 }
 
+.save-preset-btn-wrap--confirm {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
 .save-preset {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: 70px minmax(0, 1fr) auto;
   gap: 8px;
   align-items: center;
   min-width: 0;
+  width: 100%;
+}
+
+.save-preset-actions {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* Same column tracks as .save-preset row 1 so hint sits under pack, status under Save */
+.save-preset-bottom-row {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 70px minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: start;
+  min-width: 0;
+  width: 100%;
 }
 
 .save-preset-status {
+  grid-column: 3;
+  justify-self: end;
   display: block;
-  margin: 0.25em 0 0 2px;
+  margin: 0;
+  padding: 0;
   font-size: 0.8em;
   line-height: 1.2;
+  text-align: right;
   min-height: 0;
 }
 
@@ -87,7 +118,9 @@
 }
 
 .save-preset-input--pack {
-  flex: 0 0 70px;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .save-preset-input--pack-reserved {
@@ -96,35 +129,38 @@
   color: rgba(170, 170, 170, 0.85);
 }
 
-/* Full-width wrap row: same width as Pack+Name+Save line so text lines up with Pack’s left edge */
+/* Left edge lines up with pack input; spans pack + name */
 .save-preset-pack-hint {
-  flex-basis: 100%;
+  grid-column: 1 / 3;
+  justify-self: start;
   margin: 0;
   padding: 0;
   font-size: 0.75em;
   line-height: 1.2;
   color: rgba(160, 160, 160, 0.5);
-  min-width: 0;
-  max-width: 300px;
-  overflow-wrap: break-word;
-  white-space: normal;
-  min-height: 0.35em;
+  min-height: 1.2em;
   box-sizing: border-box;
+  text-align: left;
 }
 
 .save-preset-pack-hint--inactive {
   visibility: hidden;
   user-select: none;
+  min-width: 0;
+  white-space: normal;
 }
 
+/* One line: grid min-width:0 + break-word was forcing wraps in a tight fr column */
 .save-preset-pack-hint--action {
   cursor: pointer;
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: normal;
+  min-width: min-content;
 }
 
 .save-preset-input {
-  flex: 1 1 80px;
   min-width: 0;
-  max-width: 360px;
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 6px;
@@ -132,6 +168,14 @@
   padding: 5px 10px;
   font-size: 0.85em;
   outline: none;
+  text-align: left;
+}
+
+.save-preset-input--name {
+  width: 100%;
+  min-width: 0;
+  max-width: 360px;
+  box-sizing: border-box;
 }
 
 .save-preset-input::placeholder {
@@ -167,6 +211,7 @@
   font-size: 0.85em;
   cursor: pointer;
   transition: background 0.2s ease;
+  text-align: center;
 }
 
 .save-preset-btn:focus-visible {
@@ -196,9 +241,14 @@
   color: rgba(255, 160, 50, 0.9);
 }
 
-.save-preset-btn--confirm:hover {
-  background: rgba(255, 160, 50, 0.15);
-  border-color: rgba(255, 160, 50, 0.9);
+/* Save green (#004400) text; green-tinted panel; orange border */
+.save-preset-btn--confirm:hover,
+.save-preset-btn--confirm:active {
+  background:
+    linear-gradient(180deg, rgba(0, 68, 0, 0.14) 0%, rgba(0, 68, 0, 0.22) 100%),
+    rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 160, 50, 0.95);
+  color: #004400;
 }
 
 .sidebar-title {

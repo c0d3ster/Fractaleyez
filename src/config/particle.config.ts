@@ -1,3 +1,11 @@
+/** Shipped textures under site root (`/name.png`) — selectable in the particle HUD. */
+export const BUILTIN_PARTICLE_SPRITES = [
+  'fractaleye.png',
+  'galaxySprite.png',
+  'galaxy2Sprite.png',
+  'galaxy3Sprite.png',
+] as const
+
 export const particleConfig = {
   sprites_DEFAULT: ['galaxySprite.png', 'galaxy2Sprite.png', 'galaxy3Sprite.png'],
   sprites_MIN: 1,

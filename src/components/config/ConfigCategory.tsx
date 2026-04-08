@@ -34,7 +34,7 @@ const ConfigCategoryInner = React.memo(({ name, config, isOpen, toggleOpen, onCh
   const categoryConfig = (config as unknown as Record<string, Record<string, ConfigItem>>)[name] ?? {}
 
   return (
-    <div className='category-container'>
+    <div className={classNames('category-container', { 'category-container--effects': name === 'effects' })}>
       <h3 className='category-title' onClick={handleToggle}>
         {name} config
       </h3>
