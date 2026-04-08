@@ -13,6 +13,9 @@
   color: #555;
   cursor: pointer;
   font-size: 16px;
+  border: 1px solid transparent;
+  box-sizing: border-box;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
 .config-checkbox-container input:checked + label {
@@ -20,6 +23,42 @@
   color: white;
 }
 
+/* Save-button green hover only for effects + video clip toggles (see category-container--effects / --video) */
+.category-container--effects .config-checkbox-container label:hover,
+.category-container--video .config-checkbox-container label:hover {
+  background: #004400;
+  border-color: #004400;
+  color: #ccc;
+}
+
+.category-container--effects .config-checkbox-container input:checked + label:hover,
+.category-container--video .config-checkbox-container input:checked + label:hover {
+  background: #004400;
+  border-color: #004400;
+  color: #ccc;
+}
+
 .config-checkbox-container input {
   display: none;
+}
+
+.clip-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.clip-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.clip-duration {
+  font-size: 0.75em;
+  opacity: 0.6;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
 }

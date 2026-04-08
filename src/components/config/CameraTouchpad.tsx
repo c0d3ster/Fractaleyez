@@ -29,9 +29,13 @@ export const CameraTouchpad = (): React.ReactElement => {
   useEffect(() => {
     const tick = (): void => {
       if (!dragging.current) {
-        const cam = mainWindow().getVirtualCameraPosition?.()
         const range = getRange()
-        if (cam) setPos({ x: clamp(cam.x, -range, range), y: clamp(cam.y, -range, range) })
+        if (range === 0) {
+          setPos({ x: 0, y: 0 })
+        } else {
+          const cam = mainWindow().getVirtualCameraPosition?.()
+          if (cam) setPos({ x: clamp(cam.x, -range, range), y: clamp(cam.y, -range, range) })
+        }
       }
       rafRef.current = requestAnimationFrame(tick)
     }
@@ -79,8 +83,10 @@ export const CameraTouchpad = (): React.ReactElement => {
 
   const handleDoubleClick = useCallback(() => applyPos(0, 0), [applyPos])
 
+  const disabled = getRange() === 0
+
   return (
-    <div className='camera-touchpad-wrapper'>
+    <div className='camera-touchpad-wrapper' style={{ opacity: disabled ? 0.25 : 1, pointerEvents: disabled ? 'none' : undefined }}>
       <span className='camera-touchpad-label'>Camera Position</span>
       <div
         ref={padRef}
@@ -95,7 +101,7 @@ export const CameraTouchpad = (): React.ReactElement => {
           src='/crossheir.png'
           alt=''
           className='camera-touchpad-dot'
-          style={{ left: valToPixelX(pos.x, PAD_W, getRange()), top: valToPixelY(pos.y, h, getRange()) }}
+          style={{ left: disabled ? PAD_W / 2 : valToPixelX(pos.x, PAD_W, getRange()), top: disabled ? h / 2 : valToPixelY(pos.y, h, getRange()) }}
         />
       </div>
       <div className='camera-touchpad-values'>
