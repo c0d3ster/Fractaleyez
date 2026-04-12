@@ -65,3 +65,78 @@
   outline: 2px solid rgba(255, 255, 255, 0.95);
   outline-offset: 3px;
 }
+
+/* Packs marketplace */
+.topbar-packs {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1;
+  flex-wrap: wrap;
+}
+
+.topbar-pack {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0.85rem;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(0, 0, 0, 0.3);
+}
+
+@property --topbar-premium-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes topbar-premium-rotate {
+  to { --topbar-premium-angle: 360deg; }
+}
+
+.topbar-pack--premium {
+  border: 1px solid transparent;
+  background-image:
+    linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)),
+    linear-gradient(var(--topbar-premium-angle), #ff6b6b, #ffd93d, #6bcb77, #4d96ff, #c77dff, #ff6b6b);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  animation: topbar-premium-rotate 3s linear infinite;
+}
+
+.topbar-pack-name {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.topbar-pack--premium .topbar-pack-name {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.topbar-pack-subscribe {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  background-image: linear-gradient(90deg, #ff6b6b, #ffd93d, #6bcb77, #4d96ff, #c77dff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  white-space: nowrap;
+  transition: opacity 0.2s;
+}
+
+.topbar-pack-subscribe:hover {
+  opacity: 0.8;
+}
+
+.topbar-pack-owned-badge {
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.4);
+  font-weight: 500;
+  letter-spacing: 0.05em;
+}

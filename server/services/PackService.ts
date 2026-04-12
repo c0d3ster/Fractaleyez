@@ -27,7 +27,6 @@ export type PublicPackMeta = {
   id: string
   name: string
   slug: string
-  userId: string
   description?: string
   isPremium: boolean
   price?: number
@@ -41,7 +40,6 @@ export class PackService {
       id: String(p._id),
       name: p.name,
       slug: p.slug,
-      userId: p.userId,
       description: p.description,
       isPremium: p.isPremium,
       price: p.price,
@@ -55,7 +53,6 @@ export class PackService {
       id: String(p._id),
       name: p.name,
       slug: p.slug,
-      userId: p.userId,
       description: p.description,
       isPremium: p.isPremium,
       price: p.price,

@@ -19,11 +19,27 @@ export type PresetMeta = {
   isOwn: boolean
 }
 
+export type PackMeta = {
+  id: string
+  name: string
+  slug: string
+  isPremium: boolean
+  isOwn: boolean
+}
+
 type ApiPreset = {
   id: string
   name: string
   pack: string
   sprite: string
+  isOwn: boolean
+}
+
+type ApiPack = {
+  id: string
+  name: string
+  slug: string
+  isPremium: boolean
   isOwn: boolean
 }
 
@@ -103,11 +119,13 @@ export type ConfigContextValue = {
   updateVideoClips: (clips: string[]) => void
   updateParticleSprites: (sprites: string[]) => void
   retrieveConfigPreset: (event: PresetRetrieveEvent) => Promise<void>
+  revertConfig: (snapshot: AppConfig) => void
   resetConfig: () => void
   savePreset: (name: string, pack: string, force?: boolean) => Promise<void>
   isSignedIn: boolean
   currentUserId: string | null
   presets: PresetMeta[]
+  packs: PackMeta[]
 }
 
 export const ConfigContext = React.createContext<ConfigContextValue | undefined>(undefined)
@@ -130,6 +148,7 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
   })
 
   const [presetList, setPresetList] = useState<PresetMeta[]>([])
+  const [packList, setPackList] = useState<PackMeta[]>([])
 
   useEffect(() => {
     if (!localStorage.getItem('presets')) {
@@ -160,6 +179,24 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
           id: undefined,
         }))
         setPresetList(bundled)
+      }
+    }
+    void load()
+    return () => { cancelled = true }
+  }, [getToken])
+
+  useEffect(() => {
+    let cancelled = false
+    const load = async (): Promise<void> => {
+      try {
+        const token = await getToken()
+        const { data } = await axios.get<ApiPack[]>('/api/packs', {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        })
+        if (cancelled) return
+        setPackList(data)
+      } catch (err) {
+        console.error('Failed to load packs', err)
       }
     }
     void load()
@@ -302,6 +339,11 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
     }
   }, [retrieveCachedPreset])
 
+  const revertConfig = useCallback((snapshot: AppConfig) => {
+    setConfig(snapshot)
+    window.config = snapshot
+  }, [])
+
   const resetConfig = useCallback(
     () => retrieveConfigPreset({ currentTarget: { dataset: { name: 'default' } } }),
     [retrieveConfigPreset]
@@ -328,7 +370,7 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
   }, [config, getToken])
 
   return (
-    <ConfigContext.Provider value={{ config, updateConfigItem, updateVideoClips, updateParticleSprites, retrieveConfigPreset, resetConfig, savePreset, isSignedIn: isSignedIn ?? false, currentUserId: user?.id ?? null, presets: presetList }}>
+    <ConfigContext.Provider value={{ config, updateConfigItem, updateVideoClips, updateParticleSprites, retrieveConfigPreset, revertConfig, resetConfig, savePreset, isSignedIn: isSignedIn ?? false, currentUserId: user?.id ?? null, presets: presetList, packs: packList }}>
       {children}
     </ConfigContext.Provider>
   )

@@ -1,6 +1,7 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react'
+import React, { useState, useCallback, useEffect, useRef, useContext } from 'react'
 import classNames from 'classnames'
 import { SignInButton, UserButton, useUser } from '@clerk/clerk-react'
+import { ConfigContext } from '../config/context/ConfigProvider'
 import './TopBar.css'
 
 const TRIGGER_Y_PX = 100
@@ -9,6 +10,8 @@ const TRIGGER_X_FROM_RIGHT_PX = 200
 
 export const TopBar = (): React.ReactElement => {
   const { isSignedIn, isLoaded } = useUser()
+  const context = useContext(ConfigContext)
+  const packs = context?.packs ?? []
   const [visible, setVisible] = useState(false)
   const hideTimerRef = useRef<number | null>(null)
 
@@ -56,6 +59,22 @@ export const TopBar = (): React.ReactElement => {
   return (
     <div className='topbar-container'>
       <div className={contentClasses}>
+        <div className='topbar-packs'>
+          {packs.map(pack => (
+            <div
+              key={pack.id}
+              className={`topbar-pack${pack.isPremium ? ' topbar-pack--premium' : ''}${pack.isOwn ? ' topbar-pack--owned' : ''}`}
+            >
+              <span className='topbar-pack-name'>{pack.name}</span>
+              {pack.isPremium && !pack.isOwn && (
+                <button className='topbar-pack-subscribe'>Subscribe</button>
+              )}
+              {pack.isOwn && (
+                <span className='topbar-pack-owned-badge'>Owned</span>
+              )}
+            </div>
+          ))}
+        </div>
         {isLoaded && (
           isSignedIn
             ? <UserButton appearance={{ elements: { avatarBox: { width: 56, height: 56 } } }} />

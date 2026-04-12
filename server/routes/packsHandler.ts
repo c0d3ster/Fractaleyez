@@ -19,6 +19,11 @@ export const packsHandler = async (req: Request, res: Response): Promise<void> =
     }
   }
 
-  const packs = await packService.listPacks(viewerId)
-  res.json(packs)
+  try {
+    const packs = await packService.listPacks(viewerId)
+    res.json(packs)
+  } catch (err) {
+    console.error('Failed to list packs:', err)
+    res.status(500).json({ error: 'Internal server error' })
+  }
 }

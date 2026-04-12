@@ -24,13 +24,25 @@ export const createPackHandler = async (req: Request, res: Response): Promise<vo
     return
   }
 
+  let normalizedPrice: number | undefined
+  if (typeof price === 'number') {
+    if (!Number.isFinite(price) || price < 0) {
+      res.status(400).json({ error: 'price must be a finite non-negative number' })
+      return
+    }
+    normalizedPrice = price
+  } else if (price !== undefined && price !== null) {
+    res.status(400).json({ error: 'price must be a finite non-negative number' })
+    return
+  }
+
   try {
     const pack = await packService.createPack({
       name: name.trim(),
       userId,
       description: typeof description === 'string' ? description.trim() : undefined,
       isPremium: isPremium === true,
-      price: typeof price === 'number' ? price : undefined,
+      price: normalizedPrice,
     })
     res.status(201).json({ id: pack._id, name: pack.name, slug: pack.slug })
   } catch (err: unknown) {
