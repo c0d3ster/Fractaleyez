@@ -21,11 +21,13 @@ const ExternalWindowBridge = ({
   updateVideoClips,
   updateParticleSprites,
   retrieveConfigPreset,
+  revertConfig,
   resetConfig,
   savePreset,
   isSignedIn,
   currentUserId,
   presets,
+  packs,
 }: ExternalWindowBridgeProps): React.ReactElement => {
   const [prefill, setPrefill] = useState<PresetSelection | null>(null)
   return (
@@ -36,11 +38,13 @@ const ExternalWindowBridge = ({
         updateVideoClips,
         updateParticleSprites,
         retrieveConfigPreset,
+        revertConfig,
         resetConfig,
         savePreset,
         isSignedIn,
         currentUserId,
         presets,
+        packs,
       }}
     >
       <Grid>
@@ -105,11 +109,13 @@ const ConfigWindowInner = ({
   updateVideoClips,
   updateParticleSprites,
   retrieveConfigPreset,
+  revertConfig,
   resetConfig,
   savePreset,
   isSignedIn,
   currentUserId,
   presets,
+  packs,
   onClose,
 }: ConfigWindowProps): null => {
   const reactRootRef = useRef<Root | null>(null)
@@ -147,11 +153,13 @@ const ConfigWindowInner = ({
         updateVideoClips={updateVideoClips}
         updateParticleSprites={updateParticleSprites}
         retrieveConfigPreset={retrieveConfigPreset}
+        revertConfig={revertConfig}
         resetConfig={resetConfig}
         savePreset={savePreset}
         isSignedIn={isSignedIn}
         currentUserId={currentUserId}
         presets={presets}
+        packs={packs}
       />
     )
   }, [

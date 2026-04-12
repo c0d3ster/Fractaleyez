@@ -1,4 +1,5 @@
 import type { Request, Response } from 'express'
+import { Types } from 'mongoose'
 import { presetService } from '../services/PresetService'
 import { AuthUnauthorizedError, verifyAuth } from '../auth'
 
@@ -17,7 +18,7 @@ export const savePresetHandler = async (req: Request, res: Response): Promise<vo
   }
 
   const body = req.body && typeof req.body === 'object' ? req.body : {}
-  const { name, pack, config, force: forceRaw } = body as Record<string, unknown>
+  const { name, pack, config, force: forceRaw, packId: packIdRaw } = body as Record<string, unknown>
   if (!name || typeof name !== 'string' || !name.trim()) {
     res.status(400).json({ error: 'name is required' })
     return
@@ -25,10 +26,20 @@ export const savePresetHandler = async (req: Request, res: Response): Promise<vo
 
   const force = forceRaw === true || forceRaw === 'true'
 
+  let packId: Types.ObjectId | undefined
+  if (packIdRaw !== undefined && packIdRaw !== null && packIdRaw !== '') {
+    if (typeof packIdRaw !== 'string' || !Types.ObjectId.isValid(packIdRaw)) {
+      res.status(400).json({ error: 'packId must be a valid ObjectId string' })
+      return
+    }
+    packId = new Types.ObjectId(packIdRaw)
+  }
+
   try {
     const preset = await presetService.savePreset({
       name: name.trim(),
       pack: typeof pack === 'string' ? pack.trim() : '',
+      packId,
       config: (config ?? {}) as Record<string, unknown>,
       userId,
       force,

@@ -53,6 +53,32 @@
   color: #ccc;
 }
 
+@property --premium-tab-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes premium-tab-rotate {
+  to { --premium-tab-angle: 360deg; }
+}
+
+.pack-tab--premium {
+  border: 1px solid transparent;
+  background-image:
+    linear-gradient(#0d0d0d, #0d0d0d),
+    linear-gradient(var(--premium-tab-angle), #ff6b6b, #ffd93d, #6bcb77, #4d96ff, #c77dff, #ff6b6b);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  color: #bbb;
+  animation: premium-tab-rotate 3s linear infinite;
+}
+
+.pack-tab--premium:hover,
+.pack-tab--premium.active {
+  color: #eee;
+}
+
 /* Preset grid */
 .presets-grid {
   display: flex;

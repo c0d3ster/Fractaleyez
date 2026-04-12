@@ -6,6 +6,7 @@ export type PresetMeta = {
   _id: Types.ObjectId
   name: string
   pack?: string
+  packId?: Types.ObjectId
   sprite: string
   userId?: string
 }
@@ -13,6 +14,7 @@ export type PresetMeta = {
 export type UpsertData = {
   name: string
   pack?: string
+  packId?: Types.ObjectId
   sprite: string
   config: Record<string, unknown>
   userId: string
@@ -21,7 +23,7 @@ export type UpsertData = {
 export class PresetRepository {
   async findAll(): Promise<PresetMeta[]> {
     await connectDB()
-    return Preset.find({}, '_id name pack sprite userId').lean<PresetMeta[]>()
+    return Preset.find({}, '_id name pack packId sprite userId').lean<PresetMeta[]>()
   }
 
   async findById(id: string): Promise<IPreset | null> {

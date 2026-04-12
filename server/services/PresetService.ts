@@ -1,9 +1,11 @@
+import { Types } from 'mongoose'
 import { presetRepository } from '../repositories/PresetRepository'
 import { IPreset } from '../models/Preset'
 
 type SavePresetParams = {
   name: string
   pack: string
+  packId?: Types.ObjectId
   config: Record<string, unknown>
   userId: string
   force: boolean
@@ -47,10 +49,10 @@ export class PresetService {
     return preset
   }
 
-  async savePreset({ name, pack, config, userId, force }: SavePresetParams): Promise<IPreset> {
+  async savePreset({ name, pack, packId, config, userId, force }: SavePresetParams): Promise<IPreset> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sprite = (config as any)?.particle?.sprites?.value?.[0] ?? 'fractaleye.png'
-    const payload = { name, pack, sprite, config, userId }
+    const payload = { name, pack, packId, sprite, config, userId }
 
     if (!force) {
       try {
