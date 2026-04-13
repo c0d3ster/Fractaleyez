@@ -79,6 +79,55 @@
   color: #eee;
 }
 
+/* Premium pack overlay */
+.presets-grid-wrap {
+  position: relative;
+}
+
+.pack-premium-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.85rem;
+  background: rgba(0, 0, 0, 0.72);
+  border-radius: 8px;
+  backdrop-filter: blur(2px);
+}
+
+.pack-premium-overlay-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  background-image: linear-gradient(90deg, #ff6b6b, #ffd93d, #6bcb77, #4d96ff, #c77dff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.pack-premium-overlay-btn {
+  padding: 0.4rem 1.4rem;
+  border-radius: 20px;
+  border: 1px solid transparent;
+  background-image:
+    linear-gradient(#111, #111),
+    linear-gradient(90deg, #ff6b6b, #ffd93d, #6bcb77, #4d96ff, #c77dff);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  color: #ccc;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.pack-premium-overlay-btn:hover {
+  color: #fff;
+}
+
 /* Preset grid */
 .presets-grid {
   display: flex;
@@ -98,6 +147,7 @@
 
 
 .preset-item {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -113,6 +163,21 @@
 
 .preset-item:hover {
   border-color: #999;
+}
+
+.preset-trial-countdown {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: 10px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #ccc;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
 }
 
 .preset-sprite {

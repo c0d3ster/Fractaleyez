@@ -27,10 +27,12 @@ const PresetsInner = ({ retrieveConfigPreset, revertConfig, config, presets, pac
   const [activePack, setActivePack] = useState('All')
   const [page, setPage] = useState(0)
   const [paging, setPaging] = useState(false)
+  const [previewMode, setPreviewMode] = useState(false)
+  const [trialPresetKey, setTrialPresetKey] = useState<string | null>(null)
 
   const packMap = new Map(packs.map(p => [p.name, p]))
 
-  const { startTrial, modalVisible, trialPackName, dismissTrial } = usePremiumTrial({
+  const { startTrial, modalVisible, trialPackName, secondsLeft, dismissTrial } = usePremiumTrial({
     config,
     revertConfig,
     retrieveConfigPreset,
@@ -53,12 +55,14 @@ const PresetsInner = ({ retrieveConfigPreset, revertConfig, config, presets, pac
   const selectPack = (pack: string): void => {
     setActivePack(pack)
     setPage(0)
+    setPreviewMode(false)
     onPackSelect?.(pack === 'All' ? '' : pack)
   }
 
   const handlePresetClick = (preset: PresetMeta, event: PresetRetrieveEvent): void => {
     const packMeta = packMap.get(preset.pack)
     if (packMeta?.isPremium && !packMeta.isOwn) {
+      setTrialPresetKey(preset.id ?? preset.name)
       startTrial(preset.pack, event)
     } else {
       void retrieveConfigPreset(event)
@@ -88,12 +92,23 @@ const PresetsInner = ({ retrieveConfigPreset, revertConfig, config, presets, pac
             </div>
             {headerActions}
           </div>
+          <div className='presets-grid-wrap'>
+          {(() => {
+            const activeMeta = packMap.get(activePack)
+            return activeMeta?.isPremium && !activeMeta.isOwn && !previewMode ? (
+              <div className='pack-premium-overlay'>
+                <span className='pack-premium-overlay-label'>✦ Premium</span>
+                <button className='pack-premium-overlay-btn' onClick={() => setPreviewMode(true)}>Preview</button>
+              </div>
+            ) : null
+          })()}
           <div className={`presets-grid${expanded ? ' presets-grid--expanded' : ''}${paging ? ' paging' : ''}`}>
             {visible.map((preset) => {
               const { id, name, label, sprite } = preset
               const event: PresetRetrieveEvent = {
                 currentTarget: { dataset: { name: String(name), id: id ?? '' } },
               }
+              const isTrialing = trialPresetKey === (id ?? name) && secondsLeft !== null
               return (
                 <button
                   key={id ?? name}
@@ -104,9 +119,11 @@ const PresetsInner = ({ retrieveConfigPreset, revertConfig, config, presets, pac
                 >
                   <img src={presetSpriteSrc(sprite)} alt='' className='preset-sprite' />
                   <span>{label}</span>
+                  {isTrialing && <span className='preset-trial-countdown'>{secondsLeft}</span>}
                 </button>
               )
             })}
+          </div>
           </div>
           {totalPages > 1 && (
             <div className='presets-pagination'>
