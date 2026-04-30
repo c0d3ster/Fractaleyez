@@ -1023,12 +1023,12 @@
   resolved "https://registry.yarnpkg.com/@bytecodealliance/preview2-shim/-/preview2-shim-0.17.6.tgz#3d60f3fde44582b022643fafcee38077594069e5"
   integrity sha512-n3cM88gTen5980UOBAD6xDcNNL3ocTK8keab21bpx1ONdA+ARj7uD1qoFxOWCyKlkpSi195FH+GeAut7Oc6zZw==
 
-"@clerk/backend@^3.2.4":
-  version "3.2.4"
-  resolved "https://registry.yarnpkg.com/@clerk/backend/-/backend-3.2.4.tgz#66fd256a4efa715fed380c2131dd6fb5b5f0e934"
-  integrity sha512-zEK0xE47dVZl1AAovMbiG95kxXjEt9A2RKNEmIJveuXoNdX5AK5yV6vdCEFTblhymlFAYvTr+NHIe6iJAtp50g==
+"@clerk/backend@^3.2.14":
+  version "3.2.14"
+  resolved "https://registry.yarnpkg.com/@clerk/backend/-/backend-3.2.14.tgz#f523c63ff5c80fe7449343a621da210c94d5c5a5"
+  integrity sha512-IkePG8vufU+pq8ylQMBJxeyc3ELXxHkrZ0z2lddj8RFq6nwUT03H7u7unKNBERuV4b7FzTqDv8LKyZ4jrVvUqA==
   dependencies:
-    "@clerk/shared" "^4.4.0"
+    "@clerk/shared" "^4.8.3"
     standardwebhooks "^1.0.0"
     tslib "2.8.1"
 
@@ -1052,12 +1052,12 @@
     std-env "^3.9.0"
     swr "2.3.4"
 
-"@clerk/shared@^4.4.0":
-  version "4.4.0"
-  resolved "https://registry.yarnpkg.com/@clerk/shared/-/shared-4.4.0.tgz#396a602c36799fe2479dc6ad4889879b8eaa987a"
-  integrity sha512-3iBX7Svp2XrSIgFk4VtyVq5OZsGStkMGqVfTBbbiFCbSKQ745OfM8j/c2wgpq5QdyavesoeDA6YiMWlpZM9/ng==
+"@clerk/shared@^4.8.3":
+  version "4.8.6"
+  resolved "https://registry.yarnpkg.com/@clerk/shared/-/shared-4.8.6.tgz#de0a7cce44a62b69896474d552fce3411124209d"
+  integrity sha512-IItiQftnKaY928Q/DNOWA+32WCoKk/YwpFPOrU46P7gz+FU6O3KR8YGyTO6K+/YLG8LNB7zqBJY7t24GSwoNHA==
   dependencies:
-    "@tanstack/query-core" "5.90.16"
+    "@tanstack/query-core" "^5.90.16"
     dequal "2.0.3"
     glob-to-regexp "0.4.1"
     js-cookie "3.0.5"
@@ -1625,10 +1625,10 @@
   resolved "https://registry.yarnpkg.com/@standard-schema/spec/-/spec-1.1.0.tgz#a79b55dbaf8604812f52d140b2c9ab41bc150bb8"
   integrity sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==
 
-"@tanstack/query-core@5.90.16":
-  version "5.90.16"
-  resolved "https://registry.yarnpkg.com/@tanstack/query-core/-/query-core-5.90.16.tgz#19a972c2ffbc47727ab6649028af1bee70e28cdf"
-  integrity sha512-MvtWckSVufs/ja463/K4PyJeqT+HMlJWtw6PrCpywznd2NSgO3m4KwO9RqbFqGg6iDE8vVMFWMeQI4Io3eEYww==
+"@tanstack/query-core@^5.90.16":
+  version "5.100.6"
+  resolved "https://registry.yarnpkg.com/@tanstack/query-core/-/query-core-5.100.6.tgz#2f6dc032aaae1f327d85d3b977e6d530c948a91f"
+  integrity sha512-Os2CPUr98to98RYm+D4qGqGkiffn7MGSyl2547a4MljVkHE30AMJRqTiyCqBfMwzAx/I91vCkAxp5tHSla6Twg==
 
 "@ts-morph/common@~0.11.0":
   version "0.11.1"
