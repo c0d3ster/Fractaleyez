@@ -18,7 +18,7 @@
   "license": "ISC",
   "dependencies": {
     "@babel/polyfill": "^7.2.5",
-    "@clerk/backend": "^3.2.4",
+    "@clerk/backend": "^3.2.14",
     "@clerk/clerk-react": "^5.61.3",
     "@vercel/analytics": "^2.0.1",
     "axios": "^1.15.0",
