@@ -8,24 +8,16 @@ const BUILD_DIR = path.join( __dirname, 'public' )
 const APP_DIR = path.join( __dirname, 'src' )
 
 module.exports = {
-  // with webpack 4 entry and output configuration is optional
   entry: ['@babel/polyfill', APP_DIR + '/index.tsx'],
   output:
   {
     path: BUILD_DIR,
     filename: 'app.js',
     publicPath: '/',
-    hashFunction: 'sha256'
   },
   // must include modules for webpack to integrate with babel for es6 syntax
   module: {
     rules: [
-      // Webpack 4 treats .mjs as strict ESM; SWR + CJS react breaks without this.
-      {
-        test: /\.mjs$/,
-        include: /node_modules/,
-        type: 'javascript/auto'
-      },
       {
         test: /\.(js|jsx|ts|tsx)$/,
         use: {
@@ -67,24 +59,31 @@ module.exports = {
       },
       {
         test: /\.(png|jpg)$/,
-        use: [{
-          loader: 'file-loader?name=[name].[ext]'
-        }]
+        type: 'asset/resource',
+        generator: {
+          filename: '[name][ext]'
+        }
       },
       {
-        test: /\.(png|woff|woff2|eot|ttf|svg)$/,
-        use: [{
-          loader: 'url-loader?limit=100000'
-        }]
+        test: /\.(woff|woff2|eot|ttf|svg)$/,
+        type: 'asset',
+        parser: {
+          dataUrlCondition: {
+            maxSize: 100000
+          }
+        }
       }
     ]
   },
   devServer: {
     port: 3000,
     open: false,
-    proxy: {
-      '/api': 'http://localhost:8080'
-    }
+    proxy: [
+      {
+        context: ['/api'],
+        target: 'http://localhost:8080'
+      }
+    ]
   },
   plugins: [
     new webpack.EnvironmentPlugin({ CLERK_PUBLISHABLE_KEY: '' }),
@@ -93,12 +92,5 @@ module.exports = {
   resolve: {
     extensions: ['.ts', '.tsx', '.js', '.jsx', '.mjs'],
     modules: ['node_modules'],
-    // Webpack 4 ignores package "exports"; @vercel/analytics only exposes ./react via exports
-    alias: {
-      '@vercel/analytics/react': path.join(
-        __dirname,
-        'node_modules/@vercel/analytics/dist/react/index.js'
-      ),
-    },
   },
 }
