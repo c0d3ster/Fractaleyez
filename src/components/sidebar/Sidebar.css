@@ -159,6 +159,11 @@
   min-width: min-content;
 }
 
+.save-preset-input--pack-reserved:disabled {
+  opacity: 0.45;
+}
+
+
 .save-preset-input {
   min-width: 0;
   background: rgba(255, 255, 255, 0.08);
@@ -198,9 +203,6 @@
   color: rgba(140, 140, 140, 0.35);
 }
 
-.save-preset-input--pack-reserved:disabled {
-  opacity: 0.45;
-}
 
 .save-preset-btn {
   background: rgba(255, 255, 255, 0.1);
