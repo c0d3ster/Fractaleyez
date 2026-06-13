@@ -1,5 +1,11 @@
 {
   "buildCommand": "yarn build",
   "outputDirectory": "public",
-  "framework": null
+  "framework": null,
+  "crons": [
+    {
+      "path": "/api/ping",
+      "schedule": "0 0 */5 * *"
+    }
+  ]
 }
