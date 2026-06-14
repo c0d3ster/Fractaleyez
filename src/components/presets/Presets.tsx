@@ -32,7 +32,7 @@ const PresetsInner = ({ retrieveConfigPreset, revertConfig, config, presets, pac
 
   const packMap = new Map(packs.map(p => [p.name, p]))
 
-  const { startTrial, modalVisible, trialPackName, secondsLeft, dismissTrial } = usePremiumTrial({
+  const { startTrial, cancelTrial, modalVisible, trialPackName, secondsLeft, dismissTrial } = usePremiumTrial({
     config,
     revertConfig,
     retrieveConfigPreset,
@@ -65,6 +65,8 @@ const PresetsInner = ({ retrieveConfigPreset, revertConfig, config, presets, pac
       setTrialPresetKey(preset.id ?? preset.name)
       startTrial(preset.pack, event)
     } else {
+      cancelTrial()
+      setTrialPresetKey(null)
       void retrieveConfigPreset(event)
     }
     onSelect?.({ name: preset.name, label: preset.label, pack: preset.pack, isOwn: preset.isOwn })
@@ -109,10 +111,12 @@ const PresetsInner = ({ retrieveConfigPreset, revertConfig, config, presets, pac
                 currentTarget: { dataset: { name: String(name), id: id ?? '' } },
               }
               const isTrialing = trialPresetKey === (id ?? name) && secondsLeft !== null
+              const presetPackMeta = packMap.get(preset.pack)
+              const isPremiumUnowned = presetPackMeta?.isPremium && !presetPackMeta.isOwn
               return (
                 <button
                   key={id ?? name}
-                  className='preset-item'
+                  className={`preset-item${isPremiumUnowned ? ' preset-item--premium' : ''}`}
                   data-name={name}
                   data-id={id ?? ''}
                   onClick={() => handlePresetClick(preset, event)}

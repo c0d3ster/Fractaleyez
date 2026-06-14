@@ -48,6 +48,13 @@ export const usePremiumTrial = ({ config, revertConfig, retrieveConfigPreset }: 
     }, TRIAL_DURATION_S * 1000)
   }, [config, retrieveConfigPreset, clearTrial])
 
+  const cancelTrial = useCallback(() => {
+    clearTrial()
+    setSecondsLeft(null)
+    setTrialPackName('')
+    snapshotRef.current = null
+  }, [clearTrial])
+
   const dismissTrial = useCallback(() => {
     clearTrial()
     setModalVisible(false)
@@ -60,5 +67,5 @@ export const usePremiumTrial = ({ config, revertConfig, retrieveConfigPreset }: 
 
   useEffect(() => () => clearTrial(), [clearTrial])
 
-  return { startTrial, modalVisible, trialPackName, secondsLeft, dismissTrial }
+  return { startTrial, cancelTrial, modalVisible, trialPackName, secondsLeft, dismissTrial }
 }
