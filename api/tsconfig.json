@@ -5,8 +5,6 @@
     "moduleResolution": "node",
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "strict": true,
-    "outDir": "."
-  },
-  "include": ["./**/*", "../server/**/*"]
+    "strict": true
+  }
 }
