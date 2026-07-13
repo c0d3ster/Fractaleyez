@@ -152,7 +152,9 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
 
   useEffect(() => {
     if (!localStorage.getItem('presets')) {
-      localStorage.setItem('presets', JSON.stringify(presets))
+      localStorage.setItem('presets', JSON.stringify(
+        Object.fromEntries(Object.entries(presets).map(([k, v]) => [k, v.config]))
+      ))
     }
   }, [])
 
@@ -173,8 +175,8 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
         const bundled = Object.entries(presets).map(([name, data]: [string, any]) => ({
           name,
           label: toLabel(name),
-          pack: (data.pack ?? '') as string,
-          sprite: (data.particle?.sprites?.value?.[0] ?? 'fractaleye.png') as string,
+          pack: data.pack,
+          sprite: data.sprite,
           isOwn: false,
           id: undefined,
         }))
@@ -303,7 +305,7 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
           const cached = stored ? (JSON.parse(stored) as Record<string, unknown>) : {}
           localStorage.setItem('presets', JSON.stringify({ ...cached, [cacheKey]: cfg }))
         } catch {
-          cfg = (presets as Record<string, unknown>)[name] ?? null
+          cfg = presets[name]?.config ?? null
           if (!cfg) {
             console.error(`Preset "${name}" not found locally or via API`)
             return
@@ -312,7 +314,7 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
           cfg = structuredClone(cfg)
         }
       } else {
-        cfg = (presets as Record<string, unknown>)[name] ?? null
+        cfg = presets[name]?.config ?? null
         if (!cfg) {
           console.error(`Preset "${name}" not found locally or via API`)
           return
@@ -322,13 +324,9 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
       }
     }
 
-    // Strip metadata fields that aren't part of AppConfig
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const cfgAny = cfg as Record<string, any>
-    delete cfgAny['pack']
-
     const prevClips = window.config.video.clips
-    const next = normalizeLoadedPreset(cfgAny)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const next = normalizeLoadedPreset(cfg as Record<string, unknown>)
     setConfig(next)
     window.config = next
     const sameClips =
