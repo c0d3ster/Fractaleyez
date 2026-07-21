@@ -1,9 +1,11 @@
-import { AppConfig, VideoConfigSection } from './configDefaults'
+import { AppConfig, StoredVideoSection } from './configDefaults'
+
+export type PresetConfig = Omit<AppConfig, 'video'> & { video?: StoredVideoSection }
 
 export type BundledPreset = {
   pack: string
   sprite: string
-  config: Omit<AppConfig, 'video'> & { video?: Pick<VideoConfigSection, 'clips' | 'index'> }
+  config: PresetConfig
 }
 
 export const presets: Record<string, BundledPreset> = {

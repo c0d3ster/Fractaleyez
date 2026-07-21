@@ -77,6 +77,9 @@ export type VideoConfigSection = {
   index: number
 }
 
+/** Stored/authored shape of a preset's video config — allClips is the runtime clip catalog, computed by mergeVideo and never persisted. */
+export type StoredVideoSection = Pick<VideoConfigSection, 'clips' | 'index'>
+
 export type AppConfig = {
   user: UserConfigSection
   audio: AudioConfigSection
