@@ -130,11 +130,10 @@ export type ConfigContextValue = {
 
 export const ConfigContext = React.createContext<ConfigContextValue | undefined>(undefined)
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const connectConfig = (WrappedComponent: React.ComponentType<any>) =>
-  (props: Record<string, unknown>): React.ReactElement => (
+export const connectConfig = <P extends Partial<ConfigContextValue>>(WrappedComponent: React.ComponentType<P>) =>
+  (props: Omit<P, keyof ConfigContextValue>): React.ReactElement => (
     <ConfigContext.Consumer>
-      {(context) => <WrappedComponent {...props} {...context} />}
+      {(context) => <WrappedComponent {...props as P} {...context} />}
     </ConfigContext.Consumer>
   )
 
@@ -171,8 +170,7 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
       } catch (err) {
         console.error('Failed to load presets from API, falling back to bundled', err)
         if (cancelled) return
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const bundled = Object.entries(presets).map(([name, data]: [string, any]) => ({
+        const bundled = Object.entries(presets).map(([name, data]) => ({
           name,
           label: toLabel(name),
           pack: data.pack,
@@ -210,18 +208,18 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
     const parsedValue = typeof parsed === 'number' && isNaN(parsed) ? value : parsed
 
     setConfig((prev) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const prevAny = prev as any
-      const next = {
+      // category/item are dynamic DOM input `name` attributes, not statically known keys of AppConfig
+      const sections = prev as unknown as Record<string, Record<string, ConfigItem>>
+      const next: AppConfig = {
         ...prev,
         [category]: {
-          ...prevAny[category],
+          ...sections[category],
           [item]: {
-            ...prevAny[category][item],
+            ...sections[category]?.[item],
             value: parsedValue
           }
         }
-      } as AppConfig
+      }
       window.config = next
       return next
     })
@@ -291,15 +289,12 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
 
     const cacheKey = id || name
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let cfg: any
-
-    cfg = retrieveCachedPreset(cacheKey)
+    let cfg: Record<string, unknown> | null = retrieveCachedPreset(cacheKey)
 
     if (!cfg) {
       if (id) {
         try {
-          const result = await axios.get('/api/preset', { params: { id } })
+          const result = await axios.get<{ config: Record<string, unknown> }>('/api/preset', { params: { id } })
           cfg = result.data.config
           const stored = localStorage.getItem('presets')
           const cached = stored ? (JSON.parse(stored) as Record<string, unknown>) : {}
@@ -325,8 +320,7 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
     }
 
     const prevClips = window.config.video.clips
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const next = normalizeLoadedPreset(cfg as Record<string, unknown>)
+    const next = normalizeLoadedPreset(cfg)
     setConfig(next)
     window.config = next
     const sameClips =
