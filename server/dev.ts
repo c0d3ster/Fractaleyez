@@ -7,6 +7,7 @@ import { savePresetHandler } from './routes/savePresetHandler'
 import { packsHandler } from './routes/packsHandler'
 import { myPacksHandler } from './routes/myPacksHandler'
 import { createPackHandler } from './routes/createPackHandler'
+import { uploadParticleHandler, MAX_UPLOAD_BYTES } from './routes/uploadParticleHandler'
 
 const BUILD_DIR = path.join(__dirname, '../public/')
 
@@ -21,6 +22,7 @@ app.post('/api/savePreset', savePresetHandler)
 app.get('/api/packs', packsHandler)
 app.get('/api/packs/mine', myPacksHandler)
 app.post('/api/pack', createPackHandler)
+app.post('/api/uploadParticle', express.raw({ type: 'image/*', limit: MAX_UPLOAD_BYTES }), uploadParticleHandler)
 
 connectDB()
   .then(() => app.listen(8080, () => console.info('Listening on port 8080!')))
