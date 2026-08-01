@@ -1,4 +1,6 @@
 import React, { useCallback, useRef } from 'react'
+import axios from 'axios'
+import { useAuth } from '@clerk/clerk-react'
 import './ParticleSpriteHud.css'
 
 import { connectConfig } from '../config/context/ConfigProvider'
@@ -6,6 +8,8 @@ import { AppConfig } from '../../config/configDefaults'
 import { BUILTIN_PARTICLE_SPRITES, particleConfig } from '../../config/particle.config'
 import { presetSpriteSrc } from '../../utils/presetSpriteSrc'
 
+// Mirrors the server's MAX_UPLOAD_BYTES / MAX_DECODED_DIMENSION_PX in uploadParticleHandler.ts —
+// these client-side checks only save a round trip, the server enforces its own limits independently.
 const MAX_DATA_URL_BYTES = 2 * 1024 * 1024
 const SPRITE_MAX_SIDE_PX = 512
 
@@ -41,10 +45,9 @@ function prepareSpriteDataUrl(dataUrl: string, maxSide: number): Promise<string>
   })
 }
 
-async function dataUrlByteSize(dataUrl: string): Promise<number> {
+async function dataUrlToBlob(dataUrl: string): Promise<Blob> {
   const res = await fetch(dataUrl)
-  const blob = await res.blob()
-  return blob.size
+  return res.blob()
 }
 
 const spriteLabel = (src: string): string => {
@@ -59,6 +62,7 @@ type ParticleSpriteHudProps = {
 }
 
 const ParticleSpriteHudInner = ({ config, updateParticleSprites }: ParticleSpriteHudProps): React.ReactElement => {
+  const { isSignedIn, getToken } = useAuth()
   const sprites = config.particle.sprites.value
   const spritesRef = useRef(sprites)
   spritesRef.current = sprites
@@ -109,6 +113,12 @@ const ParticleSpriteHudInner = ({ config, updateParticleSprites }: ParticleSprit
         e.target.value = ''
         return
       }
+      if (!isSignedIn) {
+        window.alert('Sign in to upload a custom particle.')
+        e.target.value = ''
+        return
+      }
+
       const reader = new FileReader()
       reader.onload = () => {
         const raw = typeof reader.result === 'string' ? reader.result : ''
@@ -116,23 +126,31 @@ const ParticleSpriteHudInner = ({ config, updateParticleSprites }: ParticleSprit
         void (async () => {
           try {
             const processed = await prepareSpriteDataUrl(raw, SPRITE_MAX_SIDE_PX)
-            const bytes = await dataUrlByteSize(processed)
-            if (bytes > MAX_DATA_URL_BYTES) {
+            const blob = await dataUrlToBlob(processed)
+            if (blob.size > MAX_DATA_URL_BYTES) {
               window.alert(
                 `After scaling, the image is still over ${MAX_DATA_URL_BYTES / (1024 * 1024)} MB. Try a smaller or simpler image.`,
               )
               return
             }
-            setSprites([...spritesRef.current, processed])
+            const token = await getToken()
+            if (!token) {
+              window.alert('Sign in to upload a custom particle.')
+              return
+            }
+            const { data } = await axios.post<{ url: string }>('/api/uploadParticle', blob, {
+              headers: { Authorization: `Bearer ${token}`, 'Content-Type': blob.type || 'image/png' },
+            })
+            setSprites([...spritesRef.current, data.url])
           } catch {
-            window.alert('Could not process this image.')
+            window.alert('Could not upload this image.')
           }
         })()
       }
       reader.readAsDataURL(file)
       e.target.value = ''
     },
-    [sprites, maxN, setSprites],
+    [sprites, maxN, setSprites, isSignedIn, getToken],
   )
 
   return (
