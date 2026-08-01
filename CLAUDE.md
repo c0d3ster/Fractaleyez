@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Commands
 
-```
+```sh
 yarn dev            # run client + server together (webpack-dev-server on :3000, express API on :8080, proxied)
 yarn client-dev      # webpack-dev-server only
 yarn server-dev       # express API only (via babel-register, no build step)
@@ -47,7 +47,7 @@ Clerk is the identity provider. Client: `ClerkProvider` wraps the app in `src/in
 
 Runs independently of the React tree (`src/index.tsx` mounts the config UI/HUDs; `main.ts` drives the canvas):
 
-```
+```text
 AudioSource (mic capture) → AudioStream (FFT, fixed 512 size) → AudioAnalyser (beat/energy detection)
                                                                         ↓
                                                           HopalongManager.update(deltaTime, analysedData)
@@ -64,6 +64,6 @@ Config is organized into five categories mirrored across `src/config/*.config.ts
 
 ## Code style
 
-`.eslintrc` already enforces the global arrow-functions/single-quotes/no-semicolons/2-space style for this repo (`prefer-arrow`, `semi: never`, `quotes: single`, `indent: 2`, `no-var`) — run `yarn lint` after changes. TypeScript is strict (`strict`, `noUncheckedIndexedAccess`, `noUnusedLocals`, `noImplicitOverride`, etc. — see `tsconfig.json`); run `yarn typecheck` before considering server/services or shared config code done.
+`.eslintrc` already enforces the global arrow-functions/single-quotes/no-semicolons/2-space style for this repo (`prefer-arrow`, `semi: never`, `quotes: single`, `indent: 2`, `no-var`) — run `yarn lint` after changes. TypeScript is strict (`strict`, `noUncheckedIndexedAccess`, `noUnusedLocals`, `noImplicitOverride`, etc. — see `tsconfig.json`); run `yarn typecheck` before considering `src/**` changes done. Note `tsconfig.json`'s `include` is `src/**/*` only — `yarn typecheck` does not type-check `server/` or `api/`, which have no dedicated type-check script; rely on your editor's TS server or `tsc --noEmit` against `api/tsconfig.json` for those.
 
 One repo-specific exception to the global named-exports-only rule: files under `api/*.ts` use `export default` because Vercel serverless functions require it (same shape as the Next.js `page.tsx`/`layout.tsx` exception — default export on its own, everything else in the file stays a named export).
