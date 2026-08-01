@@ -11,12 +11,15 @@
     "dev": "concurrently --kill-others \"yarn server-dev\" \"yarn client-dev\"",
     "lint": "eslint src --fix",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
     "seed": "node scripts/seed-presets.js",
-    "seed-packs": "node scripts/seed-packs.js"
+    "seed-packs": "node scripts/seed-packs.js",
+    "migrate-particles-to-r2": "node scripts/migrate-particles-to-r2.js"
   },
   "author": "Cody Douglass",
   "license": "ISC",
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1101.0",
     "@babel/polyfill": "^7.2.5",
     "@clerk/backend": "^3.2.14",
     "@clerk/clerk-react": "^5.61.3",
@@ -25,6 +28,7 @@
     "bootstrap": "^3.4.1",
     "classnames": "^2.2.6",
     "dotenv": "^17.4.0",
+    "image-size": "^2.0.2",
     "mongoose": "^9.7.2",
     "postprocessing": "6.29.3",
     "react": "^18.2.0",
@@ -59,6 +63,7 @@
     "@typescript-eslint/eslint-plugin": "^8.57.2",
     "@typescript-eslint/parser": "^8.57.2",
     "@vercel/node": "^5.7.0",
+    "@webpack-cli/serve": "^2.0.0",
     "autoprefixer": "^10.4.0",
     "babel-eslint": "^10.1.0",
     "babel-loader": "^9.0.0",
@@ -79,8 +84,7 @@
     "vitest": "^4.1.4",
     "webpack": "^5.0.0",
     "webpack-cli": "^5.0.0",
-    "webpack-dev-server": "^5.2.6",
-    "@webpack-cli/serve": "^2.0.0"
+    "webpack-dev-server": "^5.2.6"
   },
   "repository": {
     "type": "git",
