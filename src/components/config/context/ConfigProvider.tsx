@@ -5,6 +5,7 @@ import { useAuth, useUser } from '@clerk/clerk-react'
 import { AppConfig, ConfigItem, ParticleConfigSection, configDefaults } from '../../../config/configDefaults'
 import { particleConfig } from '../../../config/particle.config'
 import { presets } from '../../../config/presets'
+import { warmSpriteCache } from '../../../utils/spriteCache'
 
 export type PresetRetrieveEvent = {
   currentTarget: { dataset: { [key: string]: string | undefined } }
@@ -150,6 +151,10 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
   const [packList, setPackList] = useState<PackMeta[]>([])
 
   useEffect(() => {
+    void warmSpriteCache(configDefaults.particle.sprites.value)
+  }, [])
+
+  useEffect(() => {
     if (!localStorage.getItem('presets')) {
       localStorage.setItem('presets', JSON.stringify(
         Object.fromEntries(Object.entries(presets).map(([k, v]) => [k, v.config]))
@@ -243,6 +248,7 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
       const pad = configDefaults.particle.sprites.value[0] ?? 'fractaleye.png'
       next = [...next, ...Array(spritesMin - next.length).fill(pad)].slice(0, spritesMax)
     }
+    void warmSpriteCache(next)
     setConfig((prev) => {
       const n = {
         ...prev,
@@ -323,6 +329,7 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
     const next = normalizeLoadedPreset(cfg)
     setConfig(next)
     window.config = next
+    void warmSpriteCache(next.particle.sprites.value)
     const sameClips =
       prevClips.length === next.video.clips.length &&
       prevClips.every((c, i) => c === next.video.clips[i])

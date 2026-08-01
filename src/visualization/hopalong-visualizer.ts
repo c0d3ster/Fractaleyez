@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 
 import { AudioAnalysedDataForVisualization } from '../audioanalysis/audio-analysed-data'
+import { getResolvedSpriteUrl } from '../utils/spriteCache'
 
 /*
  * ORIGINAL AUTHOR: Iacopo Sassarini
@@ -96,7 +97,7 @@ export class HopalongVisualizer {
   }
 
   init(): void {
-    let sprite = new THREE.TextureLoader().load(this.sprites[0]!)
+    let sprite = new THREE.TextureLoader().load(getResolvedSpriteUrl(this.sprites[0]!))
     let count = 1
     let particleIndex = 0
     this.setLights()
@@ -119,7 +120,7 @@ export class HopalongVisualizer {
         const geometry = new THREE.BufferGeometry().setFromPoints(points)
 
         particleIndex = count % this.sprites.length
-        sprite = new THREE.TextureLoader().load(this.sprites[particleIndex]!)
+        sprite = new THREE.TextureLoader().load(getResolvedSpriteUrl(this.sprites[particleIndex]!))
         const material = new THREE.PointsMaterial({
           size: this.particleSize,
           map: sprite,
