@@ -125,6 +125,7 @@ export type ConfigContextValue = {
   savePreset: (name: string, pack: string, force?: boolean) => Promise<void>
   isSignedIn: boolean
   currentUserId: string | null
+  getToken: () => Promise<string | null>
   presets: PresetMeta[]
   packs: PackMeta[]
 }
@@ -369,7 +370,7 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
   }, [config, getToken])
 
   return (
-    <ConfigContext.Provider value={{ config, updateConfigItem, updateVideoClips, updateParticleSprites, retrieveConfigPreset, revertConfig, resetConfig, savePreset, isSignedIn: isSignedIn ?? false, currentUserId: user?.id ?? null, presets: presetList, packs: packList }}>
+    <ConfigContext.Provider value={{ config, updateConfigItem, updateVideoClips, updateParticleSprites, retrieveConfigPreset, revertConfig, resetConfig, savePreset, isSignedIn: isSignedIn ?? false, currentUserId: user?.id ?? null, getToken, presets: presetList, packs: packList }}>
       {children}
     </ConfigContext.Provider>
   )
