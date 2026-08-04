@@ -1,6 +1,5 @@
 import React, { useCallback, useRef } from 'react'
 import axios from 'axios'
-import { useAuth } from '@clerk/clerk-react'
 import './ParticleSpriteHud.css'
 
 import { connectConfig } from '../config/context/ConfigProvider'
@@ -59,10 +58,11 @@ const spriteLabel = (src: string): string => {
 type ParticleSpriteHudProps = {
   config: AppConfig
   updateParticleSprites: (sprites: string[]) => void
+  isSignedIn: boolean
+  getToken: () => Promise<string | null>
 }
 
-const ParticleSpriteHudInner = ({ config, updateParticleSprites }: ParticleSpriteHudProps): React.ReactElement => {
-  const { isSignedIn, getToken } = useAuth()
+const ParticleSpriteHudInner = ({ config, updateParticleSprites, isSignedIn, getToken }: ParticleSpriteHudProps): React.ReactElement => {
   const sprites = config.particle.sprites.value
   const spritesRef = useRef(sprites)
   spritesRef.current = sprites
