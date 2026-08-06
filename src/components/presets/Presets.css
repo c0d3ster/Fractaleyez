@@ -22,15 +22,11 @@
   max-width: 100%;
 }
 
-.pack-tabs-row .pack-tabs {
-  margin-bottom: 0;
-}
-
 .pack-tabs {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.4rem;
-  margin-bottom: 0.75rem;
+  gap: 1rem 0.6rem;
+  margin: 0.6rem;
 }
 
 .pack-tab {
@@ -133,7 +129,7 @@
   display: flex;
   flex-wrap: wrap;
   align-content: flex-start;
-  min-height: 140px;
+  min-height: 180px;
   transition: opacity 0.15s ease;
 }
 
@@ -142,7 +138,7 @@
 }
 
 .presets-grid--expanded {
-  min-height: 130px;
+  min-height: 135px;
 }
 
 
@@ -207,7 +203,13 @@
   align-items: center;
   gap: 1rem;
   margin-top: 0.75rem;
-  padding-left: 0.5rem;
+  padding-left: 0.75rem;
+}
+
+/* Kept in the layout (not display: none) so switching to a single-page pack doesn't
+   shift the sidebar content that follows it up. */
+.presets-pagination--hidden {
+  visibility: hidden;
 }
 
 .pagination-arrow {

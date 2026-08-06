@@ -19,7 +19,62 @@
   color: rgba(220,220,220,.9);
   border-right: 3px solid rgba(20,20,20,.9);
   opacity: .9;
-  padding: 10px 20px;
+  padding: 8px 0;
+}
+
+/* Wraps everything but the .tab button, which needs .sidebar-content to stay
+   unclipped so it can poke out past the right edge (left: 100%, see .tab below). */
+.sidebar-scroll {
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  /* Always reserves the scrollbar's own space in the box's width, so content shrinks
+     to fit it instead of the scrollbar overlapping/clipping into the padded content. */
+  scrollbar-gutter: stable;
+  /* Flips the scrollbar to the left edge; content direction is flipped back below
+     so text/layout inside reads normally. */
+  direction: rtl;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(150, 150, 150, 0.15) transparent;
+}
+
+.sidebar-scroll > * {
+  direction: ltr;
+}
+
+/* Bootstrap 3's .row carries a built-in -15px margin on each side, meant to be
+   cancelled out by a .col-*'s matching padding. Nothing here passes a breakpoint
+   prop to Col, so no col-* class (and no offsetting padding) is ever applied —
+   the -15px bleed was previously invisible (no horizontal clipping existed), but
+   now overflow-x: hidden above clips it, cutting off the right edge of content. */
+.sidebar-scroll .row {
+  margin-left: 0;
+  margin-right: 0;
+}
+
+.sidebar-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background-color: rgba(150, 150, 150, 0.35);
+  border-radius: 3px;
+}
+
+.sidebar-scroll::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(150, 150, 150, 0.55);
+}
+
+.sidebar-scroll::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 @media only screen and (max-width: 600px) {
@@ -261,7 +316,7 @@
   font-size: 2.75rem;
 }
 
-.sidebar-content:not(.slide-in) > .row > .sidebar-title {
+.sidebar-content:not(.slide-in) .sidebar-scroll > .row > .sidebar-title {
   display: none;
 }
 
