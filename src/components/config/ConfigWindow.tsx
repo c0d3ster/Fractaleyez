@@ -26,6 +26,7 @@ const ExternalWindowBridge = ({
   savePreset,
   isSignedIn,
   currentUserId,
+  getToken,
   presets,
   packs,
 }: ExternalWindowBridgeProps): React.ReactElement => {
@@ -43,6 +44,7 @@ const ExternalWindowBridge = ({
         savePreset,
         isSignedIn,
         currentUserId,
+        getToken,
         presets,
         packs,
       }}
@@ -114,6 +116,7 @@ const ConfigWindowInner = ({
   savePreset,
   isSignedIn,
   currentUserId,
+  getToken,
   presets,
   packs,
   onClose,
@@ -158,6 +161,7 @@ const ConfigWindowInner = ({
         savePreset={savePreset}
         isSignedIn={isSignedIn}
         currentUserId={currentUserId}
+        getToken={getToken}
         presets={presets}
         packs={packs}
       />
@@ -172,6 +176,7 @@ const ConfigWindowInner = ({
     savePreset,
     isSignedIn,
     currentUserId,
+    getToken,
     presets,
   ])
 

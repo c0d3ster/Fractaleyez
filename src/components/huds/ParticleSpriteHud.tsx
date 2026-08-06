@@ -1,4 +1,5 @@
-import React, { useCallback, useRef } from 'react'
+import React, { useCallback, useRef, useState } from 'react'
+import axios from 'axios'
 import './ParticleSpriteHud.css'
 
 import { connectConfig } from '../config/context/ConfigProvider'
@@ -6,8 +7,11 @@ import { AppConfig } from '../../config/configDefaults'
 import { BUILTIN_PARTICLE_SPRITES, particleConfig } from '../../config/particle.config'
 import { presetSpriteSrc } from '../../utils/presetSpriteSrc'
 
+// Mirrors the server's MAX_UPLOAD_BYTES / MAX_DECODED_DIMENSION_PX in uploadParticleHandler.ts —
+// these client-side checks only save a round trip, the server enforces its own limits independently.
 const MAX_DATA_URL_BYTES = 2 * 1024 * 1024
 const SPRITE_MAX_SIDE_PX = 512
+const UPLOAD_ERROR_DISPLAY_MS = 4000
 
 function prepareSpriteDataUrl(dataUrl: string, maxSide: number): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -41,10 +45,9 @@ function prepareSpriteDataUrl(dataUrl: string, maxSide: number): Promise<string>
   })
 }
 
-async function dataUrlByteSize(dataUrl: string): Promise<number> {
+async function dataUrlToBlob(dataUrl: string): Promise<Blob> {
   const res = await fetch(dataUrl)
-  const blob = await res.blob()
-  return blob.size
+  return res.blob()
 }
 
 const spriteLabel = (src: string): string => {
@@ -55,19 +58,28 @@ const spriteLabel = (src: string): string => {
 
 type ParticleSpriteHudProps = {
   config: AppConfig
-  updateParticleSprites: (sprites: string[]) => void
+  updateParticleSprites: (sprites: string[]) => Promise<void>
+  isSignedIn: boolean
+  getToken: () => Promise<string | null>
 }
 
-const ParticleSpriteHudInner = ({ config, updateParticleSprites }: ParticleSpriteHudProps): React.ReactElement => {
+const ParticleSpriteHudInner = ({ config, updateParticleSprites, isSignedIn, getToken }: ParticleSpriteHudProps): React.ReactElement => {
   const sprites = config.particle.sprites.value
   const spritesRef = useRef(sprites)
   spritesRef.current = sprites
   const { sprites_MIN: minN, sprites_MAX: maxN } = particleConfig
   const atCapacity = sprites.length >= maxN
+  const uploadDisabled = atCapacity || !isSignedIn
+  const [uploadError, setUploadError] = useState<string | null>(null)
+
+  const showUploadError = useCallback((message: string) => {
+    setUploadError(message)
+    setTimeout(() => setUploadError(null), UPLOAD_ERROR_DISPLAY_MS)
+  }, [])
 
   const setSprites = useCallback(
     (next: string[]) => {
-      updateParticleSprites(next)
+      void updateParticleSprites(next)
     },
     [updateParticleSprites],
   )
@@ -100,8 +112,8 @@ const ParticleSpriteHudInner = ({ config, updateParticleSprites }: ParticleSprit
       if (!files?.length) return
       const file = files[0]
       if (!file || !file.type.startsWith('image/')) return
-      if (file.size > MAX_DATA_URL_BYTES) {
-        window.alert(`Image is too large (max ${MAX_DATA_URL_BYTES / (1024 * 1024)} MB per file).`)
+      if (!isSignedIn) {
+        showUploadError('Sign in to upload a custom particle.')
         e.target.value = ''
         return
       }
@@ -109,6 +121,12 @@ const ParticleSpriteHudInner = ({ config, updateParticleSprites }: ParticleSprit
         e.target.value = ''
         return
       }
+      if (file.size > MAX_DATA_URL_BYTES) {
+        showUploadError(`Image is too large (max ${MAX_DATA_URL_BYTES / (1024 * 1024)} MB per file).`)
+        e.target.value = ''
+        return
+      }
+
       const reader = new FileReader()
       reader.onload = () => {
         const raw = typeof reader.result === 'string' ? reader.result : ''
@@ -116,23 +134,34 @@ const ParticleSpriteHudInner = ({ config, updateParticleSprites }: ParticleSprit
         void (async () => {
           try {
             const processed = await prepareSpriteDataUrl(raw, SPRITE_MAX_SIDE_PX)
-            const bytes = await dataUrlByteSize(processed)
-            if (bytes > MAX_DATA_URL_BYTES) {
-              window.alert(
+            const blob = await dataUrlToBlob(processed)
+            if (blob.size > MAX_DATA_URL_BYTES) {
+              showUploadError(
                 `After scaling, the image is still over ${MAX_DATA_URL_BYTES / (1024 * 1024)} MB. Try a smaller or simpler image.`,
               )
               return
             }
-            setSprites([...spritesRef.current, processed])
+            const token = await getToken()
+            if (!token) {
+              showUploadError('Sign in to upload a custom particle.')
+              return
+            }
+            const { data } = await axios.post<{ url: string }>('/api/uploadParticle', blob, {
+              headers: { Authorization: `Bearer ${token}`, 'Content-Type': blob.type || 'image/png' },
+            })
+            // setSprites -> updateParticleSprites awaits the sprite cache warming before
+            // updating the live config, so the particle system rebuild it triggers resolves
+            // straight to the cached blob: URL instead of racing a cold cross-origin fetch.
+            setSprites([...spritesRef.current, data.url])
           } catch {
-            window.alert('Could not process this image.')
+            showUploadError('Could not upload this image.')
           }
         })()
       }
       reader.readAsDataURL(file)
       e.target.value = ''
     },
-    [sprites, maxN, setSprites],
+    [sprites, maxN, setSprites, isSignedIn, getToken, showUploadError],
   )
 
   return (
@@ -190,16 +219,22 @@ const ParticleSpriteHudInner = ({ config, updateParticleSprites }: ParticleSprit
         </div>
         <div className='particle-sprite-hud__upload'>
           <label
-            className={`particle-sprite-hud__upload-label${atCapacity ? ' particle-sprite-hud__upload-label--disabled' : ''}`}
+            className={`particle-sprite-hud__upload-label${uploadDisabled ? ' particle-sprite-hud__upload-label--disabled' : ''}`}
+            title={!isSignedIn ? 'Sign in to upload a custom particle' : atCapacity ? `Max ${maxN} particles reached` : undefined}
           >
             + Add image
             <input
               type='file'
               accept='image/*'
-              disabled={atCapacity}
+              disabled={uploadDisabled}
               onChange={onFiles}
             />
           </label>
+          {uploadError ? (
+            <div className='particle-sprite-hud__upload-error' role='alert'>
+              {uploadError}
+            </div>
+          ) : null}
         </div>
       </div>
     </div>

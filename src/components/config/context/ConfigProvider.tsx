@@ -5,6 +5,7 @@ import { useAuth, useUser } from '@clerk/clerk-react'
 import { AppConfig, ConfigItem, ParticleConfigSection, configDefaults } from '../../../config/configDefaults'
 import { particleConfig } from '../../../config/particle.config'
 import { presets } from '../../../config/presets'
+import { warmSpriteCache } from '../../../utils/spriteCache'
 
 export type PresetRetrieveEvent = {
   currentTarget: { dataset: { [key: string]: string | undefined } }
@@ -117,13 +118,14 @@ export type ConfigContextValue = {
   config: AppConfig
   updateConfigItem: (category: string, item: string, value: string | boolean | number) => void
   updateVideoClips: (clips: string[]) => void
-  updateParticleSprites: (sprites: string[]) => void
+  updateParticleSprites: (sprites: string[]) => Promise<void>
   retrieveConfigPreset: (event: PresetRetrieveEvent) => Promise<void>
   revertConfig: (snapshot: AppConfig) => void
   resetConfig: () => void
   savePreset: (name: string, pack: string, force?: boolean) => Promise<void>
   isSignedIn: boolean
   currentUserId: string | null
+  getToken: () => Promise<string | null>
   presets: PresetMeta[]
   packs: PackMeta[]
 }
@@ -148,6 +150,10 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
 
   const [presetList, setPresetList] = useState<PresetMeta[]>([])
   const [packList, setPackList] = useState<PackMeta[]>([])
+
+  useEffect(() => {
+    void warmSpriteCache(configDefaults.particle.sprites.value)
+  }, [])
 
   useEffect(() => {
     if (!localStorage.getItem('presets')) {
@@ -235,7 +241,7 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
     }
   }, [])
 
-  const updateParticleSprites = useCallback((sprites: string[]) => {
+  const updateParticleSprites = useCallback(async (sprites: string[]) => {
     const { sprites_MIN: spritesMin, sprites_MAX: spritesMax } = particleConfig
     const deduped = [...new Set(sprites)].slice(0, spritesMax)
     let next = deduped
@@ -243,6 +249,10 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
       const pad = configDefaults.particle.sprites.value[0] ?? 'fractaleye.png'
       next = [...next, ...Array(spritesMin - next.length).fill(pad)].slice(0, spritesMax)
     }
+    // Wait for the cache to warm before the particle system rebuild (triggered by the
+    // window.config write below) can fire on the next frame -- otherwise a not-yet-cached
+    // sprite races a cold cross-origin TextureLoader load against this same fetch.
+    await warmSpriteCache(next)
     setConfig((prev) => {
       const n = {
         ...prev,
@@ -321,6 +331,9 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
 
     const prevClips = window.config.video.clips
     const next = normalizeLoadedPreset(cfg)
+    // Same reasoning as updateParticleSprites: warm the cache before the config write triggers
+    // a rebuild, so a preset's not-yet-cached sprites don't race a cold cross-origin load.
+    await warmSpriteCache(next.particle.sprites.value)
     setConfig(next)
     window.config = next
     const sameClips =
@@ -362,7 +375,7 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
   }, [config, getToken])
 
   return (
-    <ConfigContext.Provider value={{ config, updateConfigItem, updateVideoClips, updateParticleSprites, retrieveConfigPreset, revertConfig, resetConfig, savePreset, isSignedIn: isSignedIn ?? false, currentUserId: user?.id ?? null, presets: presetList, packs: packList }}>
+    <ConfigContext.Provider value={{ config, updateConfigItem, updateVideoClips, updateParticleSprites, retrieveConfigPreset, revertConfig, resetConfig, savePreset, isSignedIn: isSignedIn ?? false, currentUserId: user?.id ?? null, getToken, presets: presetList, packs: packList }}>
       {children}
     </ConfigContext.Provider>
   )
