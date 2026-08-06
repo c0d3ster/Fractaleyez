@@ -58,7 +58,7 @@ const spriteLabel = (src: string): string => {
 
 type ParticleSpriteHudProps = {
   config: AppConfig
-  updateParticleSprites: (sprites: string[]) => void
+  updateParticleSprites: (sprites: string[]) => Promise<void>
   isSignedIn: boolean
   getToken: () => Promise<string | null>
 }
@@ -79,7 +79,7 @@ const ParticleSpriteHudInner = ({ config, updateParticleSprites, isSignedIn, get
 
   const setSprites = useCallback(
     (next: string[]) => {
-      updateParticleSprites(next)
+      void updateParticleSprites(next)
     },
     [updateParticleSprites],
   )
@@ -149,6 +149,9 @@ const ParticleSpriteHudInner = ({ config, updateParticleSprites, isSignedIn, get
             const { data } = await axios.post<{ url: string }>('/api/uploadParticle', blob, {
               headers: { Authorization: `Bearer ${token}`, 'Content-Type': blob.type || 'image/png' },
             })
+            // setSprites -> updateParticleSprites awaits the sprite cache warming before
+            // updating the live config, so the particle system rebuild it triggers resolves
+            // straight to the cached blob: URL instead of racing a cold cross-origin fetch.
             setSprites([...spritesRef.current, data.url])
           } catch {
             showUploadError('Could not upload this image.')

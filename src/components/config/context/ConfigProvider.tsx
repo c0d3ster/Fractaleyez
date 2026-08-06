@@ -118,7 +118,7 @@ export type ConfigContextValue = {
   config: AppConfig
   updateConfigItem: (category: string, item: string, value: string | boolean | number) => void
   updateVideoClips: (clips: string[]) => void
-  updateParticleSprites: (sprites: string[]) => void
+  updateParticleSprites: (sprites: string[]) => Promise<void>
   retrieveConfigPreset: (event: PresetRetrieveEvent) => Promise<void>
   revertConfig: (snapshot: AppConfig) => void
   resetConfig: () => void
@@ -241,7 +241,7 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
     }
   }, [])
 
-  const updateParticleSprites = useCallback((sprites: string[]) => {
+  const updateParticleSprites = useCallback(async (sprites: string[]) => {
     const { sprites_MIN: spritesMin, sprites_MAX: spritesMax } = particleConfig
     const deduped = [...new Set(sprites)].slice(0, spritesMax)
     let next = deduped
@@ -249,7 +249,10 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
       const pad = configDefaults.particle.sprites.value[0] ?? 'fractaleye.png'
       next = [...next, ...Array(spritesMin - next.length).fill(pad)].slice(0, spritesMax)
     }
-    void warmSpriteCache(next)
+    // Wait for the cache to warm before the particle system rebuild (triggered by the
+    // window.config write below) can fire on the next frame -- otherwise a not-yet-cached
+    // sprite races a cold cross-origin TextureLoader load against this same fetch.
+    await warmSpriteCache(next)
     setConfig((prev) => {
       const n = {
         ...prev,
@@ -328,9 +331,11 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
 
     const prevClips = window.config.video.clips
     const next = normalizeLoadedPreset(cfg)
+    // Same reasoning as updateParticleSprites: warm the cache before the config write triggers
+    // a rebuild, so a preset's not-yet-cached sprites don't race a cold cross-origin load.
+    await warmSpriteCache(next.particle.sprites.value)
     setConfig(next)
     window.config = next
-    void warmSpriteCache(next.particle.sprites.value)
     const sameClips =
       prevClips.length === next.video.clips.length &&
       prevClips.every((c, i) => c === next.video.clips[i])
