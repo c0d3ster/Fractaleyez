@@ -60,8 +60,8 @@ export const TopBar = (): React.ReactElement => {
           isSignedIn
             ? <UserButton appearance={{ elements: { avatarBox: { width: 56, height: 56 } } }} />
             : <SignInButton mode='modal'>
-                <button className='topbar-signin-btn'>Sign In</button>
-              </SignInButton>
+              <button className='topbar-signin-btn'>Sign In</button>
+            </SignInButton>
         )}
       </div>
     </div>

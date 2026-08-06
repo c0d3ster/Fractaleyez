@@ -13,7 +13,7 @@ const MAX_DATA_URL_BYTES = 2 * 1024 * 1024
 const SPRITE_MAX_SIDE_PX = 512
 const UPLOAD_ERROR_DISPLAY_MS = 4000
 
-function prepareSpriteDataUrl(dataUrl: string, maxSide: number): Promise<string> {
+const prepareSpriteDataUrl = (dataUrl: string, maxSide: number): Promise<string> => {
   return new Promise((resolve, reject) => {
     const img = new Image()
     img.onload = () => {
@@ -45,7 +45,7 @@ function prepareSpriteDataUrl(dataUrl: string, maxSide: number): Promise<string>
   })
 }
 
-async function dataUrlToBlob(dataUrl: string): Promise<Blob> {
+const dataUrlToBlob = async (dataUrl: string): Promise<Blob> => {
   const res = await fetch(dataUrl)
   return res.blob()
 }

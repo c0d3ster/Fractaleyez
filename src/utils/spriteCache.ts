@@ -12,7 +12,7 @@ const isRemoteUrl = (url: string): boolean => url.startsWith('http://') || url.s
 
 const cachesAvailable = (): boolean => typeof caches !== 'undefined'
 
-async function resolveOne(url: string): Promise<void> {
+const resolveOne = async (url: string): Promise<void> => {
   if (!isRemoteUrl(url) || resolvedUrls.has(url)) return
   if (!cachesAvailable()) return
 
@@ -36,7 +36,7 @@ async function resolveOne(url: string): Promise<void> {
  * URLs and removes them from Cache Storage, so switching sprite sets over a long-running session
  * (a live show) doesn't leak object URLs or grow the cache without bound.
  */
-async function evictStale(activeUrls: string[]): Promise<void> {
+const evictStale = async (activeUrls: string[]): Promise<void> => {
   const active = new Set(activeUrls)
   const stale = [...resolvedUrls.keys()].filter((url) => !active.has(url))
   if (stale.length === 0) return
@@ -51,13 +51,13 @@ async function evictStale(activeUrls: string[]): Promise<void> {
 }
 
 /** Best-effort: warms the resolved-URL map for the given sprite URLs and evicts stale entries. Never throws. */
-export async function warmSpriteCache(urls: string[]): Promise<void> {
+export const warmSpriteCache = async (urls: string[]): Promise<void> => {
   const unique = [...new Set(urls)].filter(isRemoteUrl)
   await Promise.all(unique.map(resolveOne))
   await evictStale(unique)
 }
 
 /** Synchronous lookup for use in the (sync) texture-loading path. Falls back to the original URL. */
-export function getResolvedSpriteUrl(url: string): string {
+export const getResolvedSpriteUrl = (url: string): string => {
   return resolvedUrls.get(url) ?? url
 }

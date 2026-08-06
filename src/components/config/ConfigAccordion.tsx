@@ -38,10 +38,10 @@ const ConfigAccordionInner = ({ config, updateConfigItem, canOpenMultiple }: Con
             {category === 'video'
               ? <ConfigVideo isOpen={isCategoryOpen(category)} toggleOpen={toggleOpen} />
               : <ConfigCategory
-                  name={category}
-                  onChange={updateConfigItem}
-                  isOpen={isCategoryOpen(category)}
-                  toggleOpen={toggleOpen} />
+                name={category}
+                onChange={updateConfigItem}
+                isOpen={isCategoryOpen(category)}
+                toggleOpen={toggleOpen} />
             }
           </Col>
         </Row>

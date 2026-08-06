@@ -54,7 +54,7 @@ const toLabel = (name: string): string => {
 
 type ConfigSectionKey = 'user' | 'audio' | 'effects' | 'particle' | 'orbit'
 
-function mergeConfigSection<C extends ConfigSectionKey>(category: C, loaded: Record<string, unknown> | undefined | null): AppConfig[C] {
+const mergeConfigSection = <C extends ConfigSectionKey>(category: C, loaded: Record<string, unknown> | undefined | null): AppConfig[C] => {
   const def = configDefaults[category] as Record<string, ConfigItem>
   if (!loaded || typeof loaded !== 'object') {
     return configDefaults[category]
@@ -70,7 +70,7 @@ function mergeConfigSection<C extends ConfigSectionKey>(category: C, loaded: Rec
   return out as AppConfig[C]
 }
 
-function normalizeParticleSpritesValue(sprites: unknown): string[] {
+const normalizeParticleSpritesValue = (sprites: unknown): string[] => {
   const raw = Array.isArray(sprites) ? sprites.filter((s): s is string => typeof s === 'string') : []
   const { sprites_MIN: spritesMin, sprites_MAX: spritesMax } = particleConfig
   const deduped = [...new Set(raw)].slice(0, spritesMax)
@@ -82,7 +82,7 @@ function normalizeParticleSpritesValue(sprites: unknown): string[] {
   return next
 }
 
-function mergeVideo(loaded: unknown): AppConfig['video'] {
+const mergeVideo = (loaded: unknown): AppConfig['video'] => {
   const catalog = [...configDefaults.video.allClips]
   if (!loaded || typeof loaded !== 'object') {
     return { clips: [], allClips: catalog, index: 0 }
@@ -96,7 +96,7 @@ function mergeVideo(loaded: unknown): AppConfig['video'] {
 }
 
 /** Presets from disk/API may omit multiselect metadata or use older shapes — merge with defaults so UI + viz stay valid. */
-function normalizeLoadedPreset(cfg: Record<string, unknown>): AppConfig {
+const normalizeLoadedPreset = (cfg: Record<string, unknown>): AppConfig => {
   const particle = mergeConfigSection('particle', cfg.particle as Record<string, unknown> | undefined) as ParticleConfigSection
   return {
     user: mergeConfigSection('user', cfg.user as Record<string, unknown> | undefined),
