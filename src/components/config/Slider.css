@@ -52,3 +52,10 @@
   transition-duration: .1;
   outline: none;
 }
+
+/* The popout's .config-window-root bumps the base font size, and its columns are
+   narrower than the sidebar accordion's — without this, labels like "Sound Threshold"
+   wrap to a 2nd line there even though they fit fine in the sidebar. */
+.config-window-root .slider-name {
+  font-size: 0.85rem;
+}

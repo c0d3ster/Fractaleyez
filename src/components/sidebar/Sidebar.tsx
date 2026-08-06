@@ -96,7 +96,7 @@ const SidebarInner = ({ config: _config, setConfigWindow, configWindowVisible }:
             ⤢
           </button>
         </Row>
-        <ConfigAccordion canOpenMultiple={false} />
+        {!configWindowVisible && <ConfigAccordion canOpenMultiple={false} />}
       </Grid>
     </div>
   )
