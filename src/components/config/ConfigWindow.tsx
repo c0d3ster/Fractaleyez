@@ -12,6 +12,32 @@ import { connectConfig, ConfigContext, ConfigContextValue } from './context/Conf
 import { CameraTouchpad } from './CameraTouchpad'
 import { FrequencyHud, PerfHud, ParticleSpriteHud } from '../huds'
 
+const DEFAULT_WINDOW_FEATURES = 'width=1200,height=860,location=no'
+const POPOUT_WIDTH = 1200
+
+// Positions the popout on a second screen at full available height when the Window Management
+// API is available and permitted; falls back to the default same-screen size/placement otherwise
+// (unsupported in Firefox/Safari, and requires a permission prompt in Chromium).
+const resolveWindowFeatures = async (): Promise<string> => {
+  if (!window.getScreenDetails || !window.screen.isExtended) return DEFAULT_WINDOW_FEATURES
+  try {
+    const screenDetails = await window.getScreenDetails()
+    const { currentScreen } = screenDetails
+    const secondScreen = screenDetails.screens.find((s) => s !== currentScreen)
+    if (!secondScreen) return DEFAULT_WINDOW_FEATURES
+    // Dock against the seam between the two screens rather than always at the second
+    // screen's left edge: if it's to the left of the current screen, that seam is its
+    // right edge; if it's to the right, the seam is its left edge (today's behavior).
+    const secondScreenIsToTheLeft = secondScreen.availLeft < currentScreen.availLeft
+    const left = secondScreenIsToTheLeft
+      ? secondScreen.availLeft + secondScreen.availWidth - POPOUT_WIDTH
+      : secondScreen.availLeft
+    return `width=${POPOUT_WIDTH},height=${secondScreen.availHeight},left=${left},top=${secondScreen.availTop},location=no`
+  } catch {
+    return DEFAULT_WINDOW_FEATURES
+  }
+}
+
 type ExternalWindowBridgeProps = ConfigContextValue
 
 // Renders inside the external window's React root, bridging ConfigContext from the main window
@@ -122,27 +148,45 @@ const ConfigWindowInner = ({
   onClose,
 }: ConfigWindowProps): null => {
   const reactRootRef = useRef<Root | null>(null)
+  // Root creation is now async (waits on second-screen resolution) — this flips once the root
+  // exists so the render effect below re-fires even if config/presets/etc haven't changed since.
+  const [externalRootReady, setExternalRootReady] = useState(false)
 
   // Open the external window once on mount
   useEffect(() => {
-    const externalWindow = window.open('', '', 'width=1200,height=860,location=no')
-    if (!externalWindow) return
+    let cancelled = false
+    let externalWindow: Window | null = null
 
-    const container = externalWindow.document.createElement('div')
-    container.className = 'config-window-root'
-    externalWindow.document.title = 'Configuration'
-    externalWindow.document.body.appendChild(container)
-    externalWindow.addEventListener('beforeunload', onClose)
-    copyStyles(document, externalWindow.document)
+    const closeExternalWindow = (): void => externalWindow?.close()
 
-    const reactRoot = createRoot(container)
-    reactRootRef.current = reactRoot
+    const setup = async (): Promise<void> => {
+      const features = await resolveWindowFeatures()
+      if (cancelled) return
+
+      externalWindow = window.open('', '', features)
+      if (!externalWindow) return
+
+      const container = externalWindow.document.createElement('div')
+      container.className = 'config-window-root'
+      externalWindow.document.title = 'Configuration'
+      externalWindow.document.body.appendChild(container)
+      externalWindow.addEventListener('beforeunload', onClose)
+      window.addEventListener('beforeunload', closeExternalWindow)
+      copyStyles(document, externalWindow.document)
+
+      reactRootRef.current = createRoot(container)
+      setExternalRootReady(true)
+    }
+
+    void setup()
 
     return () => {
-      externalWindow.removeEventListener('beforeunload', onClose)
-      reactRoot.unmount()
+      cancelled = true
+      window.removeEventListener('beforeunload', closeExternalWindow)
+      externalWindow?.removeEventListener('beforeunload', onClose)
+      reactRootRef.current?.unmount()
       reactRootRef.current = null
-      externalWindow.close()
+      externalWindow?.close()
     }
   }, [])
 
@@ -167,6 +211,7 @@ const ConfigWindowInner = ({
       />
     )
   }, [
+    externalRootReady,
     config,
     updateConfigItem,
     updateVideoClips,

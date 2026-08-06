@@ -40,7 +40,10 @@ const SidebarInner = ({ config: _config, setConfigWindow, configWindowVisible }:
 
   const toggleSidebar = useCallback(() => setSidebarVisible((prev) => !prev), [])
 
-  const handleSetConfigWindow = useCallback(() => setConfigWindow(), [setConfigWindow])
+  const handleSetConfigWindow = useCallback(() => {
+    if (!configWindowVisible) setSidebarVisible(false)
+    setConfigWindow()
+  }, [setConfigWindow, configWindowVisible])
 
   useEffect(() => {
     hideTabDelayed(5000)
@@ -78,25 +81,27 @@ const SidebarInner = ({ config: _config, setConfigWindow, configWindowVisible }:
           onClick={toggleSidebar}>
           Menu
         </button>
-        <Row>
-          <div className='sidebar-title-row'>
-            <h2 className='sidebar-title'>Presets</h2>
-            <SavePreset prefill={prefill} onSaved={() => setPrefill(null)} />
-          </div>
-        </Row>
-        <Presets
-          onSelect={setPrefill}
-          onPackSelect={(pack: string) => setPrefill(prev => prev ? { ...prev, pack } : { name: '', label: '', pack, isOwn: false })}
-        />
-        <Row>
-          <h2 className='sidebar-title'>Configuration</h2>
-          <button
-            className={expandConfigClasses}
-            onClick={handleSetConfigWindow}>
-            ⤢
-          </button>
-        </Row>
-        <ConfigAccordion canOpenMultiple={false} />
+        <div className='sidebar-scroll'>
+          <Row>
+            <div className='sidebar-title-row'>
+              <h2 className='sidebar-title'>Presets</h2>
+              <SavePreset prefill={prefill} onSaved={() => setPrefill(null)} />
+            </div>
+          </Row>
+          <Presets
+            onSelect={setPrefill}
+            onPackSelect={(pack: string) => setPrefill(prev => prev ? { ...prev, pack } : { name: '', label: '', pack, isOwn: false })}
+          />
+          <Row>
+            <h2 className='sidebar-title'>Configuration</h2>
+            <button
+              className={expandConfigClasses}
+              onClick={handleSetConfigWindow}>
+              ⤢
+            </button>
+          </Row>
+          <ConfigAccordion canOpenMultiple={false} />
+        </div>
       </Grid>
     </div>
   )

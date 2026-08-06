@@ -129,23 +129,21 @@ const PresetsInner = ({ retrieveConfigPreset, revertConfig, config, presets, pac
               })}
             </div>
           </div>
-          {totalPages > 1 && (
-            <div className='presets-pagination'>
-              <button
-                className='pagination-arrow'
-                onClick={() => changePage(page === 0 ? totalPages - 1 : page - 1)}
-              >
-                &#8592;
-              </button>
-              <span className='pagination-label'>{page + 1} / {totalPages}</span>
-              <button
-                className='pagination-arrow'
-                onClick={() => changePage(page === totalPages - 1 ? 0 : page + 1)}
-              >
-                &#8594;
-              </button>
-            </div>
-          )}
+          <div className={`presets-pagination${totalPages > 1 ? '' : ' presets-pagination--hidden'}`}>
+            <button
+              className='pagination-arrow'
+              onClick={() => changePage(page === 0 ? totalPages - 1 : page - 1)}
+            >
+              &#8592;
+            </button>
+            <span className='pagination-label'>{page + 1} / {totalPages}</span>
+            <button
+              className='pagination-arrow'
+              onClick={() => changePage(page === totalPages - 1 ? 0 : page + 1)}
+            >
+              &#8594;
+            </button>
+          </div>
         </Col>
       </Row>
       {modalVisible && (
