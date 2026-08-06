@@ -1,10 +1,11 @@
-import { describe, it, expect, vi, afterEach } from 'vitest'
-import { warmSpriteCache, getResolvedSpriteUrl } from './spriteCache'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import type { warmSpriteCache as WarmSpriteCache, getResolvedSpriteUrl as GetResolvedSpriteUrl } from './spriteCache'
 
 type FakeCache = {
   store: Map<string, Response>
   match: (url: string) => Promise<Response | undefined>
   put: (url: string, res: Response) => Promise<void>
+  delete: (url: string) => Promise<boolean>
 }
 
 const makeFakeCache = (): FakeCache => {
@@ -15,12 +16,24 @@ const makeFakeCache = (): FakeCache => {
     put: vi.fn(async (url: string, res: Response) => {
       store.set(url, res)
     }),
+    delete: vi.fn(async (url: string) => store.delete(url)),
   }
 }
 
 describe('spriteCache', () => {
   const originalFetch = global.fetch
   const originalCaches = (globalThis as { caches?: unknown }).caches
+  let warmSpriteCache: typeof WarmSpriteCache
+  let getResolvedSpriteUrl: typeof GetResolvedSpriteUrl
+
+  // resolvedUrls is a private module-level singleton -- reset the module between tests so
+  // eviction in one test can't affect entries resolved by another.
+  beforeEach(async () => {
+    vi.resetModules()
+    const mod = await import('./spriteCache')
+    warmSpriteCache = mod.warmSpriteCache
+    getResolvedSpriteUrl = mod.getResolvedSpriteUrl
+  })
 
   afterEach(() => {
     global.fetch = originalFetch
@@ -90,5 +103,25 @@ describe('spriteCache', () => {
     await warmSpriteCache([url])
 
     expect(getResolvedSpriteUrl(url)).toBe(url)
+  })
+
+  it('evicts entries no longer in the active sprite list, revoking their object URL and removing them from Cache Storage', async () => {
+    const fakeCache = makeFakeCache()
+    const staleUrl = 'https://particles.example.com/stale.png'
+    const activeUrl = 'https://particles.example.com/active.png'
+    ;(globalThis as { caches?: unknown }).caches = { open: vi.fn(async () => fakeCache) }
+    global.fetch = vi.fn(async () => new Response(new Blob(['bytes']), { status: 200 })) as unknown as typeof fetch
+
+    await warmSpriteCache([staleUrl, activeUrl])
+    expect(getResolvedSpriteUrl(staleUrl).startsWith('blob:')).toBe(true)
+    expect(fakeCache.store.has(staleUrl)).toBe(true)
+
+    const revokeSpy = vi.spyOn(URL, 'revokeObjectURL')
+    await warmSpriteCache([activeUrl])
+
+    expect(getResolvedSpriteUrl(staleUrl)).toBe(staleUrl)
+    expect(fakeCache.store.has(staleUrl)).toBe(false)
+    expect(revokeSpy).toHaveBeenCalledTimes(1)
+    expect(getResolvedSpriteUrl(activeUrl).startsWith('blob:')).toBe(true)
   })
 })
