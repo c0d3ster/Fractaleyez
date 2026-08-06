@@ -4,7 +4,7 @@
  * no key-to-URL table needed) → an existing `/public` path from before the R2 migration →
  * any other already-absolute `data:`/`blob:`/`http(s):` reference, passed through unchanged.
  */
-export function presetSpriteSrc(sprite: string): string {
+export const presetSpriteSrc = (sprite: string): string => {
   if (!sprite) return '/fractaleye.png'
   if (
     sprite.startsWith('http://') ||

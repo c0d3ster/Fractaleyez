@@ -25,7 +25,7 @@ const loadSpriteTexture = (url: string): THREE.Texture => {
 }
 
 // Orbit parameters
-let a = 0, b = 0, c = 0, d = 0, e = 0
+let a = 0; let b = 0; let c = 0; let d = 0; let e = 0
 
 type SubsetPoint = {
   x: number
@@ -66,8 +66,8 @@ export class HopalongVisualizer {
   orbit: { subsets: SubsetPoint[][]; xMin: number; xMax: number; yMin: number; yMax: number; scaleX: number; scaleY: number }
   private updateInterval: ReturnType<typeof setInterval> | undefined
 
-  private onVideoClipsRestored = (e: Event): void => {
-    const ce = e as CustomEvent<{ clips: string[] }>
+  private onVideoClipsRestored = (event: Event): void => {
+    const ce = event as CustomEvent<{ clips: string[] }>
     this.createVideoPlane(ce.detail.clips)
   }
 
@@ -189,8 +189,8 @@ export class HopalongVisualizer {
   }
 
   private computeVideoPlaneSizeKey(): string {
-    const b = window.config.user.cameraBound.value
-    return `${b}:${window.innerWidth}x${window.innerHeight}`
+    const bound = window.config.user.cameraBound.value
+    return `${bound}:${window.innerWidth}x${window.innerHeight}`
   }
 
   private resizeVideoPlaneGeometry(): void {
@@ -342,13 +342,13 @@ export class HopalongVisualizer {
   }
 
   generateOrbit(): void {
-    let x = 0, y = 0, z = 0, x1 = 0
+    let x = 0; let y = 0; let z = 0; let x1 = 0
     this.prepareOrbit()
 
-    const la = a, lb = b, lc = c, ld = d, le = e
+    const la = a; const lb = b; const lc = c; const ld = d; const le = e
     const scale_factor_l = window.config.user.scaleFactor.value
 
-    let xMin = 0, xMax = 0, yMin = 0, yMax = 0
+    let xMin = 0; let xMax = 0; let yMin = 0; let yMax = 0
 
     for (let s = 0; s < this.layers; s++) {
       x = s * 0.005 * (1 - Math.random())

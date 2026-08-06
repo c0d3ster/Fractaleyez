@@ -95,39 +95,39 @@ const PresetsInner = ({ retrieveConfigPreset, revertConfig, config, presets, pac
             {headerActions}
           </div>
           <div className='presets-grid-wrap'>
-          {(() => {
-            const activeMeta = packMap.get(activePack)
-            return activeMeta?.isPremium && !activeMeta.isOwn && !previewMode ? (
-              <div className='pack-premium-overlay'>
-                <span className='pack-premium-overlay-label'>✦ Premium</span>
-                <button className='pack-premium-overlay-btn' onClick={() => setPreviewMode(true)}>Preview</button>
-              </div>
-            ) : null
-          })()}
-          <div className={`presets-grid${expanded ? ' presets-grid--expanded' : ''}${paging ? ' paging' : ''}`}>
-            {visible.map((preset) => {
-              const { id, name, label, sprite } = preset
-              const event: PresetRetrieveEvent = {
-                currentTarget: { dataset: { name: String(name), id: id ?? '' } },
-              }
-              const isTrialing = trialPresetKey === (id ?? name) && secondsLeft !== null
-              const presetPackMeta = packMap.get(preset.pack)
-              const isPremiumUnowned = presetPackMeta?.isPremium && !presetPackMeta.isOwn
-              return (
-                <button
-                  key={id ?? name}
-                  className={`preset-item${isPremiumUnowned ? ' preset-item--premium' : ''}`}
-                  data-name={name}
-                  data-id={id ?? ''}
-                  onClick={() => handlePresetClick(preset, event)}
-                >
-                  <img src={presetSpriteSrc(sprite)} alt='' className='preset-sprite' />
-                  <span>{label}</span>
-                  {isTrialing && <span className='preset-trial-countdown'>{secondsLeft}</span>}
-                </button>
-              )
-            })}
-          </div>
+            {(() => {
+              const activeMeta = packMap.get(activePack)
+              return activeMeta?.isPremium && !activeMeta.isOwn && !previewMode ? (
+                <div className='pack-premium-overlay'>
+                  <span className='pack-premium-overlay-label'>✦ Premium</span>
+                  <button className='pack-premium-overlay-btn' onClick={() => setPreviewMode(true)}>Preview</button>
+                </div>
+              ) : null
+            })()}
+            <div className={`presets-grid${expanded ? ' presets-grid--expanded' : ''}${paging ? ' paging' : ''}`}>
+              {visible.map((preset) => {
+                const { id, name, label, sprite } = preset
+                const event: PresetRetrieveEvent = {
+                  currentTarget: { dataset: { name: String(name), id: id ?? '' } },
+                }
+                const isTrialing = trialPresetKey === (id ?? name) && secondsLeft !== null
+                const presetPackMeta = packMap.get(preset.pack)
+                const isPremiumUnowned = presetPackMeta?.isPremium && !presetPackMeta.isOwn
+                return (
+                  <button
+                    key={id ?? name}
+                    className={`preset-item${isPremiumUnowned ? ' preset-item--premium' : ''}`}
+                    data-name={name}
+                    data-id={id ?? ''}
+                    onClick={() => handlePresetClick(preset, event)}
+                  >
+                    <img src={presetSpriteSrc(sprite)} alt='' className='preset-sprite' />
+                    <span>{label}</span>
+                    {isTrialing && <span className='preset-trial-countdown'>{secondsLeft}</span>}
+                  </button>
+                )
+              })}
+            </div>
           </div>
           {totalPages > 1 && (
             <div className='presets-pagination'>

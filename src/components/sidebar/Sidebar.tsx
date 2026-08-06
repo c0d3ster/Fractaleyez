@@ -53,7 +53,7 @@ const SidebarInner = ({ config: _config, setConfigWindow, configWindowVisible }:
 
     document.addEventListener('keyup', handleKeyUp)
     return () => document.removeEventListener('keyup', handleKeyUp)
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [])
 
   const sidebarContentClasses = classNames('sidebar-content', {
     'slide-in': sidebarVisible,
