@@ -40,7 +40,10 @@ const SidebarInner = ({ config: _config, setConfigWindow, configWindowVisible }:
 
   const toggleSidebar = useCallback(() => setSidebarVisible((prev) => !prev), [])
 
-  const handleSetConfigWindow = useCallback(() => setConfigWindow(), [setConfigWindow])
+  const handleSetConfigWindow = useCallback(() => {
+    if (!configWindowVisible) setSidebarVisible(false)
+    setConfigWindow()
+  }, [setConfigWindow, configWindowVisible])
 
   useEffect(() => {
     hideTabDelayed(5000)
@@ -96,7 +99,7 @@ const SidebarInner = ({ config: _config, setConfigWindow, configWindowVisible }:
             ⤢
           </button>
         </Row>
-        {!configWindowVisible && <ConfigAccordion canOpenMultiple={false} />}
+        <ConfigAccordion canOpenMultiple={false} />
       </Grid>
     </div>
   )

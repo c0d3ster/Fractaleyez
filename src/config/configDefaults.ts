@@ -124,7 +124,7 @@ export const configDefaults: AppConfig = {
       step: userConfig.speed_STEP_SIZE,
     },
     rotationSpeed: {
-      name: 'Rotation Speed',
+      name: 'Rotation',
       type: 'slider',
       defaultValue: userConfig.rotationSpeed_DEFAULT,
       value: userConfig.rotationSpeed_DEFAULT,
@@ -133,7 +133,7 @@ export const configDefaults: AppConfig = {
       step: userConfig.rotationSpeed_STEP_SIZE,
     },
     scaleFactor: {
-      name: 'Scale Factor',
+      name: 'Scale',
       type: 'slider',
       defaultValue: userConfig.scaleFactor_DEFAULT,
       value: userConfig.scaleFactor_DEFAULT,
@@ -142,7 +142,7 @@ export const configDefaults: AppConfig = {
       step: userConfig.scaleFactor_STEP_SIZE,
     },
     cameraBound: {
-      name: 'Camera Bound',
+      name: 'Sway',
       type: 'slider',
       defaultValue: userConfig.cameraBound_DEFAULT,
       value: userConfig.cameraBound_DEFAULT,
@@ -153,7 +153,7 @@ export const configDefaults: AppConfig = {
   },
   audio: {
     soundThreshold: {
-      name: 'Sound Threshold',
+      name: 'Threshold',
       type: 'slider',
       defaultValue: pd.threshold_DEFAULT,
       value: pd.threshold_DEFAULT,
@@ -180,8 +180,8 @@ export const configDefaults: AppConfig = {
     shockwave: { name: 'Shockwave', type: 'checkbox', defaultValue: visualizerConfig.shockwave, value: visualizerConfig.shockwave },
   },
   particle: {
-    particleSize: { name: 'Particle Size', type: 'slider', defaultValue: particleConfig.size_DEFAULT, value: particleConfig.size_DEFAULT, min: particleConfig.size_MIN, max: particleConfig.size_MAX, step: particleConfig.size_STEP_SIZE },
-    particlesPerLayer: { name: 'Particles Per Layer', type: 'slider', defaultValue: particleConfig.particles_DEFAULT, value: particleConfig.particles_DEFAULT, min: particleConfig.particles_MIN, max: particleConfig.particles_MAX, step: particleConfig.particles_STEP_SIZE },
+    particleSize: { name: 'Size', type: 'slider', defaultValue: particleConfig.size_DEFAULT, value: particleConfig.size_DEFAULT, min: particleConfig.size_MIN, max: particleConfig.size_MAX, step: particleConfig.size_STEP_SIZE },
+    particlesPerLayer: { name: 'Count', type: 'slider', defaultValue: particleConfig.particles_DEFAULT, value: particleConfig.particles_DEFAULT, min: particleConfig.particles_MIN, max: particleConfig.particles_MAX, step: particleConfig.particles_STEP_SIZE },
     layers: { name: 'Layers', type: 'slider', defaultValue: particleConfig.layers_DEFAULT, value: particleConfig.layers_DEFAULT, min: particleConfig.layers_MIN, max: particleConfig.layers_MAX, step: particleConfig.layers_STEP_SIZE },
     levels: { name: 'Levels', type: 'slider', defaultValue: particleConfig.levels_DEFAULT, value: particleConfig.levels_DEFAULT, min: particleConfig.levels_MIN, max: particleConfig.levels_MAX, step: particleConfig.levels_STEP_SIZE },
     saturation: { name: 'Saturation', type: 'slider', defaultValue: particleConfig.saturation_DEFAULT, value: particleConfig.saturation_DEFAULT, min: particleConfig.saturation_MIN, max: particleConfig.saturation_MAX, step: particleConfig.saturation_STEP_SIZE },

@@ -13,6 +13,7 @@ import { CameraTouchpad } from './CameraTouchpad'
 import { FrequencyHud, PerfHud, ParticleSpriteHud } from '../huds'
 
 const DEFAULT_WINDOW_FEATURES = 'width=1200,height=860,location=no'
+const POPOUT_WIDTH = 1200
 
 // Positions the popout on a second screen at full available height when the Window Management
 // API is available and permitted; falls back to the default same-screen size/placement otherwise
@@ -21,9 +22,17 @@ const resolveWindowFeatures = async (): Promise<string> => {
   if (!window.getScreenDetails || !window.screen.isExtended) return DEFAULT_WINDOW_FEATURES
   try {
     const screenDetails = await window.getScreenDetails()
-    const secondScreen = screenDetails.screens.find((s) => s !== screenDetails.currentScreen)
+    const { currentScreen } = screenDetails
+    const secondScreen = screenDetails.screens.find((s) => s !== currentScreen)
     if (!secondScreen) return DEFAULT_WINDOW_FEATURES
-    return `width=1200,height=${secondScreen.availHeight},left=${secondScreen.availLeft},top=${secondScreen.availTop},location=no`
+    // Dock against the seam between the two screens rather than always at the second
+    // screen's left edge: if it's to the left of the current screen, that seam is its
+    // right edge; if it's to the right, the seam is its left edge (today's behavior).
+    const secondScreenIsToTheLeft = secondScreen.availLeft < currentScreen.availLeft
+    const left = secondScreenIsToTheLeft
+      ? secondScreen.availLeft + secondScreen.availWidth - POPOUT_WIDTH
+      : secondScreen.availLeft
+    return `width=${POPOUT_WIDTH},height=${secondScreen.availHeight},left=${left},top=${secondScreen.availTop},location=no`
   } catch {
     return DEFAULT_WINDOW_FEATURES
   }

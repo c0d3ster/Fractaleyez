@@ -53,9 +53,8 @@
   outline: none;
 }
 
-/* The popout's .config-window-root bumps the base font size, and its columns are
-   narrower than the sidebar accordion's — without this, labels like "Sound Threshold"
-   wrap to a 2nd line there even though they fit fine in the sidebar. */
+/* Slider labels read too small in the popout at the sidebar's default size. Labels are
+   short now (Speed, Scale, Cam Wiggle, ...) so there's room to size up further. */
 .config-window-root .slider-name {
-  font-size: 0.85rem;
+  font-size: 1.75rem;
 }
