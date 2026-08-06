@@ -4,14 +4,6 @@ Instructions for agent: This file is the task inventory only. Workflow rules (br
 
 ## Agent-Ready
 
-- [ ] #16 [stack: solo] Fix lint toolchain break — bump eslint for @typescript-eslint 8.x compatibility.
-  - Acceptance: `yarn lint` loads and runs successfully against `src/`.
-  - Sub-tasks: (1) Bump `eslint` from `^6.8.0` to `^8.57.0` in package.json — keeps the existing legacy `.eslintrc` format working and avoids eslint 9's flat-config migration. (2) `yarn install`, then `yarn lint`, fix any lint errors newly surfaced by stricter eslint 8 core rules. (3) Check `babel-eslint`/`eslint-scope`/`eslint-plugin-jsdoc`/`eslint-plugin-prefer-arrow` for eslint-8 peer-dep warnings post-bump; upgrade if needed.
-  - NEEDS HUMAN: none anticipated.
-- [ ] #17 [stack: solo] Config popout window UX fixes.
-  - Acceptance: (1) popout closes automatically when the main/parent tab reloads or closes; (2) sidebar's `ConfigAccordion` is hidden while the popout is open; (3) setting-title labels ("Speed", "Sound Threshold") don't wrap to a 2nd line in the popout; (4) popout opens on a 2nd screen when detected/available, sized to full `100vh`, width unchanged.
-  - Sub-tasks: (1) Add a `beforeunload` listener on the main `window` in `ConfigWindow.tsx` that closes `externalWindow` — mirrors the existing pattern at line 135 but on the parent window object instead of the popout's. (2) In `Sidebar.tsx`, conditionally hide `ConfigAccordion` (line 99) when `configWindowVisible` is true — the prop already exists, just needs to gate the accordion render too. (3) Add a font-size override for `.slider-name` in `Slider.css` (currently unset, inherits `<h4>` default), scoped to the popout context so the sidebar's own accordion layout isn't affected. (4) Use the Window Management API (`getScreenDetails()`/`window.screen.isExtended`) where available to detect a 2nd screen and position `window.open` there sized to `100vh`; fall back to current same-screen sizing if unsupported/permission denied.
-  - NEEDS HUMAN: none required — Window Management API isn't supported in Firefox/Safari and requires a permission prompt in Chromium; note in the PR that unsupported browsers degrade gracefully to current single-screen behavior.
 - [ ] #18 [stack: solo] Auto-strip background from uploaded particle sprites.
   - Acceptance: uploading a sprite with a black/gray/white background produces a stored/rendered sprite with that background removed via edge flood-fill (not a global per-pixel threshold); cutoff edges have soft alpha falloff; dark outlines/white highlights in the art interior are preserved.
   - Sub-tasks: (1) Implement edge-inward flood-fill in `ParticleSpriteHud.tsx`'s `prepareSpriteDataUrl()`, alongside the existing resize step, before upload (client-side canvas pixel access is already in play there). (2) Apply distance-based alpha falloff near the flood-fill boundary instead of a hard cutoff. (3) Only flood-fill from near-neutral (black/gray/white) edge pixels, so colored backgrounds are left untouched. (4) Manually test with sample uploads (dark-outlined art, white-highlighted art) to confirm no holes are punched in interior details.
@@ -75,3 +67,5 @@ Instructions for agent: This file is the task inventory only. Workflow rules (br
 - [ ] #15 User acquisition strategy: IG account for Meta ads (Bassyndicate audience or promoter lookalike), target market definition (artists, VJs, music lovers) and how to reach them.
 
 ## Discovered
+
+- CLAUDE.md's Commands section says "There is no `test` script yet" — a `test` script (`vitest run`) and 2 test files (14 passing tests) already exist. Found while verifying #16/#17. Update CLAUDE.md's Commands section to reflect this.
