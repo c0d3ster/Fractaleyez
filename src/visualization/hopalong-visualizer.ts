@@ -8,6 +8,21 @@ import { getResolvedSpriteUrl } from '../utils/spriteCache'
  * Modifications made by Cody Douglass and Conor O'Neill
  */
 const DEF_BRIGHTNESS = .5
+const FALLBACK_SPRITE_URL = '/fractaleye.png'
+
+// TextureLoader.load() fails asynchronously via its onError callback (e.g. a CORS-blocked
+// R2 request never fires onLoad) -- a try/catch around .load() can't see that. Catch it here
+// and fall back to the bundled sprite so a bad sprite URL doesn't leave particles blank.
+const loadSpriteTexture = (url: string): THREE.Texture => {
+  const texture = new THREE.TextureLoader().load(url, undefined, undefined, (error) => {
+    console.warn(`Failed to load particle sprite "${url}", falling back to default`, error)
+    new THREE.TextureLoader().load(FALLBACK_SPRITE_URL, (fallback) => {
+      texture.image = fallback.image
+      texture.needsUpdate = true
+    })
+  })
+  return texture
+}
 
 // Orbit parameters
 let a = 0, b = 0, c = 0, d = 0, e = 0
@@ -97,7 +112,7 @@ export class HopalongVisualizer {
   }
 
   init(): void {
-    let sprite = new THREE.TextureLoader().load(getResolvedSpriteUrl(this.sprites[0]!))
+    let sprite = loadSpriteTexture(getResolvedSpriteUrl(this.sprites[0]!))
     let count = 1
     let particleIndex = 0
     this.setLights()
@@ -120,7 +135,7 @@ export class HopalongVisualizer {
         const geometry = new THREE.BufferGeometry().setFromPoints(points)
 
         particleIndex = count % this.sprites.length
-        sprite = new THREE.TextureLoader().load(getResolvedSpriteUrl(this.sprites[particleIndex]!))
+        sprite = loadSpriteTexture(getResolvedSpriteUrl(this.sprites[particleIndex]!))
         const material = new THREE.PointsMaterial({
           size: this.particleSize,
           map: sprite,
