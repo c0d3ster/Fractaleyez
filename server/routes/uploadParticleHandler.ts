@@ -65,13 +65,12 @@ export const uploadParticleHandler = async (req: Request, res: Response): Promis
 
   const key = `particles/${userId}/${crypto.randomUUID()}.${format}`
 
-  // UUID collision is practically unreachable, but the endpoint must never silently overwrite a key.
-  if (await storageService.objectExists(key)) {
-    res.status(409).json({ error: 'Object already exists' })
-    return
-  }
-
   try {
+    // UUID collision is practically unreachable, but the endpoint must never silently overwrite a key.
+    if (await storageService.objectExists(key)) {
+      res.status(409).json({ error: 'Object already exists' })
+      return
+    }
     const url = await storageService.putObject(key, body, ALLOWED_FORMATS[format])
     res.status(200).json({ url })
   } catch (err) {
