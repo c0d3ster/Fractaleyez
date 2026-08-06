@@ -57,3 +57,10 @@ Instructions for agent: This file is the task inventory only. Workflow rules (br
 ## Discovered
 
 - `yarn lint` fails to even load on `master` (`Error: Cannot find module 'eslint/use-at-your-own-risk'`) — `@typescript-eslint` 8.57.2 requires eslint `^8`/`^9`/`^10` but the repo has eslint `6.8.0` installed (see peer-dep warnings on any `yarn add`). Found while verifying PR #144 (task #1). Not fixed there since it's an unrelated pre-existing toolchain break; `yarn typecheck` + `yarn test` were used instead.
+- Config popout window should close automatically on page reload or tab close. Source: memory `project_config_window_bugs.md`.
+- Config popout: close the sidebar config menu when the popout window is expanded (popout becomes the new config window). Source: memory `project_config_window_bugs.md`.
+- Config popout: reduce setting-title font size (e.g. "Speed", "Sound Threshold") in the expanded window so values don't wrap to a 2nd line. Source: memory `project_config_window_bugs.md`.
+- Config popout: open on a 2nd screen if detected/available, size to full `100vh` on open; keep current width as-is. Source: memory `project_config_window_bugs.md`.
+- Auto-strip black/gray/white backgrounds from uploaded particle sprites via edge flood-fill (not a global per-pixel threshold, to avoid punching holes in dark outlines/white highlights in the art itself); soften cutoff with alpha falloff near the boundary. Source: memory `project_sprite_bg_removal.md`.
+- Fix preset/pack visibility leak: `PresetService.listPresetsForViewer` and `PackService`'s equivalent list method call `findAll()` unfiltered — scope to built-in/seeded (no `userId`) + viewer's own only. Coordinate with the "1 private pack" tier mentioned in task #11's monetization research. Source: memory `project_preset_pack_visibility.md`.
+- Premium-gate custom particle sprite upload in `ParticleSpriteHud.tsx` (currently `isSignedIn`-gated) once premium tiers/entitlements exist; reuse the existing rainbow premium-outline treatment rather than a new indicator. Blocked on premium tiers/entitlements landing (task #11 is still research-only). Source: memory `project_particle_upload_premium.md`.
