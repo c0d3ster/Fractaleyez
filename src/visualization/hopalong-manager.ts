@@ -4,6 +4,13 @@ import { EffectComposer, ShockWaveEffect, RenderPass, BloomEffect, EffectPass } 
 import { HopalongVisualizer } from './hopalong-visualizer'
 import { CameraManager } from './camera-manager'
 import { AudioAnalysedDataForVisualization } from '../audioanalysis/audio-analysed-data'
+import { PARTICLE_CROSSFADE_DURATION_MS } from '../config/visualizer.config'
+
+type ParticleCrossfade = {
+  outgoing: HopalongVisualizer
+  elapsedMs: number
+  durationMs: number
+}
 
 export class HopalongManager {
   private elapsedTime: number
@@ -16,6 +23,7 @@ export class HopalongManager {
   private shockwaveEffect: ShockWaveEffect | null
   private effectPass: EffectPass | null
   private lastAudioData: AudioAnalysedDataForVisualization | null
+  private crossfade: ParticleCrossfade | null
 
   constructor() {
     this.elapsedTime = 0
@@ -28,6 +36,7 @@ export class HopalongManager {
     this.bloomEffect = null
     this.shockwaveEffect = null
     this.effectPass = null
+    this.crossfade = null
   }
 
   init = (_startTimer: Date): void => {
@@ -87,9 +96,13 @@ export class HopalongManager {
     ;(this.shockwaveEffect as any).speed = (window.config.user.speed.value / 15) + peakVal * 1.25
 
     if (this.particleConfigChanged()) {
-      this.resetVisualization()
+      this.startCrossfade()
     }
     this.hopalongVisualizer!.update(deltaTime, audioData)
+    if (this.crossfade) {
+      this.crossfade.outgoing.update(deltaTime, audioData)
+      this.advanceCrossfade(deltaTime)
+    }
 
     if (window.config.effects.glow.value && audioData.peak) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -124,11 +137,57 @@ export class HopalongManager {
     return hasChanged
   }
 
-  resetVisualization = (): void => {
-    this.hopalongVisualizer!.destroyVisualization()
-    this.hopalongVisualizer = new HopalongVisualizer()
-    this.hopalongVisualizer.init()
+  /**
+   * Particle Config changes require rebuilding the particle system from scratch (new
+   * geometry/material per particle), so we can't tween the old system into the new one --
+   * instead run both simultaneously, reparented into the same live scene, and crossfade
+   * their opacity so there's never a frame where particles are just gone.
+   */
+  startCrossfade = (): void => {
+    if (this.crossfade) {
+      // Another particle config change landed mid-fade -- finish the current fade
+      // immediately rather than stacking a second outgoing visualizer.
+      this.finalizeCrossfade()
+    }
+
+    const outgoing = this.hopalongVisualizer!
+    const incoming = new HopalongVisualizer()
+    incoming.init()
+
+    // THREE.Object3D#add() reparents automatically, moving these out of outgoing's scene.
+    outgoing.objects.forEach((obj) => incoming.scene.add(obj))
+    this.setParticleOpacity(incoming, 0)
+
+    this.hopalongVisualizer = incoming
+    this.crossfade = { outgoing, elapsedMs: 0, durationMs: PARTICLE_CROSSFADE_DURATION_MS }
     this.setupEffects()
+  }
+
+  advanceCrossfade = (deltaTime: number): void => {
+    const cf = this.crossfade!
+    cf.elapsedMs += deltaTime
+    const t = Math.min(1, cf.elapsedMs / cf.durationMs)
+    this.setParticleOpacity(cf.outgoing, 1 - t)
+    this.setParticleOpacity(this.hopalongVisualizer!, t)
+    if (t >= 1) {
+      this.finalizeCrossfade()
+    }
+  }
+
+  finalizeCrossfade = (): void => {
+    const cf = this.crossfade!
+    // Move the outgoing particle systems back into their own (unrendered) scene so
+    // outgoing.destroyVisualization()'s disposeScene() can dispose their geometry/material/
+    // textures through its existing traversal, instead of duplicating that logic here.
+    cf.outgoing.objects.forEach((obj) => cf.outgoing.scene.add(obj))
+    cf.outgoing.destroyVisualization()
+    this.crossfade = null
+  }
+
+  setParticleOpacity = (visualizer: HopalongVisualizer, opacity: number): void => {
+    visualizer.objects.forEach((obj) => {
+      obj.myMaterial.opacity = opacity
+    })
   }
 
   onDocumentMouseMove = (event: MouseEvent): void => {
