@@ -13,24 +13,156 @@ const MAX_DATA_URL_BYTES = 2 * 1024 * 1024
 const SPRITE_MAX_SIDE_PX = 512
 const UPLOAD_ERROR_DISPLAY_MS = 4000
 
+// Background-strip tuning: NEUTRAL_CHANNEL_SPREAD gates which edge pixels can seed the fill
+// (near-black/gray/white only, so colored backgrounds are left alone); FLOOD_FILL_STEP_TOLERANCE
+// bounds how far a pixel's color may drift from the already-filled neighbor that reached it,
+// so gradients/compression noise get absorbed but a hard-edge outline stops the fill cold;
+// FALLOFF_RADIUS_PX is how many background pixels near that stopping edge get a soft alpha
+// ramp instead of a hard 0/255 cutoff.
+const NEUTRAL_CHANNEL_SPREAD = 20
+const FLOOD_FILL_STEP_TOLERANCE = 24
+const FALLOFF_RADIUS_PX = 3
+
+const isNearNeutral = (r: number, g: number, b: number): boolean => {
+  const max = Math.max(r, g, b)
+  const min = Math.min(r, g, b)
+  return max - min <= NEUTRAL_CHANNEL_SPREAD
+}
+
+// Flood-fills inward from the canvas edges, removing only pixels reachable from a near-neutral
+// border through a chain of locally-similar neighbors, then feathers the resulting cut edge
+// with a short alpha falloff instead of leaving a hard binary mask.
+const stripEdgeBackground = (ctx: CanvasRenderingContext2D, width: number, height: number): void => {
+  const imageData = ctx.getImageData(0, 0, width, height)
+  const { data } = imageData
+  const pixelCount = width * height
+  const isBackground = new Uint8Array(pixelCount)
+  const seeded = new Uint8Array(pixelCount)
+  const queue: number[] = []
+
+  const enqueueIfBackground = (idx: number): void => {
+    if (seeded[idx]) return
+    const p = idx * 4
+    const isTransparent = (data[p + 3] ?? 0) === 0
+    if (!isTransparent && !isNearNeutral(data[p] ?? 0, data[p + 1] ?? 0, data[p + 2] ?? 0)) return
+    seeded[idx] = 1
+    isBackground[idx] = 1
+    queue.push(idx)
+  }
+
+  for (let x = 0; x < width; x++) {
+    enqueueIfBackground(x)
+    enqueueIfBackground((height - 1) * width + x)
+  }
+  for (let y = 0; y < height; y++) {
+    enqueueIfBackground(y * width)
+    enqueueIfBackground(y * width + (width - 1))
+  }
+
+  let head = 0
+  while (head < queue.length) {
+    const idx = queue[head] ?? -1
+    head += 1
+    const x = idx % width
+    const y = Math.floor(idx / width)
+    const p = idx * 4
+    const r0 = data[p] ?? 0
+    const g0 = data[p + 1] ?? 0
+    const b0 = data[p + 2] ?? 0
+
+    const neighbors: number[] = []
+    if (x > 0) neighbors.push(idx - 1)
+    if (x < width - 1) neighbors.push(idx + 1)
+    if (y > 0) neighbors.push(idx - width)
+    if (y < height - 1) neighbors.push(idx + width)
+
+    for (const nIdx of neighbors) {
+      if (seeded[nIdx]) continue
+      const np = nIdx * 4
+      if ((data[np + 3] ?? 0) === 0) {
+        seeded[nIdx] = 1
+        isBackground[nIdx] = 1
+        queue.push(nIdx)
+        continue
+      }
+      const nr = data[np] ?? 0
+      const ng = data[np + 1] ?? 0
+      const nb = data[np + 2] ?? 0
+      const step = Math.max(Math.abs(nr - r0), Math.abs(ng - g0), Math.abs(nb - b0))
+      if (step <= FLOOD_FILL_STEP_TOLERANCE) {
+        seeded[nIdx] = 1
+        isBackground[nIdx] = 1
+        queue.push(nIdx)
+      }
+    }
+  }
+
+  const distanceFromForeground = new Int16Array(pixelCount).fill(-1)
+  const falloffQueue: number[] = []
+  for (let idx = 0; idx < pixelCount; idx++) {
+    if (!isBackground[idx]) continue
+    const x = idx % width
+    const y = Math.floor(idx / width)
+    const touchesForeground =
+      (x > 0 && !isBackground[idx - 1]) ||
+      (x < width - 1 && !isBackground[idx + 1]) ||
+      (y > 0 && !isBackground[idx - width]) ||
+      (y < height - 1 && !isBackground[idx + width])
+    if (touchesForeground) {
+      distanceFromForeground[idx] = 0
+      falloffQueue.push(idx)
+    }
+  }
+  let fHead = 0
+  while (fHead < falloffQueue.length) {
+    const idx = falloffQueue[fHead] ?? -1
+    fHead += 1
+    const d = distanceFromForeground[idx] ?? -1
+    if (d >= FALLOFF_RADIUS_PX - 1) continue
+    const x = idx % width
+    const y = Math.floor(idx / width)
+    const neighbors: number[] = []
+    if (x > 0) neighbors.push(idx - 1)
+    if (x < width - 1) neighbors.push(idx + 1)
+    if (y > 0) neighbors.push(idx - width)
+    if (y < height - 1) neighbors.push(idx + width)
+    for (const nIdx of neighbors) {
+      if (!isBackground[nIdx]) continue
+      if ((distanceFromForeground[nIdx] ?? -1) !== -1) continue
+      distanceFromForeground[nIdx] = d + 1
+      falloffQueue.push(nIdx)
+    }
+  }
+
+  for (let idx = 0; idx < pixelCount; idx++) {
+    if (!isBackground[idx]) continue
+    const p = idx * 4
+    const d = distanceFromForeground[idx] ?? -1
+    const origAlpha = data[p + 3] ?? 0
+    data[p + 3] = d === -1 ? 0 : Math.round((origAlpha * (FALLOFF_RADIUS_PX - d)) / (FALLOFF_RADIUS_PX + 1))
+  }
+
+  ctx.putImageData(imageData, 0, 0)
+}
+
 const prepareSpriteDataUrl = (dataUrl: string, maxSide: number): Promise<string> => {
   return new Promise((resolve, reject) => {
     const img = new Image()
     img.onload = () => {
       const w = img.naturalWidth
       const h = img.naturalHeight
-      const maxDim = Math.max(w, h)
-      if (maxDim <= maxSide || maxDim === 0) {
+      if (w === 0 || h === 0) {
         resolve(dataUrl)
         return
       }
-      const scale = maxSide / maxDim
+      const maxDim = Math.max(w, h)
+      const scale = maxDim > maxSide ? maxSide / maxDim : 1
       const newW = Math.max(1, Math.round(w * scale))
       const newH = Math.max(1, Math.round(h * scale))
       const canvas = document.createElement('canvas')
       canvas.width = newW
       canvas.height = newH
-      const ctx = canvas.getContext('2d')
+      const ctx = canvas.getContext('2d', { willReadFrequently: true })
       if (!ctx) {
         resolve(dataUrl)
         return
@@ -38,6 +170,7 @@ const prepareSpriteDataUrl = (dataUrl: string, maxSide: number): Promise<string>
       ctx.imageSmoothingEnabled = true
       ctx.imageSmoothingQuality = 'high'
       ctx.drawImage(img, 0, 0, newW, newH)
+      stripEdgeBackground(ctx, newW, newH)
       resolve(canvas.toDataURL('image/png'))
     }
     img.onerror = () => reject(new Error('decode'))
