@@ -16,11 +16,15 @@ const UPLOAD_ERROR_DISPLAY_MS = 4000
 // Background-strip tuning: NEUTRAL_CHANNEL_SPREAD gates which edge pixels can seed the fill
 // (near-black/gray/white only, so colored backgrounds are left alone); FLOOD_FILL_STEP_TOLERANCE
 // bounds how far a pixel's color may drift from the already-filled neighbor that reached it,
-// so gradients/compression noise get absorbed but a hard-edge outline stops the fill cold;
-// FALLOFF_RADIUS_PX is how many background pixels near that stopping edge get a soft alpha
-// ramp instead of a hard 0/255 cutoff.
+// so a single anti-aliased/noisy step gets absorbed but a hard-edge outline stops the fill cold.
+// FLOOD_FILL_MAX_DRIFT bounds the *total* drift accumulated over the whole chain of hops back to
+// the border seed — without it, many small sub-tolerance steps can chain together and worm past
+// a real outline into an interior region that happens to share a similar tone. FALLOFF_RADIUS_PX
+// is how many background pixels near the stopping edge get a soft alpha ramp instead of a hard
+// 0/255 cutoff.
 const NEUTRAL_CHANNEL_SPREAD = 20
-const FLOOD_FILL_STEP_TOLERANCE = 24
+const FLOOD_FILL_STEP_TOLERANCE = 10
+const FLOOD_FILL_MAX_DRIFT = 24
 const FALLOFF_RADIUS_PX = 3
 
 const isNearNeutral = (r: number, g: number, b: number): boolean => {
@@ -38,6 +42,7 @@ const stripEdgeBackground = (ctx: CanvasRenderingContext2D, width: number, heigh
   const pixelCount = width * height
   const isBackground = new Uint8Array(pixelCount)
   const seeded = new Uint8Array(pixelCount)
+  const drift = new Uint16Array(pixelCount)
   const queue: number[] = []
 
   const enqueueIfBackground = (idx: number): void => {
@@ -47,6 +52,7 @@ const stripEdgeBackground = (ctx: CanvasRenderingContext2D, width: number, heigh
     if (!isTransparent && !isNearNeutral(data[p] ?? 0, data[p + 1] ?? 0, data[p + 2] ?? 0)) return
     seeded[idx] = 1
     isBackground[idx] = 1
+    drift[idx] = 0
     queue.push(idx)
   }
 
@@ -76,12 +82,15 @@ const stripEdgeBackground = (ctx: CanvasRenderingContext2D, width: number, heigh
     if (y > 0) neighbors.push(idx - width)
     if (y < height - 1) neighbors.push(idx + width)
 
+    const currentDrift = drift[idx] ?? 0
+
     for (const nIdx of neighbors) {
       if (seeded[nIdx]) continue
       const np = nIdx * 4
       if ((data[np + 3] ?? 0) === 0) {
         seeded[nIdx] = 1
         isBackground[nIdx] = 1
+        drift[nIdx] = currentDrift
         queue.push(nIdx)
         continue
       }
@@ -89,11 +98,13 @@ const stripEdgeBackground = (ctx: CanvasRenderingContext2D, width: number, heigh
       const ng = data[np + 1] ?? 0
       const nb = data[np + 2] ?? 0
       const step = Math.max(Math.abs(nr - r0), Math.abs(ng - g0), Math.abs(nb - b0))
-      if (step <= FLOOD_FILL_STEP_TOLERANCE) {
-        seeded[nIdx] = 1
-        isBackground[nIdx] = 1
-        queue.push(nIdx)
-      }
+      if (step > FLOOD_FILL_STEP_TOLERANCE) continue
+      const newDrift = currentDrift + step
+      if (newDrift > FLOOD_FILL_MAX_DRIFT) continue
+      seeded[nIdx] = 1
+      isBackground[nIdx] = 1
+      drift[nIdx] = newDrift
+      queue.push(nIdx)
     }
   }
 
