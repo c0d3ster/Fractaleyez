@@ -170,9 +170,17 @@ const prepareSpriteDataUrl = (dataUrl: string, maxSide: number): Promise<string>
       const scale = maxDim > maxSide ? maxSide / maxDim : 1
       const newW = Math.max(1, Math.round(w * scale))
       const newH = Math.max(1, Math.round(h * scale))
+      // The particle renderer draws sprites as THREE.Points, which always billboards each
+      // particle as a square (gl_PointSize is a single scalar and gl_PointCoord samples
+      // [0,1]x[0,1]) — a non-square texture gets stretched to fill that square. So rectangular
+      // uploads are centered on a square, transparent-padded canvas here rather than stretched:
+      // the padding absorbs the square billboard, and the content keeps its original proportions.
+      const side = Math.max(newW, newH)
+      const offsetX = Math.floor((side - newW) / 2)
+      const offsetY = Math.floor((side - newH) / 2)
       const canvas = document.createElement('canvas')
-      canvas.width = newW
-      canvas.height = newH
+      canvas.width = side
+      canvas.height = side
       const ctx = canvas.getContext('2d', { willReadFrequently: true })
       if (!ctx) {
         resolve(dataUrl)
@@ -180,8 +188,8 @@ const prepareSpriteDataUrl = (dataUrl: string, maxSide: number): Promise<string>
       }
       ctx.imageSmoothingEnabled = true
       ctx.imageSmoothingQuality = 'high'
-      ctx.drawImage(img, 0, 0, newW, newH)
-      stripEdgeBackground(ctx, newW, newH)
+      ctx.drawImage(img, offsetX, offsetY, newW, newH)
+      stripEdgeBackground(ctx, side, side)
       resolve(canvas.toDataURL('image/png'))
     }
     img.onerror = () => reject(new Error('decode'))
