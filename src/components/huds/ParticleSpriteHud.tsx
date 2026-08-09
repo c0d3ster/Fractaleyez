@@ -27,10 +27,54 @@ const FLOOD_FILL_STEP_TOLERANCE = 10
 const FLOOD_FILL_MAX_DRIFT = 24
 const FALLOFF_RADIUS_PX = 3
 
+// Interior-hole tuning: border-only seeding can't remove a background-colored pocket that's fully
+// enclosed by foreground (e.g. the loop of a cursive letter) without risking a same-colored subject
+// region (an eye on a black background, a gray shirt on a gray background) — color distance alone
+// can't tell those apart. FLAT_IMAGE_COLOR_COVERAGE gates this: it's only safe to also seed interior
+// pixels when the whole image is essentially bilevel line-art/logo (few distinct colors), since that
+// rules out a same-toned subject existing in the first place. FLAT_IMAGE_COLOR_QUANT_LEVELS controls
+// how finely colors are bucketed when checking that. INTERIOR_BACKGROUND_MATCH_TOLERANCE is how close
+// an interior pixel must be to the *learned* border-background color (not just "near-neutral") to be
+// seeded directly, so a flat image's foreground color (also near-neutral, e.g. black ink) isn't swept
+// up just for being grayscale.
+const FLAT_IMAGE_COLOR_COVERAGE = 0.92
+const FLAT_IMAGE_COLOR_QUANT_LEVELS = 32
+const INTERIOR_BACKGROUND_MATCH_TOLERANCE = 16
+
 const isNearNeutral = (r: number, g: number, b: number): boolean => {
   const max = Math.max(r, g, b)
   const min = Math.min(r, g, b)
   return max - min <= NEUTRAL_CHANNEL_SPREAD
+}
+
+// Quantizes every opaque pixel's color and checks whether the two most common buckets cover nearly
+// the whole image — true for bilevel line art/logos/signatures, false for photos and other
+// continuous-tone images where a same-colored subject region could plausibly exist.
+const isFlatImage = (data: Uint8ClampedArray, pixelCount: number): boolean => {
+  const bucketCounts = new Map<number, number>()
+  let opaqueCount = 0
+  for (let idx = 0; idx < pixelCount; idx++) {
+    const p = idx * 4
+    if ((data[p + 3] ?? 0) === 0) continue
+    opaqueCount += 1
+    const rBucket = Math.floor(((data[p] ?? 0) / 256) * FLAT_IMAGE_COLOR_QUANT_LEVELS)
+    const gBucket = Math.floor(((data[p + 1] ?? 0) / 256) * FLAT_IMAGE_COLOR_QUANT_LEVELS)
+    const bBucket = Math.floor(((data[p + 2] ?? 0) / 256) * FLAT_IMAGE_COLOR_QUANT_LEVELS)
+    const key = (rBucket * FLAT_IMAGE_COLOR_QUANT_LEVELS + gBucket) * FLAT_IMAGE_COLOR_QUANT_LEVELS + bBucket
+    bucketCounts.set(key, (bucketCounts.get(key) ?? 0) + 1)
+  }
+  if (opaqueCount === 0) return false
+  let top1 = 0
+  let top2 = 0
+  for (const count of bucketCounts.values()) {
+    if (count > top1) {
+      top2 = top1
+      top1 = count
+    } else if (count > top2) {
+      top2 = count
+    }
+  }
+  return (top1 + top2) / opaqueCount >= FLAT_IMAGE_COLOR_COVERAGE
 }
 
 // Flood-fills inward from the canvas edges, removing only pixels reachable from a near-neutral
@@ -45,14 +89,28 @@ const stripEdgeBackground = (ctx: CanvasRenderingContext2D, width: number, heigh
   const drift = new Uint16Array(pixelCount)
   const queue: number[] = []
 
+  let bgColorSumR = 0
+  let bgColorSumG = 0
+  let bgColorSumB = 0
+  let bgColorSeedCount = 0
+
   const enqueueIfBackground = (idx: number): void => {
     if (seeded[idx]) return
     const p = idx * 4
+    const r = data[p] ?? 0
+    const g = data[p + 1] ?? 0
+    const b = data[p + 2] ?? 0
     const isTransparent = (data[p + 3] ?? 0) === 0
-    if (!isTransparent && !isNearNeutral(data[p] ?? 0, data[p + 1] ?? 0, data[p + 2] ?? 0)) return
+    if (!isTransparent && !isNearNeutral(r, g, b)) return
     seeded[idx] = 1
     isBackground[idx] = 1
     drift[idx] = 0
+    if (!isTransparent) {
+      bgColorSumR += r
+      bgColorSumG += g
+      bgColorSumB += b
+      bgColorSeedCount += 1
+    }
     queue.push(idx)
   }
 
@@ -63,6 +121,32 @@ const stripEdgeBackground = (ctx: CanvasRenderingContext2D, width: number, heigh
   for (let y = 0; y < height; y++) {
     enqueueIfBackground(y * width)
     enqueueIfBackground(y * width + (width - 1))
+  }
+
+  // Flat/line-art images (few distinct colors, so no same-toned subject can plausibly exist) also
+  // get interior pixels seeded directly whenever they closely match the learned border-background
+  // color — this is what lets a fully-enclosed hole (e.g. the loop of a cursive letter) get removed
+  // even though it never touches the canvas edge. Photographic images skip this and keep the
+  // conservative border-only behavior, since color alone can't tell a hole from a same-colored
+  // subject region (an eye, a shirt) once ML-level semantics are needed.
+  if (bgColorSeedCount > 0 && isFlatImage(data, pixelCount)) {
+    const bgAvgR = bgColorSumR / bgColorSeedCount
+    const bgAvgG = bgColorSumG / bgColorSeedCount
+    const bgAvgB = bgColorSumB / bgColorSeedCount
+    for (let idx = 0; idx < pixelCount; idx++) {
+      if (seeded[idx]) continue
+      const p = idx * 4
+      if ((data[p + 3] ?? 0) === 0) continue
+      const r = data[p] ?? 0
+      const g = data[p + 1] ?? 0
+      const b = data[p + 2] ?? 0
+      const distance = Math.max(Math.abs(r - bgAvgR), Math.abs(g - bgAvgG), Math.abs(b - bgAvgB))
+      if (distance > INTERIOR_BACKGROUND_MATCH_TOLERANCE) continue
+      seeded[idx] = 1
+      isBackground[idx] = 1
+      drift[idx] = 0
+      queue.push(idx)
+    }
   }
 
   let head = 0
