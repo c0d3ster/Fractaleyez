@@ -169,7 +169,7 @@ export class HopalongVisualizer {
       }
     }
 
-    this.updateInterval = setInterval(() => { this.updateOrbit() }, 300)
+    this.updateInterval = setInterval(() => { this.updateOrbit() }, 250)
   }
 
   createVideoPlane(clips: string[]): void {

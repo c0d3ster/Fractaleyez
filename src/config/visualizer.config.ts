@@ -8,7 +8,7 @@ export const visualizerConfig = {
 } as const
 
 /** Default crossfade duration (ms) used when Particle Config or Orbit Config changes force a particle-system rebuild. */
-export const PARTICLE_CROSSFADE_DURATION_MS = 1000
+export const PARTICLE_CROSSFADE_DURATION_MS = 750
 
 /**
  * Max particle-system generations allowed alive at once during a crossfade -- 1 current
