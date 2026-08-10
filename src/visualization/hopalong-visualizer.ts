@@ -3,6 +3,7 @@ import * as THREE from 'three'
 import { AudioAnalysedDataForVisualization } from '../audioanalysis/audio-analysed-data'
 import { getResolvedSpriteUrl } from '../utils/spriteCache'
 import { acquireSpriteTexture, releaseSpriteTexture } from '../utils/textureCache'
+import { PARTICLE_CROSSFADE_DURATION_MS } from '../config/visualizer.config'
 
 /*
  * ORIGINAL AUTHOR: Iacopo Sassarini
@@ -23,7 +24,18 @@ type ParticleSystem = THREE.Points & {
   myMaterial: THREE.PointsMaterial
   myLevel: number
   mySubset: number
+  /** Raw sprite entry (e.g. 'galaxySprite.png') this object was built with, so an orbit-shape
+   * crossfade can rebuild an equivalent object without re-deriving the round-robin sprite index. */
+  mySpriteUrl: string
   needsUpdate: number
+}
+
+/** In-flight opacity crossfade between an orbit-shape change's old and new particle objects,
+ * scoped to a single visualizer -- see startOrbitFade(). */
+type OrbitFade = {
+  outgoing: ParticleSystem[]
+  elapsedMs: number
+  durationMs: number
 }
 
 export class HopalongVisualizer {
@@ -55,6 +67,7 @@ export class HopalongVisualizer {
    * its orbit from window.config (already overwritten with the incoming preset's values by the
    * time the fade starts) and just fades out its last known shape instead. */
   private frozen: boolean
+  private orbitFade: OrbitFade | null
 
   private onVideoClipsRestored = (event: Event): void => {
     const ce = event as CustomEvent<{ clips: string[] }>
@@ -91,6 +104,7 @@ export class HopalongVisualizer {
     this.orbit = { subsets: [], xMin: 0, xMax: 0, yMin: 0, yMax: 0, scaleX: 0, scaleY: 0 }
     this.updateInterval = undefined
     this.frozen = false
+    this.orbitFade = null
 
     for (let i = 0; i < this.layers; i++) {
       const subsetPoints: SubsetPoint[] = []
@@ -125,7 +139,8 @@ export class HopalongVisualizer {
         const geometry = new THREE.BufferGeometry().setFromPoints(points)
 
         particleIndex = count % this.sprites.length
-        const sprite = acquireSpriteTexture(getResolvedSpriteUrl(this.sprites[particleIndex]!))
+        const spriteUrl = this.sprites[particleIndex]!
+        const sprite = acquireSpriteTexture(getResolvedSpriteUrl(spriteUrl))
         const material = new THREE.PointsMaterial({
           size: this.particleSize,
           map: sprite,
@@ -138,6 +153,7 @@ export class HopalongVisualizer {
         particles.myMaterial = material
         particles.myLevel = level
         particles.mySubset = s
+        particles.mySpriteUrl = spriteUrl
         particles.position.x = 0
         particles.position.y = 0
         particles.position.z = -this.levelDepth * level - (s * this.levelDepth / this.layers) + window.config.user.scaleFactor.value / 2
@@ -211,6 +227,8 @@ export class HopalongVisualizer {
   }
 
   update(deltaTime: number, audioData: AudioAnalysedDataForVisualization): void {
+    this.advanceOrbitFade(deltaTime)
+
     if (this.videoPlane) {
       const key = this.computeVideoPlaneSizeKey()
       if (key !== this.lastVideoPlaneSizeKey) {
@@ -305,8 +323,6 @@ export class HopalongVisualizer {
 
     if (!paramsChanged) return
 
-    const prevScaleFactor = this.lastOrbitParams.scaleFactor
-
     this.lastOrbitParams = { a: newA, b: newB, c: newC, d: newD, e: newE, scaleFactor: newScaleFactor }
 
     this.generateOrbit()
@@ -315,22 +331,84 @@ export class HopalongVisualizer {
       this.hueValues[s] = Math.random()
     }
 
-    this.objects.forEach((obj) => {
+    this.startOrbitFade()
+  }
+
+  /**
+   * Orbit param changes used to overwrite the existing particle objects' position buffers
+   * directly, snapping to the new shape in one frame -- same jarring "instant jump" the particle
+   * crossfade (HopalongManager.startCrossfade()) was built to avoid for Particle Config changes.
+   * This applies the identical double-buffer opacity technique, just scoped to this visualizer's
+   * own objects instead of swapping the whole visualizer: build a parallel set of objects at the
+   * new orbit shape (this.orbit.subsets was just regenerated above), fade the old set out and the
+   * new set in, then dispose the old set. New objects inherit the outgoing object's *current*
+   * position/rotation (not the spawn formula) so there's no additional depth/rotation jump on
+   * top of the shape change.
+   */
+  private startOrbitFade(): void {
+    if (this.orbitFade) {
+      // Another orbit param change landed mid-fade -- finish it immediately rather than
+      // stacking a second outgoing generation (same cap-at-2 pattern as the particle crossfade).
+      this.setObjectsOpacity(this.objects, 1)
+      this.finalizeOrbitFade()
+    }
+
+    const outgoing = this.objects
+    const incoming: ParticleSystem[] = outgoing.map((obj) => {
       const currentSubset = this.orbit.subsets[obj.mySubset]!
-      const posArray = obj.geometry.attributes.position!.array as Float32Array
-      for (let i = 0; i < this.particlesPerLayer; i++) {
-        posArray[i * 3] = currentSubset[i]!.vertex.x
-        posArray[i * 3 + 1] = currentSubset[i]!.vertex.y
-      }
-      obj.geometry.attributes.position!.needsUpdate = true
+      const geometry = new THREE.BufferGeometry().setFromPoints(currentSubset.map((point) => point.vertex))
+      const sprite = acquireSpriteTexture(getResolvedSpriteUrl(obj.mySpriteUrl))
+      const material = new THREE.PointsMaterial({
+        size: this.particleSize,
+        map: sprite,
+        blending: THREE.AdditiveBlending,
+        depthTest: false,
+        transparent: true,
+        opacity: 0
+      })
+
+      const particles = new THREE.Points(geometry, material) as ParticleSystem
+      particles.myMaterial = material
+      particles.myLevel = obj.myLevel
+      particles.mySubset = obj.mySubset
+      particles.mySpriteUrl = obj.mySpriteUrl
+      particles.position.copy(obj.position)
+      particles.rotation.z = obj.rotation.z
+      particles.needsUpdate = 0
+      particles.myMaterial.color.setHSL(this.hueValues[obj.mySubset]!, this.saturation, DEF_BRIGHTNESS)
+      this.scene.add(particles)
+      return particles
     })
 
-    if (prevScaleFactor !== null && newScaleFactor !== prevScaleFactor) {
-      const dz = (newScaleFactor - prevScaleFactor) / 2
-      this.objects.forEach((obj) => {
-        obj.position.z += dz
-      })
-    }
+    this.objects = incoming
+    this.orbitFade = { outgoing, elapsedMs: 0, durationMs: PARTICLE_CROSSFADE_DURATION_MS }
+  }
+
+  private advanceOrbitFade(deltaTime: number): void {
+    const fade = this.orbitFade
+    if (!fade) return
+
+    fade.elapsedMs += deltaTime
+    const t = Math.min(1, fade.elapsedMs / fade.durationMs)
+    this.setObjectsOpacity(fade.outgoing, 1 - t)
+    this.setObjectsOpacity(this.objects, t)
+    if (t >= 1) this.finalizeOrbitFade()
+  }
+
+  private finalizeOrbitFade(): void {
+    const fade = this.orbitFade!
+    fade.outgoing.forEach((obj) => {
+      this.scene.remove(obj)
+      obj.geometry.dispose()
+      this.disposeMaterial(obj.myMaterial)
+    })
+    this.orbitFade = null
+  }
+
+  private setObjectsOpacity(objects: ParticleSystem[], opacity: number): void {
+    objects.forEach((obj) => {
+      obj.myMaterial.opacity = opacity
+    })
   }
 
   generateOrbit(): void {
@@ -424,12 +502,19 @@ export class HopalongVisualizer {
 
   /** Stops this visualizer from reacting to further config changes -- called on the outgoing
    * side of a crossfade, which should only fade out, not reshape itself around whatever preset
-   * is now live in window.config. */
+   * is now live in window.config. Also resolves any in-progress orbit-shape fade immediately:
+   * once HopalongManager starts driving this visualizer's overall opacity as a single outgoing
+   * generation, an unrelated inner fade still animating individual objects' opacity would fight
+   * it for control of the same materials. */
   freezeConfig(): void {
     this.frozen = true
     if (this.updateInterval !== undefined) {
       clearInterval(this.updateInterval)
       this.updateInterval = undefined
+    }
+    if (this.orbitFade) {
+      this.setObjectsOpacity(this.objects, 1)
+      this.finalizeOrbitFade()
     }
   }
 
