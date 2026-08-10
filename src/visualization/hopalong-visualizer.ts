@@ -51,6 +51,10 @@ export class HopalongVisualizer {
   lastOrbitParams: { a: number | null; b: number | null; c: number | null; d: number | null; e: number | null; scaleFactor: number | null }
   orbit: { subsets: SubsetPoint[][]; xMin: number; xMax: number; yMin: number; yMax: number; scaleX: number; scaleY: number }
   private updateInterval: ReturnType<typeof setInterval> | undefined
+  /** Set once this visualizer becomes the outgoing half of a crossfade, so it stops reshaping
+   * its orbit from window.config (already overwritten with the incoming preset's values by the
+   * time the fade starts) and just fades out its last known shape instead. */
+  private frozen: boolean
 
   private onVideoClipsRestored = (event: Event): void => {
     const ce = event as CustomEvent<{ clips: string[] }>
@@ -86,6 +90,7 @@ export class HopalongVisualizer {
     this.lastOrbitParams = { a: null, b: null, c: null, d: null, e: null, scaleFactor: null }
     this.orbit = { subsets: [], xMin: 0, xMax: 0, yMin: 0, yMax: 0, scaleX: 0, scaleY: 0 }
     this.updateInterval = undefined
+    this.frozen = false
 
     for (let i = 0; i < this.layers; i++) {
       const subsetPoints: SubsetPoint[] = []
@@ -237,7 +242,7 @@ export class HopalongVisualizer {
           this.peakCountdown = 100
         }
 
-        if (count % 2 === 0 && window.config.effects.switcheroo.value) {
+        if (count % 2 === 0 && window.config.effects.switcheroo.value && !this.frozen) {
           if (!switcherooGenerated) {
             this.generateOrbit()
             switcherooGenerated = true
@@ -282,6 +287,8 @@ export class HopalongVisualizer {
   }
 
   updateOrbit(): void {
+    if (this.frozen) return
+
     const newA = window.config.orbit.a.value
     const newB = window.config.orbit.b.value
     const newC = window.config.orbit.c.value
@@ -413,6 +420,17 @@ export class HopalongVisualizer {
     if (this.updateInterval !== undefined) clearInterval(this.updateInterval)
     this.disposeVideoPlane()
     this.disposeScene(this.scene)
+  }
+
+  /** Stops this visualizer from reacting to further config changes -- called on the outgoing
+   * side of a crossfade, which should only fade out, not reshape itself around whatever preset
+   * is now live in window.config. */
+  freezeConfig(): void {
+    this.frozen = true
+    if (this.updateInterval !== undefined) {
+      clearInterval(this.updateInterval)
+      this.updateInterval = undefined
+    }
   }
 
   disposeVideoPlane(): void {

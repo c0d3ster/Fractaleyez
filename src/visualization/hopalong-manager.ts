@@ -154,6 +154,11 @@ export class HopalongManager {
     }
 
     const outgoing = this.hopalongVisualizer!
+    // window.config already reflects the incoming preset by the time this runs, and outgoing
+    // still polls it (updateOrbit()'s interval, switcheroo's regenerate) -- freeze it so it
+    // fades out its own last shape instead of reshaping itself around the new preset's orbit
+    // params mid-fade.
+    outgoing.freezeConfig()
     const incoming = new HopalongVisualizer()
     incoming.init()
 
