@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react'
+import React, { useState, useCallback, useEffect, useRef } from 'react'
 import { Row, Col } from 'react-bootstrap'
 import './Presets.css'
 
@@ -29,6 +29,7 @@ const PresetsInner = ({ retrieveConfigPreset, revertConfig, config, presets, pac
   const [paging, setPaging] = useState(false)
   const [previewMode, setPreviewMode] = useState(false)
   const [trialPresetKey, setTrialPresetKey] = useState<string | null>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
 
   const packMap = new Map(packs.map(p => [p.name, p]))
 
@@ -73,8 +74,12 @@ const PresetsInner = ({ retrieveConfigPreset, revertConfig, config, presets, pac
   }
 
   useEffect(() => {
+    // Popped-out config windows render this component into a separate window.open()
+    // document, so the listener must attach to that document rather than the global
+    // one or hotkeys silently do nothing there.
+    const ownerDocument = containerRef.current?.ownerDocument ?? document
     const handleKeyDown = (e: KeyboardEvent): void => {
-      if (document.activeElement?.tagName === 'INPUT') return
+      if (ownerDocument.activeElement?.tagName === 'INPUT') return
       if (e.metaKey || e.ctrlKey || e.altKey) return
       const hotkeyIndex = Number(e.key) - 1
       if (!Number.isInteger(hotkeyIndex) || hotkeyIndex < 0 || hotkeyIndex > 8) return
@@ -85,15 +90,15 @@ const PresetsInner = ({ retrieveConfigPreset, revertConfig, config, presets, pac
       }
       handlePresetClick(preset, event)
     }
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
+    ownerDocument.addEventListener('keydown', handleKeyDown)
+    return () => ownerDocument.removeEventListener('keydown', handleKeyDown)
   }, [visible])
 
   return (
     <>
       <Row>
         <Col className={`presets-container${expanded ? ' presets-container--expanded' : ''}`}>
-          <div className='pack-tabs-row'>
+          <div ref={containerRef} className='pack-tabs-row'>
             <div className='pack-tabs'>
               {packNames.map(pack => {
                 const meta = packMap.get(pack)
