@@ -250,16 +250,19 @@ export class HopalongVisualizer {
     let count = 0
     let switcherooGenerated = false
 
-    this.objects.forEach((obj) => {
-      obj.position.z += window.config.user.speed.value * musicSpeedMultiplier
+    this.objects.forEach((obj, index) => {
+      const wasAudioPeak = this.audioPeak
 
-      if (this.audioPeak) {
+      if (wasAudioPeak) {
         this.peakCountdown--
         if (this.peakCountdown <= 0) {
           this.audioPeak = false
           this.peakCountdown = 100
         }
 
+        // Switcheroo reshapes obj's own buffer to the current orbit -- only ever the primary
+        // (incoming) object. Applying it to an in-flight orbit fade's outgoing object would
+        // reshape it into the *new* orbit mid-fade, defeating the crossfade entirely.
         if (count % 2 === 0 && window.config.effects.switcheroo.value && !this.frozen) {
           if (!switcherooGenerated) {
             this.generateOrbit()
@@ -273,31 +276,48 @@ export class HopalongVisualizer {
           }
           obj.geometry.attributes.position!.needsUpdate = true
         }
-
-        if (window.config.effects.wobWob.value) {
-          obj.position.z -= window.config.user.speed.value * musicSpeedMultiplier * 2
-        }
-
-        if (window.config.effects.colorShift.value) {
-          obj.myMaterial.color.setHSL(this.hueValues[obj.mySubset]!, this.saturation, DEF_BRIGHTNESS)
-        }
       }
 
-      if (obj.position.z > window.config.user.scaleFactor.value / 2) {
-        obj.position.setZ(-(this.levels - 1) * this.levelDepth + this.levelDepth)
+      this.applyParticleMotion(obj, count, musicSpeedMultiplier, wasAudioPeak)
+
+      // An orbit fade's outgoing objects should keep drifting/rotating/color-shifting just
+      // like they would have without the fade -- only their shape and opacity differ from the
+      // incoming set, so they get the same per-frame motion, paired by index.
+      const outgoingObj = this.orbitFade?.outgoing[index]
+      if (outgoingObj) {
+        this.applyParticleMotion(outgoingObj, count, musicSpeedMultiplier, wasAudioPeak)
       }
 
-      if (window.config.effects.cyclone.value) {
-        if (count % 3 === 0) {
-          obj.rotation.z += (window.config.user.rotationSpeed.value / 1000) * musicSpeedMultiplier
-        } else if (count % 3 === 1) {
-          obj.rotation.z -= (window.config.user.rotationSpeed.value / 1000) * musicSpeedMultiplier
-        }
-      } else {
-        obj.rotation.z += (window.config.user.rotationSpeed.value / 1000) * musicSpeedMultiplier
-      }
       count++
     })
+  }
+
+  private applyParticleMotion(obj: ParticleSystem, count: number, musicSpeedMultiplier: number, applyPeakEffects: boolean): void {
+    obj.position.z += window.config.user.speed.value * musicSpeedMultiplier
+
+    if (applyPeakEffects) {
+      if (window.config.effects.wobWob.value) {
+        obj.position.z -= window.config.user.speed.value * musicSpeedMultiplier * 2
+      }
+
+      if (window.config.effects.colorShift.value) {
+        obj.myMaterial.color.setHSL(this.hueValues[obj.mySubset]!, this.saturation, DEF_BRIGHTNESS)
+      }
+    }
+
+    if (obj.position.z > window.config.user.scaleFactor.value / 2) {
+      obj.position.setZ(-(this.levels - 1) * this.levelDepth + this.levelDepth)
+    }
+
+    if (window.config.effects.cyclone.value) {
+      if (count % 3 === 0) {
+        obj.rotation.z += (window.config.user.rotationSpeed.value / 1000) * musicSpeedMultiplier
+      } else if (count % 3 === 1) {
+        obj.rotation.z -= (window.config.user.rotationSpeed.value / 1000) * musicSpeedMultiplier
+      }
+    } else {
+      obj.rotation.z += (window.config.user.rotationSpeed.value / 1000) * musicSpeedMultiplier
+    }
   }
 
   getScene(): THREE.Scene {
