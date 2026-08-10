@@ -144,7 +144,11 @@ const PresetsInner = ({ retrieveConfigPreset, revertConfig, config, presets, pac
                     data-id={id ?? ''}
                     onClick={() => handlePresetClick(preset, event)}
                   >
-                    {hotkey !== null && <span className='preset-hotkey-badge'>{hotkey}</span>}
+                    {hotkey !== null && (
+                      <span className='preset-hotkey-badge'>
+                        <span className='preset-hotkey-badge-num'>{hotkey}</span>
+                      </span>
+                    )}
                     <img src={presetSpriteSrc(sprite)} alt='' className='preset-sprite' />
                     <span>{label}</span>
                     {isTrialing && <span className='preset-trial-countdown'>{secondsLeft}</span>}

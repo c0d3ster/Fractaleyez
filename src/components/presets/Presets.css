@@ -210,10 +210,14 @@
   background: #333;
   border: 1px solid #777;
   color: #ccc;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   font-weight: 600;
   line-height: 1;
   pointer-events: none;
+}
+
+.preset-hotkey-badge-num {
+  transform: translateY(1px);
 }
 
 /* Pagination */
