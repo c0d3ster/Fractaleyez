@@ -2,27 +2,13 @@ import * as THREE from 'three'
 
 import { AudioAnalysedDataForVisualization } from '../audioanalysis/audio-analysed-data'
 import { getResolvedSpriteUrl } from '../utils/spriteCache'
+import { acquireSpriteTexture, releaseSpriteTexture } from '../utils/textureCache'
 
 /*
  * ORIGINAL AUTHOR: Iacopo Sassarini
  * Modifications made by Cody Douglass and Conor O'Neill
  */
 const DEF_BRIGHTNESS = .5
-const FALLBACK_SPRITE_URL = '/fractaleye.png'
-
-// TextureLoader.load() fails asynchronously via its onError callback (e.g. a CORS-blocked
-// R2 request never fires onLoad) -- a try/catch around .load() can't see that. Catch it here
-// and fall back to the bundled sprite so a bad sprite URL doesn't leave particles blank.
-const loadSpriteTexture = (url: string): THREE.Texture => {
-  const texture = new THREE.TextureLoader().load(url, undefined, undefined, (error) => {
-    console.warn(`Failed to load particle sprite "${url}", falling back to default`, error)
-    new THREE.TextureLoader().load(FALLBACK_SPRITE_URL, (fallback) => {
-      texture.image = fallback.image
-      texture.needsUpdate = true
-    })
-  })
-  return texture
-}
 
 // Orbit parameters
 let a = 0; let b = 0; let c = 0; let d = 0; let e = 0
@@ -112,7 +98,6 @@ export class HopalongVisualizer {
   }
 
   init(): void {
-    let sprite = loadSpriteTexture(getResolvedSpriteUrl(this.sprites[0]!))
     let count = 1
     let particleIndex = 0
     this.setLights()
@@ -135,7 +120,7 @@ export class HopalongVisualizer {
         const geometry = new THREE.BufferGeometry().setFromPoints(points)
 
         particleIndex = count % this.sprites.length
-        sprite = loadSpriteTexture(getResolvedSpriteUrl(this.sprites[particleIndex]!))
+        const sprite = acquireSpriteTexture(getResolvedSpriteUrl(this.sprites[particleIndex]!))
         const material = new THREE.PointsMaterial({
           size: this.particleSize,
           map: sprite,
@@ -471,7 +456,7 @@ export class HopalongVisualizer {
   private disposeMaterial(material: THREE.Material): void {
     for (const v of Object.values(material)) {
       if (v instanceof THREE.Texture) {
-        v.dispose()
+        releaseSpriteTexture(v)
       }
     }
     material.dispose()

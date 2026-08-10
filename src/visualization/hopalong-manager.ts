@@ -146,7 +146,10 @@ export class HopalongManager {
   startCrossfade = (): void => {
     if (this.crossfade) {
       // Another particle config change landed mid-fade -- finish the current fade
-      // immediately rather than stacking a second outgoing visualizer.
+      // immediately rather than stacking a second outgoing visualizer, and snap the
+      // in-progress visualizer to full opacity first so it starts its own fade-out from
+      // fully visible instead of wherever its fade-in had gotten to.
+      this.setParticleOpacity(this.hopalongVisualizer!, 1)
       this.finalizeCrossfade()
     }
 
