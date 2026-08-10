@@ -5,6 +5,7 @@ import { HopalongVisualizer } from './hopalong-visualizer'
 import { CameraManager } from './camera-manager'
 import { AudioAnalysedDataForVisualization } from '../audioanalysis/audio-analysed-data'
 import { PARTICLE_CROSSFADE_DURATION_MS, MAX_CROSSFADE_GENERATIONS } from '../config/visualizer.config'
+import { easeInQuad } from '../utils/easing'
 
 type ParticleCrossfade = {
   outgoing: HopalongVisualizer
@@ -185,13 +186,13 @@ export class HopalongManager {
   advanceCrossfades = (deltaTime: number): void => {
     if (this.incomingElapsedMs < PARTICLE_CROSSFADE_DURATION_MS) {
       this.incomingElapsedMs = Math.min(PARTICLE_CROSSFADE_DURATION_MS, this.incomingElapsedMs + deltaTime)
-      this.setParticleOpacity(this.hopalongVisualizer!, this.incomingElapsedMs / PARTICLE_CROSSFADE_DURATION_MS)
+      this.setParticleOpacity(this.hopalongVisualizer!, easeInQuad(this.incomingElapsedMs / PARTICLE_CROSSFADE_DURATION_MS))
     }
 
     this.crossfades = this.crossfades.filter((cf) => {
       cf.elapsedMs += deltaTime
       const t = Math.min(1, cf.elapsedMs / cf.durationMs)
-      this.setParticleOpacity(cf.outgoing, 1 - t)
+      this.setParticleOpacity(cf.outgoing, easeInQuad(1 - t))
       if (t < 1) return true
       this.finalizeOutgoing(cf)
       return false

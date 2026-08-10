@@ -4,6 +4,7 @@ import { AudioAnalysedDataForVisualization } from '../audioanalysis/audio-analys
 import { getResolvedSpriteUrl } from '../utils/spriteCache'
 import { acquireSpriteTexture, releaseSpriteTexture } from '../utils/textureCache'
 import { PARTICLE_CROSSFADE_DURATION_MS, MAX_CROSSFADE_GENERATIONS } from '../config/visualizer.config'
+import { easeInQuad } from '../utils/easing'
 
 /*
  * ORIGINAL AUTHOR: Iacopo Sassarini
@@ -420,13 +421,13 @@ export class HopalongVisualizer {
   private advanceOrbitFade(deltaTime: number): void {
     if (this.orbitIncomingElapsedMs < PARTICLE_CROSSFADE_DURATION_MS) {
       this.orbitIncomingElapsedMs = Math.min(PARTICLE_CROSSFADE_DURATION_MS, this.orbitIncomingElapsedMs + deltaTime)
-      this.setObjectsOpacity(this.objects, this.orbitIncomingElapsedMs / PARTICLE_CROSSFADE_DURATION_MS)
+      this.setObjectsOpacity(this.objects, easeInQuad(this.orbitIncomingElapsedMs / PARTICLE_CROSSFADE_DURATION_MS))
     }
 
     this.orbitFades = this.orbitFades.filter((fade) => {
       fade.elapsedMs += deltaTime
       const t = Math.min(1, fade.elapsedMs / fade.durationMs)
-      this.setObjectsOpacity(fade.outgoing, 1 - t)
+      this.setObjectsOpacity(fade.outgoing, easeInQuad(1 - t))
       if (t < 1) return true
       this.finalizeOutgoingOrbitFade(fade)
       return false
