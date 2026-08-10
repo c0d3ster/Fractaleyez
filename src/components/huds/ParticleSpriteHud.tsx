@@ -45,7 +45,9 @@ const INTERIOR_BACKGROUND_MATCH_TOLERANCE = 16
 // variation — that pass the near-neutral/tolerance gates just enough to nibble a small, irregular
 // bite out of one edge, instead of either cleanly clearing the background or matching nothing. A
 // stripped region that small is more likely that kind of noise than a real background, so below
-// this fraction of the image the whole strip is abandoned and the sprite is left untouched.
+// this fraction of the *original opaque content* (excluding any transparent square padding, which
+// isn't real content and shouldn't count either way) the whole strip is abandoned and the sprite
+// is left untouched.
 const MIN_STRIP_AREA_FRACTION = 0.03
 
 const isNearNeutral = (r: number, g: number, b: number): boolean => {
@@ -95,6 +97,18 @@ const stripEdgeBackground = (ctx: CanvasRenderingContext2D, width: number, heigh
   const seeded = new Uint8Array(pixelCount)
   const drift = new Uint16Array(pixelCount)
   const queue: number[] = []
+
+  // Rectangular uploads arrive here already sitting on transparent square padding (see
+  // prepareSpriteDataUrl) — that padding is deliberate and shouldn't count as "background removed"
+  // one way or the other, so the area-fraction sanity check below is measured only against pixels
+  // that started out opaque (the real photo content), not the full padded canvas.
+  const wasOriginallyOpaque = new Uint8Array(pixelCount)
+  let originalOpaqueCount = 0
+  for (let idx = 0; idx < pixelCount; idx++) {
+    if ((data[idx * 4 + 3] ?? 0) === 0) continue
+    wasOriginallyOpaque[idx] = 1
+    originalOpaqueCount += 1
+  }
 
   let bgColorSumR = 0
   let bgColorSumG = 0
@@ -199,11 +213,11 @@ const stripEdgeBackground = (ctx: CanvasRenderingContext2D, width: number, heigh
     }
   }
 
-  let backgroundCount = 0
+  let strippedContentCount = 0
   for (let idx = 0; idx < pixelCount; idx++) {
-    if (isBackground[idx]) backgroundCount += 1
+    if (isBackground[idx] && wasOriginallyOpaque[idx]) strippedContentCount += 1
   }
-  if (backgroundCount / pixelCount < MIN_STRIP_AREA_FRACTION) return
+  if (originalOpaqueCount === 0 || strippedContentCount / originalOpaqueCount < MIN_STRIP_AREA_FRACTION) return
 
   const distanceFromForeground = new Int16Array(pixelCount).fill(-1)
   const falloffQueue: number[] = []
