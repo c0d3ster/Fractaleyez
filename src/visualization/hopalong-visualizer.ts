@@ -3,7 +3,7 @@ import * as THREE from 'three'
 import { AudioAnalysedDataForVisualization } from '../audioanalysis/audio-analysed-data'
 import { getResolvedSpriteUrl } from '../utils/spriteCache'
 import { acquireSpriteTexture, releaseSpriteTexture } from '../utils/textureCache'
-import { PARTICLE_CROSSFADE_DURATION_MS } from '../config/visualizer.config'
+import { PARTICLE_CROSSFADE_DURATION_MS, MAX_CROSSFADE_GENERATIONS } from '../config/visualizer.config'
 
 /*
  * ORIGINAL AUTHOR: Iacopo Sassarini
@@ -67,7 +67,10 @@ export class HopalongVisualizer {
    * its orbit from window.config (already overwritten with the incoming preset's values by the
    * time the fade starts) and just fades out its last known shape instead. */
   private frozen: boolean
-  private orbitFade: OrbitFade | null
+  /** Older orbit-shape generations still fading out, oldest first. */
+  private orbitFades: OrbitFade[]
+  /** Current (newest) orbit shape's own fade-in progress. */
+  private orbitIncomingElapsedMs: number
 
   private onVideoClipsRestored = (event: Event): void => {
     const ce = event as CustomEvent<{ clips: string[] }>
@@ -104,7 +107,8 @@ export class HopalongVisualizer {
     this.orbit = { subsets: [], xMin: 0, xMax: 0, yMin: 0, yMax: 0, scaleX: 0, scaleY: 0 }
     this.updateInterval = undefined
     this.frozen = false
-    this.orbitFade = null
+    this.orbitFades = []
+    this.orbitIncomingElapsedMs = PARTICLE_CROSSFADE_DURATION_MS
 
     for (let i = 0; i < this.layers; i++) {
       const subsetPoints: SubsetPoint[] = []
@@ -280,13 +284,16 @@ export class HopalongVisualizer {
 
       this.applyParticleMotion(obj, count, musicSpeedMultiplier, wasAudioPeak)
 
-      // An orbit fade's outgoing objects should keep drifting/rotating/color-shifting just
-      // like they would have without the fade -- only their shape and opacity differ from the
-      // incoming set, so they get the same per-frame motion, paired by index.
-      const outgoingObj = this.orbitFade?.outgoing[index]
-      if (outgoingObj) {
-        this.applyParticleMotion(outgoingObj, count, musicSpeedMultiplier, wasAudioPeak)
-      }
+      // Every still-fading orbit generation's outgoing objects should keep drifting/rotating/
+      // color-shifting just like they would have without the fade -- only their shape and
+      // opacity differ from the incoming set, so they get the same per-frame motion, paired
+      // by index.
+      this.orbitFades.forEach((fade) => {
+        const outgoingObj = fade.outgoing[index]
+        if (outgoingObj) {
+          this.applyParticleMotion(outgoingObj, count, musicSpeedMultiplier, wasAudioPeak)
+        }
+      })
 
       count++
     })
@@ -363,15 +370,20 @@ export class HopalongVisualizer {
    * new orbit shape (this.orbit.subsets was just regenerated above), fade the old set out and the
    * new set in, then dispose the old set. New objects inherit the outgoing object's *current*
    * position/rotation (not the spawn formula) so there's no additional depth/rotation jump on
-   * top of the shape change.
+   * top of the shape change. Up to MAX_CROSSFADE_GENERATIONS generations can be alive at once,
+   * each fading out independently, matching HopalongManager's particle crossfade.
    */
   private startOrbitFade(): void {
-    if (this.orbitFade) {
-      // Another orbit param change landed mid-fade -- finish it immediately rather than
-      // stacking a second outgoing generation (same cap-at-2 pattern as the particle crossfade).
-      this.setObjectsOpacity(this.objects, 1)
-      this.finalizeOrbitFade()
+    // Adding a new generation would exceed the cap -- force-finish the oldest still-fading
+    // one(s) immediately to make room, rather than growing the list unbounded.
+    while (this.orbitFades.length >= MAX_CROSSFADE_GENERATIONS - 1) {
+      this.finalizeOutgoingOrbitFade(this.orbitFades.shift()!)
     }
+
+    // It may still be mid-fade-in itself -- snap to full opacity before demoting it to an
+    // outgoing generation, so its own fade-out starts from fully visible instead of jumping
+    // from wherever its fade-in had gotten to.
+    this.setObjectsOpacity(this.objects, 1)
 
     const outgoing = this.objects
     const incoming: ParticleSystem[] = outgoing.map((obj) => {
@@ -401,28 +413,32 @@ export class HopalongVisualizer {
     })
 
     this.objects = incoming
-    this.orbitFade = { outgoing, elapsedMs: 0, durationMs: PARTICLE_CROSSFADE_DURATION_MS }
+    this.orbitIncomingElapsedMs = 0
+    this.orbitFades.push({ outgoing, elapsedMs: 0, durationMs: PARTICLE_CROSSFADE_DURATION_MS })
   }
 
   private advanceOrbitFade(deltaTime: number): void {
-    const fade = this.orbitFade
-    if (!fade) return
+    if (this.orbitIncomingElapsedMs < PARTICLE_CROSSFADE_DURATION_MS) {
+      this.orbitIncomingElapsedMs = Math.min(PARTICLE_CROSSFADE_DURATION_MS, this.orbitIncomingElapsedMs + deltaTime)
+      this.setObjectsOpacity(this.objects, this.orbitIncomingElapsedMs / PARTICLE_CROSSFADE_DURATION_MS)
+    }
 
-    fade.elapsedMs += deltaTime
-    const t = Math.min(1, fade.elapsedMs / fade.durationMs)
-    this.setObjectsOpacity(fade.outgoing, 1 - t)
-    this.setObjectsOpacity(this.objects, t)
-    if (t >= 1) this.finalizeOrbitFade()
+    this.orbitFades = this.orbitFades.filter((fade) => {
+      fade.elapsedMs += deltaTime
+      const t = Math.min(1, fade.elapsedMs / fade.durationMs)
+      this.setObjectsOpacity(fade.outgoing, 1 - t)
+      if (t < 1) return true
+      this.finalizeOutgoingOrbitFade(fade)
+      return false
+    })
   }
 
-  private finalizeOrbitFade(): void {
-    const fade = this.orbitFade!
+  private finalizeOutgoingOrbitFade(fade: OrbitFade): void {
     fade.outgoing.forEach((obj) => {
       this.scene.remove(obj)
       obj.geometry.dispose()
       this.disposeMaterial(obj.myMaterial)
     })
-    this.orbitFade = null
   }
 
   private setObjectsOpacity(objects: ParticleSystem[], opacity: number): void {
@@ -532,9 +548,10 @@ export class HopalongVisualizer {
       clearInterval(this.updateInterval)
       this.updateInterval = undefined
     }
-    if (this.orbitFade) {
+    if (this.orbitFades.length > 0) {
       this.setObjectsOpacity(this.objects, 1)
-      this.finalizeOrbitFade()
+      this.orbitFades.forEach((fade) => this.finalizeOutgoingOrbitFade(fade))
+      this.orbitFades = []
     }
   }
 
