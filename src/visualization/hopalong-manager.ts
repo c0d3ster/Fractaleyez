@@ -71,6 +71,11 @@ export class HopalongManager {
   }
 
   setupEffects = (): void => {
+    // Rebuilt on every crossfade start (to point the RenderPass at the new scene) -- without
+    // disposing the previous one first, each rebuild leaked its render targets/passes, and
+    // since Particle Config drags call startCrossfade() on essentially every frame, that leak
+    // compounded fast.
+    this.composer?.dispose()
     this.composer = new EffectComposer(this.renderer!)
     this.composer.addPass(new RenderPass(this.hopalongVisualizer!.getScene(), this.cameraManager!.getCamera()))
     this.bloomEffect = new BloomEffect()

@@ -60,7 +60,7 @@ export class HopalongVisualizer {
   elapsedTime: number
   audioPeak: boolean
   peakCountdown: number
-  lastOrbitParams: { a: number | null; b: number | null; c: number | null; d: number | null; e: number | null; scaleFactor: number | null }
+  lastOrbitParams: { a: number; b: number; c: number; d: number; e: number; scaleFactor: number }
   orbit: { subsets: SubsetPoint[][]; xMin: number; xMax: number; yMin: number; yMax: number; scaleX: number; scaleY: number }
   private updateInterval: ReturnType<typeof setInterval> | undefined
   /** Set once this visualizer becomes the outgoing half of a crossfade, so it stops reshaping
@@ -103,7 +103,16 @@ export class HopalongVisualizer {
     this.elapsedTime = 0
     this.audioPeak = false
     this.peakCountdown = 0
-    this.lastOrbitParams = { a: null, b: null, c: null, d: null, e: null, scaleFactor: null }
+    // Seeded from the live config (not null) so the first updateOrbit() poll after
+    // construction doesn't see a spurious "changed" diff and kick off a needless orbit fade.
+    this.lastOrbitParams = {
+      a: window.config.orbit.a.value,
+      b: window.config.orbit.b.value,
+      c: window.config.orbit.c.value,
+      d: window.config.orbit.d.value,
+      e: window.config.orbit.e.value,
+      scaleFactor: window.config.user.scaleFactor.value
+    }
     this.orbit = { subsets: [], xMin: 0, xMax: 0, yMin: 0, yMax: 0, scaleX: 0, scaleY: 0 }
     this.updateInterval = undefined
     this.frozen = false
@@ -299,7 +308,7 @@ export class HopalongVisualizer {
     })
   }
 
-  private applyParticleMotion(obj: ParticleSystem, count: number, musicSpeedMultiplier: number, applyPeakEffects: boolean): void {
+  private applyParticleMotion = (obj: ParticleSystem, count: number, musicSpeedMultiplier: number, applyPeakEffects: boolean): void => {
     obj.position.z += window.config.user.speed.value * musicSpeedMultiplier
 
     if (applyPeakEffects) {
@@ -350,6 +359,12 @@ export class HopalongVisualizer {
 
     if (!paramsChanged) return
 
+    // Existing particles' Z positions (and the wrap threshold in applyParticleMotion) were
+    // computed relative to the old scaleFactor -- shift them by half the delta so depth/wrap
+    // behavior stays consistent under the new one, same compensation the old in-place
+    // updateOrbit() applied before this became a crossfade.
+    const depthShift = (newScaleFactor - this.lastOrbitParams.scaleFactor) / 2
+
     this.lastOrbitParams = { a: newA, b: newB, c: newC, d: newD, e: newE, scaleFactor: newScaleFactor }
 
     this.generateOrbit()
@@ -358,7 +373,7 @@ export class HopalongVisualizer {
       this.hueValues[s] = Math.random()
     }
 
-    this.startOrbitFade()
+    this.startOrbitFade(depthShift)
   }
 
   /**
@@ -373,7 +388,7 @@ export class HopalongVisualizer {
    * top of the shape change. Up to MAX_CROSSFADE_GENERATIONS generations can be alive at once,
    * each fading out independently, matching HopalongManager's particle crossfade.
    */
-  private startOrbitFade(): void {
+  private startOrbitFade = (depthShift: number): void => {
     // Adding a new generation would exceed the cap -- force-finish the oldest still-fading
     // one(s) immediately to make room, rather than growing the list unbounded.
     while (this.orbitFades.length >= MAX_CROSSFADE_GENERATIONS - 1) {
@@ -405,6 +420,7 @@ export class HopalongVisualizer {
       particles.mySubset = obj.mySubset
       particles.mySpriteUrl = obj.mySpriteUrl
       particles.position.copy(obj.position)
+      particles.position.z += depthShift
       particles.rotation.z = obj.rotation.z
       particles.needsUpdate = 0
       particles.myMaterial.color.setHSL(this.hueValues[obj.mySubset]!, this.saturation, DEF_BRIGHTNESS)
@@ -417,7 +433,7 @@ export class HopalongVisualizer {
     this.orbitFades.push({ outgoing, elapsedMs: 0, durationMs: PARTICLE_CROSSFADE_DURATION_MS })
   }
 
-  private advanceOrbitFade(deltaTime: number): void {
+  private advanceOrbitFade = (deltaTime: number): void => {
     if (this.orbitIncomingElapsedMs < PARTICLE_CROSSFADE_DURATION_MS) {
       this.orbitIncomingElapsedMs = Math.min(PARTICLE_CROSSFADE_DURATION_MS, this.orbitIncomingElapsedMs + deltaTime)
       this.setObjectsOpacity(this.objects, this.orbitIncomingElapsedMs / PARTICLE_CROSSFADE_DURATION_MS)
@@ -433,7 +449,7 @@ export class HopalongVisualizer {
     })
   }
 
-  private finalizeOutgoingOrbitFade(fade: OrbitFade): void {
+  private finalizeOutgoingOrbitFade = (fade: OrbitFade): void => {
     fade.outgoing.forEach((obj) => {
       this.scene.remove(obj)
       obj.geometry.dispose()
@@ -441,7 +457,7 @@ export class HopalongVisualizer {
     })
   }
 
-  private setObjectsOpacity(objects: ParticleSystem[], opacity: number): void {
+  private setObjectsOpacity = (objects: ParticleSystem[], opacity: number): void => {
     objects.forEach((obj) => {
       obj.myMaterial.opacity = opacity
     })
@@ -541,8 +557,12 @@ export class HopalongVisualizer {
    * is now live in window.config. Also resolves any in-progress orbit-shape fade immediately:
    * once HopalongManager starts driving this visualizer's overall opacity as a single outgoing
    * generation, an unrelated inner fade still animating individual objects' opacity would fight
-   * it for control of the same materials. */
-  freezeConfig(): void {
+   * it for control of the same materials. Tears down any video plane/element too -- only
+   * particle Points get reparented into the incoming visualizer's scene, so an outgoing video
+   * plane is no longer part of what's actually rendered, but its underlying <video> element
+   * would otherwise keep playing (and its audio keeps sounding) until this visualizer is
+   * eventually disposed at the end of its fade. */
+  freezeConfig = (): void => {
     this.frozen = true
     if (this.updateInterval !== undefined) {
       clearInterval(this.updateInterval)
@@ -553,6 +573,8 @@ export class HopalongVisualizer {
       this.orbitFades.forEach((fade) => this.finalizeOutgoingOrbitFade(fade))
       this.orbitFades = []
     }
+    window.removeEventListener('videoClipsRestored', this.onVideoClipsRestored)
+    this.disposeVideoPlane()
   }
 
   disposeVideoPlane(): void {

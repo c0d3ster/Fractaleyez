@@ -20,7 +20,12 @@ section differs from the current one.
 
 ### Implementation
 
-All in `src/visualization/hopalong-manager.ts`. `resetVisualization()` is replaced by:
+Mainly in `src/visualization/hopalong-manager.ts`, with a sprite-texture cache added in
+`src/utils/textureCache.ts` (particle systems reuse the same handful of sprite URLs across
+dozens of layer/level objects; caching avoids re-decoding/re-uploading the same texture per
+object) and, later, an equivalent per-object crossfade for Orbit Config changes added to
+`src/visualization/hopalong-visualizer.ts` (see "Later additions" below). `resetVisualization()`
+is replaced by:
 
 - `startCrossfade()` — constructs the new (`incoming`) `HopalongVisualizer`, and reparents
   the *outgoing* visualizer's particle `Points` objects into `incoming.scene` via
@@ -46,8 +51,11 @@ All in `src/visualization/hopalong-manager.ts`. `resetVisualization()` is replac
   partially-faded) incoming visualizer. Verified via a scripted 3-preset-in-a-row switch —
   no leak, no growth in live scene child count across repeated fades.
 
-`PARTICLE_CROSSFADE_DURATION_MS = 800` added to `src/config/visualizer.config.ts` per the
-task's sub-task 3 (a fixed default for now; a future config-gear task makes it user-configurable).
+`PARTICLE_CROSSFADE_DURATION_MS` added to `src/config/visualizer.config.ts` per the task's
+sub-task 3 (a fixed default for now; a future config-gear task makes it user-configurable).
+Tuned during the session to 750ms, paired with `MAX_CROSSFADE_GENERATIONS = 4` (see "Later
+additions") -- 800/1000ms values mentioned elsewhere in this doc are from earlier in
+development and no longer current.
 
 ### `ConfigProvider.tsx` (sub-task 4) — no code change, and why
 
@@ -66,11 +74,12 @@ React/Three.js boundary that doesn't exist anywhere else in the codebase and isn
 
 - `yarn typecheck`, `yarn lint`, `yarn test` all pass.
 - Manual browser verification (Playwright, temporary — not committed): confirmed via a debug
-  hook that `startCrossfade()`/`advanceCrossfade()` run for the full 800ms with correctly
-  complementary opacities (e.g. sampled mid-fade: outgoing 0.109 / incoming 0.891 at
+  hook that `startCrossfade()`/`advanceCrossfade()` ran for the full duration (800ms at the
+  time of this check; the constant was tuned to 750ms afterward, see "Later additions") with
+  correctly complementary opacities (e.g. sampled mid-fade: outgoing 0.109 / incoming 0.891 at
   713ms/800ms elapsed), and that `finalizeCrossfade()` leaves no orphaned objects in the live
   scene after 3 consecutive preset switches (children count tracks the current preset's own
-  layer/level count each time, no growth).
+  layer/level count each time, no growth). Not re-run against later changes below.
 
 ### Known deviation / limitation
 
@@ -83,3 +92,40 @@ elements are *not* crossfaded, both pre-existing behavior, out of scope here:
   Particle Config hard-reset the README describes.
 - **Lights**: outgoing's `PointLight`s are not reparented/faded — confirmed harmless since
   `THREE.PointsMaterial` (used for all particles) is unlit and ignores scene lights entirely.
+
+### Later additions (post-review, same branch)
+
+Review feedback (Cursor Bugbot, CodeRabbit) and follow-up requests surfaced several more
+issues addressed on this branch after the initial implementation above:
+
+- **Sprite texture cache** (`src/utils/textureCache.ts`): particle systems reuse a handful of
+  sprite URLs across dozens of layer/level objects; each used to get its own `TextureLoader`
+  call. Refcounted cache reuses one GPU upload per unique URL — fixed the worst-case preset
+  lag (`notes`/`noteExplosion`, which re-decoded/re-uploaded oversized sprites 40x per switch).
+- **Orbit Config crossfade** (`HopalongVisualizer`): orbit slider changes (`a`-`e`,
+  `scaleFactor`) previously overwrote particle position buffers directly, snapping instantly —
+  the same jarring jump the Particle Config crossfade above was built to avoid, just via a
+  separate code path (`updateOrbit()`'s own poll interval, never routed through
+  `HopalongManager`). Now uses the identical double-buffer opacity technique, scoped to one
+  visualizer's own objects: `startOrbitFade()`/`advanceOrbitFade()`/`finalizeOutgoingOrbitFade()`.
+- **Crossfade generation cap**: both crossfades now support up to `MAX_CROSSFADE_GENERATIONS`
+  (4) concurrent generations — 1 incoming + up to 3 still-fading outgoing, each fading
+  independently — instead of always truncating an in-flight fade the instant another change
+  landed. Tuned alongside `updateOrbit()`'s poll interval (250ms) and
+  `PARTICLE_CROSSFADE_DURATION_MS` (750ms) so 3 outgoing slots exactly cover a full fade
+  (3 × 250ms = 750ms) with no truncation gap.
+- **Outgoing visualizer bugs fixed during review**: outgoing visualizers kept polling
+  `window.config` and reshaping themselves around the *incoming* preset's values mid-fade
+  (`freezeConfig()` now stops this); a spurious orbit fade fired on every new visualizer's
+  first `updateOrbit()` tick because `lastOrbitParams` started `null` (now seeded from live
+  config at construction); `scaleFactor` changes lost their compensating Z-depth shift when
+  orbit changes became a crossfade (reinstated in `startOrbitFade()`); the outgoing side of a
+  particle crossfade kept its old `<video>` element playing/audible for the full fade
+  duration since only particle `Points` were reparented (now torn down in `freezeConfig()`);
+  `setupEffects()` rebuilt `EffectComposer` on every crossfade without disposing the previous
+  one, leaking render targets on every Particle Config drag tick (now disposed first).
+- **Opacity easing tried and reverted**: a quadratic ease (`t²` / `(1-t)²`) was tried to fix a
+  perceived "snaps to 100%" look on additive-blended particles, but broke the
+  `incomingOpacity + outgoingOpacity = 1` invariant linear crossfading has — `t² + (1-t)²`
+  dips to 0.5 at the midpoint, causing a visible mid-fade dim and end-of-fade flash, which was
+  worse than the original front-loaded-but-smooth linear fade. Reverted back to plain linear.
