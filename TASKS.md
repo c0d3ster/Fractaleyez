@@ -4,13 +4,6 @@ Instructions for agent: This file is the task inventory only. Workflow rules (br
 
 ## Agent-Ready
 
-- [ ] #18 [stack: solo] Auto-strip background from uploaded particle sprites.
-  - Acceptance: uploading a sprite with a black/gray/white background produces a stored/rendered sprite with that background removed via edge flood-fill (not a global per-pixel threshold); cutoff edges have soft alpha falloff; dark outlines/white highlights in the art interior are preserved.
-  - Sub-tasks: (1) Implement edge-inward flood-fill in `ParticleSpriteHud.tsx`'s `prepareSpriteDataUrl()`, alongside the existing resize step, before upload (client-side canvas pixel access is already in play there). (2) Apply distance-based alpha falloff near the flood-fill boundary instead of a hard cutoff. (3) Only flood-fill from near-neutral (black/gray/white) edge pixels, so colored backgrounds are left untouched. (4) Manually test with sample uploads (dark-outlined art, white-highlighted art) to confirm no holes are punched in interior details.
-  - NEEDS HUMAN: none anticipated; flag in the PR if flood-fill perf on up-to-512px sprites causes noticeable upload lag, as a follow-up rather than a blocker.
-- [ ] #2 [stack: user-platform] Add crossfade for preset switching. Transitions should never abruptly reset the scene. (stack order 2/7)
-  - Acceptance: switching presets visually crossfades; no frame where the scene hard-resets.
-  - Sub-tasks: (1) Confirm exact hard-reset trigger — Particle Config changes force a full re-render per README; crossfade must cover that regeneration, not just simple value changes. (2) Implement in `src/visualization/hopalong-manager.ts`: run old + new particle systems simultaneously for a fixed duration, fade opacity, then dispose the old one. (3) Add a default duration constant (e.g. in `src/config/visualizer.config.ts`) — made per-user configurable by the config-gear task below. (4) Wire `retrieveConfigPreset`/`resetConfig` in `src/components/config/context/ConfigProvider.tsx` (currently a hard `setConfig(next)`) through the crossfade path.
 - [ ] #3 [stack: user-platform] Create a `users` collection in Mongo keyed by `clerkId`. Clerk remains the source of truth for identity; this collection holds app data (settings, logo particle reference, display name cache, future entitlements). (stack order 3/7)
   - Creation: lazy-create on first authenticated request, plus Clerk `user.created`/`user.updated` webhook to sync display name and connected providers.
   - Investigate and document how the current Spotify and Google sign-ins surface display names in Clerk (native vs custom OAuth provider) and which field to cache.
