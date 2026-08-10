@@ -41,6 +41,13 @@ const FLAT_IMAGE_COLOR_COVERAGE = 0.92
 const FLAT_IMAGE_COLOR_QUANT_LEVELS = 32
 const INTERIOR_BACKGROUND_MATCH_TOLERANCE = 16
 
+// Textured photo backgrounds (e.g. a brick wall) can have local patches — grout lines, lighting
+// variation — that pass the near-neutral/tolerance gates just enough to nibble a small, irregular
+// bite out of one edge, instead of either cleanly clearing the background or matching nothing. A
+// stripped region that small is more likely that kind of noise than a real background, so below
+// this fraction of the image the whole strip is abandoned and the sprite is left untouched.
+const MIN_STRIP_AREA_FRACTION = 0.03
+
 const isNearNeutral = (r: number, g: number, b: number): boolean => {
   const max = Math.max(r, g, b)
   const min = Math.min(r, g, b)
@@ -191,6 +198,12 @@ const stripEdgeBackground = (ctx: CanvasRenderingContext2D, width: number, heigh
       queue.push(nIdx)
     }
   }
+
+  let backgroundCount = 0
+  for (let idx = 0; idx < pixelCount; idx++) {
+    if (isBackground[idx]) backgroundCount += 1
+  }
+  if (backgroundCount / pixelCount < MIN_STRIP_AREA_FRACTION) return
 
   const distanceFromForeground = new Int16Array(pixelCount).fill(-1)
   const falloffQueue: number[] = []
