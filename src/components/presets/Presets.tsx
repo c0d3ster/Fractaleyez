@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useEffect } from 'react'
 import { Row, Col } from 'react-bootstrap'
 import './Presets.css'
 
@@ -72,6 +72,23 @@ const PresetsInner = ({ retrieveConfigPreset, revertConfig, config, presets, pac
     onSelect?.({ name: preset.name, label: preset.label, pack: preset.pack, isOwn: preset.isOwn })
   }
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent): void => {
+      if (document.activeElement?.tagName === 'INPUT') return
+      if (e.metaKey || e.ctrlKey || e.altKey) return
+      const hotkeyIndex = Number(e.key) - 1
+      if (!Number.isInteger(hotkeyIndex) || hotkeyIndex < 0 || hotkeyIndex > 8) return
+      const preset = visible[hotkeyIndex]
+      if (!preset) return
+      const event: PresetRetrieveEvent = {
+        currentTarget: { dataset: { name: String(preset.name), id: preset.id ?? '' } },
+      }
+      handlePresetClick(preset, event)
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [visible])
+
   return (
     <>
       <Row>
@@ -105,7 +122,7 @@ const PresetsInner = ({ retrieveConfigPreset, revertConfig, config, presets, pac
               ) : null
             })()}
             <div className={`presets-grid${expanded ? ' presets-grid--expanded' : ''}${paging ? ' paging' : ''}`}>
-              {visible.map((preset) => {
+              {visible.map((preset, index) => {
                 const { id, name, label, sprite } = preset
                 const event: PresetRetrieveEvent = {
                   currentTarget: { dataset: { name: String(name), id: id ?? '' } },
@@ -113,6 +130,7 @@ const PresetsInner = ({ retrieveConfigPreset, revertConfig, config, presets, pac
                 const isTrialing = trialPresetKey === (id ?? name) && secondsLeft !== null
                 const presetPackMeta = packMap.get(preset.pack)
                 const isPremiumUnowned = presetPackMeta?.isPremium && !presetPackMeta.isOwn
+                const hotkey = index < 9 ? index + 1 : null
                 return (
                   <button
                     key={id ?? name}
@@ -121,6 +139,7 @@ const PresetsInner = ({ retrieveConfigPreset, revertConfig, config, presets, pac
                     data-id={id ?? ''}
                     onClick={() => handlePresetClick(preset, event)}
                   >
+                    {hotkey !== null && <span className='preset-hotkey-badge'>{hotkey}</span>}
                     <img src={presetSpriteSrc(sprite)} alt='' className='preset-sprite' />
                     <span>{label}</span>
                     {isTrialing && <span className='preset-trial-countdown'>{secondsLeft}</span>}
