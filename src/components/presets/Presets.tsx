@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react'
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { Row, Col } from 'react-bootstrap'
 import './Presets.css'
 
@@ -31,7 +31,7 @@ const PresetsInner = ({ retrieveConfigPreset, revertConfig, config, presets, pac
   const [trialPresetKey, setTrialPresetKey] = useState<string | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
-  const packMap = new Map(packs.map(p => [p.name, p]))
+  const packMap = useMemo(() => new Map(packs.map(p => [p.name, p])), [packs])
 
   const { startTrial, cancelTrial, modalVisible, trialPackName, secondsLeft, dismissTrial } = usePremiumTrial({
     config,
@@ -60,7 +60,7 @@ const PresetsInner = ({ retrieveConfigPreset, revertConfig, config, presets, pac
     onPackSelect?.(pack === 'All' ? '' : pack)
   }
 
-  const handlePresetClick = (preset: PresetMeta, event: PresetRetrieveEvent): void => {
+  const handlePresetClick = useCallback((preset: PresetMeta, event: PresetRetrieveEvent): void => {
     const packMeta = packMap.get(preset.pack)
     if (packMeta?.isPremium && !packMeta.isOwn) {
       setTrialPresetKey(preset.id ?? preset.name)
@@ -71,7 +71,7 @@ const PresetsInner = ({ retrieveConfigPreset, revertConfig, config, presets, pac
       void retrieveConfigPreset(event)
     }
     onSelect?.({ name: preset.name, label: preset.label, pack: preset.pack, isOwn: preset.isOwn })
-  }
+  }, [packMap, startTrial, cancelTrial, retrieveConfigPreset, onSelect])
 
   useEffect(() => {
     // Popped-out config windows render this component into a separate window.open()
@@ -81,7 +81,7 @@ const PresetsInner = ({ retrieveConfigPreset, revertConfig, config, presets, pac
     const handleKeyDown = (e: KeyboardEvent): void => {
       if (ownerDocument.activeElement?.tagName === 'INPUT') return
       if (e.repeat) return
-      if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return
+      if (e.metaKey || e.ctrlKey || e.altKey) return
       if (modalVisible) return
       const activeMeta = packMap.get(activePack)
       if (activeMeta?.isPremium && !activeMeta.isOwn && !previewMode) return
@@ -96,7 +96,7 @@ const PresetsInner = ({ retrieveConfigPreset, revertConfig, config, presets, pac
     }
     ownerDocument.addEventListener('keydown', handleKeyDown)
     return () => ownerDocument.removeEventListener('keydown', handleKeyDown)
-  }, [visible, activePack, previewMode, modalVisible, packMap])
+  }, [visible, activePack, previewMode, modalVisible, packMap, handlePresetClick])
 
   return (
     <>
