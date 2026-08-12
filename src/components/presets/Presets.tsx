@@ -80,7 +80,11 @@ const PresetsInner = ({ retrieveConfigPreset, revertConfig, config, presets, pac
     const ownerDocument = containerRef.current?.ownerDocument ?? document
     const handleKeyDown = (e: KeyboardEvent): void => {
       if (ownerDocument.activeElement?.tagName === 'INPUT') return
-      if (e.metaKey || e.ctrlKey || e.altKey) return
+      if (e.repeat) return
+      if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return
+      if (modalVisible) return
+      const activeMeta = packMap.get(activePack)
+      if (activeMeta?.isPremium && !activeMeta.isOwn && !previewMode) return
       const hotkeyIndex = Number(e.key) - 1
       if (!Number.isInteger(hotkeyIndex) || hotkeyIndex < 0 || hotkeyIndex > 8) return
       const preset = visible[hotkeyIndex]
@@ -92,7 +96,7 @@ const PresetsInner = ({ retrieveConfigPreset, revertConfig, config, presets, pac
     }
     ownerDocument.addEventListener('keydown', handleKeyDown)
     return () => ownerDocument.removeEventListener('keydown', handleKeyDown)
-  }, [visible])
+  }, [visible, activePack, previewMode, modalVisible, packMap])
 
   return (
     <>
