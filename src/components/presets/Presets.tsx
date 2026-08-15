@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { Row, Col } from 'react-bootstrap'
 import './Presets.css'
 
@@ -29,8 +29,9 @@ const PresetsInner = ({ retrieveConfigPreset, revertConfig, config, presets, pac
   const [paging, setPaging] = useState(false)
   const [previewMode, setPreviewMode] = useState(false)
   const [trialPresetKey, setTrialPresetKey] = useState<string | null>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
 
-  const packMap = new Map(packs.map(p => [p.name, p]))
+  const packMap = useMemo(() => new Map(packs.map(p => [p.name, p])), [packs])
 
   const { startTrial, cancelTrial, modalVisible, trialPackName, secondsLeft, dismissTrial } = usePremiumTrial({
     config,
@@ -59,7 +60,7 @@ const PresetsInner = ({ retrieveConfigPreset, revertConfig, config, presets, pac
     onPackSelect?.(pack === 'All' ? '' : pack)
   }
 
-  const handlePresetClick = (preset: PresetMeta, event: PresetRetrieveEvent): void => {
+  const handlePresetClick = useCallback((preset: PresetMeta, event: PresetRetrieveEvent): void => {
     const packMeta = packMap.get(preset.pack)
     if (packMeta?.isPremium && !packMeta.isOwn) {
       setTrialPresetKey(preset.id ?? preset.name)
@@ -70,13 +71,38 @@ const PresetsInner = ({ retrieveConfigPreset, revertConfig, config, presets, pac
       void retrieveConfigPreset(event)
     }
     onSelect?.({ name: preset.name, label: preset.label, pack: preset.pack, isOwn: preset.isOwn })
-  }
+  }, [packMap, startTrial, cancelTrial, retrieveConfigPreset, onSelect])
+
+  useEffect(() => {
+    // Popped-out config windows render this component into a separate window.open()
+    // document, so the listener must attach to that document rather than the global
+    // one or hotkeys silently do nothing there.
+    const ownerDocument = containerRef.current?.ownerDocument ?? document
+    const handleKeyDown = (e: KeyboardEvent): void => {
+      if (ownerDocument.activeElement?.tagName === 'INPUT') return
+      if (e.repeat) return
+      if (e.metaKey || e.ctrlKey || e.altKey) return
+      if (modalVisible) return
+      const activeMeta = packMap.get(activePack)
+      if (activeMeta?.isPremium && !activeMeta.isOwn && !previewMode) return
+      const hotkeyIndex = Number(e.key) - 1
+      if (!Number.isInteger(hotkeyIndex) || hotkeyIndex < 0 || hotkeyIndex > 8) return
+      const preset = visible[hotkeyIndex]
+      if (!preset) return
+      const event: PresetRetrieveEvent = {
+        currentTarget: { dataset: { name: String(preset.name), id: preset.id ?? '' } },
+      }
+      handlePresetClick(preset, event)
+    }
+    ownerDocument.addEventListener('keydown', handleKeyDown)
+    return () => ownerDocument.removeEventListener('keydown', handleKeyDown)
+  }, [visible, activePack, previewMode, modalVisible, packMap, handlePresetClick])
 
   return (
     <>
       <Row>
         <Col className={`presets-container${expanded ? ' presets-container--expanded' : ''}`}>
-          <div className='pack-tabs-row'>
+          <div ref={containerRef} className='pack-tabs-row'>
             <div className='pack-tabs'>
               {packNames.map(pack => {
                 const meta = packMap.get(pack)
@@ -105,7 +131,7 @@ const PresetsInner = ({ retrieveConfigPreset, revertConfig, config, presets, pac
               ) : null
             })()}
             <div className={`presets-grid${expanded ? ' presets-grid--expanded' : ''}${paging ? ' paging' : ''}`}>
-              {visible.map((preset) => {
+              {visible.map((preset, index) => {
                 const { id, name, label, sprite } = preset
                 const event: PresetRetrieveEvent = {
                   currentTarget: { dataset: { name: String(name), id: id ?? '' } },
@@ -113,6 +139,7 @@ const PresetsInner = ({ retrieveConfigPreset, revertConfig, config, presets, pac
                 const isTrialing = trialPresetKey === (id ?? name) && secondsLeft !== null
                 const presetPackMeta = packMap.get(preset.pack)
                 const isPremiumUnowned = presetPackMeta?.isPremium && !presetPackMeta.isOwn
+                const hotkey = index < 9 ? index + 1 : null
                 return (
                   <button
                     key={id ?? name}
@@ -121,6 +148,11 @@ const PresetsInner = ({ retrieveConfigPreset, revertConfig, config, presets, pac
                     data-id={id ?? ''}
                     onClick={() => handlePresetClick(preset, event)}
                   >
+                    {hotkey !== null && (
+                      <span className='preset-hotkey-badge'>
+                        <span className='preset-hotkey-badge-num'>{hotkey}</span>
+                      </span>
+                    )}
                     <img src={presetSpriteSrc(sprite)} alt='' className='preset-sprite' />
                     <span>{label}</span>
                     {isTrialing && <span className='preset-trial-countdown'>{secondsLeft}</span>}
