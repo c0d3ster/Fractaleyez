@@ -6829,6 +6829,11 @@ spdy@^4.0.2:
     select-hose "^2.0.0"
     spdy-transport "^3.0.0"
 
+sprite-strip@^0.1.0:
+  version "0.1.0"
+  resolved "https://registry.yarnpkg.com/sprite-strip/-/sprite-strip-0.1.0.tgz#d37ffbc876d9fcd544f26cef4cb7ca632d4d2e6d"
+  integrity sha512-OAc/w7bs6SqkcboVsNDwlKEuxKcxSRqrcpUmYpdkMkkof8g+4SRIC0tupw2yxRxxq4QWhaXEfNUh1miARBnj4g==
+
 stackback@0.0.2:
   version "0.0.2"
   resolved "https://registry.yarnpkg.com/stackback/-/stackback-0.0.2.tgz#1ac8a0d9483848d1695e418b6d031a3c3ce68e3b"
