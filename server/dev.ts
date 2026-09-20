@@ -8,7 +8,7 @@ import { packsHandler } from './routes/packsHandler'
 import { myPacksHandler } from './routes/myPacksHandler'
 import { createPackHandler } from './routes/createPackHandler'
 import { uploadParticleHandler, MAX_UPLOAD_BYTES } from './routes/uploadParticleHandler'
-import { meHandler } from './routes/meHandler'
+import { meHandler, updateMeHandler } from './routes/meHandler'
 import { clerkWebhookHandler, MAX_WEBHOOK_BYTES } from './routes/clerkWebhookHandler'
 
 const BUILD_DIR = path.join(__dirname, '../public/')
@@ -24,6 +24,7 @@ app.use(express.urlencoded({ extended: true }))
 app.use(express.json())
 
 app.get('/api/me', meHandler)
+app.patch('/api/me', updateMeHandler)
 app.get('/api/presets', presetsHandler)
 app.get('/api/preset', presetHandler)
 app.post('/api/savePreset', savePresetHandler)
