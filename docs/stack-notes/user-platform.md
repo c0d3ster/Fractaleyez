@@ -129,3 +129,132 @@ issues addressed on this branch after the initial implementation above:
   `incomingOpacity + outgoingOpacity = 1` invariant linear crossfading has — `t² + (1-t)²`
   dips to 0.5 at the midpoint, causing a visible mid-fade dim and end-of-fade flash, which was
   worse than the original front-loaded-but-smooth linear fade. Reverted back to plain linear.
+
+## #3 Create a `users` collection in Mongo keyed by `clerkId`
+
+Branch: overnight/2026-09-19/03-users-collection
+
+### Note on branch/session history
+
+A prior overnight run had already created and checked out this branch (correctly
+based on `overnight/2026-08-07/02-particle-crossfade`, the stack's latest tip) and run
+`yarn add svix`, but left no commits — `package.json`/`yarn.lock` had the uncommitted
+`svix` addition and nothing else. This session continued on that same branch rather
+than re-branching, since it was already positioned correctly.
+
+### Schema and atomic upsert
+
+`server/models/User.ts`: `clerkId` (unique index, DB-enforced), `displayName`,
+`settings` (`crossfadeDurationMs`, `logoParticle`, `hud`), Mongoose `timestamps`.
+`logoParticle` is the field the config-gear task is expected to write and the
+`@user` resolver task is expected to read (per this task's own description) —
+no other code references it yet.
+
+`server/repositories/UserRepository.ts#upsertByClerkId(clerkId, fields)` is the one
+write path both callers below share: `findOneAndUpdate({ clerkId }, update, { upsert:
+true, new: true, setDefaultsOnInsert: true })` with `$setOnInsert` for `clerkId`/
+`settings` and (only when `fields` is non-empty) `$set` for the rest. This is
+deliberately *not* the "replace whole document" style `PresetRepository.upsert` uses
+(that's fine there since `savePreset(force: true)` intends a full overwrite) — a full
+replace here would wipe `settings`/`displayName` every time `getOrCreateUser` runs
+with only a `clerkId` and no other fields. `$setOnInsert`-only (no `$set` key at all,
+since MongoDB rejects an empty `$set: {}`) is what makes a plain lazy-create a pure
+fetch-or-create with zero side effects on an existing document, and what makes a
+redelivered webhook's `$set: { displayName }` idempotent rather than a second insert.
+Verified under `mongodb-memory-server`: 10 concurrent `upsertByClerkId` calls for a
+fresh `clerkId` converge on exactly one document (`UserRepository.test.ts`).
+
+`server/services/UserService.ts`: `getOrCreateUser(clerkId)` = `upsertByClerkId(clerkId,
+{})`; `syncFromClerk(userJson)` = `upsertByClerkId(userJson.id, { displayName:
+resolveDisplayName(userJson) })`.
+
+### `/api/me` (sub-task 3)
+
+`server/routes/meHandler.ts` + `api/me.ts`, mounted as `GET /api/me` in `server/dev.ts`
+(kept a GET, matching the read-endpoint convention `presetsHandler`/`packsHandler`
+already use, since it's an idempotent fetch-or-create from the caller's perspective).
+Only calls `getOrCreateUser(clerkId)` — no Clerk API call, no display-name write; that
+sync is the webhook's job (see below), since `user.created`/`user.updated` payloads
+already carry the full profile with no extra fetch needed.
+
+`ConfigProvider.tsx` calls it in its own `useEffect` (only when `isSignedIn`), with its
+own try/catch that only `console.error`s — it doesn't touch `presetList`/`packList`
+state or share a promise with those effects, so a timeout/5xx here structurally cannot
+block preset/pack loading or the bundled-preset fallback (acceptance criterion).
+Response isn't consumed yet (no context field added) — the config-gear/`@user`-resolver
+tasks that need `logoParticle`/`settings` client-side land later in this stack.
+
+### Clerk webhook (sub-task 4)
+
+`server/routes/clerkWebhookHandler.ts` + `api/clerkWebhook.ts`, mounted as `POST
+/api/clerkWebhook`. Verifies via `svix`'s `Webhook.verify()` (new dep, already present
+on this branch from the prior session's `yarn add`) against `CLERK_WEBHOOK_SECRET`.
+Needs the *raw* body, which conflicts with `dev.ts`'s global `express.json()` — solved
+by registering this route with its own `express.raw({ type: 'application/json' })`
+*before* `app.use(express.json())`/`express.urlencoded()` are mounted, mirroring the
+existing `uploadParticleHandler` pattern for `express.raw`. The Vercel adapter
+(`api/clerkWebhook.ts`) disables `bodyParser` and reads the raw stream itself, same
+shape as `api/uploadParticle.ts`, with an added `MAX_WEBHOOK_BYTES` (1MB) ceiling since
+this route has no auth check before the body is fully read (the signature check *is*
+the auth check, and it needs the whole body first).
+
+`verify()`'s return type is `unknown` (svix has no generic overload); narrowed with two
+hand-written type guards (`isClerkEventEnvelope`, `isUserPayload`) rather than a cast,
+per the "unknown at a true external boundary, narrowed before use" rule — this is
+exactly that boundary. Non-`user.created`/`user.updated` events (e.g. `user.deleted`,
+`session.*`) are acked 200 without action; a payload that verifies but is missing the
+minimal expected shape is rejected 400. `syncFromClerk` reuses the same
+`upsertByClerkId` as `getOrCreateUser`, so a redelivered event is a no-op re-application
+of the same `$set`, not a duplicate insert or a stale overwrite of a since-changed name.
+
+### Investigation: Google vs Spotify display name (sub-task 5)
+
+From `@clerk/backend`'s own type shapes (`UserJSON`, `ExternalAccountJSON`), not a live
+dashboard session:
+- **Google** is one of Clerk's built-in social connections, so Clerk maps its profile
+  fields into the top-level `User`/`UserJSON` payload directly: `first_name`,
+  `last_name`, `image_url` are populated from the Google account with no extra work.
+- **Spotify** is not one of Clerk's built-in providers (no Clerk-native "Sign in with
+  Spotify" — Clerk's supported social connection list doesn't include it as of this
+  session's `@clerk/backend` version), so it's necessarily configured as a *custom*
+  OAuth provider in the dashboard. Custom OAuth providers don't get the same automatic
+  field mapping into `first_name`/`last_name`; whatever the userinfo endpoint returns
+  either goes unset on those top-level fields, or is captured on the corresponding
+  `external_accounts[]` entry's own `username`/`public_metadata` (the same JSON shape
+  Google's entry also has, it's just that Google's is redundant with the top-level
+  fields while a custom provider's may be the *only* place the data lands). Spotify's
+  own `/v1/me` API field for a user's display name is literally called `display_name`,
+  which is why `resolveDisplayName()` checks `external_accounts[].public_metadata
+  .display_name` as a fallback after `username`.
+- `resolveDisplayName()` (`UserService.ts`) order: native `first_name`/`last_name` →
+  first external account with a name/username/`public_metadata.display_name` → Clerk
+  `username` → primary email local-part → `''`.
+- **NEEDS HUMAN**: this is inferred from the type shapes and Clerk's public docs on
+  custom OAuth providers, not confirmed against this app's actual Clerk dashboard
+  config. Whoever has dashboard access should confirm (a) Spotify is in fact configured
+  as a custom OAuth connection (vs. e.g. SAML/OIDC or a since-added native option), and
+  (b) which of `username` / `public_metadata.display_name` / some other custom-mapped
+  field it actually populates, then adjust `resolveDisplayName()` if the real shape
+  differs. See TASKS.md NEEDS HUMAN note.
+
+### Verified
+
+- `yarn typecheck` (src only, per this repo's own script), `yarn lint` (src only, same),
+  and `tsc --noEmit -p api/tsconfig.json --ignoreDeprecations 6.0` (covers `server/`/
+  `api/` transitively via imports, since neither has its own lint/typecheck script) all
+  pass with no new errors — one pre-existing unrelated error in `api/ping.ts` predates
+  this task and wasn't touched.
+- `yarn test`: 35 tests pass across 6 files, including a real `mongodb-memory-server`
+  concurrency test for the upsert (`UserRepository.test.ts`), pure-logic coverage for
+  `resolveDisplayName` (`UserService.test.ts`), and mocked-dependency coverage for both
+  handlers (`meHandler.test.ts`, `clerkWebhookHandler.test.ts`).
+
+### Known deviation / limitation
+
+- No context/state on the client consumes the `/api/me` response yet — this task's
+  acceptance criteria only require the call to happen and not block anything, not that
+  anything downstream reacts to it. `settings.logoParticle` exists in the schema for a
+  later task to read/write, per this task's own description of the field's purpose.
+- `CLERK_WEBHOOK_SECRET` registration (Clerk dashboard endpoint URL + signing secret
+  into Vercel/`.env`) and the Spotify provider-config confirmation above are both
+  NEEDS HUMAN — code side is otherwise complete and tested.

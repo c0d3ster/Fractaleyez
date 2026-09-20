@@ -6847,6 +6847,14 @@ standardwebhooks@^1.0.0:
     "@stablelib/base64" "^1.0.0"
     fast-sha256 "^1.3.0"
 
+standardwebhooks@^1.1.1:
+  version "1.1.1"
+  resolved "https://registry.yarnpkg.com/standardwebhooks/-/standardwebhooks-1.1.1.tgz#25b98fa2bbe4edad7b42778135c923563e3d5e2f"
+  integrity sha512-bCbX9ZEyFkWPsRz7Bl3NuQUJohmwGSev/yhr7vhaGPlc4AfIrspIRa6cPTBuI1ItmrTDJ4d/S2hCsfe4+vQGnQ==
+  dependencies:
+    "@stablelib/base64" "^1.0.0"
+    fast-sha256 "^1.3.0"
+
 stats-js@^1.0.0-alpha1:
   version "1.0.1"
   resolved "https://registry.yarnpkg.com/stats-js/-/stats-js-1.0.1.tgz#377c36490c1935b9a4e68bf3acc3afeb59878f66"
@@ -6963,6 +6971,13 @@ supports-preserve-symlinks-flag@^1.0.0:
   version "1.0.0"
   resolved "https://registry.yarnpkg.com/supports-preserve-symlinks-flag/-/supports-preserve-symlinks-flag-1.0.0.tgz#6eda4bd344a3c94aea376d4cc31bc77311039e09"
   integrity sha512-ot0WnXS9fgdkgIcePe6RHNk1WA8+muPa6cSjeR3V8K27q9BB1rTE3R1p7Hv0z1ZyAc8s6Vvv8DIyWf681MAt0w==
+
+svix@^2.5.0:
+  version "2.5.0"
+  resolved "https://registry.yarnpkg.com/svix/-/svix-2.5.0.tgz#c47315866d5abbec7bb1ef1d7a3131c2cba4197a"
+  integrity sha512-mqcwCPKL6J5yqC2EQy5ZqE5XEJriCZffy49EGBDCsnrQ7RAYF4kZLJhKfXrB0n21S+3M9qYmQ9YjzrNjRlIuCw==
+  dependencies:
+    standardwebhooks "^1.1.1"
 
 swr@2.3.4:
   version "2.3.4"
