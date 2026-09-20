@@ -258,3 +258,139 @@ dashboard session:
 - `CLERK_WEBHOOK_SECRET` registration (Clerk dashboard endpoint URL + signing secret
   into Vercel/`.env`) and the Spotify provider-config confirmation above are both
   NEEDS HUMAN — code side is otherwise complete and tested.
+
+## #4 Add configuration gear for per-user settings
+
+Branch: overnight/2026-09-20/04-config-gear-user-settings
+
+### Note on a concurrent duplicate dispatch
+
+Partway through this session, a second overnight subprocess (`nightlight-75`) also picked up
+task #4 on this same branch/working tree -- apparently the Ctrl+C-orphaned-process issue noted
+elsewhere in this run (an interrupted earlier dispatch kept running and collided with the
+fresh one). It found this session's work already in place, deleted the one duplicate file it
+had started (`src/components/topbar/UserSettingsGear.tsx`) and its one edit to `TopBar.tsx`,
+messaged this session to say so, and stepped back without committing. `git status` was checked
+against that message and confirmed clean -- no stray files, `TopBar.tsx` matched what this
+session wrote. That other session should self-report `status=blocked` so housekeeping doesn't
+expect a second PR for #4.
+
+### `/api/me` PATCH (sub-task 1)
+
+Extended the existing `/api/me` resource (GET, from #3) with `updateMeHandler` (PATCH) in the
+same `meHandler.ts`, rather than a new `/api/userSettings` route -- one resource, two verbs,
+matches how `server/dev.ts` already mounts routes. Wired into `server/dev.ts`
+(`app.patch('/api/me', ...)`) and `api/me.ts` (dispatches on `req.method`, since a Vercel
+serverless function is one file per path, unlike Express's per-verb routing).
+
+Validates each field present in the body independently (`crossfadeDurationMs` in
+`[200, 2000]`, `logoParticle` a non-empty non-`data:` URL string up to 2048 chars, `hud`
+either absent or `{ enabledFreqBands?: boolean[] }` up to 16 entries) and 400s on the first
+bad one; an empty/absent patch is also a 400. `CROSSFADE_DURATION_MIN_MS`/`MAX_MS` are
+duplicated as local consts in `meHandler.ts` with a comment pointing at
+`visualizer.config.ts`'s copy -- server code never imports from `src/` (confirmed no existing
+precedent for it), so this mirrors the existing client/server constant-duplication pattern
+`uploadParticleHandler.ts` already uses for `MAX_UPLOAD_BYTES`.
+
+`UserRepository.updateSettings(clerkId, patch)`: dot-notated `$set` (`settings.crossfadeDurationMs`,
+etc.) so a partial patch can't clobber sibling settings fields. Deliberately *not* folded into
+`upsertByClerkId`'s single-update style -- `$setOnInsert: { settings: {} }` and
+`$set: { 'settings.x': ... }` target overlapping paths, which MongoDB rejects as a conflict.
+Instead: try a plain `$set`-only `findOneAndUpdate` first (the common case, doc already exists
+from the sign-in lazy-create in #3); if it returns null, call the existing tested
+`upsertByClerkId(clerkId, {})` to create the doc, then retry the same `$set`. Verified under
+`mongodb-memory-server`: partial patches merge correctly, hud settings survive alongside
+crossfade settings, doc-doesn't-exist-yet is idempotent (`UserRepository.test.ts`).
+
+### Crossfade duration became a runtime-mutable value (sub-task 4, crossfade wiring)
+
+`PARTICLE_CROSSFADE_DURATION_MS` (from #2, `visualizer.config.ts`) was a plain `const` read
+directly by `hopalong-manager.ts`/`hopalong-visualizer.ts` at ~7 call sites. Made it
+user-configurable by turning it into a module-private mutable variable with
+`getParticleCrossfadeDurationMs()`/`setParticleCrossfadeDurationMs(ms)` (clamped to
+`[PARTICLE_CROSSFADE_DURATION_MIN_MS, PARTICLE_CROSSFADE_DURATION_MAX_MS]` = `[200, 2000]`) --
+same "poll a live value" shape `HopalongManager`/`HopalongVisualizer` already use for
+`window.config` every frame, so every call site just swapped the constant reference for a
+getter call. `ConfigProvider` calls the setter once on `/api/me` load and again on every
+`updateUserSettings({ crossfadeDurationMs })` call, so a mid-session slider drag takes effect
+on the *next* crossfade this triggers (in-flight fades keep whatever duration they already
+captured into their own `durationMs` field, unaffected -- same as a preset switch mid-fade
+already worked before this task).
+
+Known limitation carried over from #2's tuning: `MAX_CROSSFADE_GENERATIONS` (4) and
+`updateOrbit()`'s 250ms poll interval were tuned assuming the *default* 750ms duration
+(3 outgoing slots x 250ms = 750ms, no truncation gap). A user who sets a longer duration
+(e.g. 2000ms) can still hit the generation cap under rapid successive changes, which force-
+finishes the oldest still-fading generation early -- this was already documented/accepted
+behavior in #2 for exactly this scenario, just now reachable via a user setting instead of
+only via rapid preset switching.
+
+### HUD (frequency band) persistence (sub-task 4, HUD wiring)
+
+`FrequencyHud.tsx` previously owned `enabledBands` as pure local state seeded once from
+`window.enabledFreqBands` (a global `HopalongManager`/`hopalong-manager.ts` already polls for
+frequency masking) with no persistence. Wrapped it with `connectConfig` (same HOC
+`ParticleSpriteHud` already uses) so it reads `userSettings.hud.enabledFreqBands` and calls
+`updateUserSettings({ hud: { enabledFreqBands } })` on every band toggle, alongside its
+existing direct write to `window.enabledFreqBands` (kept as-is since that's the only thing
+`hopalong-manager.ts` actually reads live). A one-time-apply ref guards against the
+persisted setting (arrives async after mount) overwriting a toggle the user made before it
+loaded.
+
+`FrequencyHud` is only ever rendered inside `ConfigWindow.tsx`'s `ExternalWindowBridge` (the
+popped-out config window has its own separate React root/`ConfigContext.Provider`, manually
+re-provided from an explicit prop whitelist -- it does not inherit context by nesting alone
+since it's a different window/document). `userSettings`/`updateUserSettings` had to be added
+to that whitelist (both the `ExternalWindowBridge` props/JSX and `ConfigWindowInner`'s
+render-effect dependency array) or the popout's `FrequencyHud` would silently see
+`userSettings: undefined` forever.
+
+### Config gear UI (sub-tasks 2-3)
+
+`src/components/settings/UserSettingsPanel.tsx` -- gear button (⚙) placed in `TopBar.tsx`
+next to `UserButton`, inside the same `isSignedIn` conditional branch that already guards
+`UserButton` itself (satisfies "hidden when signed out" for free, no separate guard needed
+at the call site; the component also self-guards with its own `isSignedIn` check as
+defense-in-depth for any future call site). Panel contents: the existing `ConfigSlider`
+component (reused as-is, same one `ConfigCategory` sliders use) for crossfade duration, and a
+file-upload control for the logo that reuses the *existing* `/api/uploadParticle` R2 endpoint
+from #3's sibling R2 task -- not a new endpoint, and not the old inline `data:` URL path
+(`updateMeHandler` explicitly rejects `data:` URLs for `logoParticle`, enforcing this at the
+API boundary too, not just client-side).
+
+Extracted `prepareImageDataUrl`/`dataUrlToBlob` out of `ParticleSpriteHud.tsx` into
+`src/utils/imageUpload.ts` since both it and the new logo upload need identical
+resize-before-upload logic -- real duplication now that a second call site exists, not
+speculative reuse.
+
+Both the slider and the upload funnel through `ConfigProvider`'s single
+`updateUserSettings(patch)`: applies local state + the live side effects (crossfade setter /
+`window.enabledFreqBands`) immediately for responsive UI, then debounces the actual `/api/me`
+PATCH by `USER_SETTINGS_SAVE_DEBOUNCE_MS` (500ms) so a slider drag or rapid HUD clicks
+collapse into one request. Per the task's own "missing acceptance criteria" note, there's no
+explicit Save button -- auto-save on change (debounced) was the assumption, applied here.
+`updateUserSettings` skips the network write entirely when signed out (no user doc to write
+to) but still applies local/side-effect state, so the same controls keep working
+client-only for a signed-out visitor, consistent with how every other config control in
+`ConfigProvider.tsx` already behaves.
+
+### Verified
+
+- `yarn typecheck`, `yarn lint`, `yarn test` (48 tests across 6 files, including 4 new
+  `UserRepository.updateSettings` cases and 9 new `updateMeHandler` cases) all pass.
+- `tsc --noEmit -p api/tsconfig.json --ignoreDeprecations 6.0` shows only the same
+  pre-existing unrelated `api/ping.ts` error noted in #3's own verification.
+- `yarn build` (production webpack) succeeds.
+- No live-browser verification this session -- `.env` (Clerk/Mongo credentials needed for
+  `yarn dev`) was inaccessible to this sandboxed session (blocked by a deny rule), so the gear
+  panel, upload flow, and persisted-HUD-toggle round trip are unverified beyond
+  typecheck/lint/unit tests and a successful production build.
+
+### Known deviation / limitation
+
+- `logoParticle` is written and persisted but not yet consumed anywhere in the visualization
+  -- per #3's own stack-notes entry, that's the `@user resolver task`'s job, not this one's.
+- No "remove logo" affordance -- `updateMeHandler` requires `logoParticle` to be a non-empty
+  URL, so clearing it isn't supported by the current API; only upload/replace is exposed.
+  Out of scope for this task's sub-tasks as written; a future task can add a clear/delete path
+  if wanted.
