@@ -4,7 +4,7 @@ import { EffectComposer, ShockWaveEffect, RenderPass, BloomEffect, EffectPass } 
 import { HopalongVisualizer } from './hopalong-visualizer'
 import { CameraManager } from './camera-manager'
 import { AudioAnalysedDataForVisualization } from '../audioanalysis/audio-analysed-data'
-import { PARTICLE_CROSSFADE_DURATION_MS, MAX_CROSSFADE_GENERATIONS } from '../config/visualizer.config'
+import { getParticleCrossfadeDurationMs, MAX_CROSSFADE_GENERATIONS } from '../config/visualizer.config'
 
 type ParticleCrossfade = {
   outgoing: HopalongVisualizer
@@ -40,7 +40,7 @@ export class HopalongManager {
     this.shockwaveEffect = null
     this.effectPass = null
     this.crossfades = []
-    this.incomingElapsedMs = PARTICLE_CROSSFADE_DURATION_MS
+    this.incomingElapsedMs = getParticleCrossfadeDurationMs()
   }
 
   init = (_startTimer: Date): void => {
@@ -183,14 +183,15 @@ export class HopalongManager {
 
     this.hopalongVisualizer = incoming
     this.incomingElapsedMs = 0
-    this.crossfades.push({ outgoing, elapsedMs: 0, durationMs: PARTICLE_CROSSFADE_DURATION_MS })
+    this.crossfades.push({ outgoing, elapsedMs: 0, durationMs: getParticleCrossfadeDurationMs() })
     this.setupEffects()
   }
 
   advanceCrossfades = (deltaTime: number): void => {
-    if (this.incomingElapsedMs < PARTICLE_CROSSFADE_DURATION_MS) {
-      this.incomingElapsedMs = Math.min(PARTICLE_CROSSFADE_DURATION_MS, this.incomingElapsedMs + deltaTime)
-      this.setParticleOpacity(this.hopalongVisualizer!, this.incomingElapsedMs / PARTICLE_CROSSFADE_DURATION_MS)
+    const incomingDurationMs = getParticleCrossfadeDurationMs()
+    if (this.incomingElapsedMs < incomingDurationMs) {
+      this.incomingElapsedMs = Math.min(incomingDurationMs, this.incomingElapsedMs + deltaTime)
+      this.setParticleOpacity(this.hopalongVisualizer!, this.incomingElapsedMs / incomingDurationMs)
     }
 
     this.crossfades = this.crossfades.filter((cf) => {

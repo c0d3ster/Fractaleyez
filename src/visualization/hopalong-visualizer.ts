@@ -3,7 +3,7 @@ import * as THREE from 'three'
 import { AudioAnalysedDataForVisualization } from '../audioanalysis/audio-analysed-data'
 import { getResolvedSpriteUrl } from '../utils/spriteCache'
 import { acquireSpriteTexture, releaseSpriteTexture } from '../utils/textureCache'
-import { PARTICLE_CROSSFADE_DURATION_MS, MAX_CROSSFADE_GENERATIONS } from '../config/visualizer.config'
+import { getParticleCrossfadeDurationMs, MAX_CROSSFADE_GENERATIONS } from '../config/visualizer.config'
 
 /*
  * ORIGINAL AUTHOR: Iacopo Sassarini
@@ -117,7 +117,7 @@ export class HopalongVisualizer {
     this.updateInterval = undefined
     this.frozen = false
     this.orbitFades = []
-    this.orbitIncomingElapsedMs = PARTICLE_CROSSFADE_DURATION_MS
+    this.orbitIncomingElapsedMs = getParticleCrossfadeDurationMs()
 
     for (let i = 0; i < this.layers; i++) {
       const subsetPoints: SubsetPoint[] = []
@@ -430,13 +430,14 @@ export class HopalongVisualizer {
 
     this.objects = incoming
     this.orbitIncomingElapsedMs = 0
-    this.orbitFades.push({ outgoing, elapsedMs: 0, durationMs: PARTICLE_CROSSFADE_DURATION_MS })
+    this.orbitFades.push({ outgoing, elapsedMs: 0, durationMs: getParticleCrossfadeDurationMs() })
   }
 
   private advanceOrbitFade = (deltaTime: number): void => {
-    if (this.orbitIncomingElapsedMs < PARTICLE_CROSSFADE_DURATION_MS) {
-      this.orbitIncomingElapsedMs = Math.min(PARTICLE_CROSSFADE_DURATION_MS, this.orbitIncomingElapsedMs + deltaTime)
-      this.setObjectsOpacity(this.objects, this.orbitIncomingElapsedMs / PARTICLE_CROSSFADE_DURATION_MS)
+    const incomingDurationMs = getParticleCrossfadeDurationMs()
+    if (this.orbitIncomingElapsedMs < incomingDurationMs) {
+      this.orbitIncomingElapsedMs = Math.min(incomingDurationMs, this.orbitIncomingElapsedMs + deltaTime)
+      this.setObjectsOpacity(this.objects, this.orbitIncomingElapsedMs / incomingDurationMs)
     }
 
     this.orbitFades = this.orbitFades.filter((fade) => {
