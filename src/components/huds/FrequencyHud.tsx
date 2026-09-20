@@ -1,6 +1,9 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react'
 import './FrequencyHud.css'
 
+import { connectConfig } from '../config/context/ConfigProvider'
+import { UserSettings } from '../../config/userSettings.config'
+
 const VISIBLE_BANDS = 7
 const LABELS = ['sub', 'bass', 'lo', 'mid', 'hi', 'pre', 'bri']
 const W = 180
@@ -28,13 +31,34 @@ const roundRect = (ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
   ctx.fill()
 }
 
-export const FrequencyHud = (): React.ReactElement => {
+type FrequencyHudProps = {
+  userSettings: UserSettings | null
+  updateUserSettings: (patch: Partial<UserSettings>) => void
+}
+
+const FrequencyHudInner = ({ userSettings, updateUserSettings }: FrequencyHudProps): React.ReactElement => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const rafRef = useRef<number>(0)
+  // Persisted settings (loaded async from /api/me) take priority once they arrive; until then,
+  // fall back to whatever the live global already holds (e.g. from an earlier session tab).
   const [enabledBands, setEnabledBands] = useState<boolean[]>(() =>
-    (window.enabledFreqBands ?? [true, true, true, true, true, false, false, false]).slice(0, VISIBLE_BANDS)
+    (userSettings?.hud?.enabledFreqBands ?? window.enabledFreqBands ?? [true, true, true, true, true, false, false, false]).slice(0, VISIBLE_BANDS)
   )
   const enabledBandsRef = useRef(enabledBands)
+  const appliedPersistedRef = useRef(false)
+
+  // One-time sync once the persisted setting actually loads (it arrives after this component's
+  // initial mount, since /api/me is fetched async) -- doesn't refire on every settings patch,
+  // otherwise a locally-driven toggle below would get overwritten by its own stale closure.
+  useEffect(() => {
+    if (appliedPersistedRef.current) return
+    const persisted = userSettings?.hud?.enabledFreqBands
+    if (!persisted) return
+    appliedPersistedRef.current = true
+    const next = persisted.slice(0, VISIBLE_BANDS)
+    enabledBandsRef.current = next
+    setEnabledBands(next)
+  }, [userSettings])
 
   const toggleBand = useCallback((i: number) => {
     setEnabledBands(prev => {
@@ -44,9 +68,10 @@ export const FrequencyHud = (): React.ReactElement => {
       if (window.enabledFreqBands) {
         next.forEach((v, idx) => { window.enabledFreqBands![idx] = v })
       }
+      updateUserSettings({ hud: { enabledFreqBands: next } })
       return next
     })
-  }, [])
+  }, [updateUserSettings])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -149,3 +174,5 @@ export const FrequencyHud = (): React.ReactElement => {
     </div>
   )
 }
+
+export const FrequencyHud = connectConfig(FrequencyHudInner)

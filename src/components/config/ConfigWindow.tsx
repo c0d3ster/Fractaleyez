@@ -55,6 +55,8 @@ const ExternalWindowBridge = ({
   getToken,
   presets,
   packs,
+  userSettings,
+  updateUserSettings,
 }: ExternalWindowBridgeProps): React.ReactElement => {
   const [prefill, setPrefill] = useState<PresetSelection | null>(null)
   return (
@@ -73,6 +75,8 @@ const ExternalWindowBridge = ({
         getToken,
         presets,
         packs,
+        userSettings,
+        updateUserSettings,
       }}
     >
       <Grid>
@@ -145,6 +149,8 @@ const ConfigWindowInner = ({
   getToken,
   presets,
   packs,
+  userSettings,
+  updateUserSettings,
   onClose,
 }: ConfigWindowProps): null => {
   const reactRootRef = useRef<Root | null>(null)
@@ -208,6 +214,8 @@ const ConfigWindowInner = ({
         getToken={getToken}
         presets={presets}
         packs={packs}
+        userSettings={userSettings}
+        updateUserSettings={updateUserSettings}
       />
     )
   }, [
@@ -223,6 +231,8 @@ const ConfigWindowInner = ({
     currentUserId,
     getToken,
     presets,
+    userSettings,
+    updateUserSettings,
   ])
 
   return null
