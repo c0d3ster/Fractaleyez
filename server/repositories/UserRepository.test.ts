@@ -62,3 +62,33 @@ describe('UserRepository.upsertByClerkId', () => {
     expect(await User.countDocuments({ clerkId: 'user_race' })).toBe(1)
   })
 })
+
+describe('UserRepository.updateSettings', () => {
+  it('creates the user doc and applies the patch when none exists yet', async () => {
+    const user = await userRepository.updateSettings('user_settings_1', { crossfadeDurationMs: 500 })
+    expect(user.settings.crossfadeDurationMs).toBe(500)
+    expect(await User.countDocuments({ clerkId: 'user_settings_1' })).toBe(1)
+  })
+
+  it('merges a partial patch without clobbering sibling settings fields', async () => {
+    await userRepository.upsertByClerkId('user_settings_2', {})
+    await userRepository.updateSettings('user_settings_2', { crossfadeDurationMs: 1200 })
+    const updated = await userRepository.updateSettings('user_settings_2', { logoParticle: 'https://cdn.example.com/logo.png' })
+    expect(updated.settings.crossfadeDurationMs).toBe(1200)
+    expect(updated.settings.logoParticle).toBe('https://cdn.example.com/logo.png')
+  })
+
+  it('merges hud settings alongside other fields', async () => {
+    await userRepository.upsertByClerkId('user_settings_3', {})
+    await userRepository.updateSettings('user_settings_3', { crossfadeDurationMs: 900 })
+    const updated = await userRepository.updateSettings('user_settings_3', { hud: { enabledFreqBands: [true, false, true] } })
+    expect(updated.settings.crossfadeDurationMs).toBe(900)
+    expect(updated.settings.hud).toEqual({ enabledFreqBands: [true, false, true] })
+  })
+
+  it('is idempotent when the same patch is applied twice', async () => {
+    await userRepository.updateSettings('user_settings_4', { crossfadeDurationMs: 750 })
+    await userRepository.updateSettings('user_settings_4', { crossfadeDurationMs: 750 })
+    expect(await User.countDocuments({ clerkId: 'user_settings_4' })).toBe(1)
+  })
+})

@@ -1,6 +1,6 @@
 import type { UserJSON } from '@clerk/backend'
 import { userRepository } from '../repositories/UserRepository'
-import { IUser } from '../models/User'
+import { IUser, UserSettings } from '../models/User'
 
 const primaryEmailLocalPart = (user: UserJSON): string | null => {
   const primary = user.email_addresses.find(e => e.id === user.primary_email_address_id)
@@ -39,6 +39,10 @@ export class UserService {
 
   async syncFromClerk(user: UserJSON): Promise<IUser> {
     return userRepository.upsertByClerkId(user.id, { displayName: resolveDisplayName(user) })
+  }
+
+  async updateSettings(clerkId: string, patch: Partial<UserSettings>): Promise<IUser> {
+    return userRepository.updateSettings(clerkId, patch)
   }
 }
 
