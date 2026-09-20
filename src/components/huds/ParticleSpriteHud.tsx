@@ -6,49 +6,13 @@ import { connectConfig } from '../config/context/ConfigProvider'
 import { AppConfig } from '../../config/configDefaults'
 import { BUILTIN_PARTICLE_SPRITES, particleConfig } from '../../config/particle.config'
 import { presetSpriteSrc } from '../../utils/presetSpriteSrc'
+import { prepareImageDataUrl, dataUrlToBlob } from '../../utils/imageUpload'
 
 // Mirrors the server's MAX_UPLOAD_BYTES / MAX_DECODED_DIMENSION_PX in uploadParticleHandler.ts —
 // these client-side checks only save a round trip, the server enforces its own limits independently.
 const MAX_DATA_URL_BYTES = 2 * 1024 * 1024
 const SPRITE_MAX_SIDE_PX = 512
 const UPLOAD_ERROR_DISPLAY_MS = 4000
-
-const prepareSpriteDataUrl = (dataUrl: string, maxSide: number): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const img = new Image()
-    img.onload = () => {
-      const w = img.naturalWidth
-      const h = img.naturalHeight
-      const maxDim = Math.max(w, h)
-      if (maxDim <= maxSide || maxDim === 0) {
-        resolve(dataUrl)
-        return
-      }
-      const scale = maxSide / maxDim
-      const newW = Math.max(1, Math.round(w * scale))
-      const newH = Math.max(1, Math.round(h * scale))
-      const canvas = document.createElement('canvas')
-      canvas.width = newW
-      canvas.height = newH
-      const ctx = canvas.getContext('2d')
-      if (!ctx) {
-        resolve(dataUrl)
-        return
-      }
-      ctx.imageSmoothingEnabled = true
-      ctx.imageSmoothingQuality = 'high'
-      ctx.drawImage(img, 0, 0, newW, newH)
-      resolve(canvas.toDataURL('image/png'))
-    }
-    img.onerror = () => reject(new Error('decode'))
-    img.src = dataUrl
-  })
-}
-
-const dataUrlToBlob = async (dataUrl: string): Promise<Blob> => {
-  const res = await fetch(dataUrl)
-  return res.blob()
-}
 
 const spriteLabel = (src: string): string => {
   if (src.startsWith('data:')) return 'Custom'
@@ -133,7 +97,7 @@ const ParticleSpriteHudInner = ({ config, updateParticleSprites, isSignedIn, get
         if (!raw) return
         void (async () => {
           try {
-            const processed = await prepareSpriteDataUrl(raw, SPRITE_MAX_SIDE_PX)
+            const processed = await prepareImageDataUrl(raw, SPRITE_MAX_SIDE_PX)
             const blob = await dataUrlToBlob(processed)
             if (blob.size > MAX_DATA_URL_BYTES) {
               showUploadError(
