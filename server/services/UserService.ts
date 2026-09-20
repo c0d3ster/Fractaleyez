@@ -2,7 +2,7 @@ import type { UserJSON } from '@clerk/backend'
 import { createClerkClient } from '@clerk/backend'
 import { userRepository } from '../repositories/UserRepository'
 import { requireEnv } from '../env'
-import { IUser } from '../models/User'
+import { IUser, UserSettings } from '../models/User'
 
 let clerkClient: ReturnType<typeof createClerkClient> | null = null
 const getClerkClient = (): ReturnType<typeof createClerkClient> => {
@@ -62,6 +62,10 @@ export class UserService {
 
   async syncFromClerk(user: UserJSON): Promise<IUser> {
     return userRepository.upsertByClerkId(user.id, { displayName: resolveDisplayName(user) })
+  }
+
+  async updateSettings(clerkId: string, patch: Partial<UserSettings>): Promise<IUser> {
+    return userRepository.updateSettings(clerkId, patch)
   }
 }
 
