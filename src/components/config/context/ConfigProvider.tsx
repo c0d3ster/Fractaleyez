@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react'
+import React, { useState, useCallback, useEffect, useRef } from 'react'
 import axios from 'axios'
 import { useAuth, useUser } from '@clerk/clerk-react'
 
@@ -6,6 +6,8 @@ import { AppConfig, ConfigItem, ParticleConfigSection, configDefaults } from '..
 import { particleConfig } from '../../../config/particle.config'
 import { presets } from '../../../config/presets'
 import { warmSpriteCache } from '../../../utils/spriteCache'
+import { setParticleCrossfadeDurationMs } from '../../../config/visualizer.config'
+import { UserSettings, USER_SETTINGS_SAVE_DEBOUNCE_MS } from '../../../config/userSettings.config'
 
 export type PresetRetrieveEvent = {
   currentTarget: { dataset: { [key: string]: string | undefined } }
@@ -42,6 +44,22 @@ type ApiPack = {
   slug: string
   isPremium: boolean
   isOwn: boolean
+}
+
+type ApiMeResponse = {
+  clerkId: string
+  displayName: string
+  settings: UserSettings
+}
+
+/** Applies a loaded/patched settings value to the systems that poll it live outside React (crossfade duration, frequency-band HUD). */
+const applyUserSettingsSideEffects = (settings: Partial<UserSettings>): void => {
+  if (typeof settings.crossfadeDurationMs === 'number') {
+    setParticleCrossfadeDurationMs(settings.crossfadeDurationMs)
+  }
+  if (settings.hud?.enabledFreqBands) {
+    window.enabledFreqBands = [...settings.hud.enabledFreqBands]
+  }
 }
 
 /** Human-readable label: camelCase → words; does not add spaces before capitals that already follow a space. */
@@ -128,6 +146,8 @@ export type ConfigContextValue = {
   getToken: () => Promise<string | null>
   presets: PresetMeta[]
   packs: PackMeta[]
+  userSettings: UserSettings | null
+  updateUserSettings: (patch: Partial<UserSettings>) => void
 }
 
 export const ConfigContext = React.createContext<ConfigContextValue | undefined>(undefined)
@@ -150,6 +170,9 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
 
   const [presetList, setPresetList] = useState<PresetMeta[]>([])
   const [packList, setPackList] = useState<PackMeta[]>([])
+  const [userSettings, setUserSettings] = useState<UserSettings | null>(null)
+  const pendingSettingsPatchRef = useRef<Partial<UserSettings>>({})
+  const settingsSaveTimerRef = useRef<number | null>(null)
 
   useEffect(() => {
     void warmSpriteCache(configDefaults.particle.sprites.value)
@@ -213,16 +236,66 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
   // a timeout or 5xx here must never block preset/pack data or the bundled-preset fallback.
   useEffect(() => {
     if (!isSignedIn) return
+    let cancelled = false
     const load = async (): Promise<void> => {
       try {
         const token = await getToken()
         if (!token) return
-        await axios.get('/api/me', { headers: { Authorization: `Bearer ${token}` } })
+        const { data } = await axios.get<ApiMeResponse>('/api/me', { headers: { Authorization: `Bearer ${token}` } })
+        if (cancelled) return
+        setUserSettings(data.settings)
+        applyUserSettingsSideEffects(data.settings)
       } catch (err) {
         console.error('Failed to load /api/me', err)
       }
     }
     void load()
+    return () => { cancelled = true }
+  }, [isSignedIn, getToken])
+
+  useEffect(() => {
+    return () => {
+      if (settingsSaveTimerRef.current) window.clearTimeout(settingsSaveTimerRef.current)
+    }
+  }, [])
+
+  // Applies a settings patch (crossfade duration slider, logo upload, HUD band toggle) locally
+  // and to the systems that poll it live (see applyUserSettingsSideEffects) immediately, then
+  // debounces the actual PATCH so a slider drag or rapid HUD clicks collapse into one request.
+  // Skips the network write when signed out -- settings require a user doc (see meHandler) --
+  // but still applies local/side-effect state so the same controls keep working client-only,
+  // same as every other config control in this file.
+  const updateUserSettings = useCallback((patch: Partial<UserSettings>) => {
+    setUserSettings(prev => ({
+      ...prev,
+      ...patch,
+      hud: patch.hud ? { ...prev?.hud, ...patch.hud } : prev?.hud,
+    }))
+    applyUserSettingsSideEffects(patch)
+
+    if (!isSignedIn) return
+
+    pendingSettingsPatchRef.current = {
+      ...pendingSettingsPatchRef.current,
+      ...patch,
+      hud: patch.hud ? { ...pendingSettingsPatchRef.current.hud, ...patch.hud } : pendingSettingsPatchRef.current.hud,
+    }
+
+    if (settingsSaveTimerRef.current) window.clearTimeout(settingsSaveTimerRef.current)
+    settingsSaveTimerRef.current = window.setTimeout(() => {
+      settingsSaveTimerRef.current = null
+      const toSave = pendingSettingsPatchRef.current
+      pendingSettingsPatchRef.current = {}
+      void (async () => {
+        try {
+          const token = await getToken()
+          if (!token) return
+          await axios.patch('/api/me', toSave, { headers: { Authorization: `Bearer ${token}` } })
+        } catch (err) {
+          console.error('Failed to save user settings', err)
+        }
+      })()
+    }, USER_SETTINGS_SAVE_DEBOUNCE_MS)
   }, [isSignedIn, getToken])
 
   const updateConfigItem = useCallback((category: string, item: string, value: string | boolean | number) => {
@@ -391,7 +464,7 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
   }, [config, getToken])
 
   return (
-    <ConfigContext.Provider value={{ config, updateConfigItem, updateVideoClips, updateParticleSprites, retrieveConfigPreset, revertConfig, resetConfig, savePreset, isSignedIn: isSignedIn ?? false, currentUserId: user?.id ?? null, getToken, presets: presetList, packs: packList }}>
+    <ConfigContext.Provider value={{ config, updateConfigItem, updateVideoClips, updateParticleSprites, retrieveConfigPreset, revertConfig, resetConfig, savePreset, isSignedIn: isSignedIn ?? false, currentUserId: user?.id ?? null, getToken, presets: presetList, packs: packList, userSettings, updateUserSettings }}>
       {children}
     </ConfigContext.Provider>
   )
