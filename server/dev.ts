@@ -8,14 +8,22 @@ import { packsHandler } from './routes/packsHandler'
 import { myPacksHandler } from './routes/myPacksHandler'
 import { createPackHandler } from './routes/createPackHandler'
 import { uploadParticleHandler, MAX_UPLOAD_BYTES } from './routes/uploadParticleHandler'
+import { meHandler } from './routes/meHandler'
+import { clerkWebhookHandler, MAX_WEBHOOK_BYTES } from './routes/clerkWebhookHandler'
 
 const BUILD_DIR = path.join(__dirname, '../public/')
 
 const app = express()
 app.use(express.static(BUILD_DIR))
+
+// Registered before the global json/urlencoded parsers below: svix needs the raw request
+// body to verify the signature, so this route must get it as a Buffer, not pre-parsed JSON.
+app.post('/api/clerkWebhook', express.raw({ type: 'application/json', limit: MAX_WEBHOOK_BYTES }), clerkWebhookHandler)
+
 app.use(express.urlencoded({ extended: true }))
 app.use(express.json())
 
+app.get('/api/me', meHandler)
 app.get('/api/presets', presetsHandler)
 app.get('/api/preset', presetHandler)
 app.post('/api/savePreset', savePresetHandler)
