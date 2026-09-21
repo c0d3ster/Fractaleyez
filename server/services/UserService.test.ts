@@ -30,12 +30,26 @@ const baseUser = {
 } as unknown as UserJSON
 
 describe('resolveDisplayName', () => {
-  it('prefers native first/last name (Clerk-native provider, e.g. Google)', () => {
+  it('prefers native first_name only, dropping last_name (Clerk-native provider, e.g. Google)', () => {
     const user = { ...baseUser, first_name: 'Ada', last_name: 'Lovelace' } as UserJSON
-    expect(resolveDisplayName(user)).toBe('Ada Lovelace')
+    expect(resolveDisplayName(user)).toBe('Ada')
   })
 
-  it('falls back to an external account username when no native name is set (custom OAuth provider, e.g. Spotify)', () => {
+  it('uses an external account first_name as-is (custom OAuth provider with a single name field, e.g. a Spotify artist name)', () => {
+    const user = {
+      ...baseUser,
+      external_accounts: [{ provider: 'oauth_spotify', first_name: 'BeatzMe', last_name: null, username: null, public_metadata: null }],
+    } as unknown as UserJSON
+    expect(resolveDisplayName(user)).toBe('BeatzMe')
+  })
+
+  it('does not glue together first_name and last_name from different linked providers', () => {
+    // e.g. top-level last_name carried over from a separately-linked Google account
+    const user = { ...baseUser, first_name: 'BeatzMe', last_name: 'ster' } as UserJSON
+    expect(resolveDisplayName(user)).toBe('BeatzMe')
+  })
+
+  it('falls back to an external account username when no first_name is set', () => {
     const user = {
       ...baseUser,
       external_accounts: [{ provider: 'oauth_custom_spotify', username: 'ada_spotify', public_metadata: null }],
@@ -43,7 +57,7 @@ describe('resolveDisplayName', () => {
     expect(resolveDisplayName(user)).toBe('ada_spotify')
   })
 
-  it('falls back to public_metadata.display_name when the account has no username', () => {
+  it('falls back to public_metadata.display_name when the account has no first_name or username', () => {
     const user = {
       ...baseUser,
       external_accounts: [{ provider: 'oauth_custom_spotify', username: null, public_metadata: { display_name: 'Ada on Spotify' } }],
@@ -85,14 +99,14 @@ describe('UserService#getOrCreateUser', () => {
   it('self-heals an empty displayName by re-checking Clerk (async custom-OAuth profile backfill)', async () => {
     vi.mocked(userRepository.upsertByClerkId)
       .mockResolvedValueOnce({ displayName: '' } as unknown as IUser)
-      .mockResolvedValueOnce({ displayName: 'BeatzMe ster' } as unknown as IUser)
+      .mockResolvedValueOnce({ displayName: 'BeatzMe' } as unknown as IUser)
     getUserMock.mockResolvedValue({ raw: { ...baseUser, first_name: 'BeatzMe', last_name: 'ster' } })
 
     const user = await userService.getOrCreateUser('user_1')
 
     expect(getUserMock).toHaveBeenCalledWith('user_1')
-    expect(userRepository.upsertByClerkId).toHaveBeenCalledWith('user_1', { displayName: 'BeatzMe ster' })
-    expect(user.displayName).toBe('BeatzMe ster')
+    expect(userRepository.upsertByClerkId).toHaveBeenCalledWith('user_1', { displayName: 'BeatzMe' })
+    expect(user.displayName).toBe('BeatzMe')
   })
 
   it('keeps the empty-name fallback when Clerk still has nothing to resolve', async () => {

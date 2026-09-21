@@ -17,20 +17,18 @@ const primaryEmailLocalPart = (user: UserJSON): string | null => {
 }
 
 /**
- * Google is Clerk-native: first_name/last_name/image_url are populated directly on the User
- * payload. Spotify is configured as a custom OAuth provider (not one of Clerk's built-in
- * social connections), so Clerk has no standard field mapping for it -- its external_accounts
- * entry is the only place its profile data can land, either in username or public_metadata
- * (Spotify's own API calls this field `display_name`). Confirmed against the type shape only;
- * see NEEDS HUMAN note for dashboard confirmation of Spotify's exact provider config.
+ * First name only, never joined with last name. Custom OAuth providers with a single name
+ * field (e.g. Spotify, including artist accounts) map their whole display name into
+ * first_name with last_name left unset, so first_name alone already carries the full name
+ * for those providers. Joining first+last also risked gluing together fields from two
+ * different linked providers on the top-level user object (seen in practice: last_name
+ * carried over from a separately-linked Google account while first_name reflected Spotify).
  */
 export const resolveDisplayName = (user: UserJSON): string => {
-  const nativeName = [user.first_name, user.last_name].filter(Boolean).join(' ').trim()
-  if (nativeName) return nativeName
+  if (user.first_name) return user.first_name
 
   for (const account of user.external_accounts) {
-    const accountName = [account.first_name, account.last_name].filter(Boolean).join(' ').trim()
-    if (accountName) return accountName
+    if (account.first_name) return account.first_name
     if (account.username) return account.username
     const metadataName = account.public_metadata?.display_name
     if (typeof metadataName === 'string' && metadataName) return metadataName
