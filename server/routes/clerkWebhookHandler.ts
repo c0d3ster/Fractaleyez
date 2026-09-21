@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express'
 import { Webhook } from 'svix'
 import type { UserJSON } from '@clerk/backend'
-import { requireEnv } from '../env'
+import { env } from '../env'
 import { userService } from '../services/UserService'
 
 // Clerk's user.* payloads are a few KB at most; this is just a ceiling against an
@@ -36,9 +36,15 @@ export const clerkWebhookHandler = async (req: Request, res: Response): Promise<
     return
   }
 
+  if (!env.CLERK_WEBHOOK_SECRET) {
+    console.error('CLERK_WEBHOOK_SECRET is not configured')
+    res.status(500).json({ error: 'Internal server error' })
+    return
+  }
+
   let event: unknown
   try {
-    const webhook = new Webhook(requireEnv.CLERK_WEBHOOK_SECRET())
+    const webhook = new Webhook(env.CLERK_WEBHOOK_SECRET)
     event = webhook.verify(payload, {
       'svix-id': svixId,
       'svix-timestamp': svixTimestamp,

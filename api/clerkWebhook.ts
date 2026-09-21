@@ -13,7 +13,6 @@ const readRawBody = (req: VercelRequest, maxBytes: number): Promise<Buffer> =>
     req.on('data', (chunk: Buffer) => {
       receivedBytes += chunk.length
       if (receivedBytes > maxBytes) {
-        req.destroy()
         reject(new PayloadTooLargeError())
         return
       }

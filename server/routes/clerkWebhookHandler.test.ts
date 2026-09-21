@@ -4,6 +4,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { Webhook } from 'svix'
 import { userService } from '../services/UserService'
 import { IUser } from '../models/User'
+import { env } from '../env'
 import { clerkWebhookHandler } from './clerkWebhookHandler'
 
 vi.mock('svix', () => ({
@@ -15,7 +16,7 @@ vi.mock('../services/UserService', () => ({
   },
 }))
 vi.mock('../env', () => ({
-  requireEnv: { CLERK_WEBHOOK_SECRET: () => 'whsec_test' },
+  env: { CLERK_WEBHOOK_SECRET: 'whsec_test' },
 }))
 
 const makeRes = (): Response & { statusCode: number; body: unknown } => {
@@ -63,6 +64,15 @@ describe('clerkWebhookHandler', () => {
     const res = makeRes()
     await clerkWebhookHandler(makeReq(Buffer.from('{}'), {}), res)
     expect(res.statusCode).toBe(400)
+  })
+
+  it('returns 500 without verifying when the webhook secret is not configured', async () => {
+    env.CLERK_WEBHOOK_SECRET = undefined
+    const res = makeRes()
+    await clerkWebhookHandler(makeReq(Buffer.from('{}')), res)
+    expect(res.statusCode).toBe(500)
+    expect(verifyMock).not.toHaveBeenCalled()
+    env.CLERK_WEBHOOK_SECRET = 'whsec_test'
   })
 
   it('rejects when signature verification throws', async () => {
