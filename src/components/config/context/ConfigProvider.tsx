@@ -209,6 +209,22 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
     return () => { cancelled = true }
   }, [getToken])
 
+  // Lazy-creates/fetches the app-data user doc. Independent of the preset/pack loads above:
+  // a timeout or 5xx here must never block preset/pack data or the bundled-preset fallback.
+  useEffect(() => {
+    if (!isSignedIn) return
+    const load = async (): Promise<void> => {
+      try {
+        const token = await getToken()
+        if (!token) return
+        await axios.get('/api/me', { headers: { Authorization: `Bearer ${token}` } })
+      } catch (err) {
+        console.error('Failed to load /api/me', err)
+      }
+    }
+    void load()
+  }, [isSignedIn, getToken])
+
   const updateConfigItem = useCallback((category: string, item: string, value: string | boolean | number) => {
     const parsed = typeof value === 'string' ? parseFloat(value) : value
     const parsedValue = typeof parsed === 'number' && isNaN(parsed) ? value : parsed

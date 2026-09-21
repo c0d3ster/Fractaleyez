@@ -7,6 +7,7 @@ export const env = {
   R2_SECRET_ACCESS_KEY: process.env.R2_SECRET_ACCESS_KEY,
   R2_BUCKET_NAME: process.env.R2_BUCKET_NAME,
   R2_PUBLIC_URL: process.env.R2_PUBLIC_URL,
+  CLERK_WEBHOOK_SECRET: process.env.CLERK_WEBHOOK_SECRET,
 }
 
 export const requireEnv = {
@@ -37,5 +38,9 @@ export const requireEnv = {
   R2_PUBLIC_URL: (): string => {
     if (!env.R2_PUBLIC_URL) throw new Error('R2_PUBLIC_URL is required but not set')
     return env.R2_PUBLIC_URL
+  },
+  CLERK_WEBHOOK_SECRET: (): string => {
+    if (!env.CLERK_WEBHOOK_SECRET) throw new Error('CLERK_WEBHOOK_SECRET is required but not set')
+    return env.CLERK_WEBHOOK_SECRET
   },
 }
