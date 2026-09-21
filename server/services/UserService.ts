@@ -1,6 +1,14 @@
 import type { UserJSON } from '@clerk/backend'
+import { createClerkClient } from '@clerk/backend'
 import { userRepository } from '../repositories/UserRepository'
+import { requireEnv } from '../env'
 import { IUser } from '../models/User'
+
+let clerkClient: ReturnType<typeof createClerkClient> | null = null
+const getClerkClient = (): ReturnType<typeof createClerkClient> => {
+  clerkClient ??= createClerkClient({ secretKey: requireEnv.CLERK_SECRET_KEY() })
+  return clerkClient
+}
 
 const primaryEmailLocalPart = (user: UserJSON): string | null => {
   const primary = user.email_addresses.find(e => e.id === user.primary_email_address_id)
@@ -34,7 +42,24 @@ export const resolveDisplayName = (user: UserJSON): string => {
 
 export class UserService {
   async getOrCreateUser(clerkId: string): Promise<IUser> {
-    return userRepository.upsertByClerkId(clerkId, {})
+    const user = await userRepository.upsertByClerkId(clerkId, {})
+    if (user.displayName) return user
+    // Custom OAuth providers (e.g. Spotify) can populate their profile fields on the
+    // Clerk user asynchronously, after the user.created webhook already fired with an
+    // empty snapshot -- self-heal here instead of relying on a follow-up webhook landing.
+    return this.reSyncDisplayNameFromClerk(clerkId, user)
+  }
+
+  private async reSyncDisplayNameFromClerk(clerkId: string, fallback: IUser): Promise<IUser> {
+    try {
+      const { raw } = await getClerkClient().users.getUser(clerkId)
+      const displayName = raw ? resolveDisplayName(raw) : ''
+      if (!displayName) return fallback
+      return userRepository.upsertByClerkId(clerkId, { displayName })
+    } catch (err) {
+      console.error('Failed to self-heal displayName from Clerk', err)
+      return fallback
+    }
   }
 
   async syncFromClerk(user: UserJSON): Promise<IUser> {

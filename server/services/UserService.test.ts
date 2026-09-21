@@ -1,6 +1,23 @@
 import type { UserJSON } from '@clerk/backend'
-import { describe, it, expect } from 'vitest'
-import { resolveDisplayName } from './UserService'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { userRepository } from '../repositories/UserRepository'
+import { IUser } from '../models/User'
+import { resolveDisplayName, UserService } from './UserService'
+
+const getUserMock = vi.fn()
+vi.mock('@clerk/backend', async importOriginal => {
+  const actual = await importOriginal<typeof import('@clerk/backend')>()
+  return {
+    ...actual,
+    createClerkClient: () => ({ users: { getUser: getUserMock } }),
+  }
+})
+vi.mock('../repositories/UserRepository', () => ({
+  userRepository: { upsertByClerkId: vi.fn() },
+}))
+vi.mock('../env', () => ({
+  requireEnv: { CLERK_SECRET_KEY: () => 'sk_test' },
+}))
 
 const baseUser = {
   id: 'user_1',
@@ -45,5 +62,57 @@ describe('resolveDisplayName', () => {
 
   it('returns an empty string when nothing at all is available', () => {
     expect(resolveDisplayName(baseUser)).toBe('')
+  })
+})
+
+describe('UserService#getOrCreateUser', () => {
+  const userService = new UserService()
+
+  beforeEach(() => {
+    getUserMock.mockReset()
+    vi.mocked(userRepository.upsertByClerkId).mockReset()
+  })
+
+  it('returns the upserted user as-is when it already has a displayName', async () => {
+    vi.mocked(userRepository.upsertByClerkId).mockResolvedValue(
+      { displayName: 'Ada Lovelace' } as unknown as IUser,
+    )
+    const user = await userService.getOrCreateUser('user_1')
+    expect(user.displayName).toBe('Ada Lovelace')
+    expect(getUserMock).not.toHaveBeenCalled()
+  })
+
+  it('self-heals an empty displayName by re-checking Clerk (async custom-OAuth profile backfill)', async () => {
+    vi.mocked(userRepository.upsertByClerkId)
+      .mockResolvedValueOnce({ displayName: '' } as unknown as IUser)
+      .mockResolvedValueOnce({ displayName: 'BeatzMe ster' } as unknown as IUser)
+    getUserMock.mockResolvedValue({ raw: { ...baseUser, first_name: 'BeatzMe', last_name: 'ster' } })
+
+    const user = await userService.getOrCreateUser('user_1')
+
+    expect(getUserMock).toHaveBeenCalledWith('user_1')
+    expect(userRepository.upsertByClerkId).toHaveBeenCalledWith('user_1', { displayName: 'BeatzMe ster' })
+    expect(user.displayName).toBe('BeatzMe ster')
+  })
+
+  it('keeps the empty-name fallback when Clerk still has nothing to resolve', async () => {
+    const fallback = { displayName: '' } as unknown as IUser
+    vi.mocked(userRepository.upsertByClerkId).mockResolvedValueOnce(fallback)
+    getUserMock.mockResolvedValue({ raw: baseUser })
+
+    const user = await userService.getOrCreateUser('user_1')
+
+    expect(user).toBe(fallback)
+    expect(userRepository.upsertByClerkId).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps the empty-name fallback when the Clerk API call fails', async () => {
+    const fallback = { displayName: '' } as unknown as IUser
+    vi.mocked(userRepository.upsertByClerkId).mockResolvedValueOnce(fallback)
+    getUserMock.mockRejectedValue(new Error('clerk unreachable'))
+
+    const user = await userService.getOrCreateUser('user_1')
+
+    expect(user).toBe(fallback)
   })
 })
