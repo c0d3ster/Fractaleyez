@@ -19,6 +19,11 @@ export const presetsHandler = async (req: Request, res: Response): Promise<void>
     }
   }
 
-  const presets = await presetService.listPresetsForViewer(viewerId)
-  res.json(presets)
+  try {
+    const presets = await presetService.listPresetsForViewer(viewerId)
+    res.json(presets)
+  } catch (err) {
+    console.error('Failed to list presets:', err)
+    res.status(500).json({ error: 'Internal server error' })
+  }
 }
