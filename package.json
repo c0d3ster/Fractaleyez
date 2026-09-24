@@ -28,7 +28,7 @@
     "bootstrap": "^3.4.1",
     "classnames": "^2.2.6",
     "dotenv": "^17.4.0",
-    "image-size": "^2.0.2",
+    "image-size": "^2.0.3",
     "mongoose": "^9.7.2",
     "postprocessing": "6.29.3",
     "react": "^18.2.0",
