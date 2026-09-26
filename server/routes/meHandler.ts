@@ -4,8 +4,8 @@ import { userService } from '../services/UserService'
 import { UserSettings } from '../models/User'
 
 // Mirrors src/config/visualizer.config.ts's PARTICLE_CROSSFADE_DURATION_MIN_MS/MAX_MS.
-const CROSSFADE_DURATION_MIN_MS = 200
-const CROSSFADE_DURATION_MAX_MS = 2000
+const CROSSFADE_DURATION_MIN_MS = 0
+const CROSSFADE_DURATION_MAX_MS = 4000
 // Comfortably above an R2 object URL's length; just a ceiling against garbage input.
 const MAX_LOGO_PARTICLE_URL_LENGTH = 2048
 // Mirrors FrequencyHud.tsx's VISIBLE_BANDS plus headroom for hidden high bands.
