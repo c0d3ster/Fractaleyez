@@ -96,7 +96,7 @@ describe('updateMeHandler', () => {
 
   it('rejects a crossfadeDurationMs outside the allowed range', async () => {
     const res = makeRes()
-    await updateMeHandler(makeReq(undefined, { crossfadeDurationMs: 50 }), res)
+    await updateMeHandler(makeReq(undefined, { crossfadeDurationMs: 5000 }), res)
     expect(res.statusCode).toBe(400)
     expect(userService.updateSettings).not.toHaveBeenCalled()
   })
