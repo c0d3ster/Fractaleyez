@@ -8,6 +8,7 @@ import { connectConfig, ConfigContextValue, ConfigSectionKey } from './context/C
 import { useVisualizerActive, VisualizerActive } from './useVisualizerActive'
 import { AppConfig, ConfigItem, SliderItem } from '../../config/configDefaults'
 import { SCALE_ZONES, SliderZone } from '../../config/juliaScale.config'
+import { PARTICLE_COUNT_RED_ZONE_THRESHOLD } from '../../config/particle.config'
 
 // Per-field overrides for how a slider's raw numeric value is displayed; the raw value
 // itself (min/max/step/onChange) is untouched, only the text shown next to the slider.
@@ -92,6 +93,11 @@ const ConfigCategoryInner = React.memo(({ name, config, isOpen, expanded = false
 
   const categoryConfig = (config as unknown as Record<string, Record<string, ConfigItem>>)[name] ?? {}
 
+  // Total particle count is what drives GPU load (see README's Particle Config warning), not either
+  // slider read in isolation.
+  const totalParticleCount = name === 'particle' ? config.particle.particlesPerLayer.value * config.particle.layers.value : 0
+  const isRedZone = totalParticleCount > PARTICLE_COUNT_RED_ZONE_THRESHOLD
+
   return (
     <div className={classNames('category-container', { 'category-container--effects': name === 'effects', 'config-inactive': dimmed })}>
       <h3 className='category-title' onClick={handleToggle}>
@@ -99,6 +105,12 @@ const ConfigCategoryInner = React.memo(({ name, config, isOpen, expanded = false
         {!expanded && resetButton}
       </h3>
       {expanded && resetButton}
+      {isRedZone && (
+        <div className='category-warning' role='alert'>
+          Red zone: {totalParticleCount.toLocaleString()} particles exceeds the performance threshold
+          ({PARTICLE_COUNT_RED_ZONE_THRESHOLD.toLocaleString()}). This can overload your GPU.
+        </div>
+      )}
       <div className={categoryContentClasses}>
         {Object.keys(categoryConfig).map((configItem) => {
           const item = categoryConfig[configItem]!
