@@ -394,3 +394,29 @@ client-only for a signed-out visitor, consistent with how every other config con
   URL, so clearing it isn't supported by the current API; only upload/replace is exposed.
   Out of scope for this task's sub-tasks as written; a future task can add a clear/delete path
   if wanted.
+
+### Resolution: two concurrent overnight branches, one dropped commit
+
+This branch's PR (#165) was auto-closed when its base branch
+(`overnight/2026-09-19/03-users-collection`) was deleted after merging -- not a rejection of
+the work. A second overnight run independently rebased the same 4 commits onto current `main`
+as `overnight/2026-09-20/04-config-gear-user-settings-v2` (PR #169, merged 2026-09-21), but
+that rebase silently carried forward only #165's *later* commits and skipped `1a73d6e` --
+the commit above that added `updateMeHandler`'s `PATCH /api/me` handler. #169 as merged could
+therefore load settings but any change silently failed to save (`ConfigProvider` retried the
+PATCH into a 404).
+
+A follow-up (#172, merged 2026-09-27) cherry-picked `1a73d6e` back in from this (v1) branch
+onto `main`, restoring the PATCH endpoint, and combined it with a redesign that had landed in
+the meantime: the floating TopBar gear-icon panel documented above (`UserSettingsPanel.tsx`)
+was replaced with a `UserButton.UserProfilePage` tab inside Clerk's own account modal --
+Clerk now owns the panel's open/close state, which incidentally fixed a bug where the old
+panel's mouse-position hide timer could close it mid-drag on the slider. #172 also widened the
+crossfade duration range and fixed a `findOneAndUpdate` mongoose deprecation warning
+(`new: true` → `returnDocument: 'after'`) in `UserRepository`/`PresetRepository`.
+
+Everything else in this section (`/api/me` PATCH validation, the runtime-mutable crossfade
+value, HUD persistence, the `updateUserSettings` debounce/local-first flow) shipped to `main`
+unchanged from what's documented above -- only the settings-panel host component and the
+crossfade range changed. `overnight/2026-09-20/04-config-gear-user-settings` (this branch) has
+no content that isn't now on `main` via #169 + #172; it's safe to delete.
