@@ -43,7 +43,7 @@ export class PresetRepository {
     const result = await Preset.findOneAndUpdate(
       { name, userId },
       { name, userId, ...fields },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: 'after' }
     )
     if (!result) throw new Error('Upsert failed')
     return result

@@ -57,11 +57,11 @@ export class UserRepository {
       return (await User.findOne({ clerkId })) ?? this.upsertByClerkId(clerkId, {})
     }
 
-    const updated = await User.findOneAndUpdate({ clerkId }, { $set: set }, { new: true })
+    const updated = await User.findOneAndUpdate({ clerkId }, { $set: set }, { returnDocument: 'after' })
     if (updated) return updated
 
     await this.upsertByClerkId(clerkId, {})
-    const created = await User.findOneAndUpdate({ clerkId }, { $set: set }, { new: true })
+    const created = await User.findOneAndUpdate({ clerkId }, { $set: set }, { returnDocument: 'after' })
     if (!created) throw new Error('Failed to persist settings after creating user')
     return created
   }
