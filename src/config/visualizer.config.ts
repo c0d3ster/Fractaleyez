@@ -10,7 +10,7 @@ export const visualizerConfig = {
 /** Default crossfade duration (ms) used when Particle Config or Orbit Config changes force a particle-system rebuild. */
 export const PARTICLE_CROSSFADE_DURATION_DEFAULT_MS = 750
 export const PARTICLE_CROSSFADE_DURATION_MIN_MS = 0
-export const PARTICLE_CROSSFADE_DURATION_MAX_MS = 4000
+export const PARTICLE_CROSSFADE_DURATION_MAX_MS = 5000
 
 // Mutable, not a plain const: the config-gear user setting overrides this at runtime (see
 // ConfigProvider's /api/me load), same "poll a live value each frame" pattern HopalongManager/

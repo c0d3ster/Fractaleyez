@@ -30,7 +30,11 @@ window.onload = () => {
           colorPrimary: '#ffffff',
           colorTextOnPrimaryBackground: '#0a0a0a',
           colorNeutral: 'rgba(220, 220, 220, 0.9)',
-          fontSize: '1.1rem',
+          // fontSize is Clerk's "md" text-scale base; spacing drives button/input padding and
+          // gaps and is a separate lever (default 1rem) -- bumping only fontSize left buttons
+          // cramped since their padding wasn't scaling with the enlarged text.
+          fontSize: '1.35rem',
+          spacing: '1.15rem',
         },
         elements: {
           card: {
