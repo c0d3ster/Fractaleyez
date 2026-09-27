@@ -18,7 +18,7 @@ const isValidLogoParticle = (value: unknown): value is string =>
   !value.startsWith('data:')
 
 const isValidHud = (value: unknown): value is NonNullable<UserSettings['hud']> => {
-  if (typeof value !== 'object' || value === null) return false
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false
   const candidate = value as Record<string, unknown>
   if (!('enabledFreqBands' in candidate)) return true
   const bands = candidate.enabledFreqBands

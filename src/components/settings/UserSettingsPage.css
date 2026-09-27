@@ -71,6 +71,11 @@
   pointer-events: none;
 }
 
+.user-settings-page__upload-label:focus-within {
+  outline: 2px solid #ccc;
+  outline-offset: 2px;
+}
+
 .user-settings-page__upload-error {
   font-size: 12px;
   line-height: 1.4;

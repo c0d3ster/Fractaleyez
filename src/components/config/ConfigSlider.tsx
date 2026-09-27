@@ -35,8 +35,8 @@ export const ConfigSlider = React.memo(({ name, label, value, displayValue, min,
         value={value}
         step={step}
         onChange={onChange}
-        onMouseUp={handleCommit}
-        onTouchEnd={handleCommit}
+        onPointerDown={e => e.currentTarget.setPointerCapture(e.pointerId)}
+        onPointerUp={handleCommit}
         onKeyUp={handleCommit} />
     </div>
   )
