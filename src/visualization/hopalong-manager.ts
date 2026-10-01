@@ -43,6 +43,8 @@ export class HopalongManager {
     this.incomingElapsedMs = getParticleCrossfadeDurationMs()
   }
 
+  getDomElement = (): HTMLCanvasElement | null => this.renderer?.domElement ?? null
+
   init = (_startTimer: Date): void => {
     this.cameraManager = new CameraManager()
     this.cameraManager.init()
