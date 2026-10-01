@@ -20,6 +20,7 @@ export const juliaFragmentShader = /* glsl */ `
   uniform float uHuePhase;
   uniform vec2 uCenterOffset;
   uniform float uIterOffset;
+  uniform float uRotation;
 
   varying vec2 vUv;
 
@@ -61,7 +62,7 @@ export const juliaFragmentShader = /* glsl */ `
     // instead of flat exterior. Shifting in normalized frame space keeps the zoom loop self-similar.
     vec2 p = (vUv - (vec2(0.8, 0.5) + uCenterOffset)) * vec2(uAspect, 1.0) * 2.0;
 
-    float angle = -uT * uLambdaArg;
+    float angle = -uT * uLambdaArg + uRotation;
     float ca = cos(angle);
     float sa = sin(angle);
     vec2 rotated = vec2(p.x * ca - p.y * sa, p.x * sa + p.y * ca);

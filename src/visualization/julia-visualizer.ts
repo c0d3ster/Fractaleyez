@@ -39,6 +39,12 @@ const ENERGY_SPEED_GAIN = 0.2
 const PEAK_SPEED_BOOST = 1.5
 const MAX_SPEED_MULTIPLIER = 8
 
+// The shared user sliders map onto the Julia view. Defaults (speed 2, scale 1500) reproduce the
+// untouched look; rotation spins the whole view about the fixed point, which keeps the loop seamless.
+const SPEED_DEFAULT = 2
+const SCALE_DEFAULT = 1500
+const ROTATION_RAD_PER_SEC_PER_UNIT = 0.03
+
 // Mouse steering reuses the shared user.cameraBound slider (0-500). At the max, the fixed point's
 // screen position can shift this far (in 0-1 frame units) from where the mouse pulls it.
 const CAMERA_BOUND_MAX = 500
@@ -96,6 +102,7 @@ export class JuliaVisualizer {
   private smoothBass = 0
   private smoothTreble = 0
   private smoothEnergy = 0
+  private rotation = 0
   private mouseNormX = 0
   private mouseNormY = 0
   private steerX = 0
@@ -144,6 +151,7 @@ export class JuliaVisualizer {
         uHuePhase: { value: 0 },
         uCenterOffset: { value: new THREE.Vector2() },
         uIterOffset: { value: 0 },
+        uRotation: { value: 0 },
       },
     })
 
@@ -202,7 +210,9 @@ export class JuliaVisualizer {
       MAX_SPEED_MULTIPLIER,
       1 + this.smoothEnergy * ENERGY_SPEED_GAIN + peakValue * PEAK_SPEED_BOOST,
     )
-    this.loopT += BASE_LOOP_SPEED * musicSpeedMultiplier * dt
+    const { speed, rotationSpeed, scaleFactor } = window.config.user
+    this.loopT += BASE_LOOP_SPEED * (speed.value / SPEED_DEFAULT) * musicSpeedMultiplier * dt
+    this.rotation = (this.rotation + rotationSpeed.value * ROTATION_RAD_PER_SEC_PER_UNIT * dt) % (Math.PI * 2)
 
     const wrapped = this.loopT >= 1 || !this.hasStartedLoop
     if (this.loopT >= 1) this.loopT -= Math.floor(this.loopT)
@@ -243,6 +253,8 @@ export class JuliaVisualizer {
     const uniforms = this.material.uniforms
     uniforms.uCenterOffset!.value.set(this.steerX, this.steerY)
     uniforms.uIterOffset!.value = this.loopT * LOOP_PERIODS
+    uniforms.uRotation!.value = this.rotation
+    uniforms.uWStart!.value = W_START * (SCALE_DEFAULT / scaleFactor.value)
     uniforms.uC!.value.set(this.loopCx, this.loopCy)
     uniforms.uFixedPoint!.value.set(this.loopFixedPointX, this.loopFixedPointY)
     uniforms.uT!.value = this.loopT
