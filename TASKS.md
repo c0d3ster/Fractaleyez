@@ -54,4 +54,6 @@ Instructions for agent: This file is the task inventory only. Workflow rules (br
 
 ## Discovered
 
+- Layers follow-on: per-layer blend mode UI. Every layer defaults to `mask` (black areas transparent). Add the dropdown and the extra modes (normal, add, screen, multiply) once the per-layer render-target composite exists. See `docs/implementation-plans/visualizer-layers.md` Revision 2.
+- Layers follow-on: compact config style pass. Reduce margins between configs and slider height so more fits on the page. Do it after the accordion structure lands.
 - CLAUDE.md's Commands section says "There is no `test` script yet" — a `test` script (`vitest run`) and 2 test files (14 passing tests) already exist. Found while verifying #16/#17. Update CLAUDE.md's Commands section to reflect this.
