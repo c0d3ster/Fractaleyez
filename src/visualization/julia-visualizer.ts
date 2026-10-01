@@ -53,6 +53,15 @@ const CAMERA_BOUND_MAX = 500
 const MAX_STEER_FRAME_OFFSET = 0.4
 const STEER_EMA_HALF_LIFE_SECONDS = 0.35
 
+// Effect tuning. Each mirrors a Hopalong effect behind the same checkbox.
+const WOBWOB_RECOIL = 2
+const SWITCHEROO_C_KICK = 0.015
+const SWITCHEROO_ANGLE_STEP = 2.4
+const SHOCKWAVE_PEAK_THRESHOLD = 0.8
+const SHOCKWAVE_BASE_SPEED = 0.9
+const SHOCKWAVE_MAX_RADIUS = 3
+const GLOW_ENERGY_REFERENCE = 30
+
 const HUE_DRIFT_PER_SEC = 0.015
 const HUE_PEAK_JUMP = 0.12
 const PEAK_JUMP_THRESHOLD = 0.9
@@ -141,18 +150,15 @@ export class JuliaVisualizer {
   private previousPeakValue = 0
   private hasStartedLoop = false
 
-  // These describe the fixed point/multiplier for whichever c the CURRENT loop is rendering.
-  // They're only resampled from the continuously-drifting audio-reactive c at the wrap instant --
-  // self-similarity requires c to stay constant for the whole loop, otherwise the two ends of the
-  // zoom are literally different Julia sets and the wrap is a visible pop.
+  // The c the CURRENT loop is rendering. It's only resampled from the continuously-drifting
+  // audio-reactive c at the wrap instant -- self-similarity requires c to stay constant for the whole
+  // loop, otherwise the two ends of the zoom are literally different Julia sets and the wrap pops.
   private loopCx = BASE_C.x
   private loopCy = BASE_C.y
-  private loopFixedPointX = 0
-  private loopFixedPointY = 0
-  private loopLambdaMag = 1
-  private loopLambdaArg = 0
-  private loopKoenigs2: Complex = { re: 0, im: 0 }
-  private loopKoenigs3: Complex = { re: 0, im: 0 }
+
+  private switcherooAngle = 0
+  private previousShockPeak = 0
+  private shockAge = -1
 
   init(): void {
     this.renderer = new THREE.WebGLRenderer({ antialias: false })
@@ -184,6 +190,10 @@ export class JuliaVisualizer {
         uRotation: { value: 0 },
         uKoenigs2: { value: new THREE.Vector2() },
         uKoenigs3: { value: new THREE.Vector2() },
+        uCyclone: { value: 0 },
+        uGlow: { value: 0 },
+        uShockRadius: { value: 0 },
+        uShockStrength: { value: 0 },
       },
     })
 
@@ -237,7 +247,11 @@ export class JuliaVisualizer {
       1 + this.smoothEnergy * ENERGY_SPEED_GAIN + peakValue * PEAK_SPEED_BOOST,
     )
     const { speed, rotationSpeed, scaleFactor } = window.config.user
-    this.loopProgress += BASE_LOOP_SPEED * (speed.value / SPEED_DEFAULT) * musicSpeedMultiplier * dt
+    const effects = window.config.effects
+
+    // Wob Wob: like Hopalong's backward jerk on a beat, the zoom recoils (briefly reverses) while the peak decays.
+    const wobWobFactor = effects.wobWob.value ? 1 - WOBWOB_RECOIL * peakValue : 1
+    this.loopProgress += BASE_LOOP_SPEED * (speed.value / SPEED_DEFAULT) * musicSpeedMultiplier * wobWobFactor * dt
     this.rotation = (this.rotation + rotationSpeed.value * ROTATION_RAD_PER_SEC_PER_UNIT * dt) % (Math.PI * 2)
 
     // The picture is self-similar, so a different starting radius is just a different point in the
@@ -262,20 +276,45 @@ export class JuliaVisualizer {
         this.loopCy = targetCy
       }
       this.hasStartedLoop = true
-      const { fixedPointX, fixedPointY, lambdaMag, lambdaArg, koenigs2, koenigs3 } = computeFixedPointAndLambda(this.loopCx, this.loopCy)
-      this.loopKoenigs2 = koenigs2
-      this.loopKoenigs3 = koenigs3
-      this.loopFixedPointX = fixedPointX
-      this.loopFixedPointY = fixedPointY
-      this.loopLambdaMag = Math.pow(lambdaMag, LOOP_PERIODS)
-      this.loopLambdaArg = lambdaArg * LOOP_PERIODS
     }
 
-    this.huePhase += HUE_DRIFT_PER_SEC * dt
-    if (peakValue > PEAK_JUMP_THRESHOLD && this.previousPeakValue <= PEAK_JUMP_THRESHOLD) {
-      this.huePhase += HUE_PEAK_JUMP
-    }
+    // A fresh beat is the peak crossing the threshold upward; several effects key off it.
+    const freshBeat = peakValue > PEAK_JUMP_THRESHOLD && this.previousPeakValue <= PEAK_JUMP_THRESHOLD
     this.previousPeakValue = peakValue
+
+    // Switcheroo: reshape on beats. c takes a kick that decays with the peak, in a new direction each
+    // beat. It changes continuously in time (no jump), so it reshapes the fractal without a seam.
+    if (freshBeat) this.switcherooAngle += SWITCHEROO_ANGLE_STEP
+    const kick = effects.switcheroo.value ? SWITCHEROO_C_KICK * peakValue : 0
+    const effectiveCx = this.loopCx + Math.cos(this.switcherooAngle) * kick
+    const effectiveCy = this.loopCy + Math.sin(this.switcherooAngle) * kick
+    const { fixedPointX, fixedPointY, lambdaMag, lambdaArg, koenigs2, koenigs3 } = computeFixedPointAndLambda(effectiveCx, effectiveCy)
+
+    this.huePhase += HUE_DRIFT_PER_SEC * dt
+    if (freshBeat && effects.colorShift.value) this.huePhase += HUE_PEAK_JUMP
+
+    // Shockwave: a ripple expanding from the fixed point on strong beats, using Hopalong's trigger rules.
+    const enabledBands = window.enabledFreqBands ?? [true, true, true, true, true, false, false, false]
+    const anyEnabledBandElevated = enabledBands.every(Boolean) || (audioData.multibandEnergy?.some((e, i) => {
+      if (!enabledBands[i]) return false
+      const average = audioData.multibandEnergyAverage?.[i] ?? 0
+      return average > 0 && e / average > 1.0
+    }) ?? true)
+    if (effects.shockwave.value && peakValue > SHOCKWAVE_PEAK_THRESHOLD && this.previousShockPeak <= SHOCKWAVE_PEAK_THRESHOLD && anyEnabledBandElevated) {
+      this.shockAge = 0
+    }
+    this.previousShockPeak = peakValue
+    let shockRadius = 0
+    let shockStrength = 0
+    if (this.shockAge >= 0) {
+      this.shockAge += dt
+      shockRadius = this.shockAge * (SHOCKWAVE_BASE_SPEED + speed.value / 15)
+      if (shockRadius > SHOCKWAVE_MAX_RADIUS) this.shockAge = -1
+      else shockStrength = 1 - shockRadius / SHOCKWAVE_MAX_RADIUS
+    }
+
+    // Glow: Hopalong drives bloom opacity with peak value * peak energy.
+    const glow = effects.glow.value ? Math.min(1, (peakValue * (audioData.peak?.energy ?? 0)) / GLOW_ENERGY_REFERENCE) : 0
 
     // Camera-style follow: the scene shifts opposite the mouse, like Hopalong's camera. The shift is in
     // normalized frame space, so it steers the dive without breaking the self-similar loop.
@@ -292,14 +331,18 @@ export class JuliaVisualizer {
     uniforms.uCenterOffset!.value.set(this.steerX, this.steerY)
     uniforms.uIterOffset!.value = this.loopT * LOOP_PERIODS
     uniforms.uRotation!.value = this.rotation
-    uniforms.uKoenigs2!.value.set(this.loopKoenigs2.re, this.loopKoenigs2.im)
-    uniforms.uKoenigs3!.value.set(this.loopKoenigs3.re, this.loopKoenigs3.im)
-    uniforms.uC!.value.set(this.loopCx, this.loopCy)
-    uniforms.uFixedPoint!.value.set(this.loopFixedPointX, this.loopFixedPointY)
+    uniforms.uKoenigs2!.value.set(koenigs2.re, koenigs2.im)
+    uniforms.uKoenigs3!.value.set(koenigs3.re, koenigs3.im)
+    uniforms.uC!.value.set(effectiveCx, effectiveCy)
+    uniforms.uFixedPoint!.value.set(fixedPointX, fixedPointY)
     uniforms.uT!.value = this.loopT
-    uniforms.uLambdaMag!.value = this.loopLambdaMag
-    uniforms.uLambdaArg!.value = this.loopLambdaArg
+    uniforms.uLambdaMag!.value = Math.pow(lambdaMag, LOOP_PERIODS)
+    uniforms.uLambdaArg!.value = lambdaArg * LOOP_PERIODS
     uniforms.uHuePhase!.value = this.huePhase
+    uniforms.uCyclone!.value = effects.cyclone.value ? 1 : 0
+    uniforms.uGlow!.value = glow
+    uniforms.uShockRadius!.value = shockRadius
+    uniforms.uShockStrength!.value = shockStrength
   }
 
   render(): void {
