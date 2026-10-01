@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { CAMERA_STEER_SCREEN_FRACTION_PER_PAD_UNIT } from '../config/visualizer.config'
 import { AudioAnalysedDataForVisualization } from '../audioanalysis/audio-analysed-data'
 import { juliaFragmentShader, juliaVertexShader } from './shaders/julia-fragment.glsl'
 import { JULIA_MAP_VIEW, JULIA_TOUR } from './julia-tour'
@@ -85,10 +86,8 @@ const SHAPE_SLIDER_MAX = 2000
 const ROTATION_RAD_PER_SEC_PER_UNIT = 0.03
 
 // Steering reads the same shared camera position the Camera Position pad writes (and Hopalong's
-// camera reads), in pad units clamped to +/- user.cameraBound (0-500). At the slider max, the fixed
-// point's screen position can shift this far (in 0-1 frame units).
-const CAMERA_BOUND_MAX = 500
-const MAX_STEER_FRAME_OFFSET = 0.4
+// camera reads), in pad units clamped to +/- user.cameraBound (0-500); the shift per pad unit is shared
+// with the Hopalong shockwave so both waves start from the same spot.
 const STEER_EMA_HALF_LIFE_SECONDS = 0.7
 
 // Effect tuning. Each mirrors a Hopalong effect behind the same checkbox.
@@ -496,7 +495,7 @@ export class JuliaVisualizer {
   // this trails it). Null when this visualizer isn't the one on screen.
   getSteerPosition(): { x: number; y: number } | null {
     if (!this.active) return null
-    const steerScale = MAX_STEER_FRAME_OFFSET / CAMERA_BOUND_MAX
+    const steerScale = CAMERA_STEER_SCREEN_FRACTION_PER_PAD_UNIT
     return { x: this.steerX / steerScale, y: -this.steerY / steerScale }
   }
 
@@ -653,7 +652,7 @@ export class JuliaVisualizer {
     const pad = window.getVirtualCameraPosition?.() ?? { x: 0, y: 0 }
     const padX = Math.max(-range, Math.min(range, pad.x))
     const padY = Math.max(-range, Math.min(range, pad.y))
-    const steerScale = MAX_STEER_FRAME_OFFSET / CAMERA_BOUND_MAX
+    const steerScale = CAMERA_STEER_SCREEN_FRACTION_PER_PAD_UNIT
     const kSteer = 1 - Math.pow(0.5, dt / STEER_EMA_HALF_LIFE_SECONDS)
     this.steerX += (padX * steerScale - this.steerX) * kSteer
     this.steerY += (-padY * steerScale - this.steerY) * kSteer

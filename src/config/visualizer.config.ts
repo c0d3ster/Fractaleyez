@@ -33,3 +33,10 @@ export const setParticleCrossfadeDurationMs = (ms: number): void => {
  * still-fading generation is force-finished immediately to make room.
  */
 export const MAX_CROSSFADE_GENERATIONS = 4
+
+/**
+ * How far the camera pointer shifts the on-screen focal point of the Julia visualizer (and where the
+ * Hopalong shockwave starts), in screen fractions per Camera Position pad unit: 0.4 of the frame at the
+ * pad's maximum range of 500, so the default range of 100 only reaches 0.08 off center.
+ */
+export const CAMERA_STEER_SCREEN_FRACTION_PER_PAD_UNIT = 0.4 / 500
