@@ -278,7 +278,8 @@ export class JuliaVisualizer {
   private videoMask = false
   private getVideo: () => HTMLVideoElement | null = () => null
   private videoElement: HTMLVideoElement | null = null
-  private videoTexture: THREE.VideoTexture | null = null
+  private videoTexture: THREE.Texture | null = null
+  private videoFrameHandle: number | null = null
 
   // The small drift/audio offset on top of the tour's c for the CURRENT loop. It only steps toward its
   // (drift + audio) target at the wrap instant -- self-similarity wants c steady across a wrap, otherwise
@@ -506,21 +507,50 @@ export class JuliaVisualizer {
   setVideoMask(enabled: boolean, getVideo: () => HTMLVideoElement | null): void {
     this.videoMask = enabled
     this.getVideo = getVideo
-    if (!enabled && this.material) this.material.uniforms.uVideoMask!.value = 0
+    if (!enabled) this.releaseVideoTexture()
   }
 
-  // One texture per video element, kept across toggles: each VideoTexture starts its own frame-callback loop
-  // that dispose() doesn't stop, so recreating it on every toggle would stack loops.
+  // A plain texture with our own frame callback instead of THREE.VideoTexture: that one starts a
+  // requestVideoFrameCallback loop that dispose() never cancels, so every replaced video element would leave a
+  // loop (and the old texture and element) alive. The callback only marks the texture dirty when the video shows
+  // a new frame, so a 4K frame is uploaded at the video's frame rate, not the render rate.
   private syncVideoTexture(): void {
     if (!this.material || !this.videoMask) return
     const video = this.getVideo()
     if (video !== this.videoElement) {
-      this.videoTexture?.dispose()
-      this.videoElement = video
-      this.videoTexture = video ? new THREE.VideoTexture(video) : null
-      if (this.videoTexture) this.material.uniforms.uVideo!.value = this.videoTexture
+      this.releaseVideoTexture()
+      if (video) this.attachVideoTexture(video)
     }
     this.material.uniforms.uVideoMask!.value = this.videoTexture ? 1 : 0
+  }
+
+  private attachVideoTexture(video: HTMLVideoElement): void {
+    if (!this.material) return
+    const texture = new THREE.Texture(video)
+    texture.format = THREE.RGBFormat
+    texture.minFilter = THREE.LinearFilter
+    texture.magFilter = THREE.LinearFilter
+    texture.generateMipmaps = false
+    texture.needsUpdate = true
+    const onFrame = (): void => {
+      texture.needsUpdate = true
+      this.videoFrameHandle = video.requestVideoFrameCallback(onFrame)
+    }
+    this.videoFrameHandle = video.requestVideoFrameCallback(onFrame)
+    this.videoElement = video
+    this.videoTexture = texture
+    this.material.uniforms.uVideo!.value = texture
+  }
+
+  private releaseVideoTexture(): void {
+    if (this.videoElement && this.videoFrameHandle !== null) this.videoElement.cancelVideoFrameCallback(this.videoFrameHandle)
+    this.videoFrameHandle = null
+    this.videoTexture?.dispose()
+    this.videoTexture = null
+    this.videoElement = null
+    if (!this.material) return
+    this.material.uniforms.uVideoMask!.value = 0
+    this.material.uniforms.uVideo!.value = new THREE.Texture()
   }
 
   // Where the steering has actually got to, in the camera pad's units (the pad shows the target instantly;
@@ -733,6 +763,7 @@ export class JuliaVisualizer {
     delete window.getJuliaShape
     delete window.clearJuliaShape
     delete window.getJuliaSteer
+    this.releaseVideoTexture()
     this.material?.dispose()
     this.renderer?.dispose()
     this.renderer?.domElement.remove()
