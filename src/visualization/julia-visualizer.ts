@@ -35,6 +35,12 @@ const ENERGY_SPEED_GAIN = 0.2
 const PEAK_SPEED_BOOST = 1.5
 const MAX_SPEED_MULTIPLIER = 8
 
+// Mouse steering reuses the shared user.cameraBound slider (0-500). At the max, the fixed point's
+// screen position can shift this far (in 0-1 frame units) from where the mouse pulls it.
+const CAMERA_BOUND_MAX = 500
+const MAX_STEER_FRAME_OFFSET = 0.4
+const STEER_EMA_HALF_LIFE_SECONDS = 0.35
+
 const HUE_DRIFT_PER_SEC = 0.015
 const HUE_PEAK_JUMP = 0.12
 const PEAK_JUMP_THRESHOLD = 0.9
@@ -86,6 +92,10 @@ export class JuliaVisualizer {
   private smoothBass = 0
   private smoothTreble = 0
   private smoothEnergy = 0
+  private mouseNormX = 0
+  private mouseNormY = 0
+  private steerX = 0
+  private steerY = 0
   private driftPhase = 0
   private loopT = 0
   private huePhase = 0
@@ -128,6 +138,7 @@ export class JuliaVisualizer {
         uWStart: { value: W_START },
         uAspect: { value: window.innerWidth / window.innerHeight },
         uHuePhase: { value: 0 },
+        uCenterOffset: { value: new THREE.Vector2() },
       },
     })
 
@@ -136,6 +147,12 @@ export class JuliaVisualizer {
     this.scene.add(mesh)
 
     window.addEventListener('resize', this.onResize)
+    window.addEventListener('mousemove', this.onMouseMove)
+  }
+
+  private onMouseMove = (event: MouseEvent): void => {
+    this.mouseNormX = (event.clientX / window.innerWidth - 0.5) * 2
+    this.mouseNormY = (event.clientY / window.innerHeight - 0.5) * 2
   }
 
   private onResize = (): void => {
@@ -207,7 +224,15 @@ export class JuliaVisualizer {
     }
     this.previousPeakValue = peakValue
 
+    // Camera-style follow: the scene shifts opposite the mouse, like Hopalong's camera. The shift is in
+    // normalized frame space, so it steers the dive without breaking the self-similar loop.
+    const steerScale = (window.config.user.cameraBound.value / CAMERA_BOUND_MAX) * MAX_STEER_FRAME_OFFSET
+    const kSteer = 1 - Math.pow(0.5, dt / STEER_EMA_HALF_LIFE_SECONDS)
+    this.steerX += (-this.mouseNormX * steerScale - this.steerX) * kSteer
+    this.steerY += (this.mouseNormY * steerScale - this.steerY) * kSteer
+
     const uniforms = this.material.uniforms
+    uniforms.uCenterOffset!.value.set(this.steerX, this.steerY)
     uniforms.uC!.value.set(this.loopCx, this.loopCy)
     uniforms.uFixedPoint!.value.set(this.loopFixedPointX, this.loopFixedPointY)
     uniforms.uT!.value = this.loopT
@@ -223,6 +248,7 @@ export class JuliaVisualizer {
 
   dispose(): void {
     window.removeEventListener('resize', this.onResize)
+    window.removeEventListener('mousemove', this.onMouseMove)
     this.material?.dispose()
     this.renderer?.dispose()
     this.renderer?.domElement.remove()
