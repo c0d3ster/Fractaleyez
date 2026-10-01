@@ -2,6 +2,10 @@ import * as THREE from 'three'
 
 import { userConfig } from '../config/user.config'
 
+// Fraction of the remaining distance the camera closes toward the pointer each frame (halved from 0.05 so
+// the camera follows half as fast, matching the Julia visualizer's steering).
+const CAMERA_EASE_PER_FRAME = 0.025
+
 export class CameraManager {
   camera: THREE.PerspectiveCamera | null
   cameraBound: number
@@ -51,12 +55,12 @@ export class CameraManager {
     this.camera!.lookAt(this.focusPoint)
 
     if (this.camera!.position.x >= -this.cameraBound && this.camera!.position.x <= this.cameraBound) {
-      this.camera!.position.x += (this.mouseX - this.camera!.position.x) * 0.05
+      this.camera!.position.x += (this.mouseX - this.camera!.position.x) * CAMERA_EASE_PER_FRAME
       if (this.camera!.position.x < -this.cameraBound) this.camera!.position.x = -this.cameraBound
       if (this.camera!.position.x > this.cameraBound) this.camera!.position.x = this.cameraBound
     }
     if (this.camera!.position.y >= -this.cameraBound && this.camera!.position.y <= this.cameraBound) {
-      this.camera!.position.y += (-this.mouseY - this.camera!.position.y) * 0.05
+      this.camera!.position.y += (-this.mouseY - this.camera!.position.y) * CAMERA_EASE_PER_FRAME
       if (this.camera!.position.y < -this.cameraBound) this.camera!.position.y = -this.cameraBound
       if (this.camera!.position.y > this.cameraBound) this.camera!.position.y = this.cameraBound
     }
