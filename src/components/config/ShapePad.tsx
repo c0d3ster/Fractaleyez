@@ -12,7 +12,7 @@ const MAP_MAX_ITER = 120
 /** Main app window when config runs in a popup; otherwise `window`. */
 const mainWindow = (): Window => window.opener ?? window
 
-type ShapeReadout = { re: number; im: number; manual: boolean; hue: number }
+type ShapeReadout = { re: number; im: number; manual: boolean; hue: number; saturation: number; targetRe: number; targetIm: number }
 
 const VIEW_WIDTH = JULIA_MAP_VIEW.reMax - JULIA_MAP_VIEW.reMin
 const VIEW_HEIGHT = JULIA_MAP_VIEW.imMax - JULIA_MAP_VIEW.imMin
@@ -48,7 +48,7 @@ const computeIterations = (width: number, height: number): Float32Array => {
   return values
 }
 
-const drawMandelbrot = (canvas: HTMLCanvasElement, iterations: Float32Array, hue: number): void => {
+const drawMandelbrot = (canvas: HTMLCanvasElement, iterations: Float32Array, hue: number, saturation: number): void => {
   const context = canvas.getContext('2d')
   if (!context) return
   const { width, height } = canvas
@@ -65,9 +65,14 @@ const drawMandelbrot = (canvas: HTMLCanvasElement, iterations: Float32Array, hue
       } else {
         const phase = nu * 0.045 + 0.55 + hue
         const glow = 0.18 + 0.82 * Math.exp(-nu * 0.16)
-        image.data[offset] = (0.5 + 0.5 * Math.cos(TAU * phase)) * 255 * glow
-        image.data[offset + 1] = (0.5 + 0.5 * Math.cos(TAU * (phase + 0.33))) * 255 * glow
-        image.data[offset + 2] = (0.5 + 0.5 * Math.cos(TAU * (phase + 0.67))) * 255 * glow
+        const red = (0.5 + 0.5 * Math.cos(TAU * phase)) * 255 * glow
+        const green = (0.5 + 0.5 * Math.cos(TAU * (phase + 0.33))) * 255 * glow
+        const blue = (0.5 + 0.5 * Math.cos(TAU * (phase + 0.67))) * 255 * glow
+        // Same grayscale blend the Julia shader uses for the Saturation slider.
+        const luma = 0.299 * red + 0.587 * green + 0.114 * blue
+        image.data[offset] = luma + (red - luma) * saturation
+        image.data[offset + 1] = luma + (green - luma) * saturation
+        image.data[offset + 2] = luma + (blue - luma) * saturation
       }
       image.data[offset + 3] = 255
     }
@@ -106,6 +111,17 @@ const drawOverlay = (canvas: HTMLCanvasElement, shape: ShapeReadout, showPath: b
     })
   }
 
+  // The shape trails its destination at a Speed-based rate (the pointer's spot in manual mode, the Scale
+  // slider's spot plus any Switcheroo hop on the tour), so mark where it is headed.
+  if (Math.hypot(shape.targetRe - shape.re, shape.targetIm - shape.im) > 0.01) {
+    const [targetX, targetY] = toPixel(shape.targetRe, shape.targetIm, width, height)
+    context.lineWidth = 1.5
+    context.strokeStyle = shape.manual ? 'rgba(255,93,177,0.7)' : 'rgba(255,255,255,0.6)'
+    context.beginPath()
+    context.arc(targetX, targetY, 5, 0, Math.PI * 2)
+    context.stroke()
+  }
+
   const [dotX, dotY] = toPixel(shape.re, shape.im, width, height)
   context.lineWidth = 2
   context.strokeStyle = shape.manual ? '#ff5db1' : '#ffffff'
@@ -139,16 +155,17 @@ export const ShapePad = (): React.ReactElement => {
   const lastDrawnKey = useRef('')
   const iterationsRef = useRef<Float32Array | null>(null)
   const drawnHueRef = useRef(Number.NaN)
+  const drawnSaturationRef = useRef(1)
   const [showPath, setShowPath] = useState(true)
   const [showMarks, setShowMarks] = useState(true)
-  const [readout, setReadout] = useState<ShapeReadout>({ re: -0.75, im: 0, manual: false, hue: 0 })
+  const [readout, setReadout] = useState<ShapeReadout>({ re: -0.75, im: 0, manual: false, hue: 0, saturation: 1, targetRe: -0.75, targetIm: 0 })
 
   useEffect(() => {
     const canvas = mandelbrotRef.current
     if (!canvas) return
     iterationsRef.current = computeIterations(canvas.width, canvas.height)
     drawnHueRef.current = 0
-    drawMandelbrot(canvas, iterationsRef.current, 0)
+    drawMandelbrot(canvas, iterationsRef.current, 0, 1)
   }, [])
 
   // Poll the visualizer's current shape every frame so the dot follows the Scale slider, glides, and
@@ -161,13 +178,16 @@ export const ShapePad = (): React.ReactElement => {
       const map = mandelbrotRef.current
       const iterations = iterationsRef.current
       // Recolor the map when the visualizer's hue moves (slow drift plus the beat color shift), in
-      // 0.01 steps so the slow drift doesn't redraw every frame.
-      if (shape && map && iterations && Math.abs(shape.hue - drawnHueRef.current) >= 0.01) {
+      // 0.01 steps so the slow drift doesn't redraw every frame, or when Saturation changes.
+      const colorChanged = shape
+        && (Math.abs(shape.hue - drawnHueRef.current) >= 0.01 || shape.saturation !== drawnSaturationRef.current)
+      if (shape && colorChanged && map && iterations) {
         drawnHueRef.current = shape.hue
-        drawMandelbrot(map, iterations, shape.hue)
+        drawnSaturationRef.current = shape.saturation
+        drawMandelbrot(map, iterations, shape.hue, shape.saturation)
       }
       if (overlay && shape) {
-        const key = `${shape.re.toFixed(4)},${shape.im.toFixed(4)},${shape.manual},${showPathRef.current},${showMarksRef.current}`
+        const key = `${shape.re.toFixed(4)},${shape.im.toFixed(4)},${shape.manual},${shape.targetRe.toFixed(3)},${shape.targetIm.toFixed(3)},${showPathRef.current},${showMarksRef.current}`
         if (key !== lastDrawnKey.current) {
           lastDrawnKey.current = key
           drawOverlay(overlay, shape, showPathRef.current, showMarksRef.current)
@@ -187,7 +207,6 @@ export const ShapePad = (): React.ReactElement => {
     mainWindow().setJuliaShape?.(
       JULIA_MAP_VIEW.reMin + fractionX * VIEW_WIDTH,
       JULIA_MAP_VIEW.imMax - fractionY * VIEW_HEIGHT,
-      true,
     )
   }, [])
 
@@ -258,7 +277,7 @@ export const ShapePad = (): React.ReactElement => {
             key={name}
             type='button'
             className='shape-pad-chip'
-            onClick={() => mainWindow().setJuliaShape?.(re, im, false)}
+            onClick={() => mainWindow().setJuliaShape?.(re, im)}
           >
             {name}
           </button>
