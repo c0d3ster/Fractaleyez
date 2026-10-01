@@ -89,7 +89,7 @@ const ROTATION_RAD_PER_SEC_PER_UNIT = 0.03
 // point's screen position can shift this far (in 0-1 frame units).
 const CAMERA_BOUND_MAX = 500
 const MAX_STEER_FRAME_OFFSET = 0.4
-const STEER_EMA_HALF_LIFE_SECONDS = 0.35
+const STEER_EMA_HALF_LIFE_SECONDS = 0.7
 
 // Effect tuning. Each mirrors a Hopalong effect behind the same checkbox.
 const WOBWOB_RECOIL = 2
@@ -257,6 +257,7 @@ export class JuliaVisualizer {
   private smoothTreble = 0
   private smoothEnergy = 0
   private rotation = 0
+  private active = false
   private steerX = 0
   private steerY = 0
   private driftPhase = 0
@@ -348,6 +349,7 @@ export class JuliaVisualizer {
     window.setJuliaShape = (re: number, im: number) => this.setShape(re, im)
     window.getJuliaShape = () => this.getShape()
     window.clearJuliaShape = () => this.clearShape()
+    window.getJuliaSteer = () => this.getSteerPosition()
   }
 
   private onResize = (): void => {
@@ -482,7 +484,16 @@ export class JuliaVisualizer {
 
   setVisible(visible: boolean): void {
     if (!this.renderer) return
+    this.active = visible
     this.renderer.domElement.style.display = visible ? 'block' : 'none'
+  }
+
+  // Where the steering has actually got to, in the camera pad's units (the pad shows the target instantly;
+  // this trails it). Null when this visualizer isn't the one on screen.
+  getSteerPosition(): { x: number; y: number } | null {
+    if (!this.active) return null
+    const steerScale = MAX_STEER_FRAME_OFFSET / CAMERA_BOUND_MAX
+    return { x: this.steerX / steerScale, y: -this.steerY / steerScale }
   }
 
   update(deltaTime: number, audioData: AudioAnalysedDataForVisualization): void {
@@ -685,6 +696,7 @@ export class JuliaVisualizer {
     delete window.setJuliaShape
     delete window.getJuliaShape
     delete window.clearJuliaShape
+    delete window.getJuliaSteer
     this.material?.dispose()
     this.renderer?.dispose()
     this.renderer?.domElement.remove()
