@@ -1,6 +1,7 @@
 import { AudioSource } from './audiostream/audio-source'
 import { AudioStream } from './audiostream/audio-stream'
 import { AudioAnalyser } from './audioanalysis/audio-analyser'
+import { AudioFeed } from './audioanalysis/audio-feed'
 import { HopalongManager } from './visualization/hopalong-manager'
 import { JuliaVisualizer } from './visualization/julia-visualizer'
 
@@ -10,7 +11,7 @@ const FFT_SIZE = 512
 // Create the audio components required for analysis
 const audiosource = new AudioSource()
 const audiostream = new AudioStream(audiosource, FFT_SIZE)
-const audioAnalyser = new AudioAnalyser(audiostream.getBufferSize())
+const audioFeed = new AudioFeed(audiostream, new AudioAnalyser(audiostream.getBufferSize()))
 
 // Create the Visualization Manager
 const hopalongManager = new HopalongManager()
@@ -137,6 +138,8 @@ const init = (): void => {
 
   hopalongManager.init(startTimer)
   juliaVisualizer.init()
+  // Owned here (not by a visualizer) so the frequency HUD keeps working in every mode, including Julia solo.
+  window.getAudioData = audioFeed.getLatest
   window.getPerfData = () => {
     const { fps, frameMs } = medianFpsFromDeltas(frameDeltaMs)
     return {
@@ -187,11 +190,10 @@ const analyze = (): void => {
     if (frameDeltaMs.length > FRAME_DELTA_SAMPLES) frameDeltaMs.shift()
   }
 
-  // Send the audio data to the analyser for analysis
-  audioAnalyser.analyse(audiostream.getAudioData(), deltaTime, currentTimer)
-  const analysedData = audioAnalyser.getAnalysedData()
+  // Analyse once per frame; every active visualizer and HUD reads this same snapshot
+  const visualizationData = audioFeed.tick(deltaTime, currentTimer)
 
-  if (!analysedData.getEnergy()) { // if the user hasnt clicked the page, the audio context wont be allowed to start automatically
+  if (audioFeed.isSilent()) { // if the user hasnt clicked the page, the audio context wont be allowed to start automatically
     idleSoundTimer++
     if (idleSoundTimer > 100) {
       console.info('retrying sound')
@@ -202,10 +204,10 @@ const analyze = (): void => {
 
   // feed data to whichever visualizer is currently active
   if (activeVisualizer !== 'julia') {
-    hopalongManager.update(deltaTime, audioAnalyser.getAnalysedDataForVisualization())
+    hopalongManager.update(deltaTime, visualizationData)
   }
   if (activeVisualizer !== 'hopalong') {
-    juliaVisualizer.update(deltaTime, audioAnalyser.getAnalysedDataForVisualization())
+    juliaVisualizer.update(deltaTime, visualizationData)
     juliaVisualizer.render()
   }
 }
