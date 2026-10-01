@@ -482,6 +482,10 @@ export class JuliaVisualizer {
     return { re: this.manualRe, im: this.manualIm }
   }
 
+  getDomElement(): HTMLCanvasElement | null {
+    return this.renderer?.domElement ?? null
+  }
+
   setVisible(visible: boolean): void {
     if (!this.renderer) return
     this.active = visible

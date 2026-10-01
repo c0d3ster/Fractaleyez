@@ -16,14 +16,39 @@ const audioAnalyser = new AudioAnalyser(audiostream.getBufferSize())
 const hopalongManager = new HopalongManager()
 const juliaVisualizer = new JuliaVisualizer()
 
-// Prototype toggle (press J) between Hopalong and the Julia set visualizer -- standalone for now,
-// not wired into config UI, ahead of the Visualizer Layers work.
-type ActiveVisualizer = 'hopalong' | 'julia'
+// Prototype toggle (press J) cycling Hopalong, the Julia set visualizer, and both together -- standalone
+// for now, not wired into config UI, ahead of the Visualizer Layers work. In 'both', the Hopalong canvas
+// sits on top of the Julia canvas with a screen blend, so its black background drops out and only the
+// particles add light over the fractal.
+type ActiveVisualizer = 'hopalong' | 'julia' | 'both'
+const VISUALIZER_CYCLE: ActiveVisualizer[] = ['hopalong', 'julia', 'both']
 let activeVisualizer: ActiveVisualizer = 'hopalong'
 
+const applyVisualizerLayout = (): void => {
+  const hopalongCanvas = hopalongManager.getDomElement()
+  const juliaCanvas = juliaVisualizer.getDomElement()
+  juliaVisualizer.setVisible(activeVisualizer !== 'hopalong')
+  if (!hopalongCanvas || !juliaCanvas) return
+  if (activeVisualizer === 'both') {
+    // Later in the DOM paints on top, so put Julia first.
+    hopalongCanvas.style.position = 'fixed'
+    hopalongCanvas.style.inset = '0'
+    hopalongCanvas.style.mixBlendMode = 'screen'
+    hopalongCanvas.before(juliaCanvas)
+    return
+  }
+  hopalongCanvas.style.position = ''
+  hopalongCanvas.style.inset = ''
+  hopalongCanvas.style.mixBlendMode = ''
+  // Julia solo covers Hopalong, so it goes last.
+  document.body.appendChild(juliaCanvas)
+}
+
 const toggleVisualizer = (): void => {
-  activeVisualizer = activeVisualizer === 'hopalong' ? 'julia' : 'hopalong'
-  juliaVisualizer.setVisible(activeVisualizer === 'julia')
+  const next = VISUALIZER_CYCLE[(VISUALIZER_CYCLE.indexOf(activeVisualizer) + 1) % VISUALIZER_CYCLE.length]
+  if (!next) return
+  activeVisualizer = next
+  applyVisualizerLayout()
 }
 
 document.addEventListener('keydown', (event: KeyboardEvent) => {
@@ -173,9 +198,10 @@ const analyze = (): void => {
   }
 
   // feed data to whichever visualizer is currently active
-  if (activeVisualizer === 'hopalong') {
+  if (activeVisualizer !== 'julia') {
     hopalongManager.update(deltaTime, audioAnalyser.getAnalysedDataForVisualization())
-  } else {
+  }
+  if (activeVisualizer !== 'hopalong') {
     juliaVisualizer.update(deltaTime, audioAnalyser.getAnalysedDataForVisualization())
     juliaVisualizer.render()
   }
