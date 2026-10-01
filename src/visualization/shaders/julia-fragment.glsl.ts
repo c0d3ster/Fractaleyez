@@ -19,6 +19,7 @@ export const juliaFragmentShader = /* glsl */ `
   uniform float uAspect;
   uniform float uHuePhase;
   uniform vec2 uCenterOffset;
+  uniform float uIterOffset;
 
   varying vec2 vUv;
 
@@ -70,7 +71,9 @@ export const juliaFragmentShader = /* glsl */ `
 
     float nu = juliaSmoothIter(z0, uC);
 
-    vec3 color = nu < 0.0 ? vec3(0.0) : palette(nu * 0.05);
+    // Zooming one self-similarity period deeper adds exactly one escape iteration, so without this
+    // the palette jumps by (periods * 0.05) of a color cycle at every loop wrap.
+    vec3 color = nu < 0.0 ? vec3(0.0) : palette((nu - uIterOffset) * 0.05);
     gl_FragColor = vec4(color, 1.0);
   }
 `
