@@ -18,7 +18,7 @@ export const userConfig = {
   scaleFactor_DEFAULT: 1500,
   scaleFactor_MIN: 100,
   scaleFactor_MAX: 2000,
-  scaleFactor_STEP_SIZE: 100,
+  scaleFactor_STEP_SIZE: 10,
 
   cameraBound_DEFAULT: 100,
   cameraBound_MIN: 0,
