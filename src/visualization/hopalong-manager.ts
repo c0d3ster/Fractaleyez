@@ -35,6 +35,8 @@ export class HopalongManager {
   private crossfades: ParticleCrossfade[]
   /** Current (newest) visualizer's own fade-in progress. */
   private incomingElapsedMs: number
+  private videoMask = false
+  private videoPlaneVisible = true
 
   constructor() {
     this.elapsedTime = 0
@@ -51,6 +53,41 @@ export class HopalongManager {
   }
 
   getDomElement = (): HTMLCanvasElement | null => this.renderer?.domElement ?? null
+
+  // Video mask: the video plane is drawn after the particles with a screen blend, so it only shows where the
+  // particles are black and leaves the particles themselves untouched.
+  setVideoMask = (enabled: boolean): void => {
+    this.videoMask = enabled
+  }
+
+  // The video element Julia samples for its own mask.
+  getVideoElement = (): HTMLVideoElement | null => this.hopalongVisualizer?.video ?? null
+
+  // Hidden when Julia is drawing the video itself, so it isn't drawn twice.
+  setVideoPlaneVisible = (visible: boolean): void => {
+    this.videoPlaneVisible = visible
+  }
+
+  // Run every frame because the visualizer (and its video plane) is recreated on config changes.
+  private syncVideoPlaneLook = (): void => {
+    const visualizers = [this.hopalongVisualizer!, ...this.crossfades.map((cf) => cf.outgoing)]
+    visualizers.forEach(({ videoPlane }) => {
+      if (!videoPlane) return
+      videoPlane.visible = this.videoPlaneVisible
+      const material = videoPlane.material as THREE.MeshBasicMaterial
+      const blending = this.videoMask ? THREE.CustomBlending : THREE.NormalBlending
+      if (material.blending === blending) return
+      material.blending = blending
+      material.blendEquation = THREE.AddEquation
+      material.blendSrc = THREE.OneMinusDstColorFactor
+      material.blendDst = THREE.OneFactor
+      material.transparent = this.videoMask
+      material.depthTest = !this.videoMask
+      material.depthWrite = !this.videoMask
+      videoPlane.renderOrder = this.videoMask ? 1 : 0
+      material.needsUpdate = true
+    })
+  }
 
   init = (_startTimer: Date): void => {
     this.cameraManager = new CameraManager()
@@ -162,6 +199,7 @@ export class HopalongManager {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ;(this.shockwaveEffect as any).explode()
     }
+    this.syncVideoPlaneLook()
     this.composer!.render(this.clock!.getDelta())
 
     this.cameraManager!.manageCameraPosition(deltaTime)

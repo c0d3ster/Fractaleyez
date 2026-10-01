@@ -275,6 +275,10 @@ export class JuliaVisualizer {
   private cycloneAmount = 0
   private previousPeakValue = 0
   private hasStartedLoop = false
+  private videoMask = false
+  private getVideo: () => HTMLVideoElement | null = () => null
+  private videoElement: HTMLVideoElement | null = null
+  private videoTexture: THREE.VideoTexture | null = null
 
   // The small drift/audio offset on top of the tour's c for the CURRENT loop. It only steps toward its
   // (drift + audio) target at the wrap instant -- self-similarity wants c steady across a wrap, otherwise
@@ -339,6 +343,8 @@ export class JuliaVisualizer {
         uGlow: { value: 0 },
         uShockRadius: { value: 0 },
         uShockStrength: { value: 0 },
+        uVideoMask: { value: 0 },
+        uVideo: { value: new THREE.Texture() },
       },
     })
 
@@ -493,6 +499,28 @@ export class JuliaVisualizer {
     if (!this.renderer) return
     this.active = visible
     this.renderer.domElement.style.display = visible ? 'block' : 'none'
+  }
+
+  // With the mask on, the shader fills the fractal's black areas with the video. The video element belongs to
+  // Hopalong's scene (and is replaced when that scene is rebuilt), so it is fetched by getter each frame.
+  setVideoMask(enabled: boolean, getVideo: () => HTMLVideoElement | null): void {
+    this.videoMask = enabled
+    this.getVideo = getVideo
+    if (!enabled && this.material) this.material.uniforms.uVideoMask!.value = 0
+  }
+
+  // One texture per video element, kept across toggles: each VideoTexture starts its own frame-callback loop
+  // that dispose() doesn't stop, so recreating it on every toggle would stack loops.
+  private syncVideoTexture(): void {
+    if (!this.material || !this.videoMask) return
+    const video = this.getVideo()
+    if (video !== this.videoElement) {
+      this.videoTexture?.dispose()
+      this.videoElement = video
+      this.videoTexture = video ? new THREE.VideoTexture(video) : null
+      if (this.videoTexture) this.material.uniforms.uVideo!.value = this.videoTexture
+    }
+    this.material.uniforms.uVideoMask!.value = this.videoTexture ? 1 : 0
   }
 
   // Where the steering has actually got to, in the camera pad's units (the pad shows the target instantly;
@@ -695,6 +723,7 @@ export class JuliaVisualizer {
 
   render(): void {
     if (!this.renderer || !this.scene || !this.camera) return
+    this.syncVideoTexture()
     this.renderer.render(this.scene, this.camera)
   }
 

@@ -28,10 +28,13 @@ export const juliaFragmentShader = /* glsl */ `
   uniform float uGlow;
   uniform float uShockRadius;
   uniform float uShockStrength;
+  uniform float uVideoMask;
+  uniform sampler2D uVideo;
 
   varying vec2 vUv;
 
   const int MAX_ITER = 128;
+  const float VIDEO_MASK_EDGE = 0.33;
 
   vec2 complexMul(vec2 a, vec2 b) {
     return vec2(a.x * b.x - a.y * b.y, a.x * b.y + a.y * b.x);
@@ -108,6 +111,14 @@ export const juliaFragmentShader = /* glsl */ `
     // Saturation blends between the color's luma (grayscale) and the full palette color.
     color = mix(vec3(dot(color, vec3(0.299, 0.587, 0.114))), color, uSaturation);
 
+    // Video mask: the video fills in where the fractal is black, fading out as the fractal gets brighter.
+    color = min(color, vec3(1.0));
+    if (uVideoMask > 0.5) {
+      float brightness = max(color.r, max(color.g, color.b));
+      // Steep cutoff: the video is fully gone by VIDEO_MASK_EDGE brightness, so palette colors that never
+      // reach full brightness (and a lowered Saturation) don't let it bleed through.
+      color += texture2D(uVideo, vUv).rgb * (1.0 - smoothstep(0.0, VIDEO_MASK_EDGE, brightness));
+    }
     gl_FragColor = vec4(color, 1.0);
   }
 `

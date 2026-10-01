@@ -77,6 +77,12 @@ export class HopalongVisualizer {
     this.createVideoPlane(ce.detail.clips)
   }
 
+  // Resume if the browser pauses the clip on its own (it never stops for a reason we want).
+  private onVideoPaused = (): void => {
+    if (!this.video || this.video.ended || !window.config.video.clips.length) return
+    this.video.play().catch(() => undefined)
+  }
+
   private onVideoEnded = (): void => {
     if (this.video) this.nextVideo(this.video)
   }
@@ -187,10 +193,29 @@ export class HopalongVisualizer {
 
     this.video = document.createElement('video')
     this.video.src = clips[0]!
-    this.video.autoplay = true
+    // Started with play() rather than the autoplay attribute: Chrome auto-pauses muted autoplay videos that
+    // aren't sufficiently in view, and this one is only a 2px dot. Muted so playback is always allowed (and the clip's audio can't feed back into the mic).
+    this.video.muted = true
+    this.video.playsInline = true
+    // Chrome only keeps decoding a video that is attached, fully opaque and not covered: a detached one
+    // stalls after its first ~14 frames (so the texture froze after about a second), and one that is hidden,
+    // translucent or under a canvas stalls the same way. So it lives on the page as a 2px dot in the corner,
+    // above everything, and the texture below samples from it.
+    Object.assign(this.video.style, {
+      position: 'fixed',
+      left: '0',
+      top: '0',
+      width: '2px',
+      height: '2px',
+      zIndex: '2147483647',
+      pointerEvents: 'none'
+    })
+    document.body.appendChild(this.video)
+    this.video.play().catch(() => undefined)
     window.config.video.index = 0
 
     this.video.addEventListener('ended', this.onVideoEnded)
+    this.video.addEventListener('pause', this.onVideoPaused)
 
     const videoTexture = new THREE.VideoTexture(this.video)
     // Overscan: camera can pan up to cameraBound in x/y; enlarge the plane so edges stay
@@ -590,9 +615,11 @@ export class HopalongVisualizer {
     }
     if (this.video) {
       this.video.removeEventListener('ended', this.onVideoEnded)
+      this.video.removeEventListener('pause', this.onVideoPaused)
       this.video.pause()
       this.video.removeAttribute('src')
       this.video.load()
+      this.video.remove()
       this.video = null
     }
   }

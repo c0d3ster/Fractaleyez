@@ -7,6 +7,8 @@ import './ShapePad.css'
 const PAD_W = 480
 const PAD_H = 320
 const BACKING = 1
+// The map is only a coarse color picture, so it is drawn at a quarter of the overlay's pixels and CSS scales it up.
+const MAP_BACKING = 0.5
 const MAP_MAX_ITER = 120
 
 /** Main app window when config runs in a popup; otherwise `window`. */
@@ -48,34 +50,59 @@ const computeIterations = (width: number, height: number): Float32Array => {
   return values
 }
 
+// The color only depends on the smooth escape count, so each recolor builds a small lookup table over the
+// count's range and the per-pixel work is one table read. Recoloring runs on every beat (the hue jumps) on the
+// same main thread as the visualizer, so the old per-pixel exp and three cos calls (about 25 ms per recolor)
+// were stalling the video texture.
+// This pad runs on the same main thread as the visualizer and its video texture (the config popup is rendered by
+// the main window's JS), so its per-frame work is kept small: recoloring and overlay/readout updates are rate
+// limited, and the hue has to move a visible amount before the map is repainted.
+const MIN_RECOLOR_INTERVAL_MS = 250
+const MIN_RECOLOR_HUE_STEP = 0.03
+const MIN_PAD_UPDATE_INTERVAL_MS = 50
+const COLOR_LUT_SIZE = 2048
+const COLOR_LUT_SCALE = (COLOR_LUT_SIZE - 1) / MAP_MAX_ITER
+
+const buildColorLut = (hue: number, saturation: number): Uint8ClampedArray => {
+  const lut = new Uint8ClampedArray(COLOR_LUT_SIZE * 3)
+  const TAU = Math.PI * 2
+  for (let i = 0; i < COLOR_LUT_SIZE; i++) {
+    const nu = i / COLOR_LUT_SCALE
+    const phase = nu * 0.045 + 0.55 + hue
+    const glow = 0.18 + 0.82 * Math.exp(-nu * 0.16)
+    const red = (0.5 + 0.5 * Math.cos(TAU * phase)) * 255 * glow
+    const green = (0.5 + 0.5 * Math.cos(TAU * (phase + 0.33))) * 255 * glow
+    const blue = (0.5 + 0.5 * Math.cos(TAU * (phase + 0.67))) * 255 * glow
+    // Same grayscale blend the Julia shader uses for the Saturation slider.
+    const luma = 0.299 * red + 0.587 * green + 0.114 * blue
+    lut[i * 3] = luma + (red - luma) * saturation
+    lut[i * 3 + 1] = luma + (green - luma) * saturation
+    lut[i * 3 + 2] = luma + (blue - luma) * saturation
+  }
+  return lut
+}
+
 const drawMandelbrot = (canvas: HTMLCanvasElement, iterations: Float32Array, hue: number, saturation: number): void => {
   const context = canvas.getContext('2d')
   if (!context) return
   const { width, height } = canvas
   const image = context.createImageData(width, height)
-  const TAU = Math.PI * 2
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const nu = iterations[y * width + x] ?? -1
-      const offset = (y * width + x) * 4
-      if (nu < 0) {
-        image.data[offset] = 4
-        image.data[offset + 1] = 5
-        image.data[offset + 2] = 10
-      } else {
-        const phase = nu * 0.045 + 0.55 + hue
-        const glow = 0.18 + 0.82 * Math.exp(-nu * 0.16)
-        const red = (0.5 + 0.5 * Math.cos(TAU * phase)) * 255 * glow
-        const green = (0.5 + 0.5 * Math.cos(TAU * (phase + 0.33))) * 255 * glow
-        const blue = (0.5 + 0.5 * Math.cos(TAU * (phase + 0.67))) * 255 * glow
-        // Same grayscale blend the Julia shader uses for the Saturation slider.
-        const luma = 0.299 * red + 0.587 * green + 0.114 * blue
-        image.data[offset] = luma + (red - luma) * saturation
-        image.data[offset + 1] = luma + (green - luma) * saturation
-        image.data[offset + 2] = luma + (blue - luma) * saturation
-      }
-      image.data[offset + 3] = 255
+  const lut = buildColorLut(hue, saturation)
+  const pixelCount = width * height
+  for (let pixel = 0; pixel < pixelCount; pixel++) {
+    const nu = iterations[pixel] ?? -1
+    const offset = pixel * 4
+    if (nu < 0) {
+      image.data[offset] = 4
+      image.data[offset + 1] = 5
+      image.data[offset + 2] = 10
+    } else {
+      const lutOffset = Math.min(COLOR_LUT_SIZE - 1, Math.round(nu * COLOR_LUT_SCALE)) * 3
+      image.data[offset] = lut[lutOffset] ?? 0
+      image.data[offset + 1] = lut[lutOffset + 1] ?? 0
+      image.data[offset + 2] = lut[lutOffset + 2] ?? 0
     }
+    image.data[offset + 3] = 255
   }
   context.putImageData(image, 0, 0)
 }
@@ -156,6 +183,8 @@ export const ShapePad = (): React.ReactElement => {
   const iterationsRef = useRef<Float32Array | null>(null)
   const drawnHueRef = useRef(Number.NaN)
   const drawnSaturationRef = useRef(1)
+  const lastRecolorAtRef = useRef(0)
+  const lastPadUpdateAtRef = useRef(0)
   const [showPath, setShowPath] = useState(true)
   const [showMarks, setShowMarks] = useState(true)
   const [readout, setReadout] = useState<ShapeReadout>({ re: -0.75, im: 0, manual: false, hue: 0, saturation: 1, targetRe: -0.75, targetIm: 0 })
@@ -173,15 +202,20 @@ export const ShapePad = (): React.ReactElement => {
   useEffect(() => {
     let frame = 0
     const tick = (): void => {
+      frame = requestAnimationFrame(tick)
+      const now = performance.now()
+      if (now - lastPadUpdateAtRef.current < MIN_PAD_UPDATE_INTERVAL_MS) return
+      lastPadUpdateAtRef.current = now
       const overlay = overlayRef.current
       const shape = mainWindow().getJuliaShape?.()
       const map = mandelbrotRef.current
       const iterations = iterationsRef.current
-      // Recolor the map when the visualizer's hue moves (slow drift plus the beat color shift), in
-      // 0.01 steps so the slow drift doesn't redraw every frame, or when Saturation changes.
+      // Recolor the map when the visualizer's hue moves (slow drift plus the beat color shift) by a visible
+      // step, or when Saturation changes.
       const colorChanged = shape
-        && (Math.abs(shape.hue - drawnHueRef.current) >= 0.01 || shape.saturation !== drawnSaturationRef.current)
-      if (shape && colorChanged && map && iterations) {
+        && (Math.abs(shape.hue - drawnHueRef.current) >= MIN_RECOLOR_HUE_STEP || shape.saturation !== drawnSaturationRef.current)
+      if (shape && colorChanged && map && iterations && now - lastRecolorAtRef.current >= MIN_RECOLOR_INTERVAL_MS) {
+        lastRecolorAtRef.current = now
         drawnHueRef.current = shape.hue
         drawnSaturationRef.current = shape.saturation
         drawMandelbrot(map, iterations, shape.hue, shape.saturation)
@@ -194,7 +228,6 @@ export const ShapePad = (): React.ReactElement => {
           setReadout(shape)
         }
       }
-      frame = requestAnimationFrame(tick)
     }
     frame = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(frame)
@@ -242,8 +275,8 @@ export const ShapePad = (): React.ReactElement => {
         <canvas
           ref={mandelbrotRef}
           className='shape-pad-canvas'
-          width={PAD_W * BACKING}
-          height={PAD_H * BACKING}
+          width={PAD_W * MAP_BACKING}
+          height={PAD_H * MAP_BACKING}
         />
         <canvas
           ref={overlayRef}
