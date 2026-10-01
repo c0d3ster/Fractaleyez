@@ -16,14 +16,24 @@ const WRAP_C_LERP_FACTOR = 0.08
 
 const EMA_HALF_LIFE_SECONDS = 0.12
 
-// Loop progress (t) per second at rest -- scaled by the same continuous
-// musicSpeedMultiplier shape Hopalong uses, not a discrete beat trigger.
-const BASE_LOOP_SPEED = 0.05
+// Loop progress (t) per second at rest, scaled by the music speed multiplier below.
+const BASE_LOOP_SPEED = 0.04
+
+// Each loop spans this many self-similarity periods (zoom by |lambda|^N, rotate by N*arg(lambda)).
+// Any whole number of periods is still an exact match at the wrap, and it makes each loop dive deeper.
+const LOOP_PERIODS = 2
 
 // Radius of the view at t=0. This has to be small enough that the whole frame
 // already sits deep in the region where Koenigs linearization holds well --
 // 1.4 (comparable to the whole Julia set's extent) made the wrap an obvious pop.
-const W_START = 0.05
+const W_START = 0.012
+
+// Zoom speed = base * (1 + smoothed energy * gain + beat envelope * boost), capped.
+// Energy is the mean deviation from 128 on a 0-128 scale, so typical music sits around 5-30.
+const ENERGY_EMA_HALF_LIFE_SECONDS = 0.3
+const ENERGY_SPEED_GAIN = 0.2
+const PEAK_SPEED_BOOST = 1.5
+const MAX_SPEED_MULTIPLIER = 8
 
 const HUE_DRIFT_PER_SEC = 0.015
 const HUE_PEAK_JUMP = 0.12
@@ -75,6 +85,7 @@ export class JuliaVisualizer {
 
   private smoothBass = 0
   private smoothTreble = 0
+  private smoothEnergy = 0
   private driftPhase = 0
   private loopT = 0
   private huePhase = 0
@@ -160,9 +171,15 @@ export class JuliaVisualizer {
     const targetCx = BASE_C.x + Math.cos(this.driftPhase) * C_DRIFT_RADIUS + this.smoothBass * BASS_C_INFLUENCE
     const targetCy = BASE_C.y + Math.sin(this.driftPhase * 1.3) * C_DRIFT_RADIUS + this.smoothTreble * TREBLE_C_INFLUENCE
 
-    // Same continuous shape Hopalong uses for musicSpeedMultiplier -- audio nudges zoom
-    // speed smoothly, it never jump-cuts the loop.
-    const musicSpeedMultiplier = 1 + ((audioData.energyAverage ?? 0) + (audioData.energy ?? 0)) / 10
+    const peakValue = audioData.peak?.value ?? 0
+    const energyTarget = ((audioData.energyAverage ?? 0) + (audioData.energy ?? 0)) / 2
+    const kEnergy = 1 - Math.pow(0.5, dt / ENERGY_EMA_HALF_LIFE_SECONDS)
+    this.smoothEnergy += (energyTarget - this.smoothEnergy) * kEnergy
+
+    const musicSpeedMultiplier = Math.min(
+      MAX_SPEED_MULTIPLIER,
+      1 + this.smoothEnergy * ENERGY_SPEED_GAIN + peakValue * PEAK_SPEED_BOOST,
+    )
     this.loopT += BASE_LOOP_SPEED * musicSpeedMultiplier * dt
 
     const wrapped = this.loopT >= 1 || !this.hasStartedLoop
@@ -180,12 +197,11 @@ export class JuliaVisualizer {
       const { fixedPointX, fixedPointY, lambdaMag, lambdaArg } = computeFixedPointAndLambda(this.loopCx, this.loopCy)
       this.loopFixedPointX = fixedPointX
       this.loopFixedPointY = fixedPointY
-      this.loopLambdaMag = lambdaMag
-      this.loopLambdaArg = lambdaArg
+      this.loopLambdaMag = Math.pow(lambdaMag, LOOP_PERIODS)
+      this.loopLambdaArg = lambdaArg * LOOP_PERIODS
     }
 
     this.huePhase += HUE_DRIFT_PER_SEC * dt
-    const peakValue = audioData.peak?.value ?? 0
     if (peakValue > PEAK_JUMP_THRESHOLD && this.previousPeakValue <= PEAK_JUMP_THRESHOLD) {
       this.huePhase += HUE_PEAK_JUMP
     }
