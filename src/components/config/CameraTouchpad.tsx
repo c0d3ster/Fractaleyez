@@ -1,36 +1,33 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react'
 import './CameraTouchpad.css'
 
-const PAD_W = 180
-
 const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v))
 
 /** Main app window when config runs in a popup; otherwise `window`. */
 const mainWindow = (): Window => window.opener ?? window
 
-const padH = (): number => Math.round(PAD_W / (mainWindow().innerWidth / mainWindow().innerHeight))
+// The pad has the main screen's shape, so a spot on it matches a spot on the visualizer.
+const padAspectRatio = (): number => mainWindow().innerWidth / mainWindow().innerHeight
 const getRange = (): number => mainWindow().config?.user?.cameraBound?.value ?? 100
-const valToPixelX = (v: number, w: number, range: number): number => ((v / range) + 1) * (w / 2)
-const valToPixelY = (v: number, h: number, range: number): number => ((v / range) + 1) * (h / 2)
-const pixelToValX = (px: number, w: number, range: number): number => ((px / w) * 2 - 1) * range
-const pixelToValY = (py: number, h: number, range: number): number => ((py / h) * 2 - 1) * range
+// Spot on the pad as a percentage of its width/height, so the pad can fill whatever width it is given.
+const valToPercent = (v: number, range: number): string => `${((v / range) + 1) * 50}%`
+const pixelToVal = (px: number, size: number, range: number): number => ((px / size) * 2 - 1) * range
 
 type Pos = { x: number; y: number }
 
 export const CameraTouchpad = (): React.ReactElement => {
   const [pos, setPos] = useState<Pos>({ x: 0, y: 0 })
-  // Where the Julia visualizer's steering has actually got to; it trails the target dot. Null otherwise.
+  // Where the on-screen visualizer's camera has actually got to; it trails the target dot, in every mode.
   const [current, setCurrent] = useState<Pos | null>(null)
   const padRef = useRef<HTMLDivElement>(null)
   const dragging = useRef(false)
   const rafRef = useRef<number>(0)
-  const h = padH()
 
   // Poll the camera's actual mouseX/mouseY every frame so the dot stays in sync
   // with real mouse movement on the main screen too
   useEffect(() => {
     const tick = (): void => {
-      const steer = mainWindow().getJuliaSteer?.() ?? null
+      const steer = mainWindow().getCameraSteer?.() ?? null
       setCurrent((c) => {
         if (!steer) return c === null ? c : null
         return c && Math.abs(c.x - steer.x) < 0.05 && Math.abs(c.y - steer.y) < 0.05 ? c : steer
@@ -66,21 +63,19 @@ export const CameraTouchpad = (): React.ReactElement => {
     dragging.current = true
 
     const pad = e.currentTarget
-    const ph = padH()
     const rect = pad.getBoundingClientRect()
     applyPos(
-      pixelToValX(clamp(e.clientX - rect.left, 0, PAD_W), PAD_W, getRange()),
-      pixelToValY(clamp(e.clientY - rect.top, 0, ph), ph, getRange()),
+      pixelToVal(clamp(e.clientX - rect.left, 0, rect.width), rect.width, getRange()),
+      pixelToVal(clamp(e.clientY - rect.top, 0, rect.height), rect.height, getRange()),
     )
 
     const doc = pad.ownerDocument
     const onMove = (ev: MouseEvent): void => {
       if (!dragging.current || !padRef.current) return
       const r = padRef.current.getBoundingClientRect()
-      const ph2 = padH()
       applyPos(
-        pixelToValX(clamp(ev.clientX - r.left, 0, PAD_W), PAD_W, getRange()),
-        pixelToValY(clamp(ev.clientY - r.top, 0, ph2), ph2, getRange()),
+        pixelToVal(clamp(ev.clientX - r.left, 0, r.width), r.width, getRange()),
+        pixelToVal(clamp(ev.clientY - r.top, 0, r.height), r.height, getRange()),
       )
     }
     const onUp = (): void => {
@@ -102,7 +97,7 @@ export const CameraTouchpad = (): React.ReactElement => {
       <div
         ref={padRef}
         className='camera-touchpad'
-        style={{ width: PAD_W, height: h }}
+        style={{ aspectRatio: padAspectRatio() }}
         onMouseDown={handleMouseDown}
         onDoubleClick={handleDoubleClick}
       >
@@ -111,14 +106,14 @@ export const CameraTouchpad = (): React.ReactElement => {
         {current && !disabled ? (
           <div
             className='camera-touchpad-current'
-            style={{ left: valToPixelX(clamp(current.x, -getRange(), getRange()), PAD_W, getRange()), top: valToPixelY(clamp(current.y, -getRange(), getRange()), h, getRange()) }}
+            style={{ left: valToPercent(clamp(current.x, -getRange(), getRange()), getRange()), top: valToPercent(clamp(current.y, -getRange(), getRange()), getRange()) }}
           />
         ) : null}
         <img
           src='/crossheir.png'
           alt=''
           className='camera-touchpad-dot'
-          style={{ left: disabled ? PAD_W / 2 : valToPixelX(pos.x, PAD_W, getRange()), top: disabled ? h / 2 : valToPixelY(pos.y, h, getRange()) }}
+          style={{ left: disabled ? '50%' : valToPercent(pos.x, getRange()), top: disabled ? '50%' : valToPercent(pos.y, getRange()) }}
         />
       </div>
       <div className='camera-touchpad-values'>
