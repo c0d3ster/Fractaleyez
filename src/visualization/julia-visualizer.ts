@@ -631,16 +631,17 @@ export class JuliaVisualizer {
     // Glow: Hopalong drives bloom opacity with peak value * peak energy.
     const glow = effects.glow.value ? Math.min(1, (peakValue * (audioData.peak?.energy ?? 0)) / GLOW_ENERGY_REFERENCE) : 0
 
-    // Camera-style follow: the scene shifts opposite the mouse, like Hopalong's camera. The shift is in
-    // normalized frame space, so it steers the dive without breaking the self-similar loop.
+    // Steering: the convergence point moves toward where the camera pad / mouse points (pad y grows downward,
+    // the shader's offset y grows upward, hence the flip). The shift is in normalized frame space, so it
+    // steers the dive without breaking the self-similar loop.
     const range = window.config.user.cameraBound.value
     const pad = window.getVirtualCameraPosition?.() ?? { x: 0, y: 0 }
     const padX = Math.max(-range, Math.min(range, pad.x))
     const padY = Math.max(-range, Math.min(range, pad.y))
     const steerScale = MAX_STEER_FRAME_OFFSET / CAMERA_BOUND_MAX
     const kSteer = 1 - Math.pow(0.5, dt / STEER_EMA_HALF_LIFE_SECONDS)
-    this.steerX += (-padX * steerScale - this.steerX) * kSteer
-    this.steerY += (padY * steerScale - this.steerY) * kSteer
+    this.steerX += (padX * steerScale - this.steerX) * kSteer
+    this.steerY += (-padY * steerScale - this.steerY) * kSteer
 
     const uniforms = this.material.uniforms
     uniforms.uCenterOffset!.value.set(this.steerX, this.steerY)
