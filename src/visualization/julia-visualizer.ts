@@ -39,10 +39,11 @@ const ENERGY_SPEED_GAIN = 0.2
 const PEAK_SPEED_BOOST = 1.5
 const MAX_SPEED_MULTIPLIER = 8
 
-// The shared user sliders map onto the Julia view. Defaults (speed 2, scale 1500) reproduce the
-// untouched look; rotation spins the whole view about the fixed point, which keeps the loop seamless.
+// The shared user sliders map onto the Julia view. The default speed (2) keeps the base pace;
+// rotation spins the whole view about the fixed point, which keeps the loop seamless.
 const SPEED_DEFAULT = 2
-const SCALE_DEFAULT = 1500
+const SCALE_MIN = 100
+const SCALE_MAX = 2000
 const ROTATION_RAD_PER_SEC_PER_UNIT = 0.03
 
 // Steering reads the same shared camera position the Camera Position pad writes (and Hopalong's
@@ -133,6 +134,8 @@ export class JuliaVisualizer {
   private steerX = 0
   private steerY = 0
   private driftPhase = 0
+  private loopProgress = 0
+  private lastWrapIndex = 0
   private loopT = 0
   private huePhase = 0
   private previousPeakValue = 0
@@ -234,11 +237,17 @@ export class JuliaVisualizer {
       1 + this.smoothEnergy * ENERGY_SPEED_GAIN + peakValue * PEAK_SPEED_BOOST,
     )
     const { speed, rotationSpeed, scaleFactor } = window.config.user
-    this.loopT += BASE_LOOP_SPEED * (speed.value / SPEED_DEFAULT) * musicSpeedMultiplier * dt
+    this.loopProgress += BASE_LOOP_SPEED * (speed.value / SPEED_DEFAULT) * musicSpeedMultiplier * dt
     this.rotation = (this.rotation + rotationSpeed.value * ROTATION_RAD_PER_SEC_PER_UNIT * dt) % (Math.PI * 2)
 
-    const wrapped = this.loopT >= 1 || !this.hasStartedLoop
-    if (this.loopT >= 1) this.loopT -= Math.floor(this.loopT)
+    // The picture is self-similar, so a different starting radius is just a different point in the
+    // loop. Scale therefore maps (log) onto exactly one loop of phase: higher scale = deeper start.
+    const scaleOffset = Math.log(scaleFactor.value / SCALE_MIN) / Math.log(SCALE_MAX / SCALE_MIN)
+    const phase = this.loopProgress + scaleOffset
+    const wrapIndex = Math.floor(phase)
+    const wrapped = !this.hasStartedLoop || wrapIndex !== this.lastWrapIndex
+    this.lastWrapIndex = wrapIndex
+    this.loopT = phase - wrapIndex
 
     if (wrapped) {
       if (this.hasStartedLoop) {
@@ -285,7 +294,6 @@ export class JuliaVisualizer {
     uniforms.uRotation!.value = this.rotation
     uniforms.uKoenigs2!.value.set(this.loopKoenigs2.re, this.loopKoenigs2.im)
     uniforms.uKoenigs3!.value.set(this.loopKoenigs3.re, this.loopKoenigs3.im)
-    uniforms.uWStart!.value = W_START * (SCALE_DEFAULT / scaleFactor.value)
     uniforms.uC!.value.set(this.loopCx, this.loopCy)
     uniforms.uFixedPoint!.value.set(this.loopFixedPointX, this.loopFixedPointY)
     uniforms.uT!.value = this.loopT
