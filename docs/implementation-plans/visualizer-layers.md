@@ -1,71 +1,46 @@
-# Visualizer Layers (Orbit / Video / Logo)
+# Visualizer Layers
 
 ## Context
 
-Fractaleyez currently has no formal concept of "what's being visualized" — orbit particles always render, and the video background is silently on/off based on whether `video.clips` happens to be non-empty. The user wants to add a Logo overlay (spin/beat-scale/shake/glow-on-beat, driven by a chosen sprite) that can render *at the same time* as orbit particles and/or a video background, with independent enable/opacity per layer, rather than continuing to bolt features onto an implicit, exclusive-feeling mode switch.
+Fractaleyez renders several independent visual things at once: Hopalong orbit particles, a Julia-set fractal (`julia-visualizer.ts`, config section `fractal`), a video background, and (new) a Logo overlay. Today these are wired ad hoc. Video is "on" only because `video.clips` is non-empty, Julia and Hopalong are separate visualizers, and the video-over-fractal masking added in `ee50020` is a `V` key toggle with mode-specific code in both the Julia shader and the Hopalong video plane.
 
-Investigation confirmed video and orbit particles **already coexist today** with zero exclusivity logic — the video plane is just a background mesh in the same scene, farther from the camera than the particle systems. So this feature formalizes an existing-but-implicit layering behavior rather than inventing compositing from scratch, and adds Logo as the first genuinely new layer type.
+This plan formalizes them as **layers**: a flat, ordered list of up to 5 enabled layers, each with its own opacity, blend mode, and z-position, composited together. Future layer types (Image, Elemental, more) slot in as new entries in the list.
 
-Scope for this plan, per decisions made with the user: **only** the layer architecture + config UI (sidebar accordion + the expanded pop-out `ConfigWindow`). The asset-library modal (uploads/theming/favorites/pagination for video clips & images) is explicitly deferred — Logo's sprite picker reuses the existing flat particle-sprite pool/upload pipeline as-is; a TASKS.md entry documents the richer library as future work.
+Out of scope here: the asset-library modal (uploads, theming, favorites, pagination for video clips and images). The Logo sprite picker reuses the existing flat particle-sprite pool and upload pipeline as-is. A TASKS.md entry already tracks the richer library.
 
-This conversation is deliberately doing the architectural lift, not just shipping three layers — the user's stated direction is several more layer types down the road: **Fractal** (Julia-set zoom, audio-reactive), **Image** (endless Droste-style zoom into a point in a still image), and **Elemental** (fire/water/cloud/rain — today just a particle-sprite theme pack, eventually its own particle-physics algorithm). The type model, tab UI, and compositing order below are shaped so those slot in later without a rework — see "Forward-looking: future layer types" and "Layer capacity & transitions."
+## Locked decisions
 
-## Key decisions locked in
+1. **Flat layer list, no tiers.** Layer types: Orbit (Hopalong attractor plus its particle rendering), Fractal (Julia), Video, Logo. Every layer has `enabled`, `opacity`, `blendMode`, and `order`. There is no background/mid/foreground distinction and no "one background layer only" rule.
+2. **Global cap of 5 enabled layers.** Checked generically (count of `enabled.value === true` across all layer sections), enforced wherever `enabled` flips to true: block enabling a sixth and show the control as disabled with a reason. Revisit the number once more layer types exist to test it.
+3. **Real z-order via per-layer render targets.** Each layer renders to its own target. A composite pass blends the targets in `order`, using each layer's `blendMode` and `opacity`. This replaces the fixed Video-farthest/Orbit-mid/Logo-nearest ordering and replaces the ad hoc video mask code. Open risk: up to five full-screen targets cost GPU and memory, so measure early.
+4. **`blendMode` defaults to `mask` on every layer.** `mask` means the layer's black areas are transparent, so layers below it show through. The existing video-over-Julia behavior (Julia visible only in the video's black areas, or video visible only in Julia's black areas, depending on order) falls out of `mask` plus `order`, so the `V` toggle and its bespoke shader and plane code go away. Additional blend modes and the picker UI are a follow-on (see Follow-ons).
+5. **Camera-attached Logo.** Logo's sprite is parented to the camera so it never gets parallax and renders in screen space. In the layer model it still renders to its own target like any other layer, so its z-position is just its `order`.
+6. **Orbit and Particle config stay structurally separate.** They are different concepts (algorithm parameters vs particle rendering parameters). Both live under the Orbit layer's accordion as two nested sub-accordions, with the particle sprite selector inside Particle config.
+7. **User, Effects, and Audio stay global.** They cut across layers and are not part of the layer system. (Audio config and the Video clip picker share one accordion; see Sidebar UI.)
+8. **Logo's asset picker reuses the particle-sprite pool and upload pipeline** (`ParticleSpriteHud` / `uploadParticleHandler`) as a single-select. No new upload infrastructure.
+9. **Video's `enabled` becomes explicit** instead of inferred from `clips.length`. Merge logic still derives `enabled = clips.length > 0` for presets saved before this change so nothing silently flips off.
+10. **Enable/disable fades.** Opacity animates 0 to configured `opacity` on enable and back to 0 on disable, using the existing crossfade duration infrastructure (`PARTICLE_CROSSFADE_DURATION_DEFAULT_MS`, `getParticleCrossfadeDurationMs` / `setParticleCrossfadeDurationMs` in `src/config/visualizer.config.ts`) as the shared fade duration. No second duration setting.
+11. **Style pass is separate.** Tighter margins between configs and shorter sliders happen after the structure lands, not inside the structural work.
 
-1. Layers: **Orbit** (fractal attractor + its particle rendering), **Video** (existing clip background), **Logo** (new: sprite + spin/spinSpeed/beatScale/shake/glowOnBeat). Each has `enabled` + `opacity`. Fixed compositing order — Video farthest, Orbit particles mid, Logo nearest camera. No arbitrary z-index/reordering.
-2. Orbit and Particle config stay **visually/structurally separate** (two sub-sections), even though both live under the "Orbit" tab — the user was explicit these are different concepts (algorithm params vs. particle-rendering params) and must not be flattened together.
-3. `User`/`Audio` config stay outside the layer system entirely (cross-cutting, not per-algorithm).
-4. Logo's asset picker reuses the existing particle-sprite pool + upload pipeline (`ParticleSpriteHud`/`uploadParticleHandler`) as a single-select — no new upload infra.
-5. Sidebar: the three layers collapse into **one** accordion row with an inner tab strip (Orbit / Video / Logo). Tabs are always present regardless of `enabled`, so a disabled layer's settings remain editable.
-6. Expanded/event view (`ConfigWindow`, a pop-out window, not a modal): **no tabs** — one column per layer, always shown, since the view's whole purpose is zero-click glanceability during a live show. A disabled layer's column stays visible but visually grayed out (dimmed, not hidden, not click-disabled).
-7. Video's on/off becomes an explicit `enabled: CheckboxItem` instead of being inferred from `clips.length` — but the merge logic still derives a sensible default (`enabled = clips.length > 0`) for presets saved before this change, so nothing silently flips off.
+## Config types
 
-## Forward-looking: future layer types (placeholders — not designed here)
-
-Not speccing these now, but naming where they'd land in the architecture above so the current build doesn't have to be reworked when they arrive:
-
-- **Fractal** — Julia-set zoom, audio-reactive. Almost certainly a shader/background-tier layer (like Video: full-viewport, farthest from camera), not a particle-position algorithm — it'd slot in as a sibling to Video rather than to Orbit.
-- **Image** — endless Droste-style zoom into a point in a still image. Same tier as Video/Fractal (background), driven by a static image asset instead of a video clip or shader.
-- **Elemental** — fire/water/cloud/rain. Today it's just a particle-sprite theme (a pack of images fed into the existing Orbit layer's particle rendering); "much more refined" implies it eventually becomes its own particle-*motion* algorithm, i.e. a sibling to Orbit at the particle tier (a different physics driving positions, the way the earlier-discussed "water/rain/droplet" idea was scoped as a new orbit-family algorithm, not a UI change).
-
-Net: layer types aren't flat and unrelated — they cluster into **tiers** (background: Video/Fractal/Image; particle/mid: Orbit/Elemental/water-style; foreground: Logo), and each tier keeps the same fixed compositing position (background farthest, mid, foreground nearest) regardless of which implementation within a tier is active. This plan implements exactly one type per tier (Video, Orbit, Logo) but should model `enabled`/`opacity` and the tab/column UI generically enough that a second type in the background or mid tier is "add a tab," not "redesign the compositing model."
-
-**What actually defines a tier** (this is a real technical distinction, not just "where it sits on screen"): whether the camera's actual position/motion acts on the layer's geometry.
-- **Background** is a flat plane that always fills the viewport (with pan-overscan margin, same technique the existing video plane already uses) — it has no z-depth for the camera to move through. Anything that reads as "zoom" here (Fractal's Julia-set, Image's Droste-style zoom into a still) is a 2D/shader-space transform — scaling texture or complex-plane coordinates over time — not the camera dollying through Three.js geometry.
-- **Mid** is literal 3D objects distributed through real z-depth, so camera pan/dolly/look-at produces genuine parallax against them. This is why mid-tier layers can coexist (see below) — they share one real 3D volume the way any two particle systems in a scene naturally interleave.
-- **Foreground** is screen-plane/camera-attached (Logo's sprite parented directly to the camera) — it never gets camera parallax at all; it only animates in screen-space terms (spin, beat-scale, shake).
-
-## Layer capacity & transitions
-
-Two things worth deciding structurally now, even though only 3 layer types exist today and none of this is reachable yet:
-
-- **Tier exclusivity is not uniform across tiers.** Background and foreground are flat/screen-locked planes — stacking two just means one occludes the other unless opacity-blended, so single-active-implementation-per-tier is the sensible default there (revisit only if a real future request wants two background layers cross-faded, which is a blend question, not a layering one). **Mid is different**: because mid-tier layers genuinely share one 3D volume, multiple can be active *simultaneously* as a real multiselect — e.g. Orbit's Hopalong particles and a future Elemental fire/water particle system both rendering and interleaving in the same depth, not one replacing the other. Model mid-tier `enabled` as allowing multiple true regardless of what background/foreground allow.
-- **Global cap**: user's proposed default — cap total *active* layers at 5 across all tiers combined (so mid's multiselect still counts against the same shared budget, e.g. Orbit + Elemental + Video + Image + Logo = 5), enforced wherever `enabled` gets flipped true (block enabling a 6th, or surface the tab/checkbox as disabled with a reason). A decent machine should handle 5 concurrent layers fine as long as presets aren't being swapped rapidly (each swap potentially rebuilding/crossfading multiple layers' underlying systems at once) — revisit the number if that turns out not to hold once more layer types exist to actually test it. Not reachable with only 3 layer types today; the enable-handler should be written to check the cap generically (count of `enabled.value === true` across all layer sections, not tier-aware) so it's already correct once Fractal/Image/Elemental exist, rather than needing to be added later.
-- **Smooth enable/disable**: opacity should animate rather than snap — fade 0→configured `opacity` on enable, `opacity`→0 on disable. Reuse the existing crossfade-duration infrastructure (`src/config/visualizer.config.ts`'s `PARTICLE_CROSSFADE_DURATION_DEFAULT_MS` + `getParticleCrossfadeDurationMs`/`setParticleCrossfadeDurationMs`, already used for particle-system rebuild crossfades) as the shared fade duration for layer enable/disable, instead of introducing a second duration setting — implement in the same per-frame opacity-write path described under "Renderer changes" (drive toward target opacity over that duration instead of writing it directly).
-
-## Type changes — least invasive option
-
-Extend the *existing* `orbit`/`video` top-level `AppConfig` sections with `enabled`/`opacity` fields rather than introducing a `layers: {...}` wrapper. Reasons: `mergeConfigSection` (see below) already iterates every key of a section generically, so new fields need zero new merge code; a wrapper would break every direct `window.config.orbit.a.value` / `config.video.clips` access across `hopalong-visualizer.ts`, `presets.ts`, and bundled preset blobs for no functional gain; and decision #2 already requires `orbit`/`particle` to stay separate top-level keys anyway.
-
-In `src/config/configDefaults.ts`:
+Every layer section extends a shared base. In `src/config/configDefaults.ts`:
 
 ```ts
-export type OrbitConfigSection = {
+export type BlendMode = 'mask' // widened in the blend-mode follow-on
+
+export type LayerConfigBase = {
   enabled: CheckboxItem
   opacity: SliderItem
-  a: SliderItem; b: SliderItem; c: SliderItem; d: SliderItem; e: SliderItem
+  blendMode: BlendMode // not a ConfigItem; no UI until the follow-on
+  order: SliderItem // integer z-position, 0 = farthest from the viewer
 }
 
-export type VideoConfigSection = {
-  enabled: CheckboxItem
-  opacity: SliderItem
-  clips: string[]; allClips: string[]; index: number
-}
-
-export type LogoConfigSection = {
-  enabled: CheckboxItem
-  opacity: SliderItem
-  sprite: MultiselectItem   // single-select via min:1,max:1 — see note below
+export type OrbitConfigSection = LayerConfigBase & { a: SliderItem; b: SliderItem; c: SliderItem; d: SliderItem; e: SliderItem }
+export type FractalConfigSection = LayerConfigBase & { tour: SliderItem }
+export type VideoConfigSection = LayerConfigBase & { clips: string[]; allClips: string[]; index: number }
+export type LogoConfigSection = LayerConfigBase & {
+  sprite: MultiselectItem // single-select via min:1,max:1
   spin: CheckboxItem
   spinSpeed: SliderItem
   beatScale: SliderItem
@@ -74,82 +49,112 @@ export type LogoConfigSection = {
 }
 ```
 
-`AppConfig` gains `logo: LogoConfigSection`. `configDefaults.orbit`/`.video` default to `enabled: true, opacity: 1` (preserves current always-on behavior); `configDefaults.logo` defaults to `enabled: false` (a new feature shouldn't suddenly render on top of existing shows).
+Notes:
+- This extends the existing top-level `orbit` / `fractal` / `video` sections with the shared fields instead of introducing a `layers: {...}` wrapper. `mergeConfigSection` already iterates every key generically, so new fields need no new merge code, and a wrapper would break every direct `config.orbit.a.value` / `config.video.clips` access plus the bundled preset blobs for no functional gain.
+- `AppConfig` gains `logo: LogoConfigSection`. `particle` stays its own top-level section (Decision 6).
+- **Defaults:** `enabled: true, opacity: 1, blendMode: 'mask'` for orbit, fractal (confirm against current default behavior when discovery reads `configDefaults`), and video-with-clips; `logo.enabled: false` (a new feature should not render over existing shows). Default `order` preserves today's visual stacking: video 0, fractal 1, orbit 2, logo 3.
+- **`sprite` field:** no existing `ConfigItem` variant is "pick exactly one from a pool." Reuse `MultiselectItem` with `min: 1, max: 1` rather than widening the `ConfigItem` union (used pervasively in `ConfigCategory.tsx`) for one field. The Logo picker is a bespoke component anyway.
+- New `src/config/logo.config.ts` holds min/max/default/step constants, mirroring the bare-constants pattern in `orbit.config.ts` / `particle.config.ts` / `fractal.config.ts`. A shared layer constants file holds `LAYER_CAP = 5` and the default order and opacity values.
+- `CONFIG_CATEGORY_ORDER` gets `'logo'`. `CONFIG_WINDOW_COLUMN_ORDER` replaces bare `'particle'` / `'orbit'` with a combined `'orbit_particle'` key (mirrors the existing `'effects_particle'` trick) and adds `'fractal'` and `'logo'` columns as needed.
+- `StoredVideoSection` widens to `Pick<VideoConfigSection, 'clips' | 'index'> & Partial<Pick<VideoConfigSection, 'enabled' | 'opacity' | 'order'>>` so existing bundled presets keep compiling untouched.
 
-**`sprite` field**: none of the existing `ConfigItem` variants is "pick exactly one from a pool." Reuse `MultiselectItem` with `min: 1, max: 1` rather than adding a new `ConfigItem` variant — the Logo tab needs a bespoke picker component regardless (built-in + uploaded sprites, replace-not-toggle semantics), so the generic `ConfigCategory` renderer never touches this field either way, and it avoids widening the `ConfigItem` union (used pervasively in `ConfigCategory.tsx`) for one field.
+## Config merge and migration (`src/components/config/context/ConfigProvider.tsx`)
 
-New `src/config/logo.config.ts` holds the min/max/default/step constants, mirroring `orbit.config.ts`/`particle.config.ts`'s existing bare-constants pattern.
+- `mergeConfigSection` (generic over every key in a section's defaults) picks up `enabled` / `opacity` / `blendMode` / `order` for orbit and fractal and all of `logo.*` through its existing "missing key keeps default" fallback. Widen `ConfigSectionKey` to include `'logo'`.
+- `mergeVideo` needs a branch for Decision 9: use `enabled.value` if the loaded config has a boolean one, else derive `enabled = clips.length > 0`. Same for `opacity` (default 1), `order`, `blendMode`. The early return for a missing or non-object `video` section must return all of these too (`enabled: false`, `opacity: 1`, default order, `'mask'`) so no renderer read ever sees `undefined`.
+- `normalizeLoadedPreset` adds `logo: mergeConfigSection('logo', cfg.logo)` next to the existing section merges.
+- **Order collisions:** two layers can end up with the same `order` (older presets, or two layers set to the same number). Normalize on load: sort by `(order, default order)` and rewrite to a dense 0..n-1 sequence. The UI order control also always writes dense values.
+- `updateVideoClips` currently dispatches `videoClipsRestored` only on the empty/non-empty transition of `clips` (what `hopalong-visualizer.ts` listens to for create/dispose of the video plane). Add `updateVideoEnabled`, parallel to it, that flips `video.enabled.value` and dispatches the same event with `clips: enabled ? clips : []`, reusing the create/dispose path. (Discovery should confirm this event path still makes sense once video renders to its own target; if the layer pipeline owns video lifecycle directly, replace rather than extend.)
+- New `updateLogoSprite`, parallel to `updateParticleSprites`: same `warmSpriteCache` pattern, sets `logo.sprite.value = [chosen]`.
+- New layer-level actions: `setLayerEnabled` (enforces the 5-layer cap), `setLayerOpacity`, `setLayerOrder` (reorders and re-densifies all layers' `order`).
+- No server or DB migration: presets are merged against `configDefaults` client-side on every load, and bundled presets already freely omit fields.
 
-`CONFIG_CATEGORY_ORDER` gains `'logo'`. `CONFIG_WINDOW_COLUMN_ORDER` replaces bare `'particle'`/`'orbit'` with a new combined `'orbit_particle'` key (mirrors the existing `'effects_particle'` combined-column trick already in the file) and adds `'logo'`.
+## Renderer
 
-`StoredVideoSection` (used by bundled `presets.ts`) widens to `Pick<VideoConfigSection, 'clips' | 'index'> & { enabled?: CheckboxItem }` — optional, so existing bundled presets keep compiling untouched.
+### Layer pipeline (new)
 
-## Config merge / migration — `src/components/config/context/ConfigProvider.tsx`
+- A layer abstraction (e.g. `Layer` interface: `render(target, deltaTime, audio)`, `dispose()`, `resize()`) implemented by Orbit, Fractal, Video, and Logo. Each owns its scene, camera, and render target.
+- A compositor owns the composite pass: a full-screen quad shader that samples each enabled layer's target in ascending `order`, applying that layer's `blendMode` (`mask` only for now) and `opacity`. Disabled layers are skipped and their targets can be released or kept per the memory measurements below.
+- Targets are resized with the window and share the renderer. Measure memory and frame time with 4 and 5 layers enabled at the largest supported resolution before building the rest on top, and decide whether targets can run at reduced resolution for soft layers (e.g. Fractal) if needed.
+- Replaces the ad hoc video mask path in `hopalong-manager.ts` (video plane `renderOrder` hack and screen blend) and the Julia shader's built-in video sampling (`uVideo` / `uVideoMask`, `setVideoMask`, the `V` key toggle). `mask` mode plus `order` reproduces both behaviors, so remove them as part of this step and keep the user-visible result. Fold Julia's "black areas" threshold (`VIDEO_MASK_EDGE`, steep smoothstep) into the compositor's `mask` blend.
+- Post effects that currently run in the `EffectComposer` chain (bloom, shockwave) need a defined place: either per-layer (Orbit's own pass, matching today) or on the final composited image. Discovery should decide from how shockwave sources are placed for Julia vs Hopalong today.
 
-- `mergeConfigSection` (line 75) is already generic over every key in a section's defaults — `orbit.enabled`/`orbit.opacity` and all of `logo.*` fall out of this for free via its existing "missing key → keep default" fallback (line 82). No change needed there beyond widening `ConfigSectionKey` (line 73) to include `'logo'`.
-- `mergeVideo` (line 103) needs one new branch implementing decision #7: if the loaded config has an `enabled.value` boolean, use it; otherwise derive `enabled = clips.length > 0` (legacy inference, preserved as a fallback rather than removed). Same pattern for `opacity` (default 1). The early return for a missing or non-object `video` section (a preset with no `video` at all) must return both fields too: `enabled: false` (no clips to infer from) and `opacity: 1`, so the renderer's `video.enabled.value` read never sees `undefined`.
-- `normalizeLoadedPreset` (line 117) adds `logo: mergeConfigSection('logo', cfg.logo as ...)` alongside the existing five section merges.
-- `updateVideoClips` (line 361) currently dispatches the `videoClipsRestored` event only on the empty↔non-empty transition of `clips` (this is what `hopalong-visualizer.ts` listens for to create/dispose the video plane). Add a new `updateVideoEnabled` action, parallel to `updateVideoClips`, that flips `video.enabled.value` and dispatches the same event with `clips: enabled ? clips : []` — this reuses the create/dispose path that already exists rather than adding a second listener. The Visualizer Layers UI wires the Video tab's enabled checkbox to this new action, not the generic `updateConfigItem` (exactly how clip checkboxes already bypass `updateConfigItem` today).
-- A new `updateLogoSprite` action, parallel to `updateParticleSprites` (line 333): same `warmSpriteCache` pattern (comment there already documents the race it's avoiding), sets `logo.sprite.value = [chosen]`.
+### Per-layer behavior
 
-No server/DB migration needed — presets are merged against `configDefaults` client-side on every load, and bundled presets already freely omit fields (confirmed in `src/config/presets.ts`), relying on exactly this fallback path.
-
-## Renderer changes
-
-**`src/visualization/hopalong-manager.ts`** (`update()`, ~lines 105-129 already drive `glow`/`shockwave` off `audioData.peak.value`/`.energy` — follow this exact convention for Logo's reactive fields rather than inventing a new one):
-- Own the Logo sprite directly (it's scene-independent, unlike orbit/video which live inside `HopalongVisualizer`'s scene and get torn down/rebuilt on crossfades). Attach it to the camera itself — `camera.add(logoSprite)` with a small local `position.z` offset — via `CameraManager.getCamera()`, so it always renders nearest-camera regardless of `cameraBound` panning or `scaleFactor`, with no need to track a world-space "nearest z" constant.
-- `beatScale`: scale the sprite by `1 + audioData.peak.value * config.logo.beatScale.value` when peak crosses the existing threshold.
-- `shake`: perturb sprite position by a small random offset scaled by `config.logo.shake.value`, same peak gate.
-- `glowOnBeat`: nudge sprite material opacity/tint using the same `audioData.peak.value * audioData.peak.energy` formula the `glow` effect already uses.
-- `spin`/`spinSpeed`: not beat-reactive — constant `rotation.z += spinSpeed.value * deltaTime` per frame, same category as the always-on rotation already applied elsewhere.
-- Apply `orbit.opacity`/`video.opacity`/`logo.opacity` each frame via each layer's existing opacity plumbing.
-
-**`src/visualization/hopalong-visualizer.ts`**:
-- Gate orbit/particle visibility on `orbit.enabled` by driving particle opacity to 0 when disabled (reuse the existing crossfade opacity plumbing — `setParticleOpacity`-style — rather than tearing down/rebuilding the particle system for a simple visibility toggle).
-- Replace the three `clips.length`-only checks (`init()` ~line 139, `nextVideo()` ~lines 227-233) with `video.enabled.value && clips.length` / `!enabled || !clips.length`.
-- Video plane material needs `transparent: true` added (currently omitted) for `opacity` to have any visible effect; write `opacity` from `video.opacity.value` at creation and per-frame.
+- **Orbit** (`hopalong-visualizer.ts`, `hopalong-manager.ts`): renders into its own target. `orbit.enabled` and `orbit.opacity` are handled by the compositor and the fade animation (Decision 10), not by tearing down the particle system for a visibility toggle. Existing particle crossfades between generations keep working inside the Orbit layer.
+- **Fractal** (`julia-visualizer.ts`): renders into its own target as a full-viewport shader quad, with its existing tour, shape, and audio reactivity unchanged. Its built-in video sampling is removed (see above).
+- **Video:** the video plane becomes its own layer scene (full-viewport plane with pan overscan margin, as today), with `transparent: true` and opacity handled by the compositor. Replace the `clips.length`-only checks (`init()`, `nextVideo()` in `hopalong-visualizer.ts`) with `video.enabled.value && clips.length`. Keep the Chrome playback workarounds from `ee50020` (source element attached to the page as an opaque 2px dot, started with `play()` muted, resume if paused) since the video texture is still sampled from that element.
+- **Logo** (new, in `hopalong-manager.ts` or its own module): owns its sprite directly, parented to the camera with a small local `position.z` offset via `CameraManager.getCamera()`, so it ignores `cameraBound` panning and `scaleFactor`. Reactive fields follow the existing `glow` / `shockwave` convention in `update()` (read `audioData.peak.value` / `.energy`):
+  - `beatScale`: scale by `1 + peak.value * beatScale.value` when peak crosses the existing threshold.
+  - `shake`: small random position offset scaled by `shake.value`, same peak gate.
+  - `glowOnBeat`: nudge sprite opacity or tint with `peak.value * peak.energy`, the same formula the `glow` effect uses.
+  - `spin` / `spinSpeed`: not beat-reactive; constant `rotation.z += spinSpeed.value * deltaTime` per frame.
+- **Fades:** the compositor drives each layer's effective opacity toward its target (configured `opacity` if enabled, else 0) over the shared crossfade duration, instead of writing it directly.
 
 ## Sidebar UI
 
-- **New `src/components/config/ConfigVisualizerLayers.tsx`**: owns the accordion row's header/collapse (replacing where `orbit`'s row and `ConfigVideo`'s own header render today), containing a `react-bootstrap` `Tabs`/`Nav` strip (no tab component exists in the codebase yet, but `react-bootstrap` — already a dependency — ships one, so no new library). Three always-present tabs:
-  - **Orbit tab**: enabled+opacity row via `ConfigCheckbox`/`ConfigSlider` directly, then the existing orbit a-e sliders, then a visually distinct sub-heading, then the existing `particle` category's items unmodified — satisfying decision #2 (co-located but not merged).
-  - **Video tab**: enabled+opacity row, then the existing clip-picker body.
-  - **Logo tab**: enabled+opacity row, spin/spinSpeed/beatScale/shake/glowOnBeat controls, plus a sprite-picker sub-component.
-- **`ConfigVideo.tsx` refactor**: split its collapse-header ownership from its clip-list body (currently one component owns both) so the body can be reused inside a tab without a redundant nested header. The header wrapper likely becomes unused once both surfaces consume the body directly.
-- **New sprite-upload hook** (e.g. `useSpriteUpload`), extracted from `ParticleSpriteHud.tsx`'s existing upload logic (`onFiles`, size/dimension constants), shared between `ParticleSpriteHud` (multi-select, add-to-array) and a new Logo picker (single-select, replace-value) — avoids duplicating the upload plumbing.
-- **`ConfigAccordion.tsx`**: widen the existing `category === 'video' ? <ConfigVideo/> : <ConfigCategory/>` special-case into a skip-set for `orbit`/`video`/`particle`/`logo`, rendering `ConfigVisualizerLayers` once in their place.
+Vertical accordions per layer replace the originally planned tab strip. Tabs were rejected because User, Effects, and Audio are global, so the layers are peers, not the main axis of the whole sidebar.
+
+- **Layer accordion header** (one per layer, new shared component): layer name, on/off state, the layer number on the right.
+  - **Drag to set opacity:** dragging the header horizontally sets `opacity` 0-1. The header fills from a disabled look to fully opaque, using shades of blue for inactive vs active, matching the frequency analyzer's active/inactive pattern. A separate checkbox or eye affordance toggles `enabled` so dragging never doubles as a toggle. Dragging a disabled layer's header should enable it (still subject to the 5-layer cap).
+  - **Layer number = `order`:** a small stepper or click on the number changes the layer's z-position and re-densifies all `order` values. No drag-to-reorder in v1.
+- **Orbit layer body:** two nested accordions, "Orbit config" (the a-e sliders via the existing `ConfigCategory`) and "Particle config" (the existing particle sliders plus the particle sprite selector moved in from `ParticleSpriteHud`). Collapsed by default since both do not fit vertically.
+- **Fractal layer body:** the existing fractal config (tour, shape pad access as it works today).
+- **Video layer body:** the clip picker, split out of `ConfigVideo.tsx`.
+- **Logo layer body:** spin, spinSpeed, beatScale, shake, glowOnBeat, and the Logo sprite picker.
+- **Audio and Video clip picker group:** Audio config and the clip picker body share one vertical accordion. (The Video layer's header controls still live on its layer accordion; only the clip list placement is a design question for discovery to settle with the existing `ConfigVideo` structure.)
+- **`ConfigVideo.tsx` refactor:** split its collapse-header ownership from its clip-list body so the body can be reused inside a layer accordion without a redundant nested header.
+- **New sprite-upload hook** (e.g. `useSpriteUpload`), extracted from `ParticleSpriteHud.tsx` (`onFiles`, size and dimension constants), shared between `ParticleSpriteHud` (multi-select, add-to-array) and the Logo picker (single-select, replace-value).
+- **`ConfigAccordion.tsx`:** the current `category === 'video' ? <ConfigVideo/> : <ConfigCategory/>` special case becomes a skip-set for `orbit` / `particle` / `fractal` / `video` / `logo`, rendering the layer accordions in `order` (highest layer number first or last is a discovery call; match the visual-stack metaphor) in their place.
+- Layer cap UX: when 5 layers are enabled, enable controls on the others are disabled with a short reason.
 
 ## Expanded view (`ConfigWindow.tsx` / `ExternalWindowBridge`)
 
-- Add `'orbit_particle'` and `'logo'` branches to the column renderer, mirroring the existing `'effects_particle'` stacked-column pattern (`ConfigCategory name='effects'` + `ParticleSpriteHud` stacked in one column) exactly: `orbit_particle` stacks the Orbit category + Particle category; `logo` gets its own column with the logo sprite picker. All columns stay permanently open (`isOpen=true`, no-op `toggleOpen`) — unchanged from today, since decision #6 rules out tabs here.
-- Grayed-out styling: wrap each layer's column content in a conditional class (dimmed via opacity/grayscale) when that layer's `enabled` is false — explicitly *not* `pointer-events: none`, since the view must stay interactive so a disabled layer can be tweaked/re-enabled from it.
-
-## TASKS.md
-
-Add one entry documenting the deferred asset-library modal (uploads, favorites, theme/pack grouping, pagination for video/image assets) as future work, noting that this feature intentionally reuses the flat sprite picker for Logo instead. Also flag in the PR description (not by editing TASKS.md's human-only Decisions section) that this feature resolves the open "should Video split out as its own viz type" question via the Orbit/Video/Logo layer model.
+The expanded pop-out window has no accordions or tabs: one column per layer, always visible, because its purpose is zero-click glanceability during a live show.
+- Add `'orbit_particle'`, `'fractal'`, and `'logo'` column branches, mirroring the existing `'effects_particle'` stacked-column pattern. `orbit_particle` stacks the Orbit and Particle categories; `logo` gets its own column with the sprite picker. Columns stay permanently open (`isOpen=true`, no-op `toggleOpen`).
+- Layer header strip in each column (name, layer number, opacity fill) reuses the sidebar header component where practical, with drag-to-opacity working in the popup.
+- A disabled layer's column stays visible but dimmed (opacity/grayscale), explicitly not `pointer-events: none`, so it can be tweaked and re-enabled from the popup.
+- Per-frame work in the popup shares the main thread with the video texture (see `ee50020`), so keep the new header cheap.
 
 ## Implementation order
 
-1. Types (`configDefaults.ts`, new `logo.config.ts`)
-2. Merge/migration (`ConfigProvider.tsx`) — land early so config loads never break while UI/renderer work is incremental
-3. Renderer plumbing (`hopalong-manager.ts`, `hopalong-visualizer.ts`)
-4. Sidebar UI (`ConfigVideo.tsx` split, sprite-upload hook, new Logo picker, `ConfigVisualizerLayers.tsx`, `ConfigAccordion.tsx`)
-5. Expanded view (`ConfigWindow.tsx` column branches + CSS)
-6. TASKS.md entry
+1. **Types and defaults** (`configDefaults.ts`, new `logo.config.ts`, shared layer constants): `LayerConfigBase`, `BlendMode`, `LogoConfigSection`, defaults, `CONFIG_CATEGORY_ORDER`, `CONFIG_WINDOW_COLUMN_ORDER`.
+2. **Merge and migration** (`ConfigProvider.tsx`): `mergeVideo` branch, `logo` merge, order normalization, new layer actions including the 5-layer cap. Land early so config loads never break while UI and renderer work is incremental.
+3. **Layer pipeline spike:** `Layer` interface and compositor with per-layer render targets, `mask` blend, `order`. First prove Orbit plus Fractal compose correctly, and measure GPU and memory with 4-5 layers. Decide where bloom and shockwave live.
+4. **Port existing visualizers to layers:** Orbit, Fractal, and Video render to their own targets through the compositor. Remove the ad hoc video mask code (video plane `renderOrder` hack, Julia `uVideo`/`uVideoMask`, `V` toggle) once `mask` plus `order` reproduces it. Verify visual parity before and after.
+5. **Logo layer:** sprite, camera attachment, beat-reactive fields, `updateLogoSprite`, and the `useSpriteUpload` extraction.
+6. **Enable/disable fades and opacity** in the compositor using the shared crossfade duration.
+7. **Sidebar UI:** `ConfigVideo.tsx` split, shared layer accordion header with drag-to-opacity, layer number control, Orbit nested accordions (sprite selector moved into Particle config), Fractal / Video / Logo bodies, `ConfigAccordion.tsx` skip-set, cap UX.
+8. **Expanded view:** `ConfigWindow.tsx` column branches, dimmed disabled columns, layer header strip in the popup.
+9. **TASKS.md and docs:** keep the asset-library entry current, update CLAUDE.md's Visualization pipeline and Config system sections for the layer model.
 
-### Critical files
+### Follow-ons (separate tasks, after the above)
+
+- **Blend mode UI and modes:** per-layer picker plus additional modes (normal, add, screen, multiply). The UI is the hard part: a dropdown per layer header or in the layer body, and how it reads in the compact expanded view. Every layer defaults to `mask` until this lands.
+- **Compact style pass:** reduce margins between configs and slider height so more fits on the page. Do it after the accordion structure exists, so the new rows are what gets compacted.
+
+## Critical files
+
 - `src/config/configDefaults.ts`
-- `src/config/logo.config.ts` (new)
+- `src/config/logo.config.ts` (new), shared layer constants (new)
 - `src/components/config/context/ConfigProvider.tsx`
 - `src/visualization/hopalong-manager.ts`
 - `src/visualization/hopalong-visualizer.ts`
+- `src/visualization/julia-visualizer.ts` (and `src/visualization/shaders`)
+- Layer abstraction and compositor (new, under `src/visualization/`)
 - `src/components/config/ConfigVideo.tsx`
-- `src/components/config/ConfigVisualizerLayers.tsx` (new)
 - `src/components/config/ConfigAccordion.tsx`
 - `src/components/config/ConfigWindow.tsx`
-- `src/components/huds/ParticleSpriteHud.tsx` (source of extracted upload hook)
+- Layer accordion header and Logo picker components (new, under `src/components/config/`)
+- `src/components/huds/ParticleSpriteHud.tsx` (source of the extracted upload hook; sprite selector moves into Particle config)
 
 ## Verification
 
-- `yarn typecheck` and `yarn lint` after each stage (types stage especially — confirms no `AppConfig` consumer broke).
-- `yarn dev`, then manually: toggle each layer's enabled checkbox independently in both the sidebar and the pop-out expanded view (`e` key or the sidebar's expand button) and confirm video/orbit/logo compose visually in the right order (video behind, orbit mid, logo front); confirm a disabled layer's column in the expanded view is visibly dimmed but its controls still respond; confirm opacity sliders visibly fade each layer; confirm loading an old bundled preset (no `enabled`/`logo` keys) doesn't crash and preserves its prior video on/off state.
+- `yarn typecheck` and `yarn lint` after each stage (the types stage especially, to confirm no `AppConfig` consumer broke).
+- `yarn dev`, then manually:
+  - Toggle each layer's enabled state in both the sidebar and the pop-out expanded view, and confirm layers compose in `order`, including video in front of Julia showing the fractal only in the video's black areas (the behavior the `V` toggle gave).
+  - Drag each header to confirm opacity fades the layer and enabling past 5 layers is blocked with a reason.
+  - Change a layer's number and confirm the stack order changes on screen and orders stay dense.
+  - Confirm a disabled layer's popup column is dimmed but responsive.
+  - Load an old bundled preset (no `enabled` / `opacity` / `order` / `logo` keys) and confirm it does not crash and preserves its prior video on/off state.
+  - Watch frame time and memory with 4-5 layers enabled and while swapping presets rapidly (each swap can rebuild and crossfade multiple layers at once).
