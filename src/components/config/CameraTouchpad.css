@@ -60,6 +60,17 @@
   opacity: 0.85;
 }
 
+/* Where the Julia steering has actually got to; the crosshair is the target it is trailing. */
+.camera-touchpad-current {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
 .camera-touchpad-values {
   display: flex;
   gap: 14px;

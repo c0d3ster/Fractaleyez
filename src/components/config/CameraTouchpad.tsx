@@ -19,6 +19,8 @@ type Pos = { x: number; y: number }
 
 export const CameraTouchpad = (): React.ReactElement => {
   const [pos, setPos] = useState<Pos>({ x: 0, y: 0 })
+  // Where the Julia visualizer's steering has actually got to; it trails the target dot. Null otherwise.
+  const [current, setCurrent] = useState<Pos | null>(null)
   const padRef = useRef<HTMLDivElement>(null)
   const dragging = useRef(false)
   const rafRef = useRef<number>(0)
@@ -28,6 +30,11 @@ export const CameraTouchpad = (): React.ReactElement => {
   // with real mouse movement on the main screen too
   useEffect(() => {
     const tick = (): void => {
+      const steer = mainWindow().getJuliaSteer?.() ?? null
+      setCurrent((c) => {
+        if (!steer) return c === null ? c : null
+        return c && Math.abs(c.x - steer.x) < 0.05 && Math.abs(c.y - steer.y) < 0.05 ? c : steer
+      })
       if (!dragging.current) {
         const range = getRange()
         if (range === 0) {
@@ -101,6 +108,12 @@ export const CameraTouchpad = (): React.ReactElement => {
       >
         <div className='camera-touchpad-crosshair camera-touchpad-crosshair--h' />
         <div className='camera-touchpad-crosshair camera-touchpad-crosshair--v' />
+        {current && !disabled ? (
+          <div
+            className='camera-touchpad-current'
+            style={{ left: valToPixelX(clamp(current.x, -getRange(), getRange()), PAD_W, getRange()), top: valToPixelY(clamp(current.y, -getRange(), getRange()), h, getRange()) }}
+          />
+        ) : null}
         <img
           src='/crossheir.png'
           alt=''
