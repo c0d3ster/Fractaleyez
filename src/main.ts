@@ -25,10 +25,18 @@ type ActiveVisualizer = 'hopalong' | 'julia' | 'both'
 const VISUALIZER_CYCLE: ActiveVisualizer[] = ['hopalong', 'julia', 'both']
 let activeVisualizer: ActiveVisualizer = 'hopalong'
 
+// Video mask (press V): the video only shows where the visualizer is black. In Julia (solo or both) the Julia
+// shader fills its black areas with the video itself. In Hopalong solo the particles darken the video instead of
+// adding light. In 'both', Hopalong's own video plane is hidden so the video is only drawn once, by Julia.
+let videoMask = false
+
 const applyVisualizerLayout = (): void => {
   const hopalongCanvas = hopalongManager.getDomElement()
   const juliaCanvas = juliaVisualizer.getDomElement()
   juliaVisualizer.setVisible(activeVisualizer !== 'hopalong')
+  juliaVisualizer.setVideoMask(videoMask && activeVisualizer !== 'hopalong', hopalongManager.getVideoElement)
+  hopalongManager.setVideoMask(videoMask && activeVisualizer === 'hopalong')
+  hopalongManager.setVideoPlaneVisible(!(videoMask && activeVisualizer === 'both'))
   if (!hopalongCanvas || !juliaCanvas) return
   if (activeVisualizer === 'both') {
     // Later in the DOM paints on top, so put Julia first.
@@ -45,6 +53,11 @@ const applyVisualizerLayout = (): void => {
   document.body.appendChild(juliaCanvas)
 }
 
+const toggleVideoMask = (): void => {
+  videoMask = !videoMask
+  applyVisualizerLayout()
+}
+
 const toggleVisualizer = (): void => {
   const next = VISUALIZER_CYCLE[(VISUALIZER_CYCLE.indexOf(activeVisualizer) + 1) % VISUALIZER_CYCLE.length]
   if (!next) return
@@ -55,6 +68,7 @@ const toggleVisualizer = (): void => {
 document.addEventListener('keydown', (event: KeyboardEvent) => {
   if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return
   if (event.key === 'j' || event.key === 'J') toggleVisualizer()
+  if (event.key === 'v' || event.key === 'V') toggleVideoMask()
   // S fires the orbit shockwave on demand, so it can be tested without waiting for a beat.
   if (event.key === 's' || event.key === 'S') hopalongManager.triggerShockwave()
 })

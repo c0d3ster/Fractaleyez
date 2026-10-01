@@ -8,17 +8,25 @@ type PerfData = {
   estimatedLagMs: number
 }
 
-const perfSourceWindow = (): Window => window.opener ?? window
+const PERF_UPDATE_INTERVAL_MS = 250
+
+const perfSourceWindow =(): Window => window.opener ?? window
 
 export const PerfHud = (): React.ReactElement => {
   const [perf, setPerf] = useState<PerfData>({ fps: 0, frameMs: 0, pingMs: null, estimatedLagMs: 0 })
 
   useEffect(() => {
     let raf = 0
+    let lastUpdateAt = 0
     const tick = (): void => {
+      raf = requestAnimationFrame(tick)
+      // A new object every frame would re-render this 60 times a second on the visualizer's main thread, and
+      // the readout is a rolling median that doesn't change that fast.
+      const now = performance.now()
+      if (now - lastUpdateAt < PERF_UPDATE_INTERVAL_MS) return
+      lastUpdateAt = now
       const data = perfSourceWindow().getPerfData?.()
       if (data) setPerf(data)
-      raf = requestAnimationFrame(tick)
     }
     raf = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(raf)
