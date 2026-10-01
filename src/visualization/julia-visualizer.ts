@@ -14,6 +14,10 @@ const TREBLE_C_INFLUENCE = 0.04
 // the target happens to be). This spreads any given amount of evolution across many loops.
 const WRAP_C_LERP_FACTOR = 0.08
 
+// Hard cap on how far c may move at one wrap. Measured offline (at a 0.012 start radius): steps of
+// 0.0001 or less keep the wrap within ~1% of the zero-step mismatch, while 0.001+ more than doubles it.
+const MAX_C_STEP_PER_WRAP = 0.0001
+
 const EMA_HALF_LIFE_SECONDS = 0.12
 
 // Loop progress (t) per second at rest, scaled by the music speed multiplier below.
@@ -26,7 +30,7 @@ const LOOP_PERIODS = 2
 // Radius of the view at t=0. This has to be small enough that the whole frame
 // already sits deep in the region where Koenigs linearization holds well --
 // 1.4 (comparable to the whole Julia set's extent) made the wrap an obvious pop.
-const W_START = 0.012
+const W_START = 0.006
 
 // Zoom speed = base * (1 + smoothed energy * gain + beat envelope * boost), capped.
 // Energy is the mean deviation from 128 on a 0-128 scale, so typical music sits around 5-30.
@@ -139,6 +143,7 @@ export class JuliaVisualizer {
         uAspect: { value: window.innerWidth / window.innerHeight },
         uHuePhase: { value: 0 },
         uCenterOffset: { value: new THREE.Vector2() },
+        uIterOffset: { value: 0 },
       },
     })
 
@@ -204,8 +209,12 @@ export class JuliaVisualizer {
 
     if (wrapped) {
       if (this.hasStartedLoop) {
-        this.loopCx += (targetCx - this.loopCx) * WRAP_C_LERP_FACTOR
-        this.loopCy += (targetCy - this.loopCy) * WRAP_C_LERP_FACTOR
+        const stepX = (targetCx - this.loopCx) * WRAP_C_LERP_FACTOR
+        const stepY = (targetCy - this.loopCy) * WRAP_C_LERP_FACTOR
+        const stepLength = Math.hypot(stepX, stepY)
+        const limit = stepLength > MAX_C_STEP_PER_WRAP ? MAX_C_STEP_PER_WRAP / stepLength : 1
+        this.loopCx += stepX * limit
+        this.loopCy += stepY * limit
       } else {
         this.loopCx = targetCx
         this.loopCy = targetCy
@@ -233,6 +242,7 @@ export class JuliaVisualizer {
 
     const uniforms = this.material.uniforms
     uniforms.uCenterOffset!.value.set(this.steerX, this.steerY)
+    uniforms.uIterOffset!.value = this.loopT * LOOP_PERIODS
     uniforms.uC!.value.set(this.loopCx, this.loopCy)
     uniforms.uFixedPoint!.value.set(this.loopFixedPointX, this.loopFixedPointY)
     uniforms.uT!.value = this.loopT
