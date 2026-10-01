@@ -4,7 +4,13 @@ import { EffectComposer, ShockWaveEffect, RenderPass, BloomEffect, EffectPass } 
 import { HopalongVisualizer } from './hopalong-visualizer'
 import { CameraManager } from './camera-manager'
 import { AudioAnalysedDataForVisualization } from '../audioanalysis/audio-analysed-data'
-import { getParticleCrossfadeDurationMs, MAX_CROSSFADE_GENERATIONS } from '../config/visualizer.config'
+import { CAMERA_STEER_SCREEN_FRACTION_PER_PAD_UNIT, getParticleCrossfadeDurationMs, MAX_CROSSFADE_GENERATIONS } from '../config/visualizer.config'
+
+// The shockwave effect projects its position through a fixed camera at this distance and field of view,
+// onto a plane at this depth (the camera's focus point depth).
+const SHOCKWAVE_CAMERA_FOV = 60
+const SHOCKWAVE_CAMERA_Z = 7
+const SHOCKWAVE_PLANE_Z = -5
 
 type ParticleCrossfade = {
   outgoing: HopalongVisualizer
@@ -21,6 +27,9 @@ export class HopalongManager {
   private clock: THREE.Clock | null
   private bloomEffect: BloomEffect | null
   private shockwaveEffect: ShockWaveEffect | null
+  // The shockwave's own world position (not the camera's focus point, which the camera looks at and so
+  // always projects to screen center). Moved to the camera pointer before each explosion.
+  private shockwavePosition = new THREE.Vector3(0, 0, SHOCKWAVE_PLANE_Z)
   private effectPass: EffectPass | null
   private lastAudioData: AudioAnalysedDataForVisualization | null
   /** Older generations still fading out, oldest first. */
@@ -84,11 +93,11 @@ export class HopalongManager {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ;(this.bloomEffect as any).kernelSize = 1
 
-    const fakeCamera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight)
-    fakeCamera.position.z = 7
+    const fakeCamera = new THREE.PerspectiveCamera(SHOCKWAVE_CAMERA_FOV, window.innerWidth / window.innerHeight)
+    fakeCamera.position.z = SHOCKWAVE_CAMERA_Z
 
     const options = { waveSize: .15, speed: .5, amplitude: .2, maxRadius: 2 }
-    this.shockwaveEffect = new ShockWaveEffect(fakeCamera, this.cameraManager!.focusPoint, options)
+    this.shockwaveEffect = new ShockWaveEffect(fakeCamera, this.shockwavePosition, options)
 
     this.effectPass = new EffectPass(this.cameraManager!.getCamera(), this.shockwaveEffect, this.bloomEffect)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -96,6 +105,26 @@ export class HopalongManager {
     this.composer.addPass(this.effectPass)
 
     this.clock = new THREE.Clock()
+  }
+
+  // Puts the shockwave's source where the Julia visualizer's is: shifted off screen center toward the camera
+  // by the same small amount per pad unit (so a modest Camera Position stays near the middle, not
+  // out in a corner). Screen y grows downward. The effect projects its position through a fixed camera at
+  // z = 7 with a 60 degree field of view, so the matching world point on the shockwave's plane follows
+  // from that frustum.
+  private aimShockwaveAtCameraPointer = (): void => {
+    const range = window.config.user.cameraBound.value
+    // Use where the camera has actually got to, not the pointer's target: the camera eases toward the pointer
+    // (and stores y negated), and the Julia wave likewise uses its eased steering.
+    const { position } = this.cameraManager!.getCamera()
+    const padX = Math.max(-range, Math.min(range, position.x))
+    const padY = Math.max(-range, Math.min(range, -position.y))
+    // Normalized device offset from center: the screen fraction shift times two (NDC spans -1 to 1).
+    const normX = 2 * padX * CAMERA_STEER_SCREEN_FRACTION_PER_PAD_UNIT
+    const normY = 2 * padY * CAMERA_STEER_SCREEN_FRACTION_PER_PAD_UNIT
+    const halfHeight = Math.tan((SHOCKWAVE_CAMERA_FOV / 2) * Math.PI / 180) * (SHOCKWAVE_CAMERA_Z - SHOCKWAVE_PLANE_Z)
+    const halfWidth = halfHeight * (window.innerWidth / window.innerHeight)
+    this.shockwavePosition.set(normX * halfWidth, -normY * halfHeight, SHOCKWAVE_PLANE_Z)
   }
 
   update = (deltaTime: number, audioData: AudioAnalysedDataForVisualization): void => {
@@ -126,6 +155,7 @@ export class HopalongManager {
       return avg > 0 && e / avg > 1.0
     }) ?? true)
     if (audioData.peak && audioData.peak.value > 0.8 && anyEnabledBandElevated && window.config.effects.shockwave.value) {
+      this.aimShockwaveAtCameraPointer()
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ;(this.shockwaveEffect as any).explode()
     }
