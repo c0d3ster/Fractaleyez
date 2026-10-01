@@ -304,14 +304,22 @@ export class HopalongManager {
     this.cameraManager!.onResize()
   }
 
+  // Where the camera has actually got to, in the camera pad's units (the pad shows the target instantly; this
+  // trails it). The camera's y chases the pad's y inverted, hence the flip.
+  getCameraTrailPosition(): { x: number; y: number } | null {
+    const camera = this.cameraManager?.camera
+    if (!camera) return null
+    return { x: camera.position.x, y: -camera.position.y }
+  }
+
   onKeyDown = (event: KeyboardEvent): void => {
     if (event.keyCode === 38 && window.config.user.speed.value < window.config.user.speed.max)
       window.config.user.speed.value += 0.5
     else if (event.keyCode === 40 && window.config.user.speed.value > window.config.user.speed.min)
       window.config.user.speed.value -= 0.5
-    else if (event.keyCode === 37 && window.config.user.rotationSpeed.value < window.config.user.rotationSpeed.max)
+    else if (event.keyCode === 39 && window.config.user.rotationSpeed.value < window.config.user.rotationSpeed.max)
       window.config.user.rotationSpeed.value += 0.25
-    else if (event.keyCode === 39 && window.config.user.rotationSpeed.value > window.config.user.rotationSpeed.min)
+    else if (event.keyCode === 37 && window.config.user.rotationSpeed.value > window.config.user.rotationSpeed.min)
       window.config.user.rotationSpeed.value -= 0.25
   }
 }
