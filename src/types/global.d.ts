@@ -27,7 +27,9 @@ declare global {
     setJuliaShape?: (re: number, im: number) => void
     getJuliaShape?: () => { re: number; im: number; manual: boolean; hue: number; saturation: number; targetRe: number; targetIm: number }
     clearJuliaShape?: () => void
-    getJuliaSteer?: () => { x: number; y: number } | null
+    juliaActive?: boolean
+    orbitActive?: boolean
+    getCameraSteer?: () => { x: number; y: number } | null
     getAudioData?: () => {
       multibandEnergy?: number[]
       multibandEnergyAverage?: number[]

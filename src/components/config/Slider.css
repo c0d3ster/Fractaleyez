@@ -14,16 +14,30 @@
   color: #333;
 }
 
+/* Pulled up into the gap under the track (the input's bottom margin), so zoned sliders don't grow taller. */
+.slider-zone-tag {
+  display: block;
+  margin-top: -2rem;
+  height: 1.8rem;
+  text-align: center;
+  font-size: 1.1rem;
+  line-height: 1.8rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #444;
+  pointer-events: none;
+}
+
 .slider-input {
   appearance: none;
   position: relative;
   vertical-align: middle;
-  height: 3rem;
+  height: 2.75rem;
   border-radius: 2rem;
   background: #555;
   box-shadow: 0 1px 0 rgb(0, 0, 0, .75);
   overflow: hidden;
-  margin: 0 0 2.5rem 0;
+  margin: 0 0 2rem 0;
 }
 
 .slider-input:active::-webkit-slider-thumb {
@@ -38,7 +52,7 @@
 .slider-input::-webkit-slider-thumb {
   -webkit-appearance: none;
   border: none;
-  height: 2.5rem;
+  height: 2.3rem;
   width: 4rem;
   border-radius: 2rem;
   background: rgba(220, 220, 220, .9);

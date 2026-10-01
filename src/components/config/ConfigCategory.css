@@ -34,3 +34,10 @@
   height: 0;
   background: #555;
 }
+
+/* Controls for a visualizer that isn't showing: still usable (so a preset can be set up ahead), just dimmed. */
+.config-inactive {
+  opacity: 0.45;
+  filter: grayscale(1);
+  transition: opacity 0.2s ease, filter 0.2s ease;
+}
