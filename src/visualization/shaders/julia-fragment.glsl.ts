@@ -18,6 +18,7 @@ export const juliaFragmentShader = /* glsl */ `
   uniform float uWStart;
   uniform float uAspect;
   uniform float uHuePhase;
+  uniform float uSaturation;
   uniform vec2 uCenterOffset;
   uniform float uIterOffset;
   uniform float uRotation;
@@ -103,6 +104,9 @@ export const juliaFragmentShader = /* glsl */ `
     // Glow: brighten on beats, strongest near the set's edge (points that escape late).
     float edge = nu < 0.0 ? 0.0 : exp(-nu * 0.1);
     color += color * uGlow * (0.3 + 1.0 * edge);
+
+    // Saturation blends between the color's luma (grayscale) and the full palette color.
+    color = mix(vec3(dot(color, vec3(0.299, 0.587, 0.114))), color, uSaturation);
 
     gl_FragColor = vec4(color, 1.0);
   }

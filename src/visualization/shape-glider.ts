@@ -1,8 +1,8 @@
 // No transition takes longer than this: a long jump at low Speed speeds up to meet the cap.
-const SHAPE_MAX_TRANSITION_SECONDS = 15
-const SHAPE_EASE_SECONDS = 0.4
+export const SHAPE_MAX_TRANSITION_SECONDS = 15
+export const SHAPE_EASE_SECONDS = 0.4
 const SHAPE_EASE_MAX_JUMP_FRACTION = 0.35
-const SHAPE_VELOCITY_HALF_LIFE_SECONDS = 0.1
+export const SHAPE_VELOCITY_HALF_LIFE_SECONDS = 0.1
 
 // Moves a scalar toward a target at a steady rate (in units per second) with eased ends, finishing any
 // jump within SHAPE_MAX_TRANSITION_SECONDS by speeding up when the base rate would be too slow. Used for
