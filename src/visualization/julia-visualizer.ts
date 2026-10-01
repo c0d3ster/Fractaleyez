@@ -36,7 +36,7 @@ const SWITCHEROO_MAX_HOP_POINTS = 6
 // (a long jump at low Speed speeds up to meet that cap). The ends ease in and out.
 const SHAPE_POINTS_PER_SEC_PER_SPEED = 0.6
 const SHAPE_MIN_SPEED = 1
-const SHAPE_MAX_TRANSITION_SECONDS = 10
+const SHAPE_MAX_TRANSITION_SECONDS = 15
 const SHAPE_EASE_SECONDS = 0.4
 const SHAPE_EASE_MAX_JUMP_FRACTION = 0.35
 const SHAPE_VELOCITY_HALF_LIFE_SECONDS = 0.1
