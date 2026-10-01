@@ -90,6 +90,10 @@ const ROTATION_RAD_PER_SEC_PER_UNIT = 0.03
 // with the Hopalong shockwave so both waves start from the same spot.
 const STEER_EMA_HALF_LIFE_SECONDS = 0.7
 
+// The fragment shader runs up to 128 escape iterations per pixel, so cap the render resolution on high-DPI
+// screens; the smooth palette has no hard edges and loses little at a lower ratio.
+const JULIA_MAX_PIXEL_RATIO = 1.5
+
 // Effect tuning. Each mirrors a Hopalong effect behind the same checkbox.
 const WOBWOB_RECOIL = 2
 const SHOCKWAVE_PEAK_THRESHOLD = 0.8
@@ -303,7 +307,7 @@ export class JuliaVisualizer {
   init(): void {
     this.renderer = new THREE.WebGLRenderer({ antialias: false })
     this.renderer.setClearColor(0x000000, 1)
-    this.renderer.setPixelRatio(window.devicePixelRatio)
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, JULIA_MAX_PIXEL_RATIO))
     this.renderer.setSize(window.innerWidth, window.innerHeight)
     this.renderer.domElement.style.position = 'fixed'
     this.renderer.domElement.style.inset = '0'
@@ -353,7 +357,7 @@ export class JuliaVisualizer {
 
   private onResize = (): void => {
     if (!this.renderer || !this.material) return
-    this.renderer.setPixelRatio(window.devicePixelRatio)
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, JULIA_MAX_PIXEL_RATIO))
     this.renderer.setSize(window.innerWidth, window.innerHeight)
     this.material.uniforms.uAspect!.value = window.innerWidth / window.innerHeight
   }

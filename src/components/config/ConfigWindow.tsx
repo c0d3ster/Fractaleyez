@@ -42,10 +42,14 @@ const resolveWindowFeatures = async (): Promise<string> => {
 // Input types that take typed text; keys pressed in these must stay with the field instead of acting as hotkeys.
 const NON_TEXT_INPUT_TYPES = ['range', 'checkbox', 'radio', 'button', 'submit', 'reset', 'color', 'file']
 
-const isTypingTarget = (element: Element | null): boolean => {
+// A focused slider already moves on these keys, so forwarding them would also fire the matching hotkey.
+const SLIDER_KEYS = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown']
+
+const isTypingTarget = (element: Element | null, key: string): boolean => {
   if (!element) return false
   if (element.tagName === 'TEXTAREA' || element.tagName === 'SELECT') return true
   if (element.hasAttribute('contenteditable')) return true
+  if (element.tagName === 'INPUT' && element.getAttribute('type') === 'range' && SLIDER_KEYS.includes(key)) return true
   return element.tagName === 'INPUT' && !NON_TEXT_INPUT_TYPES.includes(element.getAttribute('type') ?? 'text')
 }
 
@@ -184,7 +188,7 @@ const ConfigWindowInner = ({
       if (event.ctrlKey || event.metaKey || event.altKey) return
       // The popup's own preset list already handles the 1-9 keys on its document.
       if (/^[1-9]$/.test(event.key)) return
-      if (isTypingTarget(externalWindow?.document.activeElement ?? null)) return
+      if (isTypingTarget(externalWindow?.document.activeElement ?? null, event.key)) return
       document.dispatchEvent(new KeyboardEvent(event.type, {
         key: event.key,
         code: event.code,

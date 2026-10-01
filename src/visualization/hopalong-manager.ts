@@ -164,7 +164,7 @@ export class HopalongManager {
     }
     this.composer!.render(this.clock!.getDelta())
 
-    this.cameraManager!.manageCameraPosition()
+    this.cameraManager!.manageCameraPosition(deltaTime)
   }
 
   particleConfigChanged = (): boolean => {
