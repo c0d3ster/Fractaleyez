@@ -2,9 +2,8 @@ import * as THREE from 'three'
 
 import { userConfig } from '../config/user.config'
 
-// Fraction of the remaining distance the camera closes toward the pointer each frame (halved from 0.05 so
-// the camera follows half as fast, matching the Julia visualizer's steering).
-const CAMERA_EASE_PER_FRAME = 0.025
+// Half-life of the camera's chase toward the pointer; matches the Julia visualizer's steering ease.
+const CAMERA_EASE_HALF_LIFE_SECONDS = 0.7
 
 export class CameraManager {
   camera: THREE.PerspectiveCamera | null
@@ -51,16 +50,17 @@ export class CameraManager {
     return this.camera!
   }
 
-  manageCameraPosition(): void {
+  manageCameraPosition(deltaTimeMs: number): void {
     this.camera!.lookAt(this.focusPoint)
+    const ease = 1 - Math.pow(0.5, deltaTimeMs / 1000 / CAMERA_EASE_HALF_LIFE_SECONDS)
 
     if (this.camera!.position.x >= -this.cameraBound && this.camera!.position.x <= this.cameraBound) {
-      this.camera!.position.x += (this.mouseX - this.camera!.position.x) * CAMERA_EASE_PER_FRAME
+      this.camera!.position.x += (this.mouseX - this.camera!.position.x) * ease
       if (this.camera!.position.x < -this.cameraBound) this.camera!.position.x = -this.cameraBound
       if (this.camera!.position.x > this.cameraBound) this.camera!.position.x = this.cameraBound
     }
     if (this.camera!.position.y >= -this.cameraBound && this.camera!.position.y <= this.cameraBound) {
-      this.camera!.position.y += (-this.mouseY - this.camera!.position.y) * CAMERA_EASE_PER_FRAME
+      this.camera!.position.y += (-this.mouseY - this.camera!.position.y) * ease
       if (this.camera!.position.y < -this.cameraBound) this.camera!.position.y = -this.cameraBound
       if (this.camera!.position.y > this.cameraBound) this.camera!.position.y = this.cameraBound
     }
