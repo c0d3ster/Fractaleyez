@@ -39,6 +39,16 @@ const resolveWindowFeatures = async (): Promise<string> => {
   }
 }
 
+// Input types that take typed text; keys pressed in these must stay with the field instead of acting as hotkeys.
+const NON_TEXT_INPUT_TYPES = ['range', 'checkbox', 'radio', 'button', 'submit', 'reset', 'color', 'file']
+
+const isTypingTarget = (element: Element | null): boolean => {
+  if (!element) return false
+  if (element.tagName === 'TEXTAREA' || element.tagName === 'SELECT') return true
+  if (element.hasAttribute('contenteditable')) return true
+  return element.tagName === 'INPUT' && !NON_TEXT_INPUT_TYPES.includes(element.getAttribute('type') ?? 'text')
+}
+
 type ExternalWindowBridgeProps = ConfigContextValue
 
 // Renders inside the external window's React root, bridging ConfigContext from the main window
@@ -167,6 +177,26 @@ const ConfigWindowInner = ({
 
     const closeExternalWindow = (): void => externalWindow?.close()
 
+    // Keys pressed while the popup has focus go to the popup's document, so the main page's hotkeys (J, S,
+    // E, M, H, arrows, preset numbers) never see them. Replay them on the main document, unless the user is
+    // typing in a field or holding a browser-shortcut modifier.
+    const forwardKey = (event: KeyboardEvent): void => {
+      if (event.ctrlKey || event.metaKey || event.altKey) return
+      // The popup's own preset list already handles the 1-9 keys on its document.
+      if (/^[1-9]$/.test(event.key)) return
+      if (isTypingTarget(externalWindow?.document.activeElement ?? null)) return
+      document.dispatchEvent(new KeyboardEvent(event.type, {
+        key: event.key,
+        code: event.code,
+        keyCode: event.keyCode,
+        which: event.which,
+        repeat: event.repeat,
+        shiftKey: event.shiftKey,
+        bubbles: true,
+        cancelable: true,
+      }))
+    }
+
     const setup = async (): Promise<void> => {
       const features = await resolveWindowFeatures()
       if (cancelled) return
@@ -179,6 +209,8 @@ const ConfigWindowInner = ({
       externalWindow.document.title = 'Configuration'
       externalWindow.document.body.appendChild(container)
       externalWindow.addEventListener('beforeunload', onClose)
+      externalWindow.document.addEventListener('keydown', forwardKey)
+      externalWindow.document.addEventListener('keyup', forwardKey)
       window.addEventListener('beforeunload', closeExternalWindow)
       copyStyles(document, externalWindow.document)
 
@@ -192,6 +224,8 @@ const ConfigWindowInner = ({
       cancelled = true
       window.removeEventListener('beforeunload', closeExternalWindow)
       externalWindow?.removeEventListener('beforeunload', onClose)
+      externalWindow?.document.removeEventListener('keydown', forwardKey)
+      externalWindow?.document.removeEventListener('keyup', forwardKey)
       reactRootRef.current?.unmount()
       reactRootRef.current = null
       externalWindow?.close()
