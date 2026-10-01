@@ -45,8 +45,9 @@ const SPEED_DEFAULT = 2
 const SCALE_DEFAULT = 1500
 const ROTATION_RAD_PER_SEC_PER_UNIT = 0.03
 
-// Mouse steering reuses the shared user.cameraBound slider (0-500). At the max, the fixed point's
-// screen position can shift this far (in 0-1 frame units) from where the mouse pulls it.
+// Steering reads the same shared camera position the Camera Position pad writes (and Hopalong's
+// camera reads), in pad units clamped to +/- user.cameraBound (0-500). At the slider max, the fixed
+// point's screen position can shift this far (in 0-1 frame units).
 const CAMERA_BOUND_MAX = 500
 const MAX_STEER_FRAME_OFFSET = 0.4
 const STEER_EMA_HALF_LIFE_SECONDS = 0.35
@@ -55,11 +56,26 @@ const HUE_DRIFT_PER_SEC = 0.015
 const HUE_PEAK_JUMP = 0.12
 const PEAK_JUMP_THRESHOLD = 0.9
 
+interface Complex {
+  re: number
+  im: number
+}
+
 interface FixedPointResult {
   fixedPointX: number
   fixedPointY: number
   lambdaMag: number
   lambdaArg: number
+  koenigs2: Complex
+  koenigs3: Complex
+}
+
+const cMul = (a: Complex, b: Complex): Complex => ({ re: a.re * b.re - a.im * b.im, im: a.re * b.im + a.im * b.re })
+const cSub = (a: Complex, b: Complex): Complex => ({ re: a.re - b.re, im: a.im - b.im })
+const cScale = (a: Complex, s: number): Complex => ({ re: a.re * s, im: a.im * s })
+const cDiv = (a: Complex, b: Complex): Complex => {
+  const d = b.re * b.re + b.im * b.im
+  return { re: (a.re * b.re + a.im * b.im) / d, im: (a.im * b.re - a.re * b.im) / d }
 }
 
 // Closed-form repelling fixed point + multiplier for f(z) = z^2 + c.
@@ -90,7 +106,18 @@ const computeFixedPointAndLambda = (cx: number, cy: number): FixedPointResult =>
   const lambdaMag = Math.max(mag1, mag2, 1.05)
   const lambdaArg = Math.atan2(2 * fixedPointY, 2 * fixedPointX)
 
-  return { fixedPointX, fixedPointY, lambdaMag, lambdaArg }
+  // Inverse Koenigs coordinate to third order: z = z0 + w + c2 w^2 + c3 w^3. Plain (z - z0) is only the
+  // first-order term, and its error is what made wider starting views mismatch at the loop wrap.
+  // From phi(f(u)) = lambda * phi(u) with f(z0 + u) = z0 + lambda u + u^2:
+  //   a2 = 1 / (lambda (1 - lambda)), a3 = 2 a2 / (1 - lambda^2), c2 = -a2, c3 = 2 a2^2 - a3.
+  const lambda: Complex = { re: 2 * fixedPointX, im: 2 * fixedPointY }
+  const one: Complex = { re: 1, im: 0 }
+  const a2 = cDiv(one, cMul(lambda, cSub(one, lambda)))
+  const a3 = cDiv(cScale(a2, 2), cSub(one, cMul(lambda, lambda)))
+  const koenigs2 = cScale(a2, -1)
+  const koenigs3 = cSub(cScale(cMul(a2, a2), 2), a3)
+
+  return { fixedPointX, fixedPointY, lambdaMag, lambdaArg, koenigs2, koenigs3 }
 }
 
 export class JuliaVisualizer {
@@ -103,8 +130,6 @@ export class JuliaVisualizer {
   private smoothTreble = 0
   private smoothEnergy = 0
   private rotation = 0
-  private mouseNormX = 0
-  private mouseNormY = 0
   private steerX = 0
   private steerY = 0
   private driftPhase = 0
@@ -123,6 +148,8 @@ export class JuliaVisualizer {
   private loopFixedPointY = 0
   private loopLambdaMag = 1
   private loopLambdaArg = 0
+  private loopKoenigs2: Complex = { re: 0, im: 0 }
+  private loopKoenigs3: Complex = { re: 0, im: 0 }
 
   init(): void {
     this.renderer = new THREE.WebGLRenderer({ antialias: false })
@@ -152,6 +179,8 @@ export class JuliaVisualizer {
         uCenterOffset: { value: new THREE.Vector2() },
         uIterOffset: { value: 0 },
         uRotation: { value: 0 },
+        uKoenigs2: { value: new THREE.Vector2() },
+        uKoenigs3: { value: new THREE.Vector2() },
       },
     })
 
@@ -160,12 +189,6 @@ export class JuliaVisualizer {
     this.scene.add(mesh)
 
     window.addEventListener('resize', this.onResize)
-    window.addEventListener('mousemove', this.onMouseMove)
-  }
-
-  private onMouseMove = (event: MouseEvent): void => {
-    this.mouseNormX = (event.clientX / window.innerWidth - 0.5) * 2
-    this.mouseNormY = (event.clientY / window.innerHeight - 0.5) * 2
   }
 
   private onResize = (): void => {
@@ -230,7 +253,9 @@ export class JuliaVisualizer {
         this.loopCy = targetCy
       }
       this.hasStartedLoop = true
-      const { fixedPointX, fixedPointY, lambdaMag, lambdaArg } = computeFixedPointAndLambda(this.loopCx, this.loopCy)
+      const { fixedPointX, fixedPointY, lambdaMag, lambdaArg, koenigs2, koenigs3 } = computeFixedPointAndLambda(this.loopCx, this.loopCy)
+      this.loopKoenigs2 = koenigs2
+      this.loopKoenigs3 = koenigs3
       this.loopFixedPointX = fixedPointX
       this.loopFixedPointY = fixedPointY
       this.loopLambdaMag = Math.pow(lambdaMag, LOOP_PERIODS)
@@ -245,15 +270,21 @@ export class JuliaVisualizer {
 
     // Camera-style follow: the scene shifts opposite the mouse, like Hopalong's camera. The shift is in
     // normalized frame space, so it steers the dive without breaking the self-similar loop.
-    const steerScale = (window.config.user.cameraBound.value / CAMERA_BOUND_MAX) * MAX_STEER_FRAME_OFFSET
+    const range = window.config.user.cameraBound.value
+    const pad = window.getVirtualCameraPosition?.() ?? { x: 0, y: 0 }
+    const padX = Math.max(-range, Math.min(range, pad.x))
+    const padY = Math.max(-range, Math.min(range, pad.y))
+    const steerScale = MAX_STEER_FRAME_OFFSET / CAMERA_BOUND_MAX
     const kSteer = 1 - Math.pow(0.5, dt / STEER_EMA_HALF_LIFE_SECONDS)
-    this.steerX += (-this.mouseNormX * steerScale - this.steerX) * kSteer
-    this.steerY += (this.mouseNormY * steerScale - this.steerY) * kSteer
+    this.steerX += (-padX * steerScale - this.steerX) * kSteer
+    this.steerY += (padY * steerScale - this.steerY) * kSteer
 
     const uniforms = this.material.uniforms
     uniforms.uCenterOffset!.value.set(this.steerX, this.steerY)
     uniforms.uIterOffset!.value = this.loopT * LOOP_PERIODS
     uniforms.uRotation!.value = this.rotation
+    uniforms.uKoenigs2!.value.set(this.loopKoenigs2.re, this.loopKoenigs2.im)
+    uniforms.uKoenigs3!.value.set(this.loopKoenigs3.re, this.loopKoenigs3.im)
     uniforms.uWStart!.value = W_START * (SCALE_DEFAULT / scaleFactor.value)
     uniforms.uC!.value.set(this.loopCx, this.loopCy)
     uniforms.uFixedPoint!.value.set(this.loopFixedPointX, this.loopFixedPointY)
@@ -270,7 +301,6 @@ export class JuliaVisualizer {
 
   dispose(): void {
     window.removeEventListener('resize', this.onResize)
-    window.removeEventListener('mousemove', this.onMouseMove)
     this.material?.dispose()
     this.renderer?.dispose()
     this.renderer?.domElement.remove()
