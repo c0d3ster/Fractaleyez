@@ -23,6 +23,10 @@ export const juliaFragmentShader = /* glsl */ `
   uniform float uRotation;
   uniform vec2 uKoenigs2;
   uniform vec2 uKoenigs3;
+  uniform float uCyclone;
+  uniform float uGlow;
+  uniform float uShockRadius;
+  uniform float uShockStrength;
 
   varying vec2 vUv;
 
@@ -67,8 +71,17 @@ export const juliaFragmentShader = /* glsl */ `
     // The fixed point sits at screen center until the sway offset moves it. Shifting in normalized
     // frame space keeps the zoom loop self-similar.
     vec2 p = (vUv - (vec2(0.5, 0.5) + uCenterOffset)) * vec2(uAspect, 1.0) * 2.0;
+    float r = length(p);
 
-    float angle = -uT * uLambdaArg + uRotation;
+    // Shockwave: a ring of lens distortion expanding from the fixed point. It only bends the frame
+    // coordinates, so it can't disturb the zoom loop's self-similarity.
+    if (uShockStrength > 0.0 && r > 0.0001) {
+      float ring = uShockStrength * exp(-pow((r - uShockRadius) / 0.3, 2.0));
+      p -= (p / r) * ring * 0.35;
+    }
+
+    // Cyclone: a bounded counter-rotating twist that varies with distance from the center.
+    float angle = -uT * uLambdaArg + uRotation + uCyclone * 0.7 * sin(uRotation) * cos(r * 2.5);
     float ca = cos(angle);
     float sa = sin(angle);
     vec2 rotated = vec2(p.x * ca - p.y * sa, p.x * sa + p.y * ca);
@@ -84,6 +97,11 @@ export const juliaFragmentShader = /* glsl */ `
     // Zooming one self-similarity period deeper adds exactly one escape iteration, so without this
     // the palette jumps by (periods * 0.05) of a color cycle at every loop wrap.
     vec3 color = nu < 0.0 ? vec3(0.0) : palette((nu - uIterOffset) * 0.05);
+
+    // Glow: brighten on beats, strongest near the set's edge (points that escape late).
+    float edge = nu < 0.0 ? 0.0 : exp(-nu * 0.1);
+    color += color * uGlow * (0.3 + 1.0 * edge);
+
     gl_FragColor = vec4(color, 1.0);
   }
 `
