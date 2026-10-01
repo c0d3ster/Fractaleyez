@@ -31,7 +31,6 @@ export class HopalongManager {
   // always projects to screen center). Moved to the camera pointer before each explosion.
   private shockwavePosition = new THREE.Vector3(0, 0, SHOCKWAVE_PLANE_Z)
   private effectPass: EffectPass | null
-  private lastAudioData: AudioAnalysedDataForVisualization | null
   /** Older generations still fading out, oldest first. */
   private crossfades: ParticleCrossfade[]
   /** Current (newest) visualizer's own fade-in progress. */
@@ -40,7 +39,6 @@ export class HopalongManager {
   constructor() {
     this.elapsedTime = 0
     this.cameraManager = null
-    this.lastAudioData = null
     this.hopalongVisualizer = null
     this.renderer = null
     this.composer = null
@@ -73,7 +71,6 @@ export class HopalongManager {
     this.setupEffects()
     window.setVirtualCameraPosition = (x: number, y: number) => this.cameraManager!.setVirtualMousePosition(x, y)
     window.getVirtualCameraPosition = () => ({ x: this.cameraManager!.mouseX, y: this.cameraManager!.mouseY })
-    window.getAudioData = () => this.lastAudioData
     // Default: all visible bands enabled; bri/air (6–7) disabled (near-ultrasonic)
     window.enabledFreqBands = [true, true, true, true, true, true, false, false]
     document.addEventListener('mousemove', this.onDocumentMouseMove)
@@ -135,7 +132,6 @@ export class HopalongManager {
   }
 
   update = (deltaTime: number, audioData: AudioAnalysedDataForVisualization): void => {
-    this.lastAudioData = audioData
     this.elapsedTime += deltaTime
 
     const peakVal = audioData.peak?.value ?? 0
