@@ -107,6 +107,13 @@ export class HopalongManager {
     this.clock = new THREE.Clock()
   }
 
+  // Fires the shockwave on demand (the S key), regardless of the audio, for testing and tuning.
+  triggerShockwave = (): void => {
+    this.aimShockwaveAtCameraPointer()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(this.shockwaveEffect as any).explode()
+  }
+
   // Puts the shockwave's source where the Julia visualizer's is: shifted off screen center toward the camera
   // by the same small amount per pad unit (so a modest Camera Position stays near the middle, not
   // out in a corner). Screen y grows downward. The effect projects its position through a fixed camera at
