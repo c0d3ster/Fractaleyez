@@ -4,6 +4,7 @@ import { AudioAnalysedDataForVisualization } from '../audioanalysis/audio-analys
 import { getResolvedSpriteUrl } from '../utils/spriteCache'
 import { acquireSpriteTexture, releaseSpriteTexture } from '../utils/textureCache'
 import { getParticleCrossfadeDurationMs, MAX_CROSSFADE_GENERATIONS } from '../config/visualizer.config'
+import { userConfig } from '../config/user.config'
 
 /*
  * ORIGINAL AUTHOR: Iacopo Sassarini
@@ -368,14 +369,18 @@ export class HopalongVisualizer {
       obj.position.setZ(-(this.levels - 1) * this.levelDepth + this.levelDepth)
     }
 
+    // Seconds-based like Julia (deltaTime is in ms), so the spin rate doesn't depend on the frame rate.
+    const rotationStep = window.config.user.rotationSpeed.value * userConfig.rotationSpeed_RAD_PER_SEC_PER_UNIT
+      * musicSpeedMultiplier * (this.deltaTime / 1000)
     if (window.config.effects.cyclone.value) {
       if (count % 3 === 0) {
-        obj.rotation.z += (window.config.user.rotationSpeed.value / 1000) * musicSpeedMultiplier
+        obj.rotation.z -= rotationStep
       } else if (count % 3 === 1) {
-        obj.rotation.z -= (window.config.user.rotationSpeed.value / 1000) * musicSpeedMultiplier
+        obj.rotation.z += rotationStep
       }
     } else {
-      obj.rotation.z += (window.config.user.rotationSpeed.value / 1000) * musicSpeedMultiplier
+      // rotation.z grows counter-clockwise, so subtract: a positive Rotation (slider to the right) is clockwise.
+      obj.rotation.z -= rotationStep
     }
   }
 
