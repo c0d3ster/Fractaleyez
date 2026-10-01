@@ -3,8 +3,8 @@
   flex-direction: column;
   align-items: stretch;
   gap: 6px;
-  padding: 12px 0;
-  margin: 1.5rem 0 0;
+  padding: 6px 0 0;
+  margin: 0;
   user-select: none;
 }
 
@@ -13,7 +13,7 @@
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: #888;
+  color: #444;
 }
 
 .shape-pad {
@@ -50,30 +50,9 @@
   justify-content: center;
   gap: 14px;
   font-size: 11px;
-  color: #666;
+  color: #333;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.03em;
-}
-
-.shape-pad-toggles {
-  display: flex;
-  justify-content: center;
-  gap: 12px;
-  font-size: 11px;
-  color: #777;
-}
-
-.shape-pad-toggles label {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  margin: 0;
-  font-weight: normal;
-  cursor: pointer;
-}
-
-.shape-pad-toggles input {
-  margin: 0;
 }
 
 .shape-pad-chips {
@@ -85,8 +64,8 @@
 
 .shape-pad-chip {
   background: transparent;
-  color: #aaa;
-  border: 1px solid #2a2a2a;
+  color: #333;
+  border: 1px solid #888;
   border-radius: 999px;
   padding: 1px 8px;
   font-size: 10px;
@@ -94,13 +73,13 @@
 }
 
 .shape-pad-chip:hover {
-  border-color: #46e6c8;
-  color: #46e6c8;
+  border-color: #0a8f78;
+  color: #0a8f78;
 }
 
 .shape-pad-hint {
   font-size: 10px;
-  color: #444;
+  color: #555;
   letter-spacing: 0.04em;
   text-align: center;
 }

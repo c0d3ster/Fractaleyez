@@ -107,38 +107,34 @@ const drawMandelbrot = (canvas: HTMLCanvasElement, iterations: Float32Array, hue
   context.putImageData(image, 0, 0)
 }
 
-const drawOverlay = (canvas: HTMLCanvasElement, shape: ShapeReadout, showPath: boolean, showMarks: boolean): void => {
+const drawOverlay = (canvas: HTMLCanvasElement, shape: ShapeReadout): void => {
   const context = canvas.getContext('2d')
   if (!context) return
   const { width, height } = canvas
   context.clearRect(0, 0, width, height)
 
-  if (showPath) {
-    context.save()
-    context.setLineDash([5, 4])
-    context.lineWidth = 1.5
-    context.strokeStyle = 'rgba(255,255,255,0.65)'
+  context.save()
+  context.setLineDash([5, 4])
+  context.lineWidth = 1.5
+  context.strokeStyle = 'rgba(255,255,255,0.65)'
+  context.beginPath()
+  JULIA_TOUR.forEach(([re, im], index) => {
+    const [x, y] = toPixel(re, im, width, height)
+    if (index === 0) context.moveTo(x, y)
+    else context.lineTo(x, y)
+  })
+  context.stroke()
+  context.restore()
+
+  context.fillStyle = '#46e6c8'
+  JULIA_FAMOUS_SHAPES.forEach(({ re, im }) => {
+    const [x, y] = toPixel(re, im, width, height)
     context.beginPath()
-    JULIA_TOUR.forEach(([re, im], index) => {
-      const [x, y] = toPixel(re, im, width, height)
-      if (index === 0) context.moveTo(x, y)
-      else context.lineTo(x, y)
-    })
-    context.stroke()
-    context.restore()
-  }
+    context.arc(x, y, 3, 0, Math.PI * 2)
+    context.fill()
+  })
 
-  if (showMarks) {
-    context.fillStyle = '#46e6c8'
-    JULIA_FAMOUS_SHAPES.forEach(({ re, im }) => {
-      const [x, y] = toPixel(re, im, width, height)
-      context.beginPath()
-      context.arc(x, y, 3, 0, Math.PI * 2)
-      context.fill()
-    })
-  }
-
-  // The shape trails its destination at a Speed-based rate (the pointer's spot in manual mode, the Scale
+  // The shape trails its destination at a Speed-based rate (the pointer's spot in manual mode, the Tour
   // slider's spot plus any Switcheroo hop on the tour), so mark where it is headed.
   if (Math.hypot(shape.targetRe - shape.re, shape.targetIm - shape.im) > 0.01) {
     const [targetX, targetY] = toPixel(shape.targetRe, shape.targetIm, width, height)
@@ -177,16 +173,12 @@ export const ShapePad = (): React.ReactElement => {
   const mandelbrotRef = useRef<HTMLCanvasElement>(null)
   const overlayRef = useRef<HTMLCanvasElement>(null)
   const dragging = useRef(false)
-  const showPathRef = useRef(true)
-  const showMarksRef = useRef(true)
   const lastDrawnKey = useRef('')
   const iterationsRef = useRef<Float32Array | null>(null)
   const drawnHueRef = useRef(Number.NaN)
   const drawnSaturationRef = useRef(1)
   const lastRecolorAtRef = useRef(0)
   const lastPadUpdateAtRef = useRef(0)
-  const [showPath, setShowPath] = useState(true)
-  const [showMarks, setShowMarks] = useState(true)
   const [readout, setReadout] = useState<ShapeReadout>({ re: -0.75, im: 0, manual: false, hue: 0, saturation: 1, targetRe: -0.75, targetIm: 0 })
 
   useEffect(() => {
@@ -197,7 +189,7 @@ export const ShapePad = (): React.ReactElement => {
     drawMandelbrot(canvas, iterationsRef.current, 0, 1)
   }, [])
 
-  // Poll the visualizer's current shape every frame so the dot follows the Scale slider, glides, and
+  // Poll the visualizer's current shape every frame so the dot follows the Tour slider, glides, and
   // Switcheroo hops, the same way the camera pad stays in sync with the real mouse.
   useEffect(() => {
     let frame = 0
@@ -221,10 +213,10 @@ export const ShapePad = (): React.ReactElement => {
         drawMandelbrot(map, iterations, shape.hue, shape.saturation)
       }
       if (overlay && shape) {
-        const key = `${shape.re.toFixed(4)},${shape.im.toFixed(4)},${shape.manual},${shape.targetRe.toFixed(3)},${shape.targetIm.toFixed(3)},${showPathRef.current},${showMarksRef.current}`
+        const key = `${shape.re.toFixed(4)},${shape.im.toFixed(4)},${shape.manual},${shape.targetRe.toFixed(3)},${shape.targetIm.toFixed(3)}`
         if (key !== lastDrawnKey.current) {
           lastDrawnKey.current = key
-          drawOverlay(overlay, shape, showPathRef.current, showMarksRef.current)
+          drawOverlay(overlay, shape)
           setReadout(shape)
         }
       }
@@ -258,16 +250,6 @@ export const ShapePad = (): React.ReactElement => {
     dragging.current = false
   }, [])
 
-  const toggle = useCallback((
-    setter: React.Dispatch<React.SetStateAction<boolean>>,
-    ref: React.MutableRefObject<boolean>,
-    checked: boolean,
-  ): void => {
-    ref.current = checked
-    setter(checked)
-    lastDrawnKey.current = ''
-  }, [])
-
   return (
     <div className='shape-pad-wrapper'>
       <span className='shape-pad-label'>Shape {readout.manual ? '(manual)' : '(tour)'}</span>
@@ -294,16 +276,6 @@ export const ShapePad = (): React.ReactElement => {
         <span>Re {formatCoordinate(readout.re)}</span>
         <span>Im {formatCoordinate(readout.im)}</span>
       </div>
-      <div className='shape-pad-toggles'>
-        <label>
-          <input type='checkbox' checked={showPath} onChange={(e) => toggle(setShowPath, showPathRef, e.target.checked)} />
-          Scale path
-        </label>
-        <label>
-          <input type='checkbox' checked={showMarks} onChange={(e) => toggle(setShowMarks, showMarksRef, e.target.checked)} />
-          Famous
-        </label>
-      </div>
       <div className='shape-pad-chips'>
         {JULIA_FAMOUS_SHAPES.map(({ name, re, im }) => (
           <button
@@ -316,7 +288,7 @@ export const ShapePad = (): React.ReactElement => {
           </button>
         ))}
       </div>
-      <span className='shape-pad-hint'>drag to pick a shape, double-click to return to the Scale tour</span>
+      <span className='shape-pad-hint'>drag to pick a shape, double-click to return to the Tour slider</span>
     </div>
   )
 }

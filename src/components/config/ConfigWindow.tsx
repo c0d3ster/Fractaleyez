@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
-import { Grid, Row, Col } from 'react-bootstrap'
+import { Grid } from 'react-bootstrap'
 
 import { Presets, PresetSelection } from '../presets/Presets'
 import { SavePreset } from '../presets/SavePreset'
@@ -12,9 +12,11 @@ import { connectConfig, ConfigContext, ConfigContextValue } from './context/Conf
 import { CameraTouchpad } from './CameraTouchpad'
 import { ShapePad } from './ShapePad'
 import { FrequencyHud, PerfHud, ParticleSpriteHud } from '../huds'
+import { useVisualizerActive } from './useVisualizerActive'
 
-const DEFAULT_WINDOW_FEATURES = 'width=1200,height=860,location=no'
-const POPOUT_WIDTH = 1200
+// Seven 205px columns (1435) plus the grid's 15px side padding is 1465; the rest is margin.
+const POPOUT_WIDTH = 1500
+const DEFAULT_WINDOW_FEATURES = `width=${POPOUT_WIDTH},height=860,location=no`
 
 // Positions the popout on a second screen at full available height when the Window Management
 // API is available and permitted; falls back to the default same-screen size/placement otherwise
@@ -26,14 +28,16 @@ const resolveWindowFeatures = async (): Promise<string> => {
     const { currentScreen } = screenDetails
     const secondScreen = screenDetails.screens.find((s) => s !== currentScreen)
     if (!secondScreen) return DEFAULT_WINDOW_FEATURES
+    // A screen narrower than the columns need just scrolls horizontally.
+    const popoutWidth = Math.min(POPOUT_WIDTH, secondScreen.availWidth)
     // Dock against the seam between the two screens rather than always at the second
     // screen's left edge: if it's to the left of the current screen, that seam is its
     // right edge; if it's to the right, the seam is its left edge (today's behavior).
     const secondScreenIsToTheLeft = secondScreen.availLeft < currentScreen.availLeft
     const left = secondScreenIsToTheLeft
-      ? secondScreen.availLeft + secondScreen.availWidth - POPOUT_WIDTH
+      ? secondScreen.availLeft + secondScreen.availWidth - popoutWidth
       : secondScreen.availLeft
-    return `width=${POPOUT_WIDTH},height=${secondScreen.availHeight},left=${left},top=${secondScreen.availTop},location=no`
+    return `width=${popoutWidth},height=${secondScreen.availHeight},left=${left},top=${secondScreen.availTop},location=no`
   } catch {
     return DEFAULT_WINDOW_FEATURES
   }
@@ -74,6 +78,7 @@ const ExternalWindowBridge = ({
   updateUserSettings,
 }: ExternalWindowBridgeProps): React.ReactElement => {
   const [prefill, setPrefill] = useState<PresetSelection | null>(null)
+  const { orbit: orbitActive } = useVisualizerActive()
   return (
     <ConfigContext.Provider
       value={{
@@ -94,54 +99,54 @@ const ExternalWindowBridge = ({
         updateUserSettings,
       }}
     >
-      <Grid>
-        <Row>
-          <Presets
-            expanded
-            onSelect={setPrefill}
-            onPackSelect={(pack: string) => setPrefill(prev => prev ? { ...prev, pack } : { name: '', label: '', pack, isOwn: false })}
-            headerActions={<SavePreset prefill={prefill} onSaved={() => setPrefill(null)} />}
-          />
-        </Row>
-        <Row>
+      <Grid fluid>
+        <Presets
+          expanded
+          onSelect={setPrefill}
+          onPackSelect={(pack: string) => setPrefill(prev => prev ? { ...prev, pack } : { name: '', label: '', pack, isOwn: false })}
+          headerActions={<SavePreset prefill={prefill} onSaved={() => setPrefill(null)} />}
+        />
+        <div className='config-columns'>
           {CONFIG_WINDOW_COLUMN_ORDER.map((segment) => {
-            const colStyle = { paddingLeft: '8px', paddingRight: '8px' }
             if (segment === 'effects_particle') {
               return (
-                <Col sm={2} key='effects_particle' style={colStyle}>
+                <div className='config-column' key='effects_particle'>
                   <ConfigCategory
                     name='effects'
                     onChange={updateConfigItem}
                     isOpen={true}
                     toggleOpen={() => null}
                   />
-                  <ParticleSpriteHud />
-                </Col>
+                  <div className={orbitActive ? undefined : 'config-inactive'}>
+                    <ParticleSpriteHud />
+                  </div>
+                </div>
               )
             }
             if (segment === 'video') {
               return (
-                <Col sm={2} key='video' style={colStyle}>
+                <div className='config-column' key='video'>
                   <ConfigVideo isOpen={true} toggleOpen={() => null} />
                   <PerfHud />
-                  <CameraTouchpad />
-                </Col>
+                </div>
               )
             }
             return (
-              <Col sm={2} key={segment} style={colStyle}>
+              <div className='config-column' key={segment}>
                 <ConfigCategory
                   name={segment}
                   onChange={updateConfigItem}
                   isOpen={true}
                   toggleOpen={() => null}
-                />
+                >
+                  {segment === 'user' ? <CameraTouchpad /> : null}
+                  {segment === 'fractal' ? <ShapePad /> : null}
+                </ConfigCategory>
                 {segment === 'audio' ? <FrequencyHud /> : null}
-                {segment === 'user' ? <ShapePad /> : null}
-              </Col>
+              </div>
             )
           })}
-        </Row>
+        </div>
       </Grid>
     </ConfigContext.Provider>
   )
