@@ -2,7 +2,35 @@ import * as THREE from 'three'
 import { AudioAnalysedDataForVisualization } from '../audioanalysis/audio-analysed-data'
 import { juliaFragmentShader, juliaVertexShader } from './shaders/julia-fragment.glsl'
 
-const BASE_C = { x: -0.75, y: 0.11 }
+// The Shape slider walks a tour of Julia-set c values, smoothly interpolated between points. The path
+// was generated offline: it passes through famous shapes (airplane, basilica, galaxy, Siegel disk,
+// rabbit, dendrite, then back along the main cardioid's boundary through the San Marco / seahorse
+// area), each stretch snapped onto the Mandelbrot set and resampled evenly, so neighbors look related
+// and almost every position is a connected, detailed shape instead of dust. Near-cusp c values
+// (close to 0.25) are avoided: the fixed point's multiplier approaches 1 there, so the zoom crawls.
+// Every point has a repelling-fixed-point multiplier of at least 1.89.
+const TOUR: readonly (readonly [number, number])[] = [
+  [-1.7549, 0], [-1.628, 0], [-1.484, 0], [-1.384, 0.012],
+  [-1.2647, 0.0283], [-1.1409, 0.025], [-1.0188, 0.0059], [-0.9121, -0.0546],
+  [-0.8377, -0.153], [-0.732, -0.208], [-0.704, -0.288], [-0.644, -0.416],
+  [-0.568, -0.48], [-0.521, -0.5895], [-0.404, -0.588], [-0.3778, -0.4834],
+  [-0.3772, -0.3595], [-0.3815, -0.2357], [-0.3877, -0.112], [-0.3947, 0.0117],
+  [-0.4016, 0.1354], [-0.4074, 0.2591], [-0.4111, 0.3829], [-0.4097, 0.5068],
+  [-0.3759, 0.6201], [-0.284, 0.644], [-0.22, 0.732], [-0.1202, 0.7476],
+  [-0.092, 0.8616], [-0.044, 0.984], [-0.092, 0.872], [-0.024, 0.784],
+  [0.068, 0.648], [0.148, 0.612], [0.2558, 0.5541], [0.3081, 0.4438],
+  [0.3638, 0.338], [0.3625, 0.301], [0.3026, 0.4094], [0.233, 0.5116],
+  [0.1331, 0.583], [0.017, 0.6258], [-0.1048, 0.6474], [-0.2273, 0.6399],
+  [-0.3432, 0.5969], [-0.4504, 0.535], [-0.55, 0.4615], [-0.6354, 0.3736],
+  [-0.6929, 0.2657], [-0.732, 0.1481], [-0.7984, 0.1381], [-0.7269, 0.1889],
+]
+
+// Switcheroo hops this many tour points on each beat (a neighboring look), never straying more than
+// MAX_HOP_POINTS from the slider's home position.
+const SWITCHEROO_HOP_POINTS = 3
+const SWITCHEROO_MAX_HOP_POINTS = 6
+const SHAPE_EMA_HALF_LIFE_SECONDS = 0.15
+
 const C_DRIFT_RADIUS = 0.015
 const C_DRIFT_SPEED = 0.04
 const BASS_C_INFLUENCE = 0.04
@@ -42,8 +70,8 @@ const MAX_SPEED_MULTIPLIER = 8
 // The shared user sliders map onto the Julia view. The default speed (2) keeps the base pace;
 // rotation spins the whole view about the fixed point, which keeps the loop seamless.
 const SPEED_DEFAULT = 2
-const SCALE_MIN = 100
-const SCALE_MAX = 2000
+const SHAPE_SLIDER_MIN = 100
+const SHAPE_SLIDER_MAX = 2000
 const ROTATION_RAD_PER_SEC_PER_UNIT = 0.03
 
 // Steering reads the same shared camera position the Camera Position pad writes (and Hopalong's
@@ -55,8 +83,6 @@ const STEER_EMA_HALF_LIFE_SECONDS = 0.35
 
 // Effect tuning. Each mirrors a Hopalong effect behind the same checkbox.
 const WOBWOB_RECOIL = 2
-const SWITCHEROO_C_KICK = 0.015
-const SWITCHEROO_ANGLE_STEP = 2.4
 const SHOCKWAVE_PEAK_THRESHOLD = 0.8
 const SHOCKWAVE_BASE_SPEED = 0.9
 const SHOCKWAVE_MAX_RADIUS = 3
@@ -130,6 +156,33 @@ const computeFixedPointAndLambda = (cx: number, cy: number): FixedPointResult =>
   return { fixedPointX, fixedPointY, lambdaMag, lambdaArg, koenigs2, koenigs3 }
 }
 
+// Position along the tour in stop units (0 to TOUR.length - 1), smoothly interpolated between stops
+// with a Catmull-Rom spline so dragging the slider morphs continuously instead of snapping.
+const tourPoint = (position: number): Complex => {
+  const last = TOUR.length - 1
+  const clamped = Math.max(0, Math.min(last, position))
+  const index = Math.min(last - 1, Math.floor(clamped))
+  const t = clamped - index
+  const stop = (i: number): Complex => {
+    const [re, im] = TOUR[Math.max(0, Math.min(last, i))]!
+    return { re, im }
+  }
+  const p0 = stop(index - 1)
+  const p1 = stop(index)
+  const p2 = stop(index + 1)
+  const p3 = stop(index + 2)
+  const spline = (a: number, b: number, c: number, d: number): number =>
+    0.5 * (2 * b + (-a + c) * t + (2 * a - 5 * b + 4 * c - d) * t * t + (-a + 3 * b - 3 * c + d) * t * t * t)
+  return { re: spline(p0.re, p1.re, p2.re, p3.re), im: spline(p0.im, p1.im, p2.im, p3.im) }
+}
+
+// The one place the shape position is read. For now it rides on the shared Scale slider (0 to 1 across
+// its range); once the Julia layer has its own config section, only this function needs to change.
+const getShapePosition = (): number => {
+  const { value } = window.config.user.scaleFactor
+  return Math.max(0, Math.min(1, (value - SHAPE_SLIDER_MIN) / (SHAPE_SLIDER_MAX - SHAPE_SLIDER_MIN)))
+}
+
 export class JuliaVisualizer {
   private renderer: THREE.WebGLRenderer | null = null
   private scene: THREE.Scene | null = null
@@ -150,13 +203,16 @@ export class JuliaVisualizer {
   private previousPeakValue = 0
   private hasStartedLoop = false
 
-  // The c the CURRENT loop is rendering. It's only resampled from the continuously-drifting
-  // audio-reactive c at the wrap instant -- self-similarity requires c to stay constant for the whole
-  // loop, otherwise the two ends of the zoom are literally different Julia sets and the wrap pops.
-  private loopCx = BASE_C.x
-  private loopCy = BASE_C.y
+  // The small drift/audio offset on top of the tour's c for the CURRENT loop. It only steps toward its
+  // (drift + audio) target at the wrap instant -- self-similarity wants c steady across a wrap, otherwise
+  // the two ends of the zoom are different Julia sets and the wrap pops. Intentional shape changes
+  // (the Shape slider, Switcheroo hops) are different: they morph continuously in time, so no seam.
+  private loopOffsetX = 0
+  private loopOffsetY = 0
 
-  private switcherooAngle = 0
+  private tourPosition = 0
+  private hasTourPosition = false
+  private switcherooHop = 0
   private previousShockPeak = 0
   private shockAge = -1
 
@@ -177,7 +233,7 @@ export class JuliaVisualizer {
       vertexShader: juliaVertexShader,
       fragmentShader: juliaFragmentShader,
       uniforms: {
-        uC: { value: new THREE.Vector2(BASE_C.x, BASE_C.y) },
+        uC: { value: new THREE.Vector2() },
         uFixedPoint: { value: new THREE.Vector2() },
         uT: { value: 0 },
         uLambdaMag: { value: 1 },
@@ -231,11 +287,11 @@ export class JuliaVisualizer {
     this.smoothBass = this.emaTowards(this.smoothBass, bassRaw, dt)
     this.smoothTreble = this.emaTowards(this.smoothTreble, trebleRaw, dt)
 
-    // Continuously-evolving target c from slow autonomous drift + audio -- only ever
+    // Continuously-evolving target offset from slow autonomous drift + audio -- only ever
     // committed into the render at a loop wrap, never used mid-loop (see field comment above).
     this.driftPhase += dt * C_DRIFT_SPEED
-    const targetCx = BASE_C.x + Math.cos(this.driftPhase) * C_DRIFT_RADIUS + this.smoothBass * BASS_C_INFLUENCE
-    const targetCy = BASE_C.y + Math.sin(this.driftPhase * 1.3) * C_DRIFT_RADIUS + this.smoothTreble * TREBLE_C_INFLUENCE
+    const targetOffsetX = Math.cos(this.driftPhase) * C_DRIFT_RADIUS + this.smoothBass * BASS_C_INFLUENCE
+    const targetOffsetY = Math.sin(this.driftPhase * 1.3) * C_DRIFT_RADIUS + this.smoothTreble * TREBLE_C_INFLUENCE
 
     const peakValue = audioData.peak?.value ?? 0
     const energyTarget = ((audioData.energyAverage ?? 0) + (audioData.energy ?? 0)) / 2
@@ -246,7 +302,7 @@ export class JuliaVisualizer {
       MAX_SPEED_MULTIPLIER,
       1 + this.smoothEnergy * ENERGY_SPEED_GAIN + peakValue * PEAK_SPEED_BOOST,
     )
-    const { speed, rotationSpeed, scaleFactor } = window.config.user
+    const { speed, rotationSpeed } = window.config.user
     const effects = window.config.effects
 
     // Wob Wob: like Hopalong's backward jerk on a beat, the zoom recoils (briefly reverses) while the peak decays.
@@ -254,26 +310,22 @@ export class JuliaVisualizer {
     this.loopProgress += BASE_LOOP_SPEED * (speed.value / SPEED_DEFAULT) * musicSpeedMultiplier * wobWobFactor * dt
     this.rotation = (this.rotation + rotationSpeed.value * ROTATION_RAD_PER_SEC_PER_UNIT * dt) % (Math.PI * 2)
 
-    // The picture is self-similar, so a different starting radius is just a different point in the
-    // loop. Scale therefore maps (log) onto exactly one loop of phase: higher scale = deeper start.
-    const scaleOffset = Math.log(scaleFactor.value / SCALE_MIN) / Math.log(SCALE_MAX / SCALE_MIN)
-    const phase = this.loopProgress + scaleOffset
-    const wrapIndex = Math.floor(phase)
+    const wrapIndex = Math.floor(this.loopProgress)
     const wrapped = !this.hasStartedLoop || wrapIndex !== this.lastWrapIndex
     this.lastWrapIndex = wrapIndex
-    this.loopT = phase - wrapIndex
+    this.loopT = this.loopProgress - wrapIndex
 
     if (wrapped) {
       if (this.hasStartedLoop) {
-        const stepX = (targetCx - this.loopCx) * WRAP_C_LERP_FACTOR
-        const stepY = (targetCy - this.loopCy) * WRAP_C_LERP_FACTOR
+        const stepX = (targetOffsetX - this.loopOffsetX) * WRAP_C_LERP_FACTOR
+        const stepY = (targetOffsetY - this.loopOffsetY) * WRAP_C_LERP_FACTOR
         const stepLength = Math.hypot(stepX, stepY)
         const limit = stepLength > MAX_C_STEP_PER_WRAP ? MAX_C_STEP_PER_WRAP / stepLength : 1
-        this.loopCx += stepX * limit
-        this.loopCy += stepY * limit
+        this.loopOffsetX += stepX * limit
+        this.loopOffsetY += stepY * limit
       } else {
-        this.loopCx = targetCx
-        this.loopCy = targetCy
+        this.loopOffsetX = targetOffsetX
+        this.loopOffsetY = targetOffsetY
       }
       this.hasStartedLoop = true
     }
@@ -282,12 +334,24 @@ export class JuliaVisualizer {
     const freshBeat = peakValue > PEAK_JUMP_THRESHOLD && this.previousPeakValue <= PEAK_JUMP_THRESHOLD
     this.previousPeakValue = peakValue
 
-    // Switcheroo: reshape on beats. c takes a kick that decays with the peak, in a new direction each
-    // beat. It changes continuously in time (no jump), so it reshapes the fractal without a seam.
-    if (freshBeat) this.switcherooAngle += SWITCHEROO_ANGLE_STEP
-    const kick = effects.switcheroo.value ? SWITCHEROO_C_KICK * peakValue : 0
-    const effectiveCx = this.loopCx + Math.cos(this.switcherooAngle) * kick
-    const effectiveCy = this.loopCy + Math.sin(this.switcherooAngle) * kick
+    // Switcheroo: on each beat, hop to a neighboring stop on the tour (a random direction, bounded around
+    // the slider's home position) and hold it until the next beat. The shape glides there over ~0.4s.
+    if (!effects.switcheroo.value) {
+      this.switcherooHop = 0
+    } else if (freshBeat) {
+      const direction = Math.random() < 0.5 ? -SWITCHEROO_HOP_POINTS : SWITCHEROO_HOP_POINTS
+      const next = this.switcherooHop + direction
+      this.switcherooHop = Math.abs(next) > SWITCHEROO_MAX_HOP_POINTS ? this.switcherooHop - direction : next
+    }
+    const targetTourPosition = Math.max(0, Math.min(TOUR.length - 1, getShapePosition() * (TOUR.length - 1) + this.switcherooHop))
+    if (!this.hasTourPosition) {
+      this.tourPosition = targetTourPosition
+      this.hasTourPosition = true
+    }
+    this.tourPosition += (targetTourPosition - this.tourPosition) * (1 - Math.pow(0.5, dt / SHAPE_EMA_HALF_LIFE_SECONDS))
+    const tourC = tourPoint(this.tourPosition)
+    const effectiveCx = tourC.re + this.loopOffsetX
+    const effectiveCy = tourC.im + this.loopOffsetY
     const { fixedPointX, fixedPointY, lambdaMag, lambdaArg, koenigs2, koenigs3 } = computeFixedPointAndLambda(effectiveCx, effectiveCy)
 
     this.huePhase += HUE_DRIFT_PER_SEC * dt
