@@ -10,6 +10,8 @@ import { getParticleCrossfadeDurationMs, MAX_CROSSFADE_GENERATIONS } from '../co
  * Modifications made by Cody Douglass and Conor O'Neill
  */
 const DEF_BRIGHTNESS = .5
+const VIDEO_RESUME_DELAY_MS = 250
+const VIDEO_RESUME_MAX_ATTEMPTS = 5
 
 // Orbit parameters
 let a = 0; let b = 0; let c = 0; let d = 0; let e = 0
@@ -72,15 +74,30 @@ export class HopalongVisualizer {
   /** Current (newest) orbit shape's own fade-in progress. */
   private orbitIncomingElapsedMs: number
 
+  private resumeAttempts = 0
+  private resumeTimer: ReturnType<typeof setTimeout> | undefined
+
   private onVideoClipsRestored = (event: Event): void => {
     const ce = event as CustomEvent<{ clips: string[] }>
     this.createVideoPlane(ce.detail.clips)
   }
 
-  // Resume if the browser pauses the clip on its own (it never stops for a reason we want).
+  // Resume if the browser pauses the clip on its own (it never stops for a reason we want). Only while the page
+  // is visible, after a short delay, one request at a time, and a few tries in a row (reset once it plays again),
+  // so a browser that keeps pausing it can't turn this into a tight retry loop.
   private onVideoPaused = (): void => {
-    if (!this.video || this.video.ended || !window.config.video.clips.length) return
-    this.video.play().catch(() => undefined)
+    const { video } = this
+    if (!video || video.ended || !window.config.video.clips.length || document.visibilityState !== 'visible') return
+    if (this.resumeTimer !== undefined || this.resumeAttempts >= VIDEO_RESUME_MAX_ATTEMPTS) return
+    this.resumeAttempts++
+    this.resumeTimer = setTimeout(() => {
+      this.resumeTimer = undefined
+      if (this.video === video && video.paused && !video.ended) video.play().catch(() => undefined)
+    }, VIDEO_RESUME_DELAY_MS)
+  }
+
+  private onVideoPlaying = (): void => {
+    this.resumeAttempts = 0
   }
 
   private onVideoEnded = (): void => {
@@ -216,6 +233,7 @@ export class HopalongVisualizer {
 
     this.video.addEventListener('ended', this.onVideoEnded)
     this.video.addEventListener('pause', this.onVideoPaused)
+    this.video.addEventListener('playing', this.onVideoPlaying)
 
     const videoTexture = new THREE.VideoTexture(this.video)
     // Overscan: camera can pan up to cameraBound in x/y; enlarge the plane so edges stay
@@ -616,6 +634,10 @@ export class HopalongVisualizer {
     if (this.video) {
       this.video.removeEventListener('ended', this.onVideoEnded)
       this.video.removeEventListener('pause', this.onVideoPaused)
+      this.video.removeEventListener('playing', this.onVideoPlaying)
+      clearTimeout(this.resumeTimer)
+      this.resumeTimer = undefined
+      this.resumeAttempts = 0
       this.video.pause()
       this.video.removeAttribute('src')
       this.video.load()
