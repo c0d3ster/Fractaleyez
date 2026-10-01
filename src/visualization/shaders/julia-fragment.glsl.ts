@@ -18,6 +18,7 @@ export const juliaFragmentShader = /* glsl */ `
   uniform float uWStart;
   uniform float uAspect;
   uniform float uHuePhase;
+  uniform vec2 uCenterOffset;
 
   varying vec2 vUv;
 
@@ -57,7 +58,7 @@ export const juliaFragmentShader = /* glsl */ `
   void main() {
     // The fixed point sits at 80% across the frame so the spiral-rich coastline fills the screen
     // instead of flat exterior. Shifting in normalized frame space keeps the zoom loop self-similar.
-    vec2 p = (vUv - vec2(0.8, 0.5)) * vec2(uAspect, 1.0) * 2.0;
+    vec2 p = (vUv - (vec2(0.8, 0.5) + uCenterOffset)) * vec2(uAspect, 1.0) * 2.0;
 
     float angle = -uT * uLambdaArg;
     float ca = cos(angle);
