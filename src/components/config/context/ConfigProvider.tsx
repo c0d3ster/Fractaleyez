@@ -70,7 +70,7 @@ const toLabel = (name: string): string => {
   return spaced.replace(/^./, c => c.toUpperCase())
 }
 
-type ConfigSectionKey = 'user' | 'audio' | 'effects' | 'particle' | 'orbit'
+type ConfigSectionKey = 'user' | 'fractal' | 'audio' | 'effects' | 'particle' | 'orbit'
 
 const mergeConfigSection = <C extends ConfigSectionKey>(category: C, loaded: Record<string, unknown> | undefined | null): AppConfig[C] => {
   const def = configDefaults[category] as Record<string, ConfigItem>
@@ -118,6 +118,7 @@ const normalizeLoadedPreset = (cfg: Record<string, unknown>): AppConfig => {
   const particle = mergeConfigSection('particle', cfg.particle as Record<string, unknown> | undefined) as ParticleConfigSection
   return {
     user: mergeConfigSection('user', cfg.user as Record<string, unknown> | undefined),
+    fractal: mergeConfigSection('fractal', cfg.fractal as Record<string, unknown> | undefined),
     audio: mergeConfigSection('audio', cfg.audio as Record<string, unknown> | undefined),
     effects: mergeConfigSection('effects', cfg.effects as Record<string, unknown> | undefined),
     particle: {

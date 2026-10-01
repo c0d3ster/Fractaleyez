@@ -35,6 +35,8 @@ export const juliaFragmentShader = /* glsl */ `
 
   const int MAX_ITER = 128;
   const float VIDEO_MASK_EDGE = 0.33;
+  const float WIDE_START = 0.25;
+  const float WIDE_END = 0.8;
 
   vec2 complexMul(vec2 a, vec2 b) {
     return vec2(a.x * b.x - a.y * b.y, a.x * b.y + a.y * b.x);
@@ -87,6 +89,8 @@ export const juliaFragmentShader = /* glsl */ `
     // Cyclone: a bounded counter-rotating twist that varies with distance from the center.
     // uOrient turns each shape so the direction from the zoom point toward the origin (into the black
     // region) faces down; uSpin is the zoom's own spiral turn, uRotation is the user's Rotation.
+    // Turning the sampling coordinates by +angle turns the picture by -angle, so a positive Rotation (slider to
+    // the right) spins the picture clockwise, matching Hopalong.
     float angle = uOrient + uSpin + uRotation + uCyclone * 0.7 * sin(uRotation) * cos(r * 2.5);
     float ca = cos(angle);
     float sa = sin(angle);
@@ -94,15 +98,20 @@ export const juliaFragmentShader = /* glsl */ `
 
     float radius = uWStart * exp(uLogZoom);
     // Inverse Koenigs coordinate to third order, so wider views stay self-similar at the loop wrap.
+    // The series only holds up to about WIDE_START; past that the view eases into plain complex-plane
+    // coordinates centered on the origin, so the widest views show the whole Julia set (the zoom then
+    // breathes instead of looping, see JuliaVisualizer).
+    float wide = smoothstep(WIDE_START, WIDE_END, radius);
     vec2 w = rotated * radius;
     vec2 w2 = complexMul(w, w);
-    vec2 z0 = uFixedPoint + w + complexMul(uKoenigs2, w2) + complexMul(uKoenigs3, complexMul(w2, w));
+    vec2 series = complexMul(uKoenigs2, w2) + complexMul(uKoenigs3, complexMul(w2, w));
+    vec2 z0 = mix(uFixedPoint, vec2(0.0), wide) + w + (1.0 - wide) * series;
 
     float nu = juliaSmoothIter(z0, uC);
 
     // Zooming one self-similarity period deeper adds exactly one escape iteration, so without this
     // the palette jumps by (periods * 0.05) of a color cycle at every loop wrap.
-    vec3 color = nu < 0.0 ? vec3(0.0) : palette((nu - uIterOffset) * 0.05);
+    vec3 color = nu < 0.0 ? vec3(0.0) : palette((nu - uIterOffset * (1.0 - wide)) * 0.05);
 
     // Glow: brighten on beats, strongest near the set's edge (points that escape late).
     float edge = nu < 0.0 ? 0.0 : exp(-nu * 0.1);
