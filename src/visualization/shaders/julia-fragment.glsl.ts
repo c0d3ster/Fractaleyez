@@ -12,9 +12,9 @@ export const juliaFragmentShader = /* glsl */ `
 
   uniform vec2 uC;
   uniform vec2 uFixedPoint;
-  uniform float uT;
-  uniform float uLambdaMag;
-  uniform float uLambdaArg;
+  uniform float uOrient;
+  uniform float uSpin;
+  uniform float uLogZoom;
   uniform float uWStart;
   uniform float uAspect;
   uniform float uHuePhase;
@@ -81,12 +81,14 @@ export const juliaFragmentShader = /* glsl */ `
     }
 
     // Cyclone: a bounded counter-rotating twist that varies with distance from the center.
-    float angle = -uT * uLambdaArg + uRotation + uCyclone * 0.7 * sin(uRotation) * cos(r * 2.5);
+    // uOrient turns each shape so the direction from the zoom point toward the origin (into the black
+    // region) faces down; uSpin is the zoom's own spiral turn, uRotation is the user's Rotation.
+    float angle = uOrient + uSpin + uRotation + uCyclone * 0.7 * sin(uRotation) * cos(r * 2.5);
     float ca = cos(angle);
     float sa = sin(angle);
     vec2 rotated = vec2(p.x * ca - p.y * sa, p.x * sa + p.y * ca);
 
-    float radius = uWStart * pow(uLambdaMag, -uT);
+    float radius = uWStart * exp(uLogZoom);
     // Inverse Koenigs coordinate to third order, so wider views stay self-similar at the loop wrap.
     vec2 w = rotated * radius;
     vec2 w2 = complexMul(w, w);

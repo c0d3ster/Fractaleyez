@@ -35,11 +35,14 @@ const SWITCHEROO_MAX_HOP_POINTS = 6
 // the glide still moves at Speed 0, and no transition takes longer than SHAPE_MAX_TRANSITION_SECONDS
 // (a long jump at low Speed speeds up to meet that cap). The ends ease in and out.
 const SHAPE_POINTS_PER_SEC_PER_SPEED = 0.6
-const SHAPE_MIN_SPEED = 1
+const SHAPE_MIN_SPEED = 0.5
 const SHAPE_MAX_TRANSITION_SECONDS = 15
 const SHAPE_EASE_SECONDS = 0.4
 const SHAPE_EASE_MAX_JUMP_FRACTION = 0.35
 const SHAPE_VELOCITY_HALF_LIFE_SECONDS = 0.1
+const ZOOM_PULL_HALF_LIFE_SECONDS = 15
+const SPIN_PULL_HALF_LIFE_SECONDS = 10
+const ORIENT_HALF_LIFE_SECONDS = 0.6
 
 const C_DRIFT_RADIUS = 0.015
 const C_DRIFT_SPEED = 0.04
@@ -186,6 +189,47 @@ const tourPoint = (position: number): Complex => {
   return { re: spline(p0.re, p1.re, p2.re, p3.re), im: spline(p0.im, p1.im, p2.im, p3.im) }
 }
 
+// Direction (in the complex plane, radians) from the zoom point toward where the filled region is, found by
+// sampling the escape-time on rings around the zoom point at the loop's starting radius and averaging the
+// directions of the points that stay bounded (points that escape late count for a bit less). Used to turn each
+// shape so that region faces down. Returns null when nothing stands out (a symmetric or empty view).
+const ORIENT_DIRECTIONS = 48
+const ORIENT_RING_RADII = [0.5, 1, 1.5, 2]
+const ORIENT_MAX_ITER = 100
+const massDirection = (cx: number, cy: number, fixedPoint: Complex, koenigs2: Complex, koenigs3: Complex): number | null => {
+  let sumX = 0
+  let sumY = 0
+  let total = 0
+  for (let i = 0; i < ORIENT_DIRECTIONS; i++) {
+    const angle = (i / ORIENT_DIRECTIONS) * Math.PI * 2
+    const cosA = Math.cos(angle)
+    const sinA = Math.sin(angle)
+    for (const ring of ORIENT_RING_RADII) {
+      const w: Complex = { re: W_START * ring * cosA, im: W_START * ring * sinA }
+      const w2 = cMul(w, w)
+      const k2 = cMul(koenigs2, w2)
+      const k3 = cMul(koenigs3, cMul(w2, w))
+      let zRe = fixedPoint.re + w.re + k2.re + k3.re
+      let zIm = fixedPoint.im + w.im + k2.im + k3.im
+      let weight = 1
+      for (let n = 0; n < ORIENT_MAX_ITER; n++) {
+        const nextRe = zRe * zRe - zIm * zIm + cx
+        zIm = 2 * zRe * zIm + cy
+        zRe = nextRe
+        if (zRe * zRe + zIm * zIm > 256) {
+          // Late escapers are near the set and count for more; early escapers are far away and barely count.
+          weight = 0.6 * Math.pow(n / ORIENT_MAX_ITER, 2)
+          break
+        }
+      }
+      sumX += weight * cosA
+      sumY += weight * sinA
+      total += weight
+    }
+  }
+  return total > 0 && Math.hypot(sumX, sumY) > 0.05 * total ? Math.atan2(sumY, sumX) : null
+}
+
 // The one place the shape position is read. For now it rides on the shared Scale slider (0 to 1 across
 // its range); once the Julia layer has its own config section, only this function needs to change.
 const getShapePosition = (): number => {
@@ -209,6 +253,10 @@ export class JuliaVisualizer {
   private loopProgress = 0
   private lastWrapIndex = 0
   private loopT = 0
+  private spinAngle = 0
+  private logZoom = 0
+  private orientAngle = 0
+  private hasOrient = false
   private huePhase = 0
   private previousPeakValue = 0
   private hasStartedLoop = false
@@ -249,9 +297,9 @@ export class JuliaVisualizer {
       uniforms: {
         uC: { value: new THREE.Vector2() },
         uFixedPoint: { value: new THREE.Vector2() },
-        uT: { value: 0 },
-        uLambdaMag: { value: 1 },
-        uLambdaArg: { value: 0 },
+        uOrient: { value: 0 },
+        uSpin: { value: 0 },
+        uLogZoom: { value: 0 },
         uWStart: { value: W_START },
         uAspect: { value: window.innerWidth / window.innerHeight },
         uHuePhase: { value: 0 },
@@ -321,11 +369,13 @@ export class JuliaVisualizer {
 
     // Wob Wob: like Hopalong's backward jerk on a beat, the zoom recoils (briefly reverses) while the peak decays.
     const wobWobFactor = effects.wobWob.value ? 1 - WOBWOB_RECOIL * peakValue : 1
-    this.loopProgress += BASE_LOOP_SPEED * (speed.value / SPEED_DEFAULT) * musicSpeedMultiplier * wobWobFactor * dt
+    const progressDelta = BASE_LOOP_SPEED * (speed.value / SPEED_DEFAULT) * musicSpeedMultiplier * wobWobFactor * dt
+    this.loopProgress += progressDelta
     this.rotation = (this.rotation + rotationSpeed.value * ROTATION_RAD_PER_SEC_PER_UNIT * dt) % (Math.PI * 2)
 
     const wrapIndex = Math.floor(this.loopProgress)
     const wrapped = !this.hasStartedLoop || wrapIndex !== this.lastWrapIndex
+    const wrapSteps = this.hasStartedLoop ? wrapIndex - this.lastWrapIndex : 0
     this.lastWrapIndex = wrapIndex
     this.loopT = this.loopProgress - wrapIndex
 
@@ -388,6 +438,25 @@ export class JuliaVisualizer {
     const effectiveCy = tourC.im + this.loopOffsetY
     const { fixedPointX, fixedPointY, lambdaMag, lambdaArg, koenigs2, koenigs3 } = computeFixedPointAndLambda(effectiveCx, effectiveCy)
 
+    // Spin and zoom are carried as running totals instead of being recomputed from the current shape.
+    // Recomputing (angle = -t * arg(lambda), radius = |lambda|^-t) made the whole view swing and the zoom
+    // lurch whenever c changed mid-loop, since lambda depends on c. Integrating means a shape change only
+    // alters the future rate. At a wrap we add back exactly one loop's worth with the current lambda, which
+    // keeps the picture continuous there (self-similarity makes t = 1 and t = 0 the same view) and leaves any
+    // spin accumulated from earlier shape changes in place.
+    const spinPerLoop = lambdaArg * LOOP_PERIODS
+    const logZoomPerLoop = Math.log(lambdaMag) * LOOP_PERIODS
+    this.spinAngle += -spinPerLoop * progressDelta + wrapSteps * spinPerLoop
+    this.logZoom += -logZoomPerLoop * progressDelta + wrapSteps * logZoomPerLoop
+    this.spinAngle %= Math.PI * 2
+    // Likewise ease any spin left over from earlier shape changes back to what an unchanged shape would have,
+    // so the shape's orientation (see uOrient) is the same wherever on the slider you are.
+    const canonicalSpin = -spinPerLoop * this.loopT
+    const spinError = Math.atan2(Math.sin(canonicalSpin - this.spinAngle), Math.cos(canonicalSpin - this.spinAngle))
+    this.spinAngle += spinError * (1 - Math.pow(0.5, dt / SPIN_PULL_HALF_LIFE_SECONDS))    // A gentle pull back toward where an unchanged shape would have the zoom, so repeated shape changes
+    // can't walk the zoom depth away from the range where the zoom coordinate is accurate.
+    this.logZoom += (-logZoomPerLoop * this.loopT - this.logZoom) * (1 - Math.pow(0.5, dt / ZOOM_PULL_HALF_LIFE_SECONDS))
+
     this.huePhase += HUE_DRIFT_PER_SEC * dt
     if (freshBeat && effects.colorShift.value) this.huePhase += HUE_PEAK_JUMP
 
@@ -433,9 +502,21 @@ export class JuliaVisualizer {
     uniforms.uKoenigs3!.value.set(koenigs3.re, koenigs3.im)
     uniforms.uC!.value.set(effectiveCx, effectiveCy)
     uniforms.uFixedPoint!.value.set(fixedPointX, fixedPointY)
-    uniforms.uT!.value = this.loopT
-    uniforms.uLambdaMag!.value = Math.pow(lambdaMag, LOOP_PERIODS)
-    uniforms.uLambdaArg!.value = lambdaArg * LOOP_PERIODS
+    // Turn the shape so its filled region faces down, easing so a shape change (or a flip in which side
+    // dominates) turns the view smoothly instead of snapping.
+    const mass = massDirection(effectiveCx, effectiveCy, { re: fixedPointX, im: fixedPointY }, koenigs2, koenigs3)
+    if (mass !== null) {
+      const targetOrient = mass + Math.PI / 2
+      if (!this.hasOrient) {
+        this.orientAngle = targetOrient
+        this.hasOrient = true
+      }
+      const orientError = Math.atan2(Math.sin(targetOrient - this.orientAngle), Math.cos(targetOrient - this.orientAngle))
+      this.orientAngle += orientError * (1 - Math.pow(0.5, dt / ORIENT_HALF_LIFE_SECONDS))
+    }
+    uniforms.uOrient!.value = this.orientAngle
+    uniforms.uSpin!.value = this.spinAngle
+    uniforms.uLogZoom!.value = this.logZoom
     uniforms.uHuePhase!.value = this.huePhase
     uniforms.uCyclone!.value = effects.cyclone.value ? 1 : 0
     uniforms.uGlow!.value = glow
