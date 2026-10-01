@@ -29,7 +29,13 @@ const TOUR: readonly (readonly [number, number])[] = [
 // MAX_HOP_POINTS from the slider's home position.
 const SWITCHEROO_HOP_POINTS = 3
 const SWITCHEROO_MAX_HOP_POINTS = 6
-const SHAPE_EMA_HALF_LIFE_SECONDS = 0.15
+
+// How fast the shape glides to a new tour position follows the Speed slider: the half-life is
+// SHAPE_HALF_LIFE_AT_REF_SPEED at SHAPE_REF_SPEED and scales inversely with Speed. Speed is floored so
+// the glide always finishes (a half-life of 0.15 * 10 / 1 = 1.5s, about 5s to settle) even at Speed 0.
+const SHAPE_REF_SPEED = 10
+const SHAPE_HALF_LIFE_AT_REF_SPEED = 0.15
+const SHAPE_MIN_SPEED = 1
 
 const C_DRIFT_RADIUS = 0.015
 const C_DRIFT_SPEED = 0.04
@@ -348,7 +354,8 @@ export class JuliaVisualizer {
       this.tourPosition = targetTourPosition
       this.hasTourPosition = true
     }
-    this.tourPosition += (targetTourPosition - this.tourPosition) * (1 - Math.pow(0.5, dt / SHAPE_EMA_HALF_LIFE_SECONDS))
+    const shapeHalfLife = SHAPE_HALF_LIFE_AT_REF_SPEED * (SHAPE_REF_SPEED / Math.max(SHAPE_MIN_SPEED, speed.value))
+    this.tourPosition += (targetTourPosition - this.tourPosition) * (1 - Math.pow(0.5, dt / shapeHalfLife))
     const tourC = tourPoint(this.tourPosition)
     const effectiveCx = tourC.re + this.loopOffsetX
     const effectiveCy = tourC.im + this.loopOffsetY
