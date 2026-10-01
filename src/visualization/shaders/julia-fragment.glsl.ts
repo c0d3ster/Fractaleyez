@@ -21,10 +21,16 @@ export const juliaFragmentShader = /* glsl */ `
   uniform vec2 uCenterOffset;
   uniform float uIterOffset;
   uniform float uRotation;
+  uniform vec2 uKoenigs2;
+  uniform vec2 uKoenigs3;
 
   varying vec2 vUv;
 
   const int MAX_ITER = 128;
+
+  vec2 complexMul(vec2 a, vec2 b) {
+    return vec2(a.x * b.x - a.y * b.y, a.x * b.y + a.y * b.x);
+  }
 
   vec2 complexSquare(vec2 z) {
     return vec2(z.x * z.x - z.y * z.y, 2.0 * z.x * z.y);
@@ -58,9 +64,9 @@ export const juliaFragmentShader = /* glsl */ `
   }
 
   void main() {
-    // The fixed point sits at 80% across the frame so the spiral-rich coastline fills the screen
-    // instead of flat exterior. Shifting in normalized frame space keeps the zoom loop self-similar.
-    vec2 p = (vUv - (vec2(0.8, 0.5) + uCenterOffset)) * vec2(uAspect, 1.0) * 2.0;
+    // The fixed point sits at screen center until the sway offset moves it. Shifting in normalized
+    // frame space keeps the zoom loop self-similar.
+    vec2 p = (vUv - (vec2(0.5, 0.5) + uCenterOffset)) * vec2(uAspect, 1.0) * 2.0;
 
     float angle = -uT * uLambdaArg + uRotation;
     float ca = cos(angle);
@@ -68,7 +74,10 @@ export const juliaFragmentShader = /* glsl */ `
     vec2 rotated = vec2(p.x * ca - p.y * sa, p.x * sa + p.y * ca);
 
     float radius = uWStart * pow(uLambdaMag, -uT);
-    vec2 z0 = uFixedPoint + rotated * radius;
+    // Inverse Koenigs coordinate to third order, so wider views stay self-similar at the loop wrap.
+    vec2 w = rotated * radius;
+    vec2 w2 = complexMul(w, w);
+    vec2 z0 = uFixedPoint + w + complexMul(uKoenigs2, w2) + complexMul(uKoenigs3, complexMul(w2, w));
 
     float nu = juliaSmoothIter(z0, uC);
 
