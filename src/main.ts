@@ -52,7 +52,10 @@ const toggleVisualizer = (): void => {
 }
 
 document.addEventListener('keydown', (event: KeyboardEvent) => {
+  if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return
   if (event.key === 'j' || event.key === 'J') toggleVisualizer()
+  // S fires the orbit shockwave on demand, so it can be tested without waiting for a beat.
+  if (event.key === 's' || event.key === 'S') hopalongManager.triggerShockwave()
 })
 
 // Create timing mechanism
