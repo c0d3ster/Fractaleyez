@@ -69,8 +69,38 @@ body {
   font-family: 'Acme', sans-serif !important;
 }
 
+/* The pop-out is the only scroll container (body is overflow hidden): it scrolls both ways when the window is
+   narrower or shorter than the columns need. */
 .config-window-root {
   font-size: 1.2rem;
+  height: 100vh;
+  overflow: auto;
+}
+
+/* The content has a fixed width (columns plus the grid's side padding) and centers itself in wider windows;
+   the presets row inherits it, so presets and columns line up. Narrower windows scroll instead. */
+.config-window-root {
+  --config-column-width: 205px;
+  --config-column-count: 7;
+}
+
+.config-window-root .container-fluid {
+  box-sizing: border-box;
+  width: calc(var(--config-column-width) * var(--config-column-count) + 30px);
+  margin: 0 auto;
+}
+
+.config-columns {
+  display: flex;
+  align-items: flex-start;
+  width: max-content;
+}
+
+.config-column {
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  width: var(--config-column-width);
+  padding: 0 8px;
 }
 
 .config-window-root .save-preset-input,
