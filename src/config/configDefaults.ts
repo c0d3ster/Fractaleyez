@@ -4,6 +4,7 @@ import { visualizerConfig } from './visualizer.config'
 import { orbitConfig } from './orbit.config'
 import { particleConfig } from './particle.config'
 import { videoConfig } from './video.config'
+import { fractalConfig } from './fractal.config'
 
 export type SliderItem = {
   name: string
@@ -38,6 +39,10 @@ export type UserConfigSection = {
   rotationSpeed: SliderItem
   scaleFactor: SliderItem
   cameraBound: SliderItem
+}
+
+export type FractalConfigSection = {
+  tour: SliderItem
 }
 
 export type AudioConfigSection = {
@@ -82,6 +87,7 @@ export type StoredVideoSection = Pick<VideoConfigSection, 'clips' | 'index'>
 
 export type AppConfig = {
   user: UserConfigSection
+  fractal: FractalConfigSection
   audio: AudioConfigSection
   effects: EffectsConfigSection
   particle: ParticleConfigSection
@@ -92,6 +98,7 @@ export type AppConfig = {
 /** Sidebar accordion row order (effects, then particle, then orbit). */
 export const CONFIG_CATEGORY_ORDER: (keyof AppConfig)[] = [
   'user',
+  'fractal',
   'audio',
   'effects',
   'particle',
@@ -107,6 +114,7 @@ export const CONFIG_WINDOW_COLUMN_ORDER: ConfigWindowColumnKey[] = [
   'effects_particle',
   'particle',
   'orbit',
+  'fractal',
   'video',
 ]
 
@@ -149,6 +157,17 @@ export const configDefaults: AppConfig = {
       min: userConfig.cameraBound_MIN,
       max: userConfig.cameraBound_MAX,
       step: userConfig.cameraBound_SEP_SIZE,
+    },
+  },
+  fractal: {
+    tour: {
+      name: 'Tour',
+      type: 'slider',
+      defaultValue: fractalConfig.tour_DEFAULT,
+      value: fractalConfig.tour_DEFAULT,
+      min: fractalConfig.tour_MIN,
+      max: fractalConfig.tour_MAX,
+      step: fractalConfig.tour_STEP_SIZE,
     },
   },
   audio: {

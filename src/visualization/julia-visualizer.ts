@@ -3,6 +3,8 @@ import { CAMERA_STEER_SCREEN_FRACTION_PER_PAD_UNIT } from '../config/visualizer.
 import { AudioAnalysedDataForVisualization } from '../audioanalysis/audio-analysed-data'
 import { juliaFragmentShader, juliaVertexShader } from './shaders/julia-fragment.glsl'
 import { JULIA_MAP_VIEW, JULIA_TOUR } from './julia-tour'
+import { userConfig } from '../config/user.config'
+import { JULIA_SCALE, SCALE_UNITS_PER_SLIDER_STEP } from '../config/juliaScale.config'
 import { SHAPE_EASE_SECONDS, SHAPE_MAX_TRANSITION_SECONDS, SHAPE_VELOCITY_HALF_LIFE_SECONDS, ShapeGlider } from './shape-glider'
 
 const TOUR = JULIA_TOUR
@@ -60,10 +62,43 @@ const BASE_LOOP_SPEED = 0.04
 // Any whole number of periods is still an exact match at the wrap, and it makes each loop dive deeper.
 const LOOP_PERIODS = 2
 
-// Radius of the view at t=0. This has to be small enough that the whole frame
+// Radius of the view at t=0 at the default Scale (1.5x). This has to be small enough that the whole frame
 // already sits deep in the region where Koenigs linearization holds well --
 // 1.4 (comparable to the whole Julia set's extent) made the wrap an obvious pop.
 const W_START = 0.006
+
+// The Scale slider sets that starting radius, log-spaced: 1.5x is W_START and 0.2x is the whole Julia set.
+// Below 0.2x the set keeps shrinking in the frame (the "eyeball" zone) down to half its whole-set size at
+// the slider's 0.1x minimum. Above 1.5x it dives up to 3x deeper by 2.0x.
+const SCALE_DEFAULT = JULIA_SCALE.default
+const SCALE_WHOLE_SET = JULIA_SCALE.wholeSet
+const SCALE_MIN = JULIA_SCALE.min
+const WHOLE_SET_RADIUS = 1.75
+const EYEBALL_RADIUS_AT_MIN_SCALE = 3.5
+// Motion (dive, spin, orient turn) finishes settling at this Scale, so 0.3x down is a still picture.
+const SCALE_SETTLED = JULIA_SCALE.settled
+const DEEP_SCALE_SPAN = 0.5
+const DEEP_SCALE_FACTOR = 3
+// Measured wrap mismatch of the 3rd-order Koenigs loop grows with the cube of the starting radius: it is
+// sub-pixel up to about 0.2 (roughly Scale 0.7x) and pops beyond that. Wider views swap the sawtooth zoom
+// for a breathing one (zoom in and back out, seamless by construction), and never dive past the radius
+// where the shader's series blend begins.
+const SEAM_SAFE_RADIUS = 0.2
+const WIDE_DIVE_FLOOR_RADIUS = 0.25
+const WIDE_BLEND_HALF_LIFE_SECONDS = 0.4
+const RADIUS_HALF_LIFE_SECONDS = 0.15
+
+
+const scaleToRadius = (scale: number): number => {
+  if (scale >= SCALE_DEFAULT) return W_START * Math.pow(DEEP_SCALE_FACTOR, -(scale - SCALE_DEFAULT) / DEEP_SCALE_SPAN)
+  if (scale >= SCALE_WHOLE_SET) {
+    const wideness = (SCALE_DEFAULT - scale) / (SCALE_DEFAULT - SCALE_WHOLE_SET)
+    return W_START * Math.pow(WHOLE_SET_RADIUS / W_START, wideness)
+  }
+  const eyeball = (SCALE_WHOLE_SET - Math.max(SCALE_MIN, scale)) / (SCALE_WHOLE_SET - SCALE_MIN)
+  return WHOLE_SET_RADIUS * Math.pow(EYEBALL_RADIUS_AT_MIN_SCALE / WHOLE_SET_RADIUS, eyeball)
+}
+const SETTLED_RADIUS = scaleToRadius(SCALE_SETTLED)
 
 // Zoom speed = base * (1 + smoothed energy * gain + beat envelope * boost), capped.
 // Energy is the mean deviation from 128 on a 0-128 scale, so typical music sits around 5-30.
@@ -81,9 +116,6 @@ const switcherooHopPoints = (speed: number): number => Math.max(
   SWITCHEROO_MIN_HOP_POINTS,
   SWITCHEROO_HOP_POINTS_AT_DEFAULT_SPEED * Math.pow(Math.max(SHAPE_MIN_SPEED, speed) / SPEED_DEFAULT, SWITCHEROO_HOP_SPEED_EXPONENT),
 )
-const SHAPE_SLIDER_MIN = 100
-const SHAPE_SLIDER_MAX = 2000
-const ROTATION_RAD_PER_SEC_PER_UNIT = 0.03
 
 // Steering reads the same shared camera position the Camera Position pad writes (and Hopalong's
 // camera reads), in pad units clamped to +/- user.cameraBound (0-500); the shift per pad unit is shared
@@ -243,11 +275,10 @@ const inMandelbrotSet = (cx: number, cy: number): boolean => {
   return true
 }
 
-// The one place the shape position is read. For now it rides on the shared Scale slider (0 to 1 across
-// its range); once the Julia layer has its own config section, only this function needs to change.
+// The one place the shape position is read: the Fractal config's Tour slider, as 0 to 1 along the tour.
 const getShapePosition = (): number => {
-  const { value } = window.config.user.scaleFactor
-  return Math.max(0, Math.min(1, (value - SHAPE_SLIDER_MIN) / (SHAPE_SLIDER_MAX - SHAPE_SLIDER_MIN)))
+  const { value, min, max } = window.config.fractal.tour
+  return Math.max(0, Math.min(1, (value - min) / (max - min)))
 }
 
 export class JuliaVisualizer {
@@ -288,12 +319,15 @@ export class JuliaVisualizer {
   private loopOffsetX = 0
   private loopOffsetY = 0
 
-  // Shape source: by default the Scale slider walks the tour; dragging the shape pad (or choosing a
-  // famous shape) switches to a manual point in the c plane until the Scale slider moves again.
+  // Shape source: by default the Tour slider walks the tour; dragging the shape pad (or choosing a
+  // famous shape) switches to a manual point in the c plane until the Tour slider moves again.
   private tourGlider = new ShapeGlider()
   private hasTourPosition = false
   private switcherooHop = 0
-  private lastScaleValue: number | null = null
+  private lastTourValue: number | null = null
+  private viewRadius = W_START
+  private hasViewRadius = false
+  private wideBlend = 0
   private manual = false
   private manualRe = 0
   private manualIm = 0
@@ -359,7 +393,6 @@ export class JuliaVisualizer {
     window.setJuliaShape = (re: number, im: number) => this.setShape(re, im)
     window.getJuliaShape = () => this.getShape()
     window.clearJuliaShape = () => this.clearShape()
-    window.getJuliaSteer = () => this.getSteerPosition()
   }
 
   private onResize = (): void => {
@@ -391,7 +424,7 @@ export class JuliaVisualizer {
     this.manualHopIm = 0
   }
 
-  // Hands the shape back to the Scale slider's tour, rejoining it at the nearest point to where we are.
+  // Hands the shape back to the Tour slider's tour, rejoining it at the nearest point to where we are.
   clearShape(): void {
     if (!this.manual) return
     this.manual = false
@@ -417,7 +450,7 @@ export class JuliaVisualizer {
     const saturation = window.config.particle.saturation.value
     if (this.hasShape) {
       // The shape trails its target: in manual mode that is where the pointer last put it (plus any
-      // Switcheroo hop), on the tour it is the Scale slider's point plus the hop.
+      // Switcheroo hop), on the tour it is the Tour slider's point plus the hop.
       const tourTarget = tourPoint(this.currentTourTarget())
       const targetRe = this.manual ? this.manualHomeRe + this.manualHopRe : tourTarget.re
       const targetIm = this.manual ? this.manualHomeIm + this.manualHopIm : tourTarget.im
@@ -593,7 +626,7 @@ export class JuliaVisualizer {
     const wobWobFactor = effects.wobWob.value ? 1 - WOBWOB_RECOIL * peakValue : 1
     const progressDelta = BASE_LOOP_SPEED * (speed.value / SPEED_DEFAULT) * musicSpeedMultiplier * wobWobFactor * dt
     this.loopProgress += progressDelta
-    this.rotation = (this.rotation + rotationSpeed.value * ROTATION_RAD_PER_SEC_PER_UNIT * dt) % (Math.PI * 2)
+    this.rotation = (this.rotation + rotationSpeed.value * userConfig.rotationSpeed_RAD_PER_SEC_PER_UNIT * dt) % (Math.PI * 2)
 
     const wrapIndex = Math.floor(this.loopProgress)
     const wrapped = !this.hasStartedLoop || wrapIndex !== this.lastWrapIndex
@@ -620,10 +653,22 @@ export class JuliaVisualizer {
     const freshBeat = peakValue > PEAK_JUMP_THRESHOLD && this.previousPeakValue <= PEAK_JUMP_THRESHOLD
     this.previousPeakValue = peakValue
 
-    // Moving the Scale slider hands the shape back to the tour.
-    const scaleValue = window.config.user.scaleFactor.value
-    if (this.lastScaleValue !== null && scaleValue !== this.lastScaleValue) this.clearShape()
-    this.lastScaleValue = scaleValue
+    // Moving the Tour slider hands the shape back to the tour.
+    const tourValue = window.config.fractal.tour.value
+    if (this.lastTourValue !== null && tourValue !== this.lastTourValue) this.clearShape()
+    this.lastTourValue = tourValue
+
+    // Scale sets the view's starting radius; ease it in log space so dragging the slider glides.
+    const targetRadius = scaleToRadius(window.config.user.scaleFactor.value / SCALE_UNITS_PER_SLIDER_STEP)
+    if (!this.hasViewRadius) {
+      this.viewRadius = targetRadius
+      this.hasViewRadius = true
+    } else {
+      const kRadius = 1 - Math.pow(0.5, dt / RADIUS_HALF_LIFE_SECONDS)
+      this.viewRadius = Math.exp(Math.log(this.viewRadius) + (Math.log(targetRadius) - Math.log(this.viewRadius)) * kRadius)
+    }
+    const kWide = 1 - Math.pow(0.5, dt / WIDE_BLEND_HALF_LIFE_SECONDS)
+    this.wideBlend += ((this.viewRadius > SEAM_SAFE_RADIUS ? 1 : 0) - this.wideBlend) * kWide
 
     // Switcheroo: on each beat, hop to a neighboring look and hold it until the next beat; the shape glides
     // there at the Speed-based rate. On the tour that is a few points along it (a random direction, bounded
@@ -721,7 +766,21 @@ export class JuliaVisualizer {
 
     const uniforms = this.material.uniforms
     uniforms.uCenterOffset!.value.set(this.steerX, this.steerY)
-    uniforms.uIterOffset!.value = this.loopT * LOOP_PERIODS
+    // Breathing zoom for wide views: dive in and back out over one loop (seamless without self-similarity),
+    // never past the radius where the shader's series blend begins. The spin follows the zoom the way the
+    // sawtooth's does (arg(lambda) per ln|lambda|), and the iteration offset tracks the zoom depth.
+    const lnLambda = Math.log(lambdaMag)
+    // The dive and the orient turn both settle to nothing as the view widens from SEAM_SAFE_RADIUS to the
+    // whole set, so the widest Scale is a fixed full-frame picture of the Julia set.
+    const wideFraction = Math.max(0, Math.min(1, Math.log(this.viewRadius / SEAM_SAFE_RADIUS) / Math.log(SETTLED_RADIUS / SEAM_SAFE_RADIUS)))
+    const settle = 1 - wideFraction * wideFraction * (3 - 2 * wideFraction)
+    const breathDepth = settle * Math.min(logZoomPerLoop, Math.max(0, Math.log(this.viewRadius / WIDE_DIVE_FLOOR_RADIUS)))
+    const breathZoom = -breathDepth * 0.5 * (1 - Math.cos(Math.PI * 2 * this.loopT))
+    const breathSpin = (lambdaArg / lnLambda) * breathZoom
+    const breathIterOffset = -breathZoom / lnLambda
+    const blend = this.wideBlend
+    uniforms.uWStart!.value = this.viewRadius
+    uniforms.uIterOffset!.value = this.loopT * LOOP_PERIODS * (1 - blend) + breathIterOffset * blend
     uniforms.uRotation!.value = this.rotation
     uniforms.uKoenigs2!.value.set(koenigs2.re, koenigs2.im)
     uniforms.uKoenigs3!.value.set(koenigs3.re, koenigs3.im)
@@ -739,9 +798,9 @@ export class JuliaVisualizer {
       const orientError = Math.atan2(Math.sin(targetOrient - this.orientAngle), Math.cos(targetOrient - this.orientAngle))
       this.orientAngle += orientError * (1 - Math.pow(0.5, dt / ORIENT_HALF_LIFE_SECONDS))
     }
-    uniforms.uOrient!.value = this.orientAngle
-    uniforms.uSpin!.value = this.spinAngle
-    uniforms.uLogZoom!.value = this.logZoom
+    uniforms.uOrient!.value = this.orientAngle * settle
+    uniforms.uSpin!.value = this.spinAngle * (1 - blend) + breathSpin * blend
+    uniforms.uLogZoom!.value = this.logZoom * (1 - blend) + breathZoom * blend
     uniforms.uHuePhase!.value = this.huePhase
     this.cycloneAmount += ((effects.cyclone.value ? 1 : 0) - this.cycloneAmount) * (1 - Math.pow(0.5, dt / CYCLONE_HALF_LIFE_SECONDS))
     uniforms.uCyclone!.value = this.cycloneAmount
@@ -762,7 +821,6 @@ export class JuliaVisualizer {
     delete window.setJuliaShape
     delete window.getJuliaShape
     delete window.clearJuliaShape
-    delete window.getJuliaSteer
     this.releaseVideoTexture()
     this.material?.dispose()
     this.renderer?.dispose()
