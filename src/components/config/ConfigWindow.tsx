@@ -10,6 +10,7 @@ import { copyStyles } from '../../styles/AppStyleCopier'
 import { CONFIG_WINDOW_COLUMN_ORDER } from '../../config/configDefaults'
 import { connectConfig, ConfigContext, ConfigContextValue } from './context/ConfigProvider'
 import { CameraTouchpad } from './CameraTouchpad'
+import { ShapePad } from './ShapePad'
 import { FrequencyHud, PerfHud, ParticleSpriteHud } from '../huds'
 
 const DEFAULT_WINDOW_FEATURES = 'width=1200,height=860,location=no'
@@ -122,6 +123,7 @@ const ExternalWindowBridge = ({
                   toggleOpen={() => null}
                 />
                 {segment === 'audio' ? <FrequencyHud /> : null}
+                {segment === 'user' ? <ShapePad /> : null}
               </Col>
             )
           })}

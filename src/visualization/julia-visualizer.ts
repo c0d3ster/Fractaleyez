@@ -1,29 +1,10 @@
 import * as THREE from 'three'
 import { AudioAnalysedDataForVisualization } from '../audioanalysis/audio-analysed-data'
 import { juliaFragmentShader, juliaVertexShader } from './shaders/julia-fragment.glsl'
+import { JULIA_MAP_VIEW, JULIA_TOUR } from './julia-tour'
+import { ShapeGlider } from './shape-glider'
 
-// The Shape slider walks a tour of Julia-set c values, smoothly interpolated between points. The path
-// was generated offline: it passes through famous shapes (airplane, basilica, galaxy, Siegel disk,
-// rabbit, dendrite, then back along the main cardioid's boundary through the San Marco / seahorse
-// area), each stretch snapped onto the Mandelbrot set and resampled evenly, so neighbors look related
-// and almost every position is a connected, detailed shape instead of dust. Near-cusp c values
-// (close to 0.25) are avoided: the fixed point's multiplier approaches 1 there, so the zoom crawls.
-// Every point has a repelling-fixed-point multiplier of at least 1.89.
-const TOUR: readonly (readonly [number, number])[] = [
-  [-1.7549, 0], [-1.628, 0], [-1.484, 0], [-1.384, 0.012],
-  [-1.2647, 0.0283], [-1.1409, 0.025], [-1.0188, 0.0059], [-0.9121, -0.0546],
-  [-0.8377, -0.153], [-0.732, -0.208], [-0.704, -0.288], [-0.644, -0.416],
-  [-0.568, -0.48], [-0.521, -0.5895], [-0.404, -0.588], [-0.3778, -0.4834],
-  [-0.3772, -0.3595], [-0.3815, -0.2357], [-0.3877, -0.112], [-0.3947, 0.0117],
-  [-0.4016, 0.1354], [-0.4074, 0.2591], [-0.4111, 0.3829], [-0.4097, 0.5068],
-  [-0.3759, 0.6201], [-0.284, 0.644], [-0.22, 0.732], [-0.1202, 0.7476],
-  [-0.092, 0.8616], [-0.044, 0.984], [-0.092, 0.872], [-0.024, 0.784],
-  [0.068, 0.648], [0.148, 0.612], [0.2558, 0.5541], [0.3081, 0.4438],
-  [0.3638, 0.338], [0.3625, 0.301], [0.3026, 0.4094], [0.233, 0.5116],
-  [0.1331, 0.583], [0.017, 0.6258], [-0.1048, 0.6474], [-0.2273, 0.6399],
-  [-0.3432, 0.5969], [-0.4504, 0.535], [-0.55, 0.4615], [-0.6354, 0.3736],
-  [-0.6929, 0.2657], [-0.732, 0.1481], [-0.7984, 0.1381], [-0.7269, 0.1889],
-]
+const TOUR = JULIA_TOUR
 
 // Switcheroo hops this many tour points on each beat (a neighboring look), never straying more than
 // MAX_HOP_POINTS from the slider's home position.
@@ -32,14 +13,20 @@ const SWITCHEROO_MAX_HOP_POINTS = 6
 
 // The shape glides to a new tour position at a steady rate in tour points per second, proportional to
 // the Speed slider, so a long jump visibly sweeps through the shapes in between. Speed is floored so
-// the glide still moves at Speed 0, and no transition takes longer than SHAPE_MAX_TRANSITION_SECONDS
-// (a long jump at low Speed speeds up to meet that cap). The ends ease in and out.
+// the glide still moves at Speed 0. The cap on how long a transition may take, and the easing, live in
+// ShapeGlider.
 const SHAPE_POINTS_PER_SEC_PER_SPEED = 0.6
 const SHAPE_MIN_SPEED = 0.5
-const SHAPE_MAX_TRANSITION_SECONDS = 15
-const SHAPE_EASE_SECONDS = 0.4
-const SHAPE_EASE_MAX_JUMP_FRACTION = 0.35
-const SHAPE_VELOCITY_HALF_LIFE_SECONDS = 0.1
+
+// Manual shape (the shape pad). The glide rate is in c units per second per unit of Speed: about the
+// distance between neighboring tour points (0.12) times SHAPE_POINTS_PER_SEC_PER_SPEED. While the
+// pointer is dragging, the shape follows it closely instead of gliding.
+const MANUAL_C_UNITS_PER_SEC_PER_SPEED = 0.07
+const MANUAL_INSTANT_MS = 200
+const MANUAL_INSTANT_HALF_LIFE_SECONDS = 0.05
+const MANUAL_HOP_DISTANCE = 0.16
+const MANUAL_MAX_HOP_RADIUS = 0.4
+
 const ZOOM_PULL_HALF_LIFE_SECONDS = 15
 const SPIN_PULL_HALF_LIFE_SECONDS = 10
 const ORIENT_HALF_LIFE_SECONDS = 0.6
@@ -230,6 +217,19 @@ const massDirection = (cx: number, cy: number, fixedPoint: Complex, koenigs2: Co
   return total > 0 && Math.hypot(sumX, sumY) > 0.05 * total ? Math.atan2(sumY, sumX) : null
 }
 
+// True when c is inside the Mandelbrot set, i.e. its Julia set is connected and detailed rather than dust.
+const inMandelbrotSet = (cx: number, cy: number): boolean => {
+  let zRe = 0
+  let zIm = 0
+  for (let n = 0; n < 200; n++) {
+    const nextRe = zRe * zRe - zIm * zIm + cx
+    zIm = 2 * zRe * zIm + cy
+    zRe = nextRe
+    if (zRe * zRe + zIm * zIm > 4) return false
+  }
+  return true
+}
+
 // The one place the shape position is read. For now it rides on the shared Scale slider (0 to 1 across
 // its range); once the Julia layer has its own config section, only this function needs to change.
 const getShapePosition = (): number => {
@@ -268,13 +268,31 @@ export class JuliaVisualizer {
   private loopOffsetX = 0
   private loopOffsetY = 0
 
-  private tourPosition = 0
+  // Shape source: by default the Scale slider walks the tour; dragging the shape pad (or choosing a
+  // famous shape) switches to a manual point in the c plane until the Scale slider moves again.
+  private tourGlider = new ShapeGlider()
   private hasTourPosition = false
-  private lastTourTarget = 0
-  private shapeVelocity = 0
-  private shapeCapRate = 0
-  private shapeJumpDistance = 0
   private switcherooHop = 0
+  private lastScaleValue: number | null = null
+  private manual = false
+  private manualRe = 0
+  private manualIm = 0
+  private manualHomeRe = 0
+  private manualHomeIm = 0
+  private manualHopRe = 0
+  private manualHopIm = 0
+  private manualGlider = new ShapeGlider()
+  private manualStartRe = 0
+  private manualStartIm = 0
+  private manualDirRe = 0
+  private manualDirIm = 0
+  private manualDistance = 0
+  private manualLastTargetRe = Number.NaN
+  private manualLastTargetIm = Number.NaN
+  private manualInstantUntil = 0
+  private shapeRe = 0
+  private shapeIm = 0
+  private hasShape = false
   private previousShockPeak = 0
   private shockAge = -1
 
@@ -320,6 +338,11 @@ export class JuliaVisualizer {
     this.scene.add(mesh)
 
     window.addEventListener('resize', this.onResize)
+
+    // Bridge for the config panel's shape pad, which can live in a popup window (like the camera pad).
+    window.setJuliaShape = (re: number, im: number, instant: boolean) => this.setShape(re, im, instant)
+    window.getJuliaShape = () => this.getShape()
+    window.clearJuliaShape = () => this.clearShape()
   }
 
   private onResize = (): void => {
@@ -332,6 +355,109 @@ export class JuliaVisualizer {
   private emaTowards(current: number, target: number, dtSeconds: number): number {
     const k = 1 - Math.pow(0.5, dtSeconds / EMA_HALF_LIFE_SECONDS)
     return current + (target - current) * k
+  }
+
+  // Switches the shape to a manual point in the c plane (clamped to the shape pad's map). While dragging,
+  // pass instant = true so the shape follows the pointer closely; otherwise it glides at the Speed-based rate.
+  setShape(re: number, im: number, instant: boolean): void {
+    if (!this.manual) {
+      const current = tourPoint(this.tourGlider.position)
+      this.manualRe = current.re
+      this.manualIm = current.im
+      this.manualLastTargetRe = Number.NaN
+      this.manualLastTargetIm = Number.NaN
+      this.manual = true
+    }
+    this.manualHomeRe = Math.max(JULIA_MAP_VIEW.reMin, Math.min(JULIA_MAP_VIEW.reMax, re))
+    this.manualHomeIm = Math.max(JULIA_MAP_VIEW.imMin, Math.min(JULIA_MAP_VIEW.imMax, im))
+    this.manualHopRe = 0
+    this.manualHopIm = 0
+    if (instant) this.manualInstantUntil = performance.now() + MANUAL_INSTANT_MS
+  }
+
+  // Hands the shape back to the Scale slider's tour, rejoining it at the nearest point to where we are.
+  clearShape(): void {
+    if (!this.manual) return
+    this.manual = false
+    let bestPosition = 0
+    let bestDistance = Number.POSITIVE_INFINITY
+    for (let position = 0; position <= TOUR.length - 1; position += 0.05) {
+      const point = tourPoint(position)
+      const distance = Math.hypot(point.re - this.manualRe, point.im - this.manualIm)
+      if (distance < bestDistance) {
+        bestDistance = distance
+        bestPosition = position
+      }
+    }
+    this.tourGlider.reset(bestPosition)
+    this.tourGlider.retarget()
+    this.switcherooHop = 0
+  }
+
+  // The shape's current c (before the small drift and audio offsets), whether it is manual, and the
+  // current palette hue so the shape pad can match the visualizer's colors.
+  getShape(): { re: number; im: number; manual: boolean; hue: number } {
+    const hue = this.huePhase
+    if (this.hasShape) return { re: this.shapeRe, im: this.shapeIm, manual: this.manual, hue }
+    const start = tourPoint(getShapePosition() * (TOUR.length - 1))
+    return { re: start.re, im: start.im, manual: false, hue }
+  }
+
+  private hopManualShape(): void {
+    const targetRe = this.manualHomeRe + this.manualHopRe
+    const targetIm = this.manualHomeIm + this.manualHopIm
+    // Prefer hopping to a point on the same side of the set boundary as the chosen point (connected
+    // shapes stay connected, dust stays dust); if none turns up, take any nearby point so it still hops.
+    const homeInside = inMandelbrotSet(this.manualHomeRe, this.manualHomeIm)
+    for (const requireSameSide of [true, false]) {
+      for (let attempt = 0; attempt < 24; attempt++) {
+        const angle = Math.random() * Math.PI * 2
+        const candidateRe = targetRe + Math.cos(angle) * MANUAL_HOP_DISTANCE
+        const candidateIm = targetIm + Math.sin(angle) * MANUAL_HOP_DISTANCE
+        const inView = candidateRe > JULIA_MAP_VIEW.reMin && candidateRe < JULIA_MAP_VIEW.reMax
+          && candidateIm > JULIA_MAP_VIEW.imMin && candidateIm < JULIA_MAP_VIEW.imMax
+        const nearHome = Math.hypot(candidateRe - this.manualHomeRe, candidateIm - this.manualHomeIm) <= MANUAL_MAX_HOP_RADIUS
+        if (!inView || !nearHome) continue
+        if (requireSameSide && inMandelbrotSet(candidateRe, candidateIm) !== homeInside) continue
+        this.manualHopRe = candidateRe - this.manualHomeRe
+        this.manualHopIm = candidateIm - this.manualHomeIm
+        return
+      }
+    }
+  }
+
+  private stepManualShape(speed: number, dt: number): Complex {
+    const targetRe = this.manualHomeRe + this.manualHopRe
+    const targetIm = this.manualHomeIm + this.manualHopIm
+    if (performance.now() < this.manualInstantUntil) {
+      const k = 1 - Math.pow(0.5, dt / MANUAL_INSTANT_HALF_LIFE_SECONDS)
+      this.manualRe += (targetRe - this.manualRe) * k
+      this.manualIm += (targetIm - this.manualIm) * k
+      this.manualLastTargetRe = Number.NaN
+      this.manualLastTargetIm = Number.NaN
+      this.manualDistance = 0
+      return { re: this.manualRe, im: this.manualIm }
+    }
+    if (targetRe !== this.manualLastTargetRe || targetIm !== this.manualLastTargetIm) {
+      this.manualStartRe = this.manualRe
+      this.manualStartIm = this.manualIm
+      this.manualDistance = Math.hypot(targetRe - this.manualStartRe, targetIm - this.manualStartIm)
+      const length = Math.max(this.manualDistance, 1e-9)
+      this.manualDirRe = (targetRe - this.manualStartRe) / length
+      this.manualDirIm = (targetIm - this.manualStartIm) / length
+      this.manualGlider.reset(0)
+      this.manualLastTargetRe = targetRe
+      this.manualLastTargetIm = targetIm
+    }
+    if (this.manualDistance > 1e-9) {
+      const travelled = this.manualGlider.step(this.manualDistance, MANUAL_C_UNITS_PER_SEC_PER_SPEED * Math.max(SHAPE_MIN_SPEED, speed), dt)
+      this.manualRe = this.manualStartRe + this.manualDirRe * travelled
+      this.manualIm = this.manualStartIm + this.manualDirIm * travelled
+    } else {
+      this.manualRe = targetRe
+      this.manualIm = targetIm
+    }
+    return { re: this.manualRe, im: this.manualIm }
   }
 
   setVisible(visible: boolean): void {
@@ -398,44 +524,45 @@ export class JuliaVisualizer {
     const freshBeat = peakValue > PEAK_JUMP_THRESHOLD && this.previousPeakValue <= PEAK_JUMP_THRESHOLD
     this.previousPeakValue = peakValue
 
-    // Switcheroo: on each beat, hop to a neighboring stop on the tour (a random direction, bounded around
-    // the slider's home position) and hold it until the next beat. The shape glides there at the Speed-based rate.
-    if (!effects.switcheroo.value) {
-      this.switcherooHop = 0
-    } else if (freshBeat) {
-      const direction = Math.random() < 0.5 ? -SWITCHEROO_HOP_POINTS : SWITCHEROO_HOP_POINTS
-      const next = this.switcherooHop + direction
-      this.switcherooHop = Math.abs(next) > SWITCHEROO_MAX_HOP_POINTS ? this.switcherooHop - direction : next
+    // Moving the Scale slider hands the shape back to the tour.
+    const scaleValue = window.config.user.scaleFactor.value
+    if (this.lastScaleValue !== null && scaleValue !== this.lastScaleValue) this.clearShape()
+    this.lastScaleValue = scaleValue
+
+    // Switcheroo: on each beat, hop to a neighboring look and hold it until the next beat; the shape glides
+    // there at the Speed-based rate. On the tour that is a few points along it (a random direction, bounded
+    // around the slider's home position); in manual mode it is a short step in the c plane on the same side of
+    // the Mandelbrot boundary as the point you chose, bounded around that point.
+    let baseC: Complex
+    if (!this.manual) {
+      if (!effects.switcheroo.value) {
+        this.switcherooHop = 0
+      } else if (freshBeat) {
+        const direction = Math.random() < 0.5 ? -SWITCHEROO_HOP_POINTS : SWITCHEROO_HOP_POINTS
+        const next = this.switcherooHop + direction
+        this.switcherooHop = Math.abs(next) > SWITCHEROO_MAX_HOP_POINTS ? this.switcherooHop - direction : next
+      }
+      const targetTourPosition = Math.max(0, Math.min(TOUR.length - 1, getShapePosition() * (TOUR.length - 1) + this.switcherooHop))
+      if (!this.hasTourPosition) {
+        this.tourGlider.reset(targetTourPosition)
+        this.hasTourPosition = true
+      }
+      const tourPosition = this.tourGlider.step(targetTourPosition, SHAPE_POINTS_PER_SEC_PER_SPEED * Math.max(SHAPE_MIN_SPEED, speed.value), dt)
+      baseC = tourPoint(tourPosition)
+    } else {
+      if (!effects.switcheroo.value) {
+        this.manualHopRe = 0
+        this.manualHopIm = 0
+      } else if (freshBeat) {
+        this.hopManualShape()
+      }
+      baseC = this.stepManualShape(speed.value, dt)
     }
-    const targetTourPosition = Math.max(0, Math.min(TOUR.length - 1, getShapePosition() * (TOUR.length - 1) + this.switcherooHop))
-    if (!this.hasTourPosition) {
-      this.tourPosition = targetTourPosition
-      this.lastTourTarget = targetTourPosition
-      this.hasTourPosition = true
-    }
-    // When the target moves, remember how fast we'd need to go to finish within the cap; the glide runs at
-    // whichever is faster, the Speed-based rate or that cap rate.
-    if (Math.abs(targetTourPosition - this.lastTourTarget) > 1e-6) {
-      this.shapeJumpDistance = Math.abs(targetTourPosition - this.tourPosition)
-      this.shapeCapRate = this.shapeJumpDistance / SHAPE_MAX_TRANSITION_SECONDS
-      this.lastTourTarget = targetTourPosition
-    }
-    const shapeRate = Math.max(SHAPE_POINTS_PER_SEC_PER_SPEED * Math.max(SHAPE_MIN_SPEED, speed.value), this.shapeCapRate)
-    const remaining = targetTourPosition - this.tourPosition
-    // The ease-out zone is a time's worth of travel, but never more than a third of the jump, so short
-    // hops at high Speed stay snappy instead of being dominated by the ease.
-    const easeDistance = Math.max(1e-6, Math.min(shapeRate * SHAPE_EASE_SECONDS, SHAPE_EASE_MAX_JUMP_FRACTION * this.shapeJumpDistance))
-    const desiredVelocity = Math.sign(remaining) * shapeRate * Math.min(1, Math.abs(remaining) / easeDistance)
-    this.shapeVelocity += (desiredVelocity - this.shapeVelocity) * (1 - Math.pow(0.5, dt / SHAPE_VELOCITY_HALF_LIFE_SECONDS))
-    this.tourPosition += this.shapeVelocity * dt
-    // Land on the target instead of overshooting it (the smoothed velocity can carry a little momentum).
-    if (Math.sign(targetTourPosition - this.tourPosition) !== Math.sign(remaining) || Math.abs(remaining) < 0.002) {
-      this.tourPosition = targetTourPosition
-      this.shapeVelocity = 0
-    }
-    const tourC = tourPoint(this.tourPosition)
-    const effectiveCx = tourC.re + this.loopOffsetX
-    const effectiveCy = tourC.im + this.loopOffsetY
+    this.shapeRe = baseC.re
+    this.shapeIm = baseC.im
+    this.hasShape = true
+    const effectiveCx = baseC.re + this.loopOffsetX
+    const effectiveCy = baseC.im + this.loopOffsetY
     const { fixedPointX, fixedPointY, lambdaMag, lambdaArg, koenigs2, koenigs3 } = computeFixedPointAndLambda(effectiveCx, effectiveCy)
 
     // Spin and zoom are carried as running totals instead of being recomputed from the current shape.
@@ -531,6 +658,9 @@ export class JuliaVisualizer {
 
   dispose(): void {
     window.removeEventListener('resize', this.onResize)
+    delete window.setJuliaShape
+    delete window.getJuliaShape
+    delete window.clearJuliaShape
     this.material?.dispose()
     this.renderer?.dispose()
     this.renderer?.domElement.remove()

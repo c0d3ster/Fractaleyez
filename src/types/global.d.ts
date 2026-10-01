@@ -24,6 +24,9 @@ declare global {
     webkitAudioContext: typeof AudioContext
     setVirtualCameraPosition?: (x: number, y: number) => void
     getVirtualCameraPosition?: () => { x: number; y: number }
+    setJuliaShape?: (re: number, im: number, instant: boolean) => void
+    getJuliaShape?: () => { re: number; im: number; manual: boolean; hue: number }
+    clearJuliaShape?: () => void
     getAudioData?: () => {
       multibandEnergy?: number[]
       multibandEnergyAverage?: number[]
