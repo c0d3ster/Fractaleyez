@@ -2,6 +2,7 @@ import { AudioSource } from './audiostream/audio-source'
 import { AudioStream } from './audiostream/audio-stream'
 import { AudioAnalyser } from './audioanalysis/audio-analyser'
 import { HopalongManager } from './visualization/hopalong-manager'
+import { JuliaVisualizer } from './visualization/julia-visualizer'
 
 // Size of the fft transform performed on audio stream
 const FFT_SIZE = 512
@@ -13,6 +14,21 @@ const audioAnalyser = new AudioAnalyser(audiostream.getBufferSize())
 
 // Create the Visualization Manager
 const hopalongManager = new HopalongManager()
+const juliaVisualizer = new JuliaVisualizer()
+
+// Prototype toggle (press J) between Hopalong and the Julia set visualizer -- standalone for now,
+// not wired into config UI, ahead of the Visualizer Layers work.
+type ActiveVisualizer = 'hopalong' | 'julia'
+let activeVisualizer: ActiveVisualizer = 'hopalong'
+
+const toggleVisualizer = (): void => {
+  activeVisualizer = activeVisualizer === 'hopalong' ? 'julia' : 'hopalong'
+  juliaVisualizer.setVisible(activeVisualizer === 'julia')
+}
+
+document.addEventListener('keydown', (event: KeyboardEvent) => {
+  if (event.key === 'j' || event.key === 'J') toggleVisualizer()
+})
 
 // Create timing mechanism
 let startTimer: Date | null = null
@@ -92,6 +108,7 @@ const init = (): void => {
   lastFrameTime = performance.now()
 
   hopalongManager.init(startTimer)
+  juliaVisualizer.init()
   window.getPerfData = () => {
     const { fps, frameMs } = medianFpsFromDeltas(frameDeltaMs)
     return {
@@ -155,6 +172,11 @@ const analyze = (): void => {
     }
   }
 
-  // feed data to our visualization manager for next frame
-  hopalongManager.update(deltaTime, audioAnalyser.getAnalysedDataForVisualization())
+  // feed data to whichever visualizer is currently active
+  if (activeVisualizer === 'hopalong') {
+    hopalongManager.update(deltaTime, audioAnalyser.getAnalysedDataForVisualization())
+  } else {
+    juliaVisualizer.update(deltaTime, audioAnalyser.getAnalysedDataForVisualization())
+    juliaVisualizer.render()
+  }
 }
