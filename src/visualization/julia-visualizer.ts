@@ -30,12 +30,16 @@ const TOUR: readonly (readonly [number, number])[] = [
 const SWITCHEROO_HOP_POINTS = 3
 const SWITCHEROO_MAX_HOP_POINTS = 6
 
-// How fast the shape glides to a new tour position follows the Speed slider: the half-life is
-// SHAPE_HALF_LIFE_AT_REF_SPEED at SHAPE_REF_SPEED and scales inversely with Speed. Speed is floored so
-// the glide always finishes (a half-life of 0.15 * 10 / 1 = 1.5s, about 5s to settle) even at Speed 0.
-const SHAPE_REF_SPEED = 10
-const SHAPE_HALF_LIFE_AT_REF_SPEED = 0.15
+// The shape glides to a new tour position at a steady rate in tour points per second, proportional to
+// the Speed slider, so a long jump visibly sweeps through the shapes in between. Speed is floored so
+// the glide still moves at Speed 0, and no transition takes longer than SHAPE_MAX_TRANSITION_SECONDS
+// (a long jump at low Speed speeds up to meet that cap). The ends ease in and out.
+const SHAPE_POINTS_PER_SEC_PER_SPEED = 0.6
 const SHAPE_MIN_SPEED = 1
+const SHAPE_MAX_TRANSITION_SECONDS = 10
+const SHAPE_EASE_SECONDS = 0.4
+const SHAPE_EASE_MAX_JUMP_FRACTION = 0.35
+const SHAPE_VELOCITY_HALF_LIFE_SECONDS = 0.1
 
 const C_DRIFT_RADIUS = 0.015
 const C_DRIFT_SPEED = 0.04
@@ -218,6 +222,10 @@ export class JuliaVisualizer {
 
   private tourPosition = 0
   private hasTourPosition = false
+  private lastTourTarget = 0
+  private shapeVelocity = 0
+  private shapeCapRate = 0
+  private shapeJumpDistance = 0
   private switcherooHop = 0
   private previousShockPeak = 0
   private shockAge = -1
@@ -341,7 +349,7 @@ export class JuliaVisualizer {
     this.previousPeakValue = peakValue
 
     // Switcheroo: on each beat, hop to a neighboring stop on the tour (a random direction, bounded around
-    // the slider's home position) and hold it until the next beat. The shape glides there over ~0.4s.
+    // the slider's home position) and hold it until the next beat. The shape glides there at the Speed-based rate.
     if (!effects.switcheroo.value) {
       this.switcherooHop = 0
     } else if (freshBeat) {
@@ -352,10 +360,29 @@ export class JuliaVisualizer {
     const targetTourPosition = Math.max(0, Math.min(TOUR.length - 1, getShapePosition() * (TOUR.length - 1) + this.switcherooHop))
     if (!this.hasTourPosition) {
       this.tourPosition = targetTourPosition
+      this.lastTourTarget = targetTourPosition
       this.hasTourPosition = true
     }
-    const shapeHalfLife = SHAPE_HALF_LIFE_AT_REF_SPEED * (SHAPE_REF_SPEED / Math.max(SHAPE_MIN_SPEED, speed.value))
-    this.tourPosition += (targetTourPosition - this.tourPosition) * (1 - Math.pow(0.5, dt / shapeHalfLife))
+    // When the target moves, remember how fast we'd need to go to finish within the cap; the glide runs at
+    // whichever is faster, the Speed-based rate or that cap rate.
+    if (Math.abs(targetTourPosition - this.lastTourTarget) > 1e-6) {
+      this.shapeJumpDistance = Math.abs(targetTourPosition - this.tourPosition)
+      this.shapeCapRate = this.shapeJumpDistance / SHAPE_MAX_TRANSITION_SECONDS
+      this.lastTourTarget = targetTourPosition
+    }
+    const shapeRate = Math.max(SHAPE_POINTS_PER_SEC_PER_SPEED * Math.max(SHAPE_MIN_SPEED, speed.value), this.shapeCapRate)
+    const remaining = targetTourPosition - this.tourPosition
+    // The ease-out zone is a time's worth of travel, but never more than a third of the jump, so short
+    // hops at high Speed stay snappy instead of being dominated by the ease.
+    const easeDistance = Math.max(1e-6, Math.min(shapeRate * SHAPE_EASE_SECONDS, SHAPE_EASE_MAX_JUMP_FRACTION * this.shapeJumpDistance))
+    const desiredVelocity = Math.sign(remaining) * shapeRate * Math.min(1, Math.abs(remaining) / easeDistance)
+    this.shapeVelocity += (desiredVelocity - this.shapeVelocity) * (1 - Math.pow(0.5, dt / SHAPE_VELOCITY_HALF_LIFE_SECONDS))
+    this.tourPosition += this.shapeVelocity * dt
+    // Land on the target instead of overshooting it (the smoothed velocity can carry a little momentum).
+    if (Math.sign(targetTourPosition - this.tourPosition) !== Math.sign(remaining) || Math.abs(remaining) < 0.002) {
+      this.tourPosition = targetTourPosition
+      this.shapeVelocity = 0
+    }
     const tourC = tourPoint(this.tourPosition)
     const effectiveCx = tourC.re + this.loopOffsetX
     const effectiveCy = tourC.im + this.loopOffsetY
