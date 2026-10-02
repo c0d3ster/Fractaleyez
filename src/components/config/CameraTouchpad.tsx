@@ -1,8 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react'
 import './CameraTouchpad.css'
 
-const POLL_INTERVAL_MS = 33
-
 const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v))
 
 /** Main app window when config runs in a popup; otherwise `window`. */
@@ -26,16 +24,11 @@ export const CameraTouchpad = (): React.ReactElement => {
   const rafRef = useRef<number>(0)
 
   // Poll the camera's actual mouseX/mouseY every frame so the dot stays in sync
-  // with real mouse movement on the main screen too
+  // with real mouse movement on the main screen too. Every frame (not the shared UI tick) so the dots glide;
+  // state only changes when a value does, so the pad costs nothing repaint-wise while the camera is still.
   useEffect(() => {
-    let lastTickAt = 0
     const tick = (): void => {
       rafRef.current = requestAnimationFrame(tick)
-      // Shares the main thread with the visualizers and the video texture upload, so don't poll at the display's
-      // full refresh rate (240 Hz on a fast monitor); a pad dot doesn't need it.
-      const now = performance.now()
-      if (now - lastTickAt < POLL_INTERVAL_MS) return
-      lastTickAt = now
       const steer = mainWindow().getCameraSteer?.() ?? null
       setCurrent((c) => {
         if (!steer) return c === null ? c : null
