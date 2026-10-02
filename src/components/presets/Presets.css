@@ -52,8 +52,9 @@
 /* Premium rainbow border. A rotating conic gradient sits behind an inset fill, so only transform animates and
    the compositor does the work. Animating a custom property (the old approach) can't be composited: it forced
    style recalc and repaint on the main thread every frame for every premium item, which starved the background
-   video while the expanded config window was open. Stepped at 30 Hz: a layer that animates every vsync still
-   makes the popup produce a frame at the display rate (240 Hz on a fast monitor), which was enough on its own. */
+   video while the expanded config window was open. Even as a transform it only spins on hover: ten rings
+   spinning at rest, plus the frequency HUD, kept the popup repainting at the display rate, which was enough to
+   stall the video when both visualizers were running. */
 @keyframes premium-ring-spin {
   from { transform: translate(-50%, -50%) rotate(0deg); }
   to { transform: translate(-50%, -50%) rotate(360deg); }
@@ -97,6 +98,12 @@
   aspect-ratio: 1;
   background: conic-gradient(#ff6b6b, #ffd93d, #6bcb77, #4d96ff, #c77dff, #ff6b6b);
   animation: premium-ring-spin 3s steps(90) infinite;
+  animation-play-state: paused;
+}
+
+.pack-tab--premium:hover .premium-ring::before,
+.preset-item--premium:hover .premium-ring::before {
+  animation-play-state: running;
 }
 
 .premium-ring::after {
