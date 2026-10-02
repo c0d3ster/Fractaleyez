@@ -1,6 +1,5 @@
 import { userConfig as UserConfig } from '../config/user.config'
 import { analyserConfig as AnalyserConfig } from '../config/analyser.config'
-import { configDefaults } from '../config/configDefaults'
 
 import { AudioData } from '../audiostream/audio-data'
 import { AudioAnalysedData, AudioAnalysedDataForVisualization, Peak } from './audio-analysed-data'
@@ -34,8 +33,8 @@ export class AudioAnalyser {
         if (returns.peak || returns.peakHistory) {
           this.computePeakDetection(
             this.data.getEnergy(), this.data.getEnergyAverage(), this.data.peak, this.data.peakHistory, currentTimer,
-            configDefaults.audio.soundThreshold.value, AnalyserConfig.options.peakDetection.options.peakPersistency,
-            configDefaults.audio.ignoreTime.value, EASINGS.linear!
+            window.config.audio.soundThreshold.value, AnalyserConfig.options.peakDetection.options.peakPersistency,
+            window.config.audio.ignoreTime.value, EASINGS.linear!
           )
         }
       }
@@ -53,8 +52,8 @@ export class AudioAnalyser {
           this.computeMultibandPeakDetection(
             this.data.getMultibandEnergy(), this.data.getMultibandEnergyAverage(),
             this.data.multibandPeak, this.data.multibandPeakHistory, currentTimer,
-            configDefaults.audio.soundThreshold.value, AnalyserConfig.options.multibandPeakDetection.options.peakPersistency,
-            configDefaults.audio.ignoreTime.value, EASINGS.linear!
+            window.config.audio.soundThreshold.value, AnalyserConfig.options.multibandPeakDetection.options.peakPersistency,
+            window.config.audio.ignoreTime.value, EASINGS.linear!
           )
         }
       }
