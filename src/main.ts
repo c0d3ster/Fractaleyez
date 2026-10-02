@@ -54,6 +54,7 @@ const applyVisualizerLayout = (): void => {
   const hopalongCanvas = hopalongManager.getDomElement()
   const juliaCanvas = juliaVisualizer.getDomElement()
   juliaVisualizer.setVisible(activeVisualizer !== 'hopalong')
+  juliaVisualizer.setLayered(activeVisualizer === 'both')
   juliaVisualizer.setVideoMask(videoMask && activeVisualizer !== 'hopalong', hopalongManager.getVideoElement)
   hopalongManager.setVideoMask(videoMask && activeVisualizer === 'hopalong')
   hopalongManager.setVideoPlaneVisible(!(videoMask && activeVisualizer === 'both'))
@@ -190,16 +191,21 @@ const init = (): void => {
   analyze()
 }
 
+// Every canvas, not just the first: Julia's canvas sits on top of Hopalong's in solo mode, so it's the one under the pointer.
+const setCanvasCursor = (cursor: string): void => {
+  Array.from(document.getElementsByTagName('canvas')).forEach((canvas) => {
+    canvas.style.cursor = cursor
+  })
+}
+
 const hideCursorOnInactivity = (): void => {
   document.addEventListener('mousemove', () => {
-    const canvas = document.getElementsByTagName('canvas')
-    const el = canvas[0]
-    if (!forceMouseHide && el) {
-      el.style.cursor = 'crosshair'
+    if (!forceMouseHide && document.getElementsByTagName('canvas').length > 0) {
+      setCanvasCursor('crosshair')
 
       clearTimeout(idleMouseTimer as number)
       idleMouseTimer = setTimeout(() => {
-        if (el) el.style.cursor = 'none'
+        setCanvasCursor('none')
 
         forceMouseHide = true
         setTimeout(() => {
