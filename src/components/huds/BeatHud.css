@@ -77,3 +77,7 @@
 .beat-hud-key--switcheroo::before {
   color: #d6f;
 }
+
+.beat-hud-key--snare::before {
+  color: #5d8;
+}
