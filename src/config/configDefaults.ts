@@ -106,12 +106,12 @@ export const CONFIG_CATEGORY_ORDER: (keyof AppConfig)[] = [
   'video',
 ]
 
-export type ConfigWindowColumnKey = keyof AppConfig | 'effects_particle'
+export type ConfigWindowColumnKey = keyof AppConfig
 
 export const CONFIG_WINDOW_COLUMN_ORDER: ConfigWindowColumnKey[] = [
   'user',
   'audio',
-  'effects_particle',
+  'effects',
   'particle',
   'orbit',
   'fractal',

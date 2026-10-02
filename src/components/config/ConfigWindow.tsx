@@ -12,7 +12,6 @@ import { connectConfig, ConfigContext, ConfigContextValue } from './context/Conf
 import { CameraTouchpad } from './CameraTouchpad'
 import { ShapePad } from './ShapePad'
 import { FrequencyHud, PerfHud, ParticleSpriteHud } from '../huds'
-import { useVisualizerActive } from './useVisualizerActive'
 
 // Seven 205px columns (1435) plus the grid's 15px side padding is 1465; the rest is margin.
 const POPOUT_WIDTH = 1500
@@ -78,7 +77,6 @@ const ExternalWindowBridge = ({
   updateUserSettings,
 }: ExternalWindowBridgeProps): React.ReactElement => {
   const [prefill, setPrefill] = useState<PresetSelection | null>(null)
-  const { orbit: orbitActive } = useVisualizerActive()
   return (
     <ConfigContext.Provider
       value={{
@@ -108,21 +106,6 @@ const ExternalWindowBridge = ({
         />
         <div className='config-columns'>
           {CONFIG_WINDOW_COLUMN_ORDER.map((segment) => {
-            if (segment === 'effects_particle') {
-              return (
-                <div className='config-column' key='effects_particle'>
-                  <ConfigCategory
-                    name='effects'
-                    onChange={updateConfigItem}
-                    isOpen={true}
-                    toggleOpen={() => null}
-                  />
-                  <div className={orbitActive ? undefined : 'config-inactive'}>
-                    <ParticleSpriteHud />
-                  </div>
-                </div>
-              )
-            }
             if (segment === 'video') {
               return (
                 <div className='config-column' key='video'>
@@ -140,9 +123,10 @@ const ExternalWindowBridge = ({
                   toggleOpen={() => null}
                 >
                   {segment === 'user' ? <CameraTouchpad /> : null}
+                  {segment === 'audio' ? <FrequencyHud /> : null}
+                  {segment === 'particle' ? <ParticleSpriteHud /> : null}
                   {segment === 'fractal' ? <ShapePad /> : null}
                 </ConfigCategory>
-                {segment === 'audio' ? <FrequencyHud /> : null}
               </div>
             )
           })}
