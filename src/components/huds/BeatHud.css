@@ -41,37 +41,3 @@
   color: #555;
 }
 
-.beat-hud-key::before {
-  content: '';
-  display: inline-block;
-  width: 7px;
-  height: 7px;
-  margin-right: 4px;
-  border-radius: 50%;
-  background: currentColor;
-}
-
-
-.beat-hud-key--trigger::before {
-  color: #fa4;
-  border-radius: 0;
-  height: 2px;
-  vertical-align: middle;
-}
-
-.beat-hud-key--beat::before {
-  color: #fff;
-  border-radius: 0;
-  width: 2px;
-}
-
-.beat-hud-key--shockwave::before {
-  color: #fa4;
-  border-radius: 0;
-  transform: rotate(45deg);
-}
-
-.beat-hud-key--switcheroo::before {
-  color: #d6f;
-}
-

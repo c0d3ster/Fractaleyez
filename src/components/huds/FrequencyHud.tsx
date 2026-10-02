@@ -3,7 +3,7 @@ import './FrequencyHud.css'
 
 import { connectConfig } from '../config/context/ConfigProvider'
 import { UserSettings } from '../../config/userSettings.config'
-import { DEFAULT_ENABLED_BANDS, ONSET_BANDS } from '../../audioanalysis/onset-bands'
+import { DEFAULT_ENABLED_BANDS, ONSET_BANDS, isValidBandSelection } from '../../audioanalysis/onset-bands'
 import { subscribeUiTick } from '../../utils/uiTicker'
 
 const VISIBLE_BANDS = ONSET_BANDS.length
@@ -62,7 +62,7 @@ const FrequencyHudInner = ({ userSettings, updateUserSettings }: FrequencyHudPro
   useEffect(() => {
     if (appliedPersistedRef.current) return
     const persisted = userSettings?.hud?.enabledFreqBands
-    if (!persisted) return
+    if (!persisted || !isValidBandSelection(persisted)) return
     appliedPersistedRef.current = true
     const next = persisted.slice(0, VISIBLE_BANDS)
     enabledBandsRef.current = next

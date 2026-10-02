@@ -8,6 +8,7 @@ import { presets } from '../../../config/presets'
 import { warmSpriteCache } from '../../../utils/spriteCache'
 import { setParticleCrossfadeDurationMs } from '../../../config/visualizer.config'
 import { UserSettings, USER_SETTINGS_SAVE_DEBOUNCE_MS } from '../../../config/userSettings.config'
+import { isValidBandSelection } from '../../../audioanalysis/onset-bands'
 
 export type PresetRetrieveEvent = {
   currentTarget: { dataset: { [key: string]: string | undefined } }
@@ -57,7 +58,7 @@ const applyUserSettingsSideEffects = (settings: Partial<UserSettings>): void => 
   if (typeof settings.crossfadeDurationMs === 'number') {
     setParticleCrossfadeDurationMs(settings.crossfadeDurationMs)
   }
-  if (settings.hud?.enabledFreqBands) {
+  if (settings.hud?.enabledFreqBands && isValidBandSelection(settings.hud.enabledFreqBands)) {
     window.enabledFreqBands = [...settings.hud.enabledFreqBands]
   }
 }

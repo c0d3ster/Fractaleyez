@@ -1,7 +1,6 @@
 import * as THREE from 'three'
 
 import { AudioAnalysedDataForVisualization } from '../audioanalysis/audio-analysed-data'
-import { beatMonitor } from '../audioanalysis/beat'
 import { getResolvedSpriteUrl } from '../utils/spriteCache'
 import { acquireSpriteTexture, releaseSpriteTexture } from '../utils/textureCache'
 import { getViewportSize } from '../utils/viewportSize'
@@ -304,7 +303,6 @@ export class HopalongVisualizer {
     // up: that rebuilt the whole orbit and re-uploaded every buffer for several frames a beat, which doubled the frame
     // time on a slower CPU, and the shape just holds until the next beat anyway.
     const reshapeOnBeat = audioData.beat.fresh && window.config.effects.switcheroo.value && !this.frozen
-    if (reshapeOnBeat) beatMonitor.markEffect('switcheroo')
 
     this.deltaTime = deltaTime
     this.elapsedTime += deltaTime

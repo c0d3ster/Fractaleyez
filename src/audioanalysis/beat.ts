@@ -16,8 +16,6 @@ export const NO_BEAT: BeatState = { fresh: false, active: false, value: 0, energ
 /** beat.value above this counts as "still in the beat". */
 export const BEAT_ACTIVE_LEVEL = 0.8
 
-export type BeatEffect = 'shockwave' | 'switcheroo'
-
 export type BandSample = {
   level: number
   /** How loud the band has been lately (jumps up instantly, forgets over ~20s). Bars are drawn relative to it. */
@@ -33,35 +31,22 @@ export type BeatSample = {
   beatBand: number | null
 }
 
-export type EffectHit = {
-  t: number
-  effect: BeatEffect
-}
-
 export type BeatTimeline = {
   samples: BeatSample[]
-  hits: EffectHit[]
 }
 
 const HISTORY_MS = 5000
 
-/** Rolling record of what the analyser saw and which effects it set off, for the audio HUD. */
+/** Rolling record of what the detector saw and when it fired, for the audio HUDs. */
 export class BeatMonitor {
   private samples: BeatSample[] = []
-  private hits: EffectHit[] = []
 
   record = (sample: BeatSample): void => {
     this.samples.push(sample)
     this.trim(this.samples, sample.t)
   }
 
-  markEffect = (effect: BeatEffect): void => {
-    const t = performance.now()
-    this.hits.push({ t, effect })
-    this.trim(this.hits, t)
-  }
-
-  getTimeline = (): BeatTimeline => ({ samples: this.samples.slice(), hits: this.hits.slice() })
+  getTimeline = (): BeatTimeline => ({ samples: this.samples.slice() })
 
   // Trim in batches so a per-frame push is not a per-frame array shift.
   private trim = (items: Array<{ t: number }>, now: number): void => {
