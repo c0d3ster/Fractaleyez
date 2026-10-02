@@ -12,6 +12,11 @@ const SHOCKWAVE_CAMERA_FOV = 60
 const SHOCKWAVE_CAMERA_Z = 7
 const SHOCKWAVE_PLANE_Z = -5
 
+// Hopalong draws ~90k additive particles through bloom passes, so its cost scales with pixel count. It starts at 1x and
+// only used to jump to the screen's ratio (1.5x on a laptop panel, 2.25x the pixels) after a window resize, so keep it
+// at 1x: the particles are soft glows, and their shown size is unchanged (point size scales with the drawing buffer).
+const HOPALONG_MAX_PIXEL_RATIO = 1
+
 type ParticleCrossfade = {
   outgoing: HopalongVisualizer
   elapsedMs: number
@@ -297,9 +302,9 @@ export class HopalongManager {
 
   onWindowResize = (): void => {
     console.info('resizing.....')
+    this.renderer!.setPixelRatio(Math.min(window.devicePixelRatio, HOPALONG_MAX_PIXEL_RATIO))
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ;(this.composer as any).setSize(window.innerWidth, window.innerHeight)
-    this.renderer!.setPixelRatio(window.devicePixelRatio)
     this.renderer!.setSize(window.innerWidth, window.innerHeight)
     this.cameraManager!.onResize()
   }

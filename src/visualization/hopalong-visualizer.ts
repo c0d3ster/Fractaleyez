@@ -3,6 +3,7 @@ import * as THREE from 'three'
 import { AudioAnalysedDataForVisualization } from '../audioanalysis/audio-analysed-data'
 import { getResolvedSpriteUrl } from '../utils/spriteCache'
 import { acquireSpriteTexture, releaseSpriteTexture } from '../utils/textureCache'
+import { getViewportSize } from '../utils/viewportSize'
 import { getParticleCrossfadeDurationMs, MAX_CROSSFADE_GENERATIONS } from '../config/visualizer.config'
 import { userConfig } from '../config/user.config'
 
@@ -253,7 +254,8 @@ export class HopalongVisualizer {
 
   private computeVideoPlaneSizeKey(): string {
     const bound = window.config.user.cameraBound.value
-    return `${bound}:${window.innerWidth}x${window.innerHeight}`
+    const { width, height } = getViewportSize()
+    return `${bound}:${width}x${height}`
   }
 
   private resizeVideoPlaneGeometry(): void {
