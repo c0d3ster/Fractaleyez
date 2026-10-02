@@ -740,14 +740,8 @@ export class JuliaVisualizer {
     this.huePhase += HUE_DRIFT_PER_SEC * dt
     if (freshBeat && effects.colorShift.value) this.huePhase += HUE_PEAK_JUMP
 
-    // Shockwave: a ripple expanding from the fixed point on strong beats, using Hopalong's trigger rules.
-    const enabledBands = window.enabledFreqBands ?? [true, true, true, true, true, false, false, false]
-    const anyEnabledBandElevated = enabledBands.every(Boolean) || (audioData.multibandEnergy?.some((e, i) => {
-      if (!enabledBands[i]) return false
-      const average = audioData.multibandEnergyAverage?.[i] ?? 0
-      return average > 0 && e / average > 1.0
-    }) ?? true)
-    if (effects.shockwave.value && freshBeat && anyEnabledBandElevated) {
+    // Shockwave: a ripple expanding from the fixed point on every beat (the Frequency HUD picks which bands count).
+    if (effects.shockwave.value && freshBeat) {
       beatMonitor.markEffect('shockwave')
       this.shockAge = 0
     }

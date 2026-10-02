@@ -193,14 +193,8 @@ export class HopalongManager {
       ;(this.bloomEffect as any).blendMode.opacity.value = audioData.beat.value * audioData.beat.energy
     }
 
-    const enabledBands = window.enabledFreqBands ?? [true, true, true, true, true, false, false, false]
-    const allEnabled = enabledBands.every(Boolean)
-    const anyEnabledBandElevated = allEnabled || (audioData.multibandEnergy?.some((e, i) => {
-      if (!enabledBands[i]) return false
-      const avg = audioData.multibandEnergyAverage?.[i] ?? 0
-      return avg > 0 && e / avg > 1.0
-    }) ?? true)
-    if (audioData.beat.fresh && anyEnabledBandElevated && window.config.effects.shockwave.value) {
+    // Which bands can set off a beat is chosen in the Frequency HUD and applied by the beat detector itself.
+    if (audioData.beat.fresh && window.config.effects.shockwave.value) {
       beatMonitor.markEffect('shockwave')
       this.aimShockwaveAtCameraPointer()
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

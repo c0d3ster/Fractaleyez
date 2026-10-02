@@ -20,6 +20,8 @@ export type BeatEffect = 'shockwave' | 'switcheroo'
 
 export type BandSample = {
   level: number
+  /** How loud the band has been lately (jumps up instantly, forgets over ~20s). Bars are drawn relative to it. */
+  loudness: number
   /** The level the band had to pass to count as a hit. */
   trigger: number
 }
