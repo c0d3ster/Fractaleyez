@@ -14,6 +14,8 @@ import { userConfig } from '../config/user.config'
 const DEF_BRIGHTNESS = .5
 const VIDEO_RESUME_DELAY_MS = 250
 const VIDEO_RESUME_MAX_ATTEMPTS = 5
+// A beat is the peak crossing this value upward; it then decays, so it stays above it for the first stretch of a beat.
+const BEAT_PEAK_THRESHOLD = 0.8
 
 // Orbit parameters
 let a = 0; let b = 0; let c = 0; let d = 0; let e = 0
@@ -77,6 +79,7 @@ export class HopalongVisualizer {
   private orbitIncomingElapsedMs: number
 
   private resumeAttempts = 0
+  private peakWasAboveThreshold = false
   private resumeTimer: ReturnType<typeof setTimeout> | undefined
 
   private onVideoClipsRestored = (event: Event): void => {
@@ -296,9 +299,16 @@ export class HopalongVisualizer {
       }
     }
 
-    if ((audioData.peak?.value ?? 0) > 0.8) {
+    const peakAbove = (audioData.peak?.value ?? 0) > BEAT_PEAK_THRESHOLD
+    if (peakAbove) {
       this.audioPeak = true
     }
+    // Switcheroo reshapes once per beat (the frame the peak crosses the threshold), not on every frame the peak stays
+    // up: that rebuilt the whole orbit and re-uploaded every buffer for several frames a beat, which doubled the frame
+    // time on a slower CPU, and the shape just holds until the next beat anyway.
+    const freshBeat = peakAbove && !this.peakWasAboveThreshold
+    this.peakWasAboveThreshold = peakAbove
+    const reshapeOnBeat = freshBeat && window.config.effects.switcheroo.value && !this.frozen
 
     this.deltaTime = deltaTime
     this.elapsedTime += deltaTime
@@ -318,23 +328,23 @@ export class HopalongVisualizer {
           this.audioPeak = false
           this.peakCountdown = 100
         }
+      }
 
-        // Switcheroo reshapes obj's own buffer to the current orbit -- only ever the primary
-        // (incoming) object. Applying it to an in-flight orbit fade's outgoing object would
-        // reshape it into the *new* orbit mid-fade, defeating the crossfade entirely.
-        if (count % 2 === 0 && window.config.effects.switcheroo.value && !this.frozen) {
-          if (!switcherooGenerated) {
-            this.generateOrbit()
-            switcherooGenerated = true
-          }
-          const currentSubset = this.orbit.subsets[obj.mySubset]!
-          const posArray = obj.geometry.attributes.position!.array as Float32Array
-          for (let i = 0; i < this.particlesPerLayer; i++) {
-            posArray[i * 3] = currentSubset[i]!.vertex.x
-            posArray[i * 3 + 1] = currentSubset[i]!.vertex.y
-          }
-          obj.geometry.attributes.position!.needsUpdate = true
+      // Switcheroo reshapes obj's own buffer to the current orbit -- only ever the primary
+      // (incoming) object. Applying it to an in-flight orbit fade's outgoing object would
+      // reshape it into the *new* orbit mid-fade, defeating the crossfade entirely.
+      if (reshapeOnBeat && count % 2 === 0) {
+        if (!switcherooGenerated) {
+          this.generateOrbit()
+          switcherooGenerated = true
         }
+        const currentSubset = this.orbit.subsets[obj.mySubset]!
+        const posArray = obj.geometry.attributes.position!.array as Float32Array
+        for (let i = 0; i < this.particlesPerLayer; i++) {
+          posArray[i * 3] = currentSubset[i]!.vertex.x
+          posArray[i * 3 + 1] = currentSubset[i]!.vertex.y
+        }
+        obj.geometry.attributes.position!.needsUpdate = true
       }
 
       this.applyParticleMotion(obj, count, musicSpeedMultiplier, wasAudioPeak)
