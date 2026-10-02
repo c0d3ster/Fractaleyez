@@ -11,7 +11,7 @@ import { CONFIG_WINDOW_COLUMN_ORDER } from '../../config/configDefaults'
 import { connectConfig, ConfigContext, ConfigContextValue } from './context/ConfigProvider'
 import { CameraTouchpad } from './CameraTouchpad'
 import { ShapePad } from './ShapePad'
-import { FrequencyHud, PerfHud, ParticleSpriteHud } from '../huds'
+import { BeatHud, FrequencyHud, PerfHud, ParticleSpriteHud } from '../huds'
 
 // Seven 205px columns (1435) plus the grid's 15px side padding is 1465; the rest is margin.
 const POPOUT_WIDTH = 1500
@@ -123,7 +123,7 @@ const ExternalWindowBridge = ({
                   toggleOpen={() => null}
                 >
                   {segment === 'user' ? <CameraTouchpad /> : null}
-                  {segment === 'audio' ? <FrequencyHud /> : null}
+                  {segment === 'audio' ? <><FrequencyHud /><BeatHud /></> : null}
                   {segment === 'particle' ? <ParticleSpriteHud /> : null}
                   {segment === 'fractal' ? <ShapePad /> : null}
                 </ConfigCategory>

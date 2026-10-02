@@ -2,6 +2,7 @@ import { AudioSource } from './audiostream/audio-source'
 import { AudioStream } from './audiostream/audio-stream'
 import { AudioAnalyser } from './audioanalysis/audio-analyser'
 import { AudioFeed } from './audioanalysis/audio-feed'
+import { beatMonitor } from './audioanalysis/beat'
 import { HopalongManager } from './visualization/hopalong-manager'
 import { JuliaVisualizer } from './visualization/julia-visualizer'
 
@@ -176,6 +177,7 @@ const init = (): void => {
   juliaVisualizer.init()
   // Owned here (not by a visualizer) so the frequency HUD keeps working in every mode, including Julia solo.
   window.getAudioData = audioFeed.getLatest
+  window.getBeatTimeline = beatMonitor.getTimeline
   window.getPerfData = () => {
     const { fps, frameMs } = medianFpsFromDeltas(frameDeltaMs)
     return {

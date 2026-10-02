@@ -4,6 +4,7 @@ import { EffectComposer, ShockWaveEffect, RenderPass, BloomEffect, EffectPass } 
 import { HopalongVisualizer } from './hopalong-visualizer'
 import { CameraManager } from './camera-manager'
 import { AudioAnalysedDataForVisualization } from '../audioanalysis/audio-analysed-data'
+import { beatMonitor } from '../audioanalysis/beat'
 import { CAMERA_STEER_SCREEN_FRACTION_PER_PAD_UNIT, getParticleCrossfadeDurationMs, MAX_CROSSFADE_GENERATIONS } from '../config/visualizer.config'
 
 // The shockwave effect projects its position through a fixed camera at this distance and field of view,
@@ -199,7 +200,8 @@ export class HopalongManager {
       const avg = audioData.multibandEnergyAverage?.[i] ?? 0
       return avg > 0 && e / avg > 1.0
     }) ?? true)
-    if (audioData.peak && audioData.peak.value > 0.8 && anyEnabledBandElevated && window.config.effects.shockwave.value) {
+    if (audioData.beat.fresh && anyEnabledBandElevated && window.config.effects.shockwave.value) {
+      beatMonitor.markEffect('shockwave')
       this.aimShockwaveAtCameraPointer()
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ;(this.shockwaveEffect as any).explode()

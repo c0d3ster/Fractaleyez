@@ -1,4 +1,5 @@
 import type { AppConfig } from '../config/configDefaults'
+import type { BeatTimeline } from '../audioanalysis/beat'
 
 // Window Management API — not yet in TypeScript's lib.dom.d.ts.
 // https://developer.mozilla.org/en-US/docs/Web/API/Window_Management_API
@@ -35,6 +36,7 @@ declare global {
       multibandEnergyAverage?: number[]
       multibandPeak?: Array<{ value: number }>
     } | null
+    getBeatTimeline?: () => BeatTimeline
     enabledFreqBands?: boolean[]
     getPerfData?: () => {
       fps: number

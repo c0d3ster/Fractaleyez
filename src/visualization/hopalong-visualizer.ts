@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 
 import { AudioAnalysedDataForVisualization } from '../audioanalysis/audio-analysed-data'
+import { beatMonitor } from '../audioanalysis/beat'
 import { getResolvedSpriteUrl } from '../utils/spriteCache'
 import { acquireSpriteTexture, releaseSpriteTexture } from '../utils/textureCache'
 import { getViewportSize } from '../utils/viewportSize'
@@ -14,8 +15,6 @@ import { userConfig } from '../config/user.config'
 const DEF_BRIGHTNESS = .5
 const VIDEO_RESUME_DELAY_MS = 250
 const VIDEO_RESUME_MAX_ATTEMPTS = 5
-// A beat is the peak crossing this value upward; it then decays, so it stays above it for the first stretch of a beat.
-const BEAT_PEAK_THRESHOLD = 0.8
 
 // Orbit parameters
 let a = 0; let b = 0; let c = 0; let d = 0; let e = 0
@@ -79,7 +78,6 @@ export class HopalongVisualizer {
   private orbitIncomingElapsedMs: number
 
   private resumeAttempts = 0
-  private peakWasAboveThreshold = false
   private resumeTimer: ReturnType<typeof setTimeout> | undefined
 
   private onVideoClipsRestored = (event: Event): void => {
@@ -299,16 +297,14 @@ export class HopalongVisualizer {
       }
     }
 
-    const peakAbove = (audioData.peak?.value ?? 0) > BEAT_PEAK_THRESHOLD
-    if (peakAbove) {
+    if (audioData.beat.active) {
       this.audioPeak = true
     }
     // Switcheroo reshapes once per beat (the frame the peak crosses the threshold), not on every frame the peak stays
     // up: that rebuilt the whole orbit and re-uploaded every buffer for several frames a beat, which doubled the frame
     // time on a slower CPU, and the shape just holds until the next beat anyway.
-    const freshBeat = peakAbove && !this.peakWasAboveThreshold
-    this.peakWasAboveThreshold = peakAbove
-    const reshapeOnBeat = freshBeat && window.config.effects.switcheroo.value && !this.frozen
+    const reshapeOnBeat = audioData.beat.fresh && window.config.effects.switcheroo.value && !this.frozen
+    if (reshapeOnBeat) beatMonitor.markEffect('switcheroo')
 
     this.deltaTime = deltaTime
     this.elapsedTime += deltaTime
