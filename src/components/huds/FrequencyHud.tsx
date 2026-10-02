@@ -45,6 +45,7 @@ const FrequencyHudInner = ({ userSettings, updateUserSettings }: FrequencyHudPro
     (userSettings?.hud?.enabledFreqBands ?? window.enabledFreqBands ?? [true, true, true, true, true, false, false, false]).slice(0, VISIBLE_BANDS)
   )
   const enabledBandsRef = useRef(enabledBands)
+  const hoveredBandRef = useRef<number | null>(null)
   const appliedPersistedRef = useRef(false)
 
   // One-time sync once the persisted setting actually loads (it arrives after this component's
@@ -87,19 +88,28 @@ const FrequencyHudInner = ({ userSettings, updateUserSettings }: FrequencyHudPro
       for (let i = 0; i < VISIBLE_BANDS; i++) {
         const x = i * (BAR_W + GAP)
         const enabled = enabledBandsRef.current[i] ?? true
+        const hovered = hoveredBandRef.current === i
         const energy = Math.min(1, (audio?.multibandEnergy?.[i] ?? 0) / 255)
         const avg = Math.min(1, (audio?.multibandEnergyAverage?.[i] ?? 0) / 255)
         const peakVal = (enabled ? audio?.multibandPeak?.[i]?.value : 0) ?? 0
 
         // Bar background
-        ctx.fillStyle = enabled ? '#111' : '#0a0a0a'
+        ctx.fillStyle = hovered ? (enabled ? '#181818' : '#0d1626') : enabled ? '#111' : '#0a0a0a'
         roundRect(ctx, x, 0, BAR_W, BAR_AREA_H, RADIUS)
 
         // Energy fill — gradient bottom to top
         const fillH = Math.round(energy * BAR_AREA_H)
         if (fillH > 0) {
           const grad = ctx.createLinearGradient(0, BAR_AREA_H - fillH, 0, BAR_AREA_H)
-          if (!enabled) {
+          if (hovered && enabled) {
+            // Hovering an active band previews turning it off: wash it toward gray.
+            grad.addColorStop(0, '#9a9a9a')
+            grad.addColorStop(1, '#333')
+          } else if (hovered) {
+            // Hovering a disabled band previews turning it back on: a faded blue.
+            grad.addColorStop(0, 'rgba(68, 170, 255, 0.45)')
+            grad.addColorStop(1, 'rgba(17, 51, 102, 0.45)')
+          } else if (!enabled) {
             grad.addColorStop(0, '#222')
             grad.addColorStop(1, '#111')
           } else if (peakVal > 0.1) {
@@ -152,9 +162,23 @@ const FrequencyHudInner = ({ userSettings, updateUserSettings }: FrequencyHudPro
     return () => cancelAnimationFrame(rafRef.current)
   }, [])
 
+  const bandAt = useCallback((e: React.MouseEvent<HTMLCanvasElement>): number | null => {
+    const rect = e.currentTarget.getBoundingClientRect()
+    const band = Math.floor((((e.clientX - rect.left) / rect.width) * W) / (BAR_W + GAP))
+    return band >= 0 && band < VISIBLE_BANDS ? band : null
+  }, [])
+
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    hoveredBandRef.current = bandAt(e)
+  }, [bandAt])
+
+  const handleMouseLeave = useCallback(() => {
+    hoveredBandRef.current = null
+  }, [])
+
   const handleClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     const rect = e.currentTarget.getBoundingClientRect()
-    const x = e.clientX - rect.left
+    const x = ((e.clientX - rect.left) / rect.width) * W
     const band = Math.floor(x / (BAR_W + GAP))
     if (band >= 0 && band < VISIBLE_BANDS) toggleBand(band)
   }, [toggleBand])
@@ -162,14 +186,17 @@ const FrequencyHudInner = ({ userSettings, updateUserSettings }: FrequencyHudPro
   return (
     <div className='frequency-hud-wrapper'>
       <span className='frequency-hud-label'>Frequency</span>
-      <canvas
-        ref={canvasRef}
-        width={W}
-        height={H}
-        className='frequency-hud-canvas'
-        onClick={handleClick}
-        style={{ cursor: 'pointer' }}
-      />
+      <div className='frequency-hud'>
+        <canvas
+          ref={canvasRef}
+          width={W}
+          height={H}
+          className='frequency-hud-canvas'
+          onClick={handleClick}
+          onMouseMove={handleMouseMove}
+          onMouseLeave={handleMouseLeave}
+        />
+      </div>
       <span className='frequency-hud-hint'>click to toggle</span>
     </div>
   )
