@@ -125,6 +125,10 @@ const STEER_EMA_HALF_LIFE_SECONDS = 0.7
 // The fragment shader runs up to 128 escape iterations per pixel, so cap the render resolution on high-DPI
 // screens; the smooth palette has no hard edges and loses little at a lower ratio.
 const JULIA_MAX_PIXEL_RATIO = 1.5
+// With Hopalong drawn over it ('both' mode) the two renderers share the frame budget. Measured on a 1.5x display, Julia
+// at 1.5x (2.25x the pixels) halved the frame rate and dropped frames; at 1x every frame was clean. The particles on
+// top hide the lost sharpness.
+const JULIA_LAYERED_MAX_PIXEL_RATIO = 1
 
 // Effect tuning. Each mirrors a Hopalong effect behind the same checkbox.
 const WOBWOB_RECOIL = 2
@@ -292,6 +296,7 @@ export class JuliaVisualizer {
   private smoothEnergy = 0
   private rotation = 0
   private active = false
+  private maxPixelRatio = JULIA_MAX_PIXEL_RATIO
   private steerX = 0
   private steerY = 0
   private driftPhase = 0
@@ -346,7 +351,7 @@ export class JuliaVisualizer {
   init(): void {
     this.renderer = new THREE.WebGLRenderer({ antialias: false })
     this.renderer.setClearColor(0x000000, 1)
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, JULIA_MAX_PIXEL_RATIO))
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, this.maxPixelRatio))
     this.renderer.setSize(window.innerWidth, window.innerHeight)
     this.renderer.domElement.style.position = 'fixed'
     this.renderer.domElement.style.inset = '0'
@@ -397,9 +402,17 @@ export class JuliaVisualizer {
 
   private onResize = (): void => {
     if (!this.renderer || !this.material) return
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, JULIA_MAX_PIXEL_RATIO))
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, this.maxPixelRatio))
     this.renderer.setSize(window.innerWidth, window.innerHeight)
     this.material.uniforms.uAspect!.value = window.innerWidth / window.innerHeight
+  }
+
+  // Render at a lower resolution while another visualizer is drawn on top of this one.
+  setLayered(layered: boolean): void {
+    const next = layered ? JULIA_LAYERED_MAX_PIXEL_RATIO : JULIA_MAX_PIXEL_RATIO
+    if (next === this.maxPixelRatio) return
+    this.maxPixelRatio = next
+    this.onResize()
   }
 
   private emaTowards(current: number, target: number, dtSeconds: number): number {
