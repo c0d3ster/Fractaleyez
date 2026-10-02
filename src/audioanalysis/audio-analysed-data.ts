@@ -1,5 +1,6 @@
 /* eslint-disable max-classes-per-file */
 import { analyserConfig as AnalyserConfig } from '../config/analyser.config'
+import { BeatState, NO_BEAT } from './beat'
 
 export class Peak {
   value: number
@@ -169,6 +170,8 @@ export class AudioAnalysedDataForVisualization {
   multibandEnergyAverage?: number[]
   multibandPeak?: Peak[]
   multibandPeakHistory?: Peak[][]
+  /** The shared beat definition, filled in by AudioFeed each frame. */
+  beat: BeatState = NO_BEAT
 
   constructor(analysedData: AudioAnalysedData) {
     this.bufferSize = analysedData.bufferSize

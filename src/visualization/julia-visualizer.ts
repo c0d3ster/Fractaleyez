@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import { CAMERA_STEER_SCREEN_FRACTION_PER_PAD_UNIT } from '../config/visualizer.config'
 import { AudioAnalysedDataForVisualization } from '../audioanalysis/audio-analysed-data'
+import { beatMonitor } from '../audioanalysis/beat'
 import { juliaFragmentShader, juliaVertexShader } from './shaders/julia-fragment.glsl'
 import { JULIA_MAP_VIEW, JULIA_TOUR } from './julia-tour'
 import { userConfig } from '../config/user.config'
@@ -139,7 +140,6 @@ const GLOW_ENERGY_REFERENCE = 30
 
 const HUE_DRIFT_PER_SEC = 0.015
 const HUE_PEAK_JUMP = 0.12
-const PEAK_JUMP_THRESHOLD = 0.9
 
 interface Complex {
   re: number
@@ -309,7 +309,6 @@ export class JuliaVisualizer {
   private hasOrient = false
   private huePhase = 0
   private cycloneAmount = 0
-  private previousPeakValue = 0
   private hasStartedLoop = false
   private videoMask = false
   private getVideo: () => HTMLVideoElement | null = () => null
@@ -663,8 +662,7 @@ export class JuliaVisualizer {
     }
 
     // A fresh beat is the peak crossing the threshold upward; several effects key off it.
-    const freshBeat = peakValue > PEAK_JUMP_THRESHOLD && this.previousPeakValue <= PEAK_JUMP_THRESHOLD
-    this.previousPeakValue = peakValue
+    const freshBeat = audioData.beat.fresh
 
     // Moving the Tour slider hands the shape back to the tour.
     const tourValue = window.config.fractal.tour.value
@@ -692,6 +690,7 @@ export class JuliaVisualizer {
       if (!effects.switcheroo.value) {
         this.switcherooHop = 0
       } else if (freshBeat) {
+        beatMonitor.markEffect('switcheroo')
         const hopPoints = switcherooHopPoints(speed.value)
         const direction = Math.random() < 0.5 ? -hopPoints : hopPoints
         const next = this.switcherooHop + direction
@@ -709,6 +708,7 @@ export class JuliaVisualizer {
         this.manualHopRe = 0
         this.manualHopIm = 0
       } else if (freshBeat) {
+        beatMonitor.markEffect('switcheroo')
         this.hopManualShape(speed.value)
       }
       baseC = this.stepManualShape(speed.value, dt)
