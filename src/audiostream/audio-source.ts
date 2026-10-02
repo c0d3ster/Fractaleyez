@@ -80,7 +80,14 @@ export class AudioSource {
         reject(new Error('Microphone getUserMedia timed out'))
       }, timeoutMs)
 
-      navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
+      // The browser's voice processing (auto gain, noise suppression, echo cancellation) pumps the level and
+      // flattens transients, which makes beat detection erratic on music.
+      const audioConstraints: MediaTrackConstraints = {
+        autoGainControl: false,
+        noiseSuppression: false,
+        echoCancellation: false,
+      }
+      navigator.mediaDevices.getUserMedia({ audio: audioConstraints }).then((stream) => {
         clearWait()
         this.source = this.audioContext.createMediaStreamSource(stream)
         this.sourceType = 'microphone'

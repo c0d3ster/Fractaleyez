@@ -3,6 +3,8 @@ import { userConfig as UserConfig } from '../config/user.config'
 import { AudioSource } from './audio-source'
 import { AudioData } from './audio-data'
 
+const ANALYSER_SMOOTHING = 0.2
+
 export class AudioStream {
   private audioSource: AudioSource
   private audioContext: AudioContext
@@ -23,6 +25,8 @@ export class AudioStream {
 
     this.analyserNode = this.audioContext.createAnalyser()
     this.analyserNode.fftSize = fftsize
+    // The default (0.8) averages frequency data over many frames, which delays and softens band attacks.
+    this.analyserNode.smoothingTimeConstant = ANALYSER_SMOOTHING
     this.bufferLength = this.analyserNode.frequencyBinCount
   }
 
