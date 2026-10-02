@@ -1,7 +1,6 @@
 import * as THREE from 'three'
 import { CAMERA_STEER_SCREEN_FRACTION_PER_PAD_UNIT } from '../config/visualizer.config'
 import { AudioAnalysedDataForVisualization } from '../audioanalysis/audio-analysed-data'
-import { beatMonitor } from '../audioanalysis/beat'
 import { juliaFragmentShader, juliaVertexShader } from './shaders/julia-fragment.glsl'
 import { JULIA_MAP_VIEW, JULIA_TOUR } from './julia-tour'
 import { userConfig } from '../config/user.config'
@@ -688,7 +687,6 @@ export class JuliaVisualizer {
       if (!effects.switcheroo.value) {
         this.switcherooHop = 0
       } else if (freshBeat) {
-        beatMonitor.markEffect('switcheroo')
         const hopPoints = switcherooHopPoints(speed.value)
         const direction = Math.random() < 0.5 ? -hopPoints : hopPoints
         const next = this.switcherooHop + direction
@@ -706,7 +704,6 @@ export class JuliaVisualizer {
         this.manualHopRe = 0
         this.manualHopIm = 0
       } else if (freshBeat) {
-        beatMonitor.markEffect('switcheroo')
         this.hopManualShape(speed.value)
       }
       baseC = this.stepManualShape(speed.value, dt)
@@ -742,7 +739,6 @@ export class JuliaVisualizer {
 
     // Shockwave: a ripple expanding from the fixed point on every beat (the Frequency HUD picks which bands count).
     if (effects.shockwave.value && freshBeat) {
-      beatMonitor.markEffect('shockwave')
       this.shockAge = 0
     }
     let shockRadius = 0

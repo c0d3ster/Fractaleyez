@@ -4,7 +4,7 @@ import { EffectComposer, ShockWaveEffect, RenderPass, BloomEffect, EffectPass } 
 import { HopalongVisualizer } from './hopalong-visualizer'
 import { CameraManager } from './camera-manager'
 import { AudioAnalysedDataForVisualization } from '../audioanalysis/audio-analysed-data'
-import { beatMonitor } from '../audioanalysis/beat'
+import { DEFAULT_ENABLED_BANDS } from '../audioanalysis/onset-bands'
 import { CAMERA_STEER_SCREEN_FRACTION_PER_PAD_UNIT, getParticleCrossfadeDurationMs, MAX_CROSSFADE_GENERATIONS } from '../config/visualizer.config'
 
 // The shockwave effect projects its position through a fixed camera at this distance and field of view,
@@ -114,8 +114,8 @@ export class HopalongManager {
     this.setupEffects()
     window.setVirtualCameraPosition = (x: number, y: number) => this.cameraManager!.setVirtualMousePosition(x, y)
     window.getVirtualCameraPosition = () => ({ x: this.cameraManager!.mouseX, y: this.cameraManager!.mouseY })
-    // Default: all visible bands enabled; bri/air (6–7) disabled (near-ultrasonic)
-    window.enabledFreqBands = [true, true, true, true, true, true, false, false]
+    // Which bands can set off a beat; the Frequency HUD changes it (and a saved selection replaces it).
+    window.enabledFreqBands = [...DEFAULT_ENABLED_BANDS]
     document.addEventListener('mousemove', this.onDocumentMouseMove)
     document.addEventListener('keydown', this.onKeyDown)
     window.addEventListener('resize', this.onWindowResize)
@@ -195,7 +195,6 @@ export class HopalongManager {
 
     // Which bands can set off a beat is chosen in the Frequency HUD and applied by the beat detector itself.
     if (audioData.beat.fresh && window.config.effects.shockwave.value) {
-      beatMonitor.markEffect('shockwave')
       this.aimShockwaveAtCameraPointer()
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ;(this.shockwaveEffect as any).explode()

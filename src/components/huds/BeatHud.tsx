@@ -1,15 +1,13 @@
 import React, { useRef, useEffect } from 'react'
 import './BeatHud.css'
 
-import { BeatEffect, BeatSample } from '../../audioanalysis/beat'
+import { BeatSample } from '../../audioanalysis/beat'
 import { DEFAULT_ENABLED_BANDS, ONSET_BANDS } from '../../audioanalysis/onset-bands'
 import { subscribeUiTick } from '../../utils/uiTicker'
 
 const W = 360
 const PLOT_H = 90
-const MARK_ROW_H = 14
-const EFFECT_ROWS: BeatEffect[] = ['shockwave', 'switcheroo']
-const H = PLOT_H + MARK_ROW_H * EFFECT_ROWS.length
+const H = PLOT_H
 const WINDOW_MS = 4000
 const MIN_Y_MAX = 4
 const Y_HEADROOM = 1.15
@@ -30,11 +28,6 @@ const BAND_LOOKS: BandLook[] = ONSET_BANDS.map(({ label }, i) => {
 const COLORS = {
   ignore: 'rgba(255, 255, 255, 0.06)',
   text: '#555',
-}
-
-const EFFECT_COLORS: Record<BeatEffect, string> = {
-  shockwave: '#fa4',
-  switcheroo: '#d6f',
 }
 
 // The visualizer lives in the main window; a popped-out config window reads it through window.opener.
@@ -135,24 +128,6 @@ export const BeatHud = (): React.ReactElement => {
         ctx.stroke()
       })
 
-      // Each effect gets its own row, so you can compare its hits against the detected beats above.
-      timeline.hits.filter(({ t }) => now - t <= WINDOW_MS).forEach(({ t, effect }) => {
-        const x = toX(t)
-        const y = PLOT_H + MARK_ROW_H * (EFFECT_ROWS.indexOf(effect) + 0.5)
-        ctx.fillStyle = EFFECT_COLORS[effect]
-        ctx.beginPath()
-        if (effect === 'shockwave') {
-          ctx.moveTo(x, y - 5)
-          ctx.lineTo(x + 5, y)
-          ctx.lineTo(x, y + 5)
-          ctx.lineTo(x - 5, y)
-          ctx.closePath()
-        } else {
-          ctx.arc(x, y, 4, 0, Math.PI * 2)
-        }
-        ctx.fill()
-      })
-
       // Beat lamp, colored by the band that last fired.
       const lastBeat = [...beats].reverse()[0]
       const lampAlpha = lastBeat ? Math.max(0, 1 - (now - lastBeat.t) / LAMP_FADE_MS) : 0
@@ -184,10 +159,7 @@ export const BeatHud = (): React.ReactElement => {
       <div className='beat-hud'>
         <canvas ref={canvasRef} width={W} height={H} className='beat-hud-canvas' />
       </div>
-      <span className='beat-hud-hint'>
-        <span className='beat-hud-key beat-hud-key--shockwave'>shockwave</span>
-        <span className='beat-hud-key beat-hud-key--switcheroo'>switcheroo</span>
-      </span>
+      <span className='beat-hud-hint'>colored ticks are beats, dashed lines are what each band had to pass</span>
     </div>
   )
 }
