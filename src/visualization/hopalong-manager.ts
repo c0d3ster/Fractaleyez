@@ -177,7 +177,7 @@ export class HopalongManager {
   update = (deltaTime: number, audioData: AudioAnalysedDataForVisualization): void => {
     this.elapsedTime += deltaTime
 
-    const peakVal = audioData.peak?.value ?? 0
+    const peakVal = audioData.beat.value
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ;(this.shockwaveEffect as any).speed = (window.config.user.speed.value / 15) + peakVal * 1.25
 
@@ -188,9 +188,9 @@ export class HopalongManager {
     this.crossfades.forEach((cf) => cf.outgoing.update(deltaTime, audioData))
     this.advanceCrossfades(deltaTime)
 
-    if (window.config.effects.glow.value && audioData.peak) {
+    if (window.config.effects.glow.value) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ;(this.bloomEffect as any).blendMode.opacity.value = audioData.peak.value * audioData.peak.energy
+      ;(this.bloomEffect as any).blendMode.opacity.value = audioData.beat.value * audioData.beat.energy
     }
 
     const enabledBands = window.enabledFreqBands ?? [true, true, true, true, true, false, false, false]

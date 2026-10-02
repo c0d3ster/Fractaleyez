@@ -133,7 +133,6 @@ const JULIA_LAYERED_MAX_PIXEL_RATIO = 1
 
 // Effect tuning. Each mirrors a Hopalong effect behind the same checkbox.
 const WOBWOB_RECOIL = 2
-const SHOCKWAVE_PEAK_THRESHOLD = 0.8
 const SHOCKWAVE_BASE_SPEED = 0.9
 const SHOCKWAVE_MAX_RADIUS = 3
 const GLOW_ENERGY_REFERENCE = 30
@@ -344,7 +343,6 @@ export class JuliaVisualizer {
   private shapeRe = 0
   private shapeIm = 0
   private hasShape = false
-  private previousShockPeak = 0
   private shockAge = -1
 
   init(): void {
@@ -622,7 +620,7 @@ export class JuliaVisualizer {
     const targetOffsetX = Math.cos(this.driftPhase) * C_DRIFT_RADIUS + this.smoothBass * BASS_C_INFLUENCE
     const targetOffsetY = Math.sin(this.driftPhase * 1.3) * C_DRIFT_RADIUS + this.smoothTreble * TREBLE_C_INFLUENCE
 
-    const peakValue = audioData.peak?.value ?? 0
+    const peakValue = audioData.beat.value
     const energyTarget = ((audioData.energyAverage ?? 0) + (audioData.energy ?? 0)) / 2
     const kEnergy = 1 - Math.pow(0.5, dt / ENERGY_EMA_HALF_LIFE_SECONDS)
     this.smoothEnergy += (energyTarget - this.smoothEnergy) * kEnergy
@@ -749,10 +747,10 @@ export class JuliaVisualizer {
       const average = audioData.multibandEnergyAverage?.[i] ?? 0
       return average > 0 && e / average > 1.0
     }) ?? true)
-    if (effects.shockwave.value && peakValue > SHOCKWAVE_PEAK_THRESHOLD && this.previousShockPeak <= SHOCKWAVE_PEAK_THRESHOLD && anyEnabledBandElevated) {
+    if (effects.shockwave.value && freshBeat && anyEnabledBandElevated) {
+      beatMonitor.markEffect('shockwave')
       this.shockAge = 0
     }
-    this.previousShockPeak = peakValue
     let shockRadius = 0
     let shockStrength = 0
     if (this.shockAge >= 0) {
@@ -763,7 +761,7 @@ export class JuliaVisualizer {
     }
 
     // Glow: Hopalong drives bloom opacity with peak value * peak energy.
-    const glow = effects.glow.value ? Math.min(1, (peakValue * (audioData.peak?.energy ?? 0)) / GLOW_ENERGY_REFERENCE) : 0
+    const glow = effects.glow.value ? Math.min(1, (peakValue * audioData.beat.energy) / GLOW_ENERGY_REFERENCE) : 0
 
     // Steering: the convergence point moves toward where the camera pad / mouse points (pad y grows downward,
     // the shader's offset y grows upward, hence the flip). The shift is in normalized frame space, so it

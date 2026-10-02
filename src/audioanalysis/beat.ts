@@ -1,27 +1,34 @@
 /**
- * What counts as a beat, defined once. A beat is the analyser detecting a new peak: full-band energy rose above
- * (rolling average x Threshold) and the Ignore Time since the previous beat has passed. `fresh` is true only on the
- * frame it is detected, `active` stays true while the peak is still decaying. Every effect that keys off a beat
- * (Hopalong, Julia) reads this instead of re-deriving it from `peak.value`.
+ * What counts as a beat, defined once: a drum onset found by the OnsetDetector (a sudden rise in the low band for the
+ * kick or the mid band for snare and clap, past an adaptive bar, outside the Ignore Time of the previous beat). `fresh` is true only on the frame it is detected,
+ * `value` then decays from 1 to 0, and `active` stays true while it is still high. `energy` is the full-band energy at
+ * the hit, which scales the glow. Every effect that keys off a beat (Hopalong, Julia) reads this.
  */
 export type BeatState = {
   fresh: boolean
   active: boolean
+  value: number
+  energy: number
 }
 
-export const NO_BEAT: BeatState = { fresh: false, active: false }
+export const NO_BEAT: BeatState = { fresh: false, active: false, value: 0, energy: 0 }
 
-/** peak.value above this counts as "still in the beat" (the peak decays linearly from 1 to 0 over its persistency). */
+/** beat.value above this counts as "still in the beat". */
 export const BEAT_ACTIVE_LEVEL = 0.8
 
 export type BeatEffect = 'shockwave' | 'switcheroo'
 
+export type BandSample = {
+  level: number
+  /** The level the band had to pass to count as a hit. */
+  trigger: number
+}
+
 export type BeatSample = {
   t: number
-  energy: number
-  /** The level energy had to exceed to be a beat: rolling average x Threshold. */
-  trigger: number
-  beat: boolean
+  bands: BandSample[]
+  /** Index of the band that set off a beat on this frame, or null. */
+  beatBand: number | null
 }
 
 export type EffectHit = {
