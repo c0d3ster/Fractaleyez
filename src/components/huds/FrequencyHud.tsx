@@ -13,6 +13,7 @@ const H = BAR_AREA_H + LABEL_H
 const GAP = 4
 const BAR_W = Math.floor((W - (VISIBLE_BANDS - 1) * GAP) / VISIBLE_BANDS)  // 22px
 const RADIUS = 3
+const DRAW_INTERVAL_MS = 33
 
 const roundRect = (ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void => {
   if (h <= 0) return
@@ -80,7 +81,14 @@ const FrequencyHudInner = ({ userSettings, updateUserSettings }: FrequencyHudPro
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
+    let lastDrawAt = 0
     const draw = (): void => {
+      rafRef.current = requestAnimationFrame(draw)
+      // This runs on the visualizer's main thread, so a full redraw every frame (240 times a second on a
+      // fast monitor) competes with rendering and the video texture upload.
+      const now = performance.now()
+      if (now - lastDrawAt < DRAW_INTERVAL_MS) return
+      lastDrawAt = now
       ctx.clearRect(0, 0, W, H)
 
       const audio = window.getAudioData?.()
@@ -154,8 +162,6 @@ const FrequencyHudInner = ({ userSettings, updateUserSettings }: FrequencyHudPro
         ctx.textAlign = 'center'
         ctx.fillText(LABELS[i] ?? '', x + BAR_W / 2, H - 2)
       }
-
-      rafRef.current = requestAnimationFrame(draw)
     }
 
     rafRef.current = requestAnimationFrame(draw)
