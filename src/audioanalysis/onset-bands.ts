@@ -28,5 +28,9 @@ export const MAX_BAND_WINDOW_SAMPLES = Math.max(...ONSET_BANDS.map(({ windowSamp
 /** Used until the HUD (or a saved setting) says otherwise: the kick (bass) and the snare/clap (hi), no hats. */
 export const DEFAULT_ENABLED_BANDS = [true, false, false, true, false]
 
-/** A saved selection only applies if it was made for this many bands; an older layout would map to the wrong ones. */
-export const isValidBandSelection = (selection: boolean[]): boolean => selection.length === ONSET_BANDS.length
+/**
+ * A saved selection only applies if it is one on/off value per band: one made for an older layout would map to the
+ * wrong bands, and anything that came back from the server that is not a boolean could read as "on".
+ */
+export const isValidBandSelection = (selection: unknown): selection is boolean[] =>
+  Array.isArray(selection) && selection.length === ONSET_BANDS.length && selection.every((value) => typeof value === 'boolean')

@@ -27,7 +27,7 @@ export class AudioFeed {
     const snapshot = this.analyser.getAnalysedDataForVisualization()
 
     const { soundThreshold, ignoreTime } = window.config.audio
-    const onset = this.onsetDetector.update(this.stream.getBandLevels(), deltaTime, snapshot.energy ?? 0, {
+    const onset = this.onsetDetector.update(this.stream.getBandLevels(), deltaTime, this.analyser.getAnalysedData().getEnergy(), {
       enabledBands: window.enabledFreqBands ?? DEFAULT_ENABLED_BANDS,
       sensitivity: soundThreshold.value,
       ignoreMs: ignoreTime.value,

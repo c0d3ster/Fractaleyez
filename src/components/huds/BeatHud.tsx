@@ -98,7 +98,9 @@ export const BeatHud = (): React.ReactElement => {
       const latest = timeline?.samples[timeline.samples.length - 1]
       if (!timeline || !latest) return
 
-      const now = latest.t
+      // The timeline's clock is the main window's, so read "now" from there: a popped-out config window has its own
+      // clock, and the last sample's time would freeze the strip and the lamp if sampling ever stopped.
+      const now = source.performance.now()
       const samples = timeline.samples.filter(({ t }) => now - t <= WINDOW_MS)
       const toX = (t: number): number => W - ((now - t) / WINDOW_MS) * W
 

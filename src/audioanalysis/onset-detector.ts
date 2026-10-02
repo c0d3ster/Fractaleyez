@@ -24,7 +24,6 @@ const MIN_LEVEL_OF_LOUDNESS = 0.3
 // Digital-silence guard only (% of full scale); far below any real signal, so it never limits a quiet mic.
 const SILENCE_LEVEL = 0.02
 const WARMUP_MS = 1000
-const MAX_STEP_MS = 100
 const HISTORY_SLOTS = 64
 
 type OnsetParams = {
@@ -111,7 +110,7 @@ export class OnsetDetector {
   }
 
   update = (levels: number[], deltaMs: number, fullBandEnergy: number, params: OnsetParams): OnsetReading => {
-    const dtMs = Math.min(Math.max(deltaMs, 1), MAX_STEP_MS)
+    const dtMs = Math.max(deltaMs, 1)
     this.clockMs += dtMs
 
     const thresholdDb = Math.min(MAX_THRESHOLD_DB, Math.max(MIN_THRESHOLD_DB, params.sensitivity * DB_PER_SENSITIVITY))
