@@ -113,6 +113,7 @@ const PresetsInner = ({ retrieveConfigPreset, revertConfig, config, presets, pac
                     className={`pack-tab${activePack === pack ? ' active' : ''}${isPremium ? ' pack-tab--premium' : ''}`}
                     onClick={() => selectPack(pack)}
                   >
+                    {isPremium && <span className='premium-ring' aria-hidden />}
                     {pack}
                   </button>
                 )
@@ -148,6 +149,7 @@ const PresetsInner = ({ retrieveConfigPreset, revertConfig, config, presets, pac
                     data-id={id ?? ''}
                     onClick={() => handlePresetClick(preset, event)}
                   >
+                    {isPremiumUnowned && <span className='premium-ring' aria-hidden />}
                     {hotkey !== null && (
                       <span className='preset-hotkey-badge'>
                         <span className='preset-hotkey-badge-num'>{hotkey}</span>
