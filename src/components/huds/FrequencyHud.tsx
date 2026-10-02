@@ -3,10 +3,18 @@ import './FrequencyHud.css'
 
 import { connectConfig } from '../config/context/ConfigProvider'
 import { UserSettings } from '../../config/userSettings.config'
+import { DEFAULT_ENABLED_BANDS, ONSET_BANDS } from '../../audioanalysis/onset-bands'
 import { subscribeUiTick } from '../../utils/uiTicker'
 
-const VISIBLE_BANDS = 7
-const LABELS = ['sub', 'bass', 'lo', 'mid', 'hi', 'pre', 'bri']
+const VISIBLE_BANDS = ONSET_BANDS.length
+const LABELS = ONSET_BANDS.map(({ label }) => label)
+// A bar's top is a bit above the band's recent loudness, so a hit that is the loudest in a while nearly fills it.
+const BAR_HEADROOM = 1.1
+// How long a band's bar flashes after it sets off a beat.
+const HIT_FLASH_MS = 250
+
+// The visualizer lives in the main window; a popped-out config window reads it through window.opener.
+const mainWindow = (): Window => window.opener ?? window
 const W = 180
 const LABEL_H = 14
 const BAR_AREA_H = 90
@@ -42,7 +50,7 @@ const FrequencyHudInner = ({ userSettings, updateUserSettings }: FrequencyHudPro
   // Persisted settings (loaded async from /api/me) take priority once they arrive; until then,
   // fall back to whatever the live global already holds (e.g. from an earlier session tab).
   const [enabledBands, setEnabledBands] = useState<boolean[]>(() =>
-    (userSettings?.hud?.enabledFreqBands ?? window.enabledFreqBands ?? [true, true, true, true, true, false, false, false]).slice(0, VISIBLE_BANDS)
+    (userSettings?.hud?.enabledFreqBands ?? window.enabledFreqBands ?? DEFAULT_ENABLED_BANDS).slice(0, VISIBLE_BANDS)
   )
   const enabledBandsRef = useRef(enabledBands)
   const hoveredBandRef = useRef<number | null>(null)
@@ -83,15 +91,25 @@ const FrequencyHudInner = ({ userSettings, updateUserSettings }: FrequencyHudPro
     const draw = (): void => {
       ctx.clearRect(0, 0, W, H)
 
-      const audio = window.getAudioData?.()
+      // The bars show the same bands the beat detector listens to: level, the level a hit had to pass, and a flash
+      // on the band that actually set off a beat.
+      const timeline = mainWindow().getBeatTimeline?.()
+      const samples = timeline?.samples ?? []
+      const latest = samples[samples.length - 1]
+      const flashes = LABELS.map((_, band) => {
+        const lastHit = [...samples].reverse().find(({ beatBand }) => beatBand === band)
+        return lastHit && latest ? Math.max(0, 1 - (latest.t - lastHit.t) / HIT_FLASH_MS) : 0
+      })
 
       for (let i = 0; i < VISIBLE_BANDS; i++) {
         const x = i * (BAR_W + GAP)
         const enabled = enabledBandsRef.current[i] ?? true
         const hovered = hoveredBandRef.current === i
-        const energy = Math.min(1, (audio?.multibandEnergy?.[i] ?? 0) / 255)
-        const avg = Math.min(1, (audio?.multibandEnergyAverage?.[i] ?? 0) / 255)
-        const peakVal = (enabled ? audio?.multibandPeak?.[i]?.value : 0) ?? 0
+        const band = latest?.bands[i]
+        const barTop = (band?.loudness ?? 0) * BAR_HEADROOM
+        const energy = barTop > 0 ? Math.min(1, (band?.level ?? 0) / barTop) : 0
+        const avg = barTop > 0 ? Math.min(1, (band?.trigger ?? 0) / barTop) : 0
+        const peakVal = enabled ? (flashes[i] ?? 0) : 0
 
         // Bar background
         ctx.fillStyle = hovered ? (enabled ? '#181818' : '#0d1626') : enabled ? '#111' : '#0a0a0a'
@@ -124,7 +142,7 @@ const FrequencyHudInner = ({ userSettings, updateUserSettings }: FrequencyHudPro
           roundRect(ctx, x, BAR_AREA_H - fillH, BAR_W, fillH, RADIUS)
         }
 
-        // Average notch (only when enabled)
+        // Trigger notch: the level the band has to pass to count as a hit (only when enabled)
         if (enabled && avg > 0) {
           const avgY = BAR_AREA_H - Math.round(avg * BAR_AREA_H)
           ctx.fillStyle = 'rgba(255,255,255,0.25)'
@@ -194,7 +212,7 @@ const FrequencyHudInner = ({ userSettings, updateUserSettings }: FrequencyHudPro
           onMouseLeave={handleMouseLeave}
         />
       </div>
-      <span className='frequency-hud-hint'>click to toggle</span>
+      <span className='frequency-hud-hint'>click bands to choose what triggers</span>
     </div>
   )
 }

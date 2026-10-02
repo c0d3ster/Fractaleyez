@@ -28,6 +28,8 @@ const MIN_LEVEL_OF_LOUDNESS = 0.3
 const MIN_RISE_OF_LOUDNESS = 0.06
 
 type OnsetParams = {
+  /** Which bands may set off a beat (the Frequency HUD toggles). Disabled bands are still tracked, just not heard. */
+  enabledBands: boolean[]
   /** The Threshold slider: higher asks for a bigger rise relative to the strongest recent one. */
   sensitivity: number
   /** Time after a beat during which another can't fire (the Ignore Time slider). */
@@ -39,6 +41,8 @@ type OnsetParams = {
 export type BandReading = {
   /** The band's level (% of full scale). */
   level: number
+  /** How loud the band has been lately. */
+  loudness: number
   /** The level the band had to pass to count as a hit. */
   trigger: number
 }
@@ -75,7 +79,7 @@ class BandTracker {
     const above = rise > bar && this.fast >= levelGate
     const risingEdge = above && !this.wasAbove
     this.wasAbove = above
-    return { above, risingEdge, reading: { level: this.fast, trigger: Math.max(this.slow + bar, levelGate) } }
+    return { above, risingEdge, reading: { level: this.fast, loudness: this.loudness, trigger: Math.max(this.slow + bar, levelGate) } }
   }
 }
 
@@ -95,7 +99,7 @@ export class OnsetDetector {
 
     const steps = this.trackers.map((tracker, i) => tracker.step(levels[i] ?? 0, dtMs, params.sensitivity))
     const canFire = this.clockMs > WARMUP_MS && this.clockMs - this.lastBeatMs >= params.ignoreMs
-    const edgeBand = steps.findIndex(({ risingEdge }) => risingEdge)
+    const edgeBand = steps.findIndex(({ risingEdge }, i) => risingEdge && (params.enabledBands[i] ?? false))
     const fresh = canFire && edgeBand >= 0
     if (fresh) {
       this.lastBeatMs = this.clockMs

@@ -51,9 +51,6 @@
   background: currentColor;
 }
 
-.beat-hud-key--energy::before {
-  color: #4af;
-}
 
 .beat-hud-key--trigger::before {
   color: #fa4;
@@ -78,6 +75,3 @@
   color: #d6f;
 }
 
-.beat-hud-key--snare::before {
-  color: #5d8;
-}

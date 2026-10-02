@@ -2,20 +2,14 @@ import { userConfig as UserConfig } from '../config/user.config'
 
 import { AudioSource } from './audio-source'
 import { AudioData } from './audio-data'
+import { MAX_BAND_WINDOW_SAMPLES, ONSET_BANDS } from '../audioanalysis/onset-bands'
 
 const ANALYSER_SMOOTHING = 0.2
 
-// Onset bands: the signal is split by filters so beat detection can hear the kick and the snare/clap on their own,
-// then each band is read as a time-domain window (not FFT bins, which are ~94Hz wide at the main analyser's size).
-// 1024 samples is ~21ms, longer than a 60fps frame, so consecutive frames cover all of the audio. Hats sit above the
-// mid band on purpose so they don't fire on every 8th note.
-type OnsetBandSpec = { highpassHz?: number; lowpassHz: number }
-export const ONSET_BANDS: OnsetBandSpec[] = [
-  { lowpassHz: 150 },
-  { highpassHz: 200, lowpassHz: 6000 },
-]
-const BAND_WINDOW_SAMPLES = 1024
-
+// Onset bands (see onset-bands.ts): the signal is split by band-pass filters so beat detection can hear the kick, snare,
+// hats and so on on their own, then each band is read as a time-domain window (not FFT bins, which are ~94Hz wide at the
+// main analyser's size). A 1024-sample window is ~21ms, longer than a 60fps frame, so consecutive frames cover all of
+// the audio.
 type OnsetBand = { filters: BiquadFilterNode[]; analyser: AnalyserNode }
 
 export class AudioStream {
@@ -44,18 +38,19 @@ export class AudioStream {
     this.analyserNode.smoothingTimeConstant = ANALYSER_SMOOTHING
     this.bufferLength = this.analyserNode.frequencyBinCount
 
-    this.onsetBands = ONSET_BANDS.map(({ highpassHz, lowpassHz }) => {
+    this.onsetBands = ONSET_BANDS.map(({ lowHz, highHz, windowSamples }) => {
       // Two cascaded filters per edge give a steeper (24 dB/octave) cut.
       const filters = [
-        ...(highpassHz ? [this.createFilter('highpass', highpassHz), this.createFilter('highpass', highpassHz)] : []),
-        this.createFilter('lowpass', lowpassHz),
-        this.createFilter('lowpass', lowpassHz),
+        this.createFilter('highpass', lowHz),
+        this.createFilter('highpass', lowHz),
+        this.createFilter('lowpass', highHz),
+        this.createFilter('lowpass', highHz),
       ]
       const analyser = this.audioContext.createAnalyser()
-      analyser.fftSize = BAND_WINDOW_SAMPLES
+      analyser.fftSize = windowSamples
       return { filters, analyser }
     })
-    this.bandBuffer = new Float32Array(BAND_WINDOW_SAMPLES)
+    this.bandBuffer = new Float32Array(MAX_BAND_WINDOW_SAMPLES)
   }
 
   init(): void {
@@ -90,12 +85,14 @@ export class AudioStream {
   getBandLevels(): number[] {
     return this.onsetBands.map(({ analyser }) => {
       analyser.getFloatTimeDomainData(this.bandBuffer)
+      // The shared buffer is sized for the longest window; only the first fftSize samples are this band's.
+      const windowSamples = analyser.fftSize
       let sumOfSquares = 0
-      for (let i = 0; i < this.bandBuffer.length; i++) {
+      for (let i = 0; i < windowSamples; i++) {
         const sample = this.bandBuffer[i] ?? 0
         sumOfSquares += sample * sample
       }
-      return Math.sqrt(sumOfSquares / this.bandBuffer.length) * 100
+      return Math.sqrt(sumOfSquares / windowSamples) * 100
     })
   }
 

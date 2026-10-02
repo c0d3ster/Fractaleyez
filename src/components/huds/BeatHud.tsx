@@ -2,6 +2,7 @@ import React, { useRef, useEffect } from 'react'
 import './BeatHud.css'
 
 import { BeatEffect, BeatSample } from '../../audioanalysis/beat'
+import { DEFAULT_ENABLED_BANDS, ONSET_BANDS } from '../../audioanalysis/onset-bands'
 import { subscribeUiTick } from '../../utils/uiTicker'
 
 const W = 360
@@ -14,12 +15,17 @@ const MIN_Y_MAX = 4
 const Y_HEADROOM = 1.15
 const LAMP_FADE_MS = 200
 
-// One look per onset band, in the order of ONSET_BANDS: the low band (kick) and the mid band (snare, clap).
-type BandLook = { name: string; fill: string; line: string; trigger: string }
-const BAND_LOOKS: BandLook[] = [
-  { name: 'kick', fill: 'rgba(68, 170, 255, 0.28)', line: '#4af', trigger: 'rgba(68, 170, 255, 0.7)' },
-  { name: 'snare', fill: 'rgba(80, 220, 130, 0.22)', line: '#5d8', trigger: 'rgba(80, 220, 130, 0.7)' },
-]
+// One look per band, in the order of ONSET_BANDS, spread around the color wheel so neighbors are easy to tell apart.
+type BandLook = { label: string; fill: string; line: string; trigger: string }
+const BAND_LOOKS: BandLook[] = ONSET_BANDS.map(({ label }, i) => {
+  const hue = Math.round((i * 360) / ONSET_BANDS.length + 200) % 360
+  return {
+    label,
+    fill: `hsla(${hue}, 80%, 60%, 0.16)`,
+    line: `hsl(${hue}, 80%, 62%)`,
+    trigger: `hsla(${hue}, 80%, 62%, 0.7)`,
+  }
+})
 
 const COLORS = {
   ignore: 'rgba(255, 255, 255, 0.06)',
@@ -72,7 +78,7 @@ const drawBand = (ctx: CanvasRenderingContext2D, samples: BeatSample[], band: nu
   ctx.setLineDash([])
 }
 
-// Each band is scaled to its own recent peak, since the mid band is usually much louder than the low band.
+// Each band is scaled to its own recent peak, since the bands sit at very different levels.
 const scaleFor = (samples: BeatSample[], band: number, now: number): Scale => {
   const peak = Math.max(MIN_Y_MAX, ...samples.map(({ bands }) => Math.max(bands[band]?.level ?? 0, bands[band]?.trigger ?? 0)))
   const yMax = peak * Y_HEADROOM
@@ -112,7 +118,11 @@ export const BeatHud = (): React.ReactElement => {
         ctx.fillRect(x, 0, Math.min(W - x, (ignoreMs / WINDOW_MS) * W), PLOT_H)
       })
 
-      BAND_LOOKS.forEach((look, band) => drawBand(ctx, samples, band, look, scaleFor(samples, band, now)))
+      // Only the bands that can trigger a beat are drawn, so the strip shows what the effects are listening to.
+      const enabled = source.enabledFreqBands ?? DEFAULT_ENABLED_BANDS
+      BAND_LOOKS.forEach((look, band) => {
+        if (enabled[band]) drawBand(ctx, samples, band, look, scaleFor(samples, band, now))
+      })
 
       // A beat tick takes the color of the band that set it off.
       ctx.lineWidth = 1.5
@@ -152,6 +162,17 @@ export const BeatHud = (): React.ReactElement => {
       ctx.arc(10, 10, 5, 0, Math.PI * 2)
       ctx.fill()
       ctx.globalAlpha = 1
+
+      // Which line is which band.
+      ctx.font = '13px monospace'
+      ctx.textAlign = 'left'
+      let labelX = 24
+      BAND_LOOKS.forEach(({ label, line }, band) => {
+        if (!enabled[band]) return
+        ctx.fillStyle = line
+        ctx.fillText(label, labelX, 14)
+        labelX += ctx.measureText(label).width + 8
+      })
     }
 
     return subscribeUiTick(draw)
@@ -164,8 +185,6 @@ export const BeatHud = (): React.ReactElement => {
         <canvas ref={canvasRef} width={W} height={H} className='beat-hud-canvas' />
       </div>
       <span className='beat-hud-hint'>
-        <span className='beat-hud-key beat-hud-key--energy'>kick band</span>
-        <span className='beat-hud-key beat-hud-key--snare'>snare band</span>
         <span className='beat-hud-key beat-hud-key--shockwave'>shockwave</span>
         <span className='beat-hud-key beat-hud-key--switcheroo'>switcheroo</span>
       </span>

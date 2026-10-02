@@ -1,9 +1,10 @@
-import { AudioStream, ONSET_BANDS } from '../audiostream/audio-stream'
+import { AudioStream } from '../audiostream/audio-stream'
 import { analyserConfig as AnalyserConfig } from '../config/analyser.config'
 import { AudioAnalyser } from './audio-analyser'
 import { AudioAnalysedDataForVisualization } from './audio-analysed-data'
 import { beatMonitor } from './beat'
 import { OnsetDetector } from './onset-detector'
+import { DEFAULT_ENABLED_BANDS, ONSET_BANDS } from './onset-bands'
 
 /**
  * Single producer of analysed audio. Runs the stream -> analyser pipeline exactly once per frame and
@@ -27,6 +28,7 @@ export class AudioFeed {
 
     const { soundThreshold, ignoreTime } = window.config.audio
     const onset = this.onsetDetector.update(this.stream.getBandLevels(), deltaTime, snapshot.energy ?? 0, {
+      enabledBands: window.enabledFreqBands ?? DEFAULT_ENABLED_BANDS,
       sensitivity: soundThreshold.value,
       ignoreMs: ignoreTime.value,
       decayMs: AnalyserConfig.options.peakDetection.options.peakPersistency,
