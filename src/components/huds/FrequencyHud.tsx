@@ -3,6 +3,7 @@ import './FrequencyHud.css'
 
 import { connectConfig } from '../config/context/ConfigProvider'
 import { UserSettings } from '../../config/userSettings.config'
+import { subscribeUiTick } from '../../utils/uiTicker'
 
 const VISIBLE_BANDS = 7
 const LABELS = ['sub', 'bass', 'lo', 'mid', 'hi', 'pre', 'bri']
@@ -13,7 +14,6 @@ const H = BAR_AREA_H + LABEL_H
 const GAP = 4
 const BAR_W = Math.floor((W - (VISIBLE_BANDS - 1) * GAP) / VISIBLE_BANDS)  // 22px
 const RADIUS = 3
-const DRAW_INTERVAL_MS = 33
 
 const roundRect = (ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void => {
   if (h <= 0) return
@@ -39,7 +39,6 @@ type FrequencyHudProps = {
 
 const FrequencyHudInner = ({ userSettings, updateUserSettings }: FrequencyHudProps): React.ReactElement => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const rafRef = useRef<number>(0)
   // Persisted settings (loaded async from /api/me) take priority once they arrive; until then,
   // fall back to whatever the live global already holds (e.g. from an earlier session tab).
   const [enabledBands, setEnabledBands] = useState<boolean[]>(() =>
@@ -81,14 +80,7 @@ const FrequencyHudInner = ({ userSettings, updateUserSettings }: FrequencyHudPro
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
-    let lastDrawAt = 0
     const draw = (): void => {
-      rafRef.current = requestAnimationFrame(draw)
-      // This runs on the visualizer's main thread, so a full redraw every frame (240 times a second on a
-      // fast monitor) competes with rendering and the video texture upload.
-      const now = performance.now()
-      if (now - lastDrawAt < DRAW_INTERVAL_MS) return
-      lastDrawAt = now
       ctx.clearRect(0, 0, W, H)
 
       const audio = window.getAudioData?.()
@@ -164,8 +156,7 @@ const FrequencyHudInner = ({ userSettings, updateUserSettings }: FrequencyHudPro
       }
     }
 
-    rafRef.current = requestAnimationFrame(draw)
-    return () => cancelAnimationFrame(rafRef.current)
+    return subscribeUiTick(draw)
   }, [])
 
   const bandAt = useCallback((e: React.MouseEvent<HTMLCanvasElement>): number | null => {

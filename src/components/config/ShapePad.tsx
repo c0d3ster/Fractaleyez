@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { JULIA_FAMOUS_SHAPES, JULIA_MAP_VIEW, JULIA_TOUR } from '../../visualization/julia-tour'
 import './ShapePad.css'
+import { subscribeUiTick } from '../../utils/uiTicker'
 
 // The pad fills its column (3:2, see ShapePad.css); the canvases use a fixed backing size that
 // stays sharp when scaled to the column width.
@@ -59,7 +60,6 @@ const computeIterations = (width: number, height: number): Float32Array => {
 // limited, and the hue has to move a visible amount before the map is repainted.
 const MIN_RECOLOR_INTERVAL_MS = 250
 const MIN_RECOLOR_HUE_STEP = 0.03
-const MIN_PAD_UPDATE_INTERVAL_MS = 50
 const COLOR_LUT_SIZE = 2048
 const COLOR_LUT_SCALE = (COLOR_LUT_SIZE - 1) / MAP_MAX_ITER
 
@@ -178,7 +178,6 @@ export const ShapePad = (): React.ReactElement => {
   const drawnHueRef = useRef(Number.NaN)
   const drawnSaturationRef = useRef(1)
   const lastRecolorAtRef = useRef(0)
-  const lastPadUpdateAtRef = useRef(0)
   const [readout, setReadout] = useState<ShapeReadout>({ re: -0.75, im: 0, manual: false, hue: 0, saturation: 1, targetRe: -0.75, targetIm: 0 })
 
   useEffect(() => {
@@ -189,15 +188,10 @@ export const ShapePad = (): React.ReactElement => {
     drawMandelbrot(canvas, iterationsRef.current, 0, 1)
   }, [])
 
-  // Poll the visualizer's current shape every frame so the dot follows the Tour slider, glides, and
+  // Poll the visualizer's current shape on the shared UI tick so the dot follows the Tour slider, glides, and
   // Switcheroo hops, the same way the camera pad stays in sync with the real mouse.
   useEffect(() => {
-    let frame = 0
-    const tick = (): void => {
-      frame = requestAnimationFrame(tick)
-      const now = performance.now()
-      if (now - lastPadUpdateAtRef.current < MIN_PAD_UPDATE_INTERVAL_MS) return
-      lastPadUpdateAtRef.current = now
+    const tick = (now: number): void => {
       const overlay = overlayRef.current
       const shape = mainWindow().getJuliaShape?.()
       const map = mandelbrotRef.current
@@ -221,8 +215,7 @@ export const ShapePad = (): React.ReactElement => {
         }
       }
     }
-    frame = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(frame)
+    return subscribeUiTick(tick)
   }, [])
 
   const applyPointer = useCallback((event: React.PointerEvent<HTMLCanvasElement>): void => {
