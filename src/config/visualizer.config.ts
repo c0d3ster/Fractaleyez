@@ -13,7 +13,7 @@ export const PARTICLE_CROSSFADE_DURATION_MIN_MS = 0
 export const PARTICLE_CROSSFADE_DURATION_MAX_MS = 5000
 
 // Mutable, not a plain const: the config-gear user setting overrides this at runtime (see
-// ConfigProvider's /api/me load), same "poll a live value each frame" pattern HopalongManager/
+// ConfigProvider's /api/me load), same "poll a live value each frame" pattern OrbitLayer/
 // HopalongVisualizer already use for window.config -- a fixed const couldn't be user-configurable
 // without threading it through every call site as a parameter instead.
 let particleCrossfadeDurationMs = PARTICLE_CROSSFADE_DURATION_DEFAULT_MS
@@ -28,7 +28,7 @@ export const setParticleCrossfadeDurationMs = (ms: number): void => {
 /**
  * Max particle-system generations allowed alive at once during a crossfade -- 1 current
  * (incoming) generation plus up to this-many-minus-1 older generations still fading out.
- * Applies to both the Particle Config crossfade (HopalongManager) and the Orbit Config
+ * Applies to both the Particle Config crossfade (OrbitLayer) and the Orbit Config
  * crossfade (HopalongVisualizer). Once a new change would exceed this cap, the oldest
  * still-fading generation is force-finished immediately to make room.
  */

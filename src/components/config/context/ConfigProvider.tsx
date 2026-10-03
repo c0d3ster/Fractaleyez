@@ -409,6 +409,14 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
     return true
   }, [])
 
+  // Bridge for main.ts's layer hotkeys, which live outside the React tree.
+  useEffect(() => {
+    window.setLayerEnabled = setLayerEnabled
+    return () => {
+      delete window.setLayerEnabled
+    }
+  }, [setLayerEnabled])
+
   const setLayerOpacity = useCallback((key: LayerKey, opacity: number) => {
     setConfig((prev) => {
       const { min, max } = prev.layers.meta[key].opacity

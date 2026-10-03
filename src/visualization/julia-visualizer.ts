@@ -122,14 +122,6 @@ const switcherooHopPoints = (speed: number): number => Math.max(
 // with the Hopalong shockwave so both waves start from the same spot.
 const STEER_EMA_HALF_LIFE_SECONDS = 0.7
 
-// The fragment shader runs up to 128 escape iterations per pixel, so cap the render resolution on high-DPI
-// screens; the smooth palette has no hard edges and loses little at a lower ratio.
-const JULIA_MAX_PIXEL_RATIO = 1.5
-// With Hopalong drawn over it ('both' mode) the two renderers share the frame budget. Measured on a 1.5x display, Julia
-// at 1.5x (2.25x the pixels) halved the frame rate and dropped frames; at 1x every frame was clean. The particles on
-// top hide the lost sharpness.
-const JULIA_LAYERED_MAX_PIXEL_RATIO = 1
-
 // Effect tuning. Each mirrors a Hopalong effect behind the same checkbox.
 const WOBWOB_RECOIL = 2
 const SHOCKWAVE_BASE_SPEED = 0.9
@@ -284,7 +276,6 @@ const getShapePosition = (): number => {
 }
 
 export class JuliaVisualizer {
-  private renderer: THREE.WebGLRenderer | null = null
   private scene: THREE.Scene | null = null
   private camera: THREE.OrthographicCamera | null = null
   private material: THREE.ShaderMaterial | null = null
@@ -293,8 +284,6 @@ export class JuliaVisualizer {
   private smoothTreble = 0
   private smoothEnergy = 0
   private rotation = 0
-  private active = false
-  private maxPixelRatio = JULIA_MAX_PIXEL_RATIO
   private steerX = 0
   private steerY = 0
   private driftPhase = 0
@@ -344,20 +333,8 @@ export class JuliaVisualizer {
   private hasShape = false
   private shockAge = -1
 
-  // `headless` skips the visualizer's own renderer and canvas, for the layer compositor, which draws the scene
-  // into a render target with its shared renderer through renderTo().
-  init(headless = false): void {
-    if (!headless) {
-      this.renderer = new THREE.WebGLRenderer({ antialias: false })
-      this.renderer.setClearColor(0x000000, 1)
-      this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, this.maxPixelRatio))
-      this.renderer.setSize(window.innerWidth, window.innerHeight)
-      this.renderer.domElement.style.position = 'fixed'
-      this.renderer.domElement.style.inset = '0'
-      this.renderer.domElement.style.display = 'none'
-      document.body.appendChild(this.renderer.domElement)
-    }
-
+  // Draws into a render target with the layer compositor's shared renderer through renderTo().
+  init(): void {
     this.scene = new THREE.Scene()
     this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1)
 
@@ -402,17 +379,7 @@ export class JuliaVisualizer {
 
   private onResize = (): void => {
     if (!this.material) return
-    this.renderer?.setPixelRatio(Math.min(window.devicePixelRatio, this.maxPixelRatio))
-    this.renderer?.setSize(window.innerWidth, window.innerHeight)
     this.material.uniforms.uAspect!.value = window.innerWidth / window.innerHeight
-  }
-
-  // Render at a lower resolution while another visualizer is drawn on top of this one.
-  setLayered(layered: boolean): void {
-    const next = layered ? JULIA_LAYERED_MAX_PIXEL_RATIO : JULIA_MAX_PIXEL_RATIO
-    if (next === this.maxPixelRatio) return
-    this.maxPixelRatio = next
-    this.onResize()
   }
 
   private emaTowards(current: number, target: number, dtSeconds: number): number {
@@ -538,16 +505,6 @@ export class JuliaVisualizer {
     return { re: this.manualRe, im: this.manualIm }
   }
 
-  getDomElement(): HTMLCanvasElement | null {
-    return this.renderer?.domElement ?? null
-  }
-
-  setVisible(visible: boolean): void {
-    if (!this.renderer) return
-    this.active = visible
-    this.renderer.domElement.style.display = visible ? 'block' : 'none'
-  }
-
   // With the mask on, the shader fills the fractal's black areas with the video. The video element belongs to
   // Hopalong's scene (and is replaced when that scene is rebuilt), so it is fetched by getter each frame.
   setVideoMask(enabled: boolean, getVideo: () => HTMLVideoElement | null): void {
@@ -600,9 +557,8 @@ export class JuliaVisualizer {
   }
 
   // Where the steering has actually got to, in the camera pad's units (the pad shows the target instantly;
-  // this trails it). Null when this visualizer isn't the one on screen.
-  getSteerPosition(): { x: number; y: number } | null {
-    if (!this.active) return null
+  // this trails it).
+  getSteerPosition(): { x: number; y: number } {
     const steerScale = CAMERA_STEER_SCREEN_FRACTION_PER_PAD_UNIT
     return { x: this.steerX / steerScale, y: -this.steerY / steerScale }
   }
@@ -815,13 +771,7 @@ export class JuliaVisualizer {
     uniforms.uShockStrength!.value = shockStrength
   }
 
-  render(): void {
-    if (!this.renderer || !this.scene || !this.camera) return
-    this.syncVideoTexture()
-    this.renderer.render(this.scene, this.camera)
-  }
-
-  // Headless render path: draws into the caller's target with the caller's renderer.
+  // Draws into the caller's target with the caller's renderer.
   renderTo(renderer: THREE.WebGLRenderer, target: THREE.WebGLRenderTarget): void {
     if (!this.scene || !this.camera) return
     this.syncVideoTexture()
@@ -837,7 +787,5 @@ export class JuliaVisualizer {
     delete window.clearJuliaShape
     this.releaseVideoTexture()
     this.material?.dispose()
-    this.renderer?.dispose()
-    this.renderer?.domElement.remove()
   }
 }
