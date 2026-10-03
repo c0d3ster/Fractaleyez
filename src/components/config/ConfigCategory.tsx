@@ -81,8 +81,8 @@ const ConfigCategoryInner = React.memo(({ name, config, isOpen, toggleOpen, onCh
       {isResettableSection(name) && (
         <button type='button' className='category-reset' title='Reset this section to the preset' aria-label={`Reset ${name} config`} onClick={handleSectionReset}>
           <svg viewBox='0 0 24 24' width='15' height='15' fill='none' stroke='currentColor' strokeWidth='3' strokeLinecap='round' strokeLinejoin='round' aria-hidden>
-            <path d='M3 12a9 9 0 1 0 3-6.7' />
-            <path d='M3 4v5h5' />
+            <path d='M3.3 14.3A9 9 0 1 0 12 3a9.75 9.75 0 0 0-6.74 2.74L3 8' />
+            <path d='M3 3v5h5' />
           </svg>
         </button>
       )}
