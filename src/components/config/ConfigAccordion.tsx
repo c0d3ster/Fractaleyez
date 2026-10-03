@@ -4,7 +4,8 @@ import { Row, Col } from 'react-bootstrap'
 import { ConfigCategory } from '../config/ConfigCategory'
 import { ConfigVideo } from '../config/ConfigVideo'
 import { connectConfig } from './context/ConfigProvider'
-import { AppConfig, CONFIG_CATEGORY_ORDER } from '../../config/configDefaults'
+import { AppConfig } from '../../config/configDefaults'
+import { DISPLAY_ORDER, getEntrySections } from '../../config/layers'
 
 type ConfigAccordionProps = {
   config: AppConfig
@@ -32,7 +33,7 @@ const ConfigAccordionInner = ({ config, updateConfigItem, canOpenMultiple }: Con
 
   return (
     <>
-      {CONFIG_CATEGORY_ORDER.filter((k) => k in config).map((category) => (
+      {DISPLAY_ORDER.flatMap(getEntrySections).filter((k) => k in config).map((category) => (
         <Row key={category}>
           <Col>
             {category === 'video'
