@@ -392,7 +392,9 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
 
     const cacheKey = id || name
 
-    let cfg: Record<string, unknown> | null = retrieveCachedPreset(cacheKey)
+    // The bundled default has no id and ships with the client, so skip the name-keyed localStorage copy: it is seeded once
+    // and goes stale whenever the bundled default changes.
+    let cfg: Record<string, unknown> | null = name === 'default' && !id ? null : retrieveCachedPreset(cacheKey)
 
     if (!cfg) {
       if (id) {
