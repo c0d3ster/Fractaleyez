@@ -4,6 +4,7 @@
 }
 
 .category-title {
+  position: relative;
   margin: 1rem 0 0 0;
   font-weight: bold;
   padding: 10px;
@@ -62,4 +63,13 @@
 
 .category-reset:hover {
   color: white;
+}
+
+/* Sidebar: the icon sits inside the header bar, vertically centered at its right edge. */
+.category-reset--in-header {
+  top: 50%;
+  bottom: auto;
+  right: 10px;
+  margin-bottom: 0;
+  transform: translateY(-50%);
 }

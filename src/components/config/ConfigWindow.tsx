@@ -124,6 +124,7 @@ const ExternalWindowBridge = ({
                   name={segment}
                   onChange={updateConfigItem}
                   isOpen={true}
+                  expanded
                   toggleOpen={() => null}
                 >
                   {segment === 'user' ? <CameraTouchpad /> : null}
