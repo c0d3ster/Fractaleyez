@@ -3,9 +3,9 @@ import { AudioStream } from './audiostream/audio-stream'
 import { AudioAnalyser } from './audioanalysis/audio-analyser'
 import { AudioFeed } from './audioanalysis/audio-feed'
 import { beatMonitor } from './audioanalysis/beat'
-import { HopalongManager } from './visualization/hopalong-manager'
-import { JuliaVisualizer } from './visualization/julia-visualizer'
-import { createLayerSpike, LayerSpike } from './visualization/layers'
+import { LayerKey } from './config/configDefaults'
+import { LAYER_REGISTRY } from './config/layers'
+import { createLayerPipeline, LayerPipeline } from './visualization/layers'
 
 // Size of the fft transform performed on audio stream
 const FFT_SIZE = 512
@@ -15,91 +15,30 @@ const audiosource = new AudioSource()
 const audiostream = new AudioStream(audiosource, FFT_SIZE)
 const audioFeed = new AudioFeed(audiostream, new AudioAnalyser(audiostream.getBufferSize()))
 
-// Create the Visualization Manager
-const hopalongManager = new HopalongManager()
-const juliaVisualizer = new JuliaVisualizer()
-let layerSpike: LayerSpike | null = null
+// The layer pipeline (created in init) draws every enabled layer; which layers show is layers.meta[key].enabled.
+let pipeline: LayerPipeline | null = null
 
-// Prototype toggle (press J) cycling Hopalong, the Julia set visualizer, and both together -- standalone
-// for now, not wired into config UI, ahead of the Visualizer Layers work. In 'both', the Hopalong canvas
-// sits on top of the Julia canvas with a screen blend, so its black background drops out and only the
-// particles add light over the fractal.
-type ActiveVisualizer = 'hopalong' | 'julia' | 'both'
-const VISUALIZER_CYCLE: ActiveVisualizer[] = ['hopalong', 'julia', 'both']
-let activeVisualizer: ActiveVisualizer = 'both'
+// Where the camera pad's trailing dot sits (see LayerPipeline.getCameraSteer).
+window.getCameraSteer = () => pipeline?.getCameraSteer() ?? null
 
-// The config UI greys out controls for a visualizer that is off (Fractal config and the Scale zones for Julia,
-// Particle and Orbit config for Hopalong). The event name matches VISUALIZER_ACTIVE_EVENT in
-// components/config/useVisualizerActive.ts.
-window.juliaActive = true
-window.orbitActive = true
-// Where the camera pad's trailing dot sits: the Julia steering when Julia is alone on screen, the Hopalong camera
-// otherwise (in 'both' they share the same ease, so either reads the same).
-window.getCameraSteer = () => (activeVisualizer === 'julia'
-  ? juliaVisualizer.getSteerPosition()
-  : hopalongManager.getCameraTrailPosition())
+// Layers toggled by a hotkey. The cap is enforced by setLayerEnabled, which refuses an enable past it.
+const LAYER_HOTKEYS: LayerKey[] = ['fractal', 'orbit']
 
-const publishActiveVisualizers = (): void => {
-  const julia = activeVisualizer !== 'hopalong'
-  const orbit = activeVisualizer !== 'julia'
-  if (window.juliaActive === julia && window.orbitActive === orbit) return
-  window.juliaActive = julia
-  window.orbitActive = orbit
-  window.dispatchEvent(new Event('visualizer-active-change'))
-}
-
-// Video mask (press V): the video only shows where the visualizer is black. In Julia (solo or both) the Julia
-// shader fills its black areas with the video itself. In Hopalong solo the particles darken the video instead of
-// adding light. In 'both', Hopalong's own video plane is hidden so the video is only drawn once, by Julia.
-let videoMask = true
-
-const applyVisualizerLayout = (): void => {
-  const hopalongCanvas = hopalongManager.getDomElement()
-  const juliaCanvas = juliaVisualizer.getDomElement()
-  juliaVisualizer.setVisible(activeVisualizer !== 'hopalong')
-  juliaVisualizer.setLayered(activeVisualizer === 'both')
-  juliaVisualizer.setVideoMask(videoMask && activeVisualizer !== 'hopalong', hopalongManager.getVideoElement)
-  hopalongManager.setVideoMask(videoMask && activeVisualizer === 'hopalong')
-  hopalongManager.setVideoPlaneVisible(!(videoMask && activeVisualizer === 'both'))
-  if (!hopalongCanvas || !juliaCanvas) return
-  if (activeVisualizer === 'both') {
-    // Later in the DOM paints on top, so put Julia first.
-    hopalongCanvas.style.position = 'fixed'
-    hopalongCanvas.style.inset = '0'
-    hopalongCanvas.style.mixBlendMode = 'screen'
-    hopalongCanvas.before(juliaCanvas)
-    return
-  }
-  hopalongCanvas.style.position = ''
-  hopalongCanvas.style.inset = ''
-  hopalongCanvas.style.mixBlendMode = ''
-  // Julia solo covers Hopalong, so it goes last.
-  document.body.appendChild(juliaCanvas)
-}
-
-const toggleVideoMask = (): void => {
-  videoMask = !videoMask
-  applyVisualizerLayout()
-}
-
-const toggleVisualizer = (): void => {
-  const next = VISUALIZER_CYCLE[(VISUALIZER_CYCLE.indexOf(activeVisualizer) + 1) % VISUALIZER_CYCLE.length]
-  if (!next) return
-  activeVisualizer = next
-  applyVisualizerLayout()
-  publishActiveVisualizers()
+const toggleLayer = (key: LayerKey): void => {
+  window.setLayerEnabled?.(key, !window.config.layers.meta[key].enabled.value)
 }
 
 document.addEventListener('keydown', (event: KeyboardEvent) => {
+  if (event.repeat) return
   if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return
-  if (event.key === 'j' || event.key === 'J') toggleVisualizer()
-  if (event.key === 'v' || event.key === 'V') toggleVideoMask()
+  const key = event.key.toLowerCase()
+  const hotkeyLayer = LAYER_HOTKEYS.find((layerKey) => LAYER_REGISTRY[layerKey].hotkey === key)
+  if (hotkeyLayer) toggleLayer(hotkeyLayer)
   // S fires the orbit shockwave on demand, so it can be tested without waiting for a beat.
-  if (event.key === 's' || event.key === 'S') hopalongManager.triggerShockwave()
+  if (key === 's') pipeline?.triggerShockwave()
 })
 
 // Create timing mechanism
-let startTimer: Date | null = null
 let lastFrameTime = 0
 
 const FRAME_DELTA_SAMPLES = 60
@@ -172,19 +111,10 @@ const init = (): void => {
   hideCursorOnInactivity()
 
   audiostream.init()
-  startTimer = new Date()
   lastFrameTime = performance.now()
 
-  hopalongManager.init(startTimer)
-  juliaVisualizer.init()
-  applyVisualizerLayout()
-  if (new URLSearchParams(window.location.search).has('layerSpike')) {
-    // Prototype layer pipeline replaces both legacy canvases for this session (see visualization/layers/spike.ts).
-    hopalongManager.getDomElement()?.style.setProperty('display', 'none')
-    juliaVisualizer.getDomElement()?.style.setProperty('display', 'none')
-    layerSpike = createLayerSpike()
-  }
-  // Owned here (not by a visualizer) so the frequency HUD keeps working in every mode, including Julia solo.
+  pipeline = createLayerPipeline()
+  // Owned here (not by a visualizer) so the frequency HUD keeps working in every layer combination.
   window.getAudioData = audioFeed.getLatest
   window.getBeatTimeline = beatMonitor.getTimeline
   window.getPerfData = () => {
@@ -202,7 +132,6 @@ const init = (): void => {
   analyze()
 }
 
-// Every canvas, not just the first: Julia's canvas sits on top of Hopalong's in solo mode, so it's the one under the pointer.
 const setCanvasCursor = (cursor: string): void => {
   Array.from(document.getElementsByTagName('canvas')).forEach((canvas) => {
     canvas.style.cursor = cursor
@@ -242,7 +171,7 @@ const analyze = (): void => {
     if (frameDeltaMs.length > FRAME_DELTA_SAMPLES) frameDeltaMs.shift()
   }
 
-  // Analyse once per frame; every active visualizer and HUD reads this same snapshot
+  // Analyse once per frame; every layer and HUD reads this same snapshot
   const visualizationData = audioFeed.tick(deltaTime, currentTimer)
 
   if (audioFeed.isSilent()) { // if the user hasnt clicked the page, the audio context wont be allowed to start automatically
@@ -254,17 +183,5 @@ const analyze = (): void => {
     }
   }
 
-  if (layerSpike) {
-    layerSpike.render(deltaTime, visualizationData)
-    return
-  }
-
-  // feed data to whichever visualizer is currently active
-  if (activeVisualizer !== 'julia') {
-    hopalongManager.update(deltaTime, visualizationData)
-  }
-  if (activeVisualizer !== 'hopalong') {
-    juliaVisualizer.update(deltaTime, visualizationData)
-    juliaVisualizer.render()
-  }
+  pipeline?.render(deltaTime, visualizationData)
 }

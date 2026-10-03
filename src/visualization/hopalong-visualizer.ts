@@ -433,14 +433,14 @@ export class HopalongVisualizer {
   /**
    * Orbit param changes used to overwrite the existing particle objects' position buffers
    * directly, snapping to the new shape in one frame -- same jarring "instant jump" the particle
-   * crossfade (HopalongManager.startCrossfade()) was built to avoid for Particle Config changes.
+   * crossfade (OrbitLayer.startCrossfade()) was built to avoid for Particle Config changes.
    * This applies the identical double-buffer opacity technique, just scoped to this visualizer's
    * own objects instead of swapping the whole visualizer: build a parallel set of objects at the
    * new orbit shape (this.orbit.subsets was just regenerated above), fade the old set out and the
    * new set in, then dispose the old set. New objects inherit the outgoing object's *current*
    * position/rotation (not the spawn formula) so there's no additional depth/rotation jump on
    * top of the shape change. Up to MAX_CROSSFADE_GENERATIONS generations can be alive at once,
-   * each fading out independently, matching HopalongManager's particle crossfade.
+   * each fading out independently, matching OrbitLayer's particle crossfade.
    */
   private startOrbitFade = (depthShift: number): void => {
     // Adding a new generation would exceed the cap -- force-finish the oldest still-fading
@@ -610,7 +610,7 @@ export class HopalongVisualizer {
   /** Stops this visualizer from reacting to further config changes -- called on the outgoing
    * side of a crossfade, which should only fade out, not reshape itself around whatever preset
    * is now live in window.config. Also resolves any in-progress orbit-shape fade immediately:
-   * once HopalongManager starts driving this visualizer's overall opacity as a single outgoing
+   * once OrbitLayer starts driving this visualizer's overall opacity as a single outgoing
    * generation, an unrelated inner fade still animating individual objects' opacity would fight
    * it for control of the same materials. Tears down any video plane/element too -- only
    * particle Points get reparented into the incoming visualizer's scene, so an outgoing video
