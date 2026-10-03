@@ -2,15 +2,63 @@ import React, { useState, useCallback } from 'react'
 import { Row, Col } from 'react-bootstrap'
 
 import { ConfigCategory } from '../config/ConfigCategory'
-import { ConfigVideo } from '../config/ConfigVideo'
+import { ConfigSectionItems } from './ConfigSectionItems'
+import { ConfigSubAccordion } from './ConfigSubAccordion'
+import { ConfigVideoBody } from './ConfigVideoBody'
+import { LogoSpritePicker } from './LogoSpritePicker'
+import { ShapePad } from './ShapePad'
+import { ParticleSpriteHud } from '../huds'
 import { connectConfig } from './context/ConfigProvider'
 import { AppConfig } from '../../config/configDefaults'
-import { DISPLAY_ORDER, getEntrySections } from '../../config/layers'
+import { DISPLAY_ORDER, DisplayKey } from '../../config/layers'
 
 type ConfigAccordionProps = {
   config: AppConfig
   updateConfigItem: (category: string, item: string, value: string | boolean | number) => void
   canOpenMultiple: boolean
+}
+
+type EntryProps = {
+  entry: DisplayKey
+  config: AppConfig
+  onChange: ConfigAccordionProps['updateConfigItem']
+  isOpen: boolean
+  toggleOpen: (id: string) => void
+}
+
+// Non-functional placeholder until the shared Color config lands.
+const ColorPreview = (): React.ReactElement => (
+  <div className='category-container'>
+    <h3 className='category-title'>color config</h3>
+  </div>
+)
+
+const Entry = ({ entry, config, onChange, isOpen, toggleOpen }: EntryProps): React.ReactElement | null => {
+  const shared = { name: entry, onChange, isOpen, toggleOpen }
+  switch (entry) {
+  case 'color':
+    return <ColorPreview />
+  case 'video':
+    return <ConfigCategory {...shared} bare><ConfigVideoBody /></ConfigCategory>
+  case 'fractal':
+    return <ConfigCategory {...shared}><ShapePad /></ConfigCategory>
+  case 'orbit':
+    return (
+      <ConfigCategory {...shared} bare>
+        <ConfigSubAccordion title='orbit config'>
+          <ConfigSectionItems name='orbit' config={config} onChange={onChange} />
+        </ConfigSubAccordion>
+        <ConfigSubAccordion title='particle config'>
+          <ConfigSectionItems name='particle' config={config} onChange={onChange} />
+          <ParticleSpriteHud />
+        </ConfigSubAccordion>
+      </ConfigCategory>
+    )
+  case 'logo':
+    return <ConfigCategory {...shared} bare><LogoSpritePicker /><ConfigSectionItems name='logo' config={config} onChange={onChange} /></ConfigCategory>
+  default:
+    return <ConfigCategory {...shared} />
+  }
 }
 
 const ConfigAccordionInner = ({ config, updateConfigItem, canOpenMultiple }: ConfigAccordionProps): React.ReactElement => {
@@ -29,21 +77,12 @@ const ConfigAccordionInner = ({ config, updateConfigItem, canOpenMultiple }: Con
     })
   }, [canOpenMultiple])
 
-  const isCategoryOpen = useCallback((category: string) => openCategories.indexOf(category) !== -1, [openCategories])
-
   return (
     <>
-      {DISPLAY_ORDER.flatMap(getEntrySections).filter((k) => k in config).map((category) => (
-        <Row key={category}>
+      {DISPLAY_ORDER.map((entry) => (
+        <Row key={entry}>
           <Col>
-            {category === 'video'
-              ? <ConfigVideo isOpen={isCategoryOpen(category)} toggleOpen={toggleOpen} />
-              : <ConfigCategory
-                name={category}
-                onChange={updateConfigItem}
-                isOpen={isCategoryOpen(category)}
-                toggleOpen={toggleOpen} />
-            }
+            <Entry entry={entry} config={config} onChange={updateConfigItem} isOpen={openCategories.includes(entry)} toggleOpen={toggleOpen} />
           </Col>
         </Row>
       ))}

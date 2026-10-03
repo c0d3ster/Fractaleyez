@@ -2,34 +2,22 @@ import React, { useCallback } from 'react'
 import classNames from 'classnames'
 import './ConfigCategory.css'
 
-import { ConfigSlider } from './ConfigSlider'
-import { ConfigCheckbox } from './ConfigCheckbox'
+import { ConfigSectionItems } from './ConfigSectionItems'
 import { LayerHeader } from './LayerHeader'
 import { connectConfig } from './context/ConfigProvider'
-import { AppConfig, ConfigItem, LayerKey, SliderItem } from '../../config/configDefaults'
+import { AppConfig, LayerKey } from '../../config/configDefaults'
 import { LAYER_REGISTRY } from '../../config/layers'
-import { SCALE_ZONES, SliderZone } from '../../config/juliaScale.config'
-
-// Per-field overrides for how a slider's raw numeric value is displayed; the raw value
-// itself (min/max/step/onChange) is untouched, only the text shown next to the slider.
-const SLIDER_DISPLAY_FORMATTERS: Partial<Record<string, (value: number) => string>> = {
-  scaleFactor: (value) => `${(value / 1000).toFixed(2)}x`,
-  cameraBound: (value) => (value / 100).toFixed(1),
-}
 
 // Categories that only matter while one layer is enabled; they grey out otherwise.
 const CATEGORY_LAYER: Partial<Record<string, LayerKey>> = {
+  video: 'video',
   fractal: 'fractal',
   particle: 'orbit',
   orbit: 'orbit',
+  logo: 'logo',
 }
 
 const LAYER_KEYS = Object.values(LAYER_REGISTRY).map(({ key }) => key)
-
-// Sliders whose track is painted in zones (Scale: the Julia view's regimes).
-const SLIDER_ZONES: Partial<Record<string, readonly SliderZone[]>> = {
-  scaleFactor: SCALE_ZONES,
-}
 
 type ConfigCategoryProps = {
   name: string
@@ -39,17 +27,12 @@ type ConfigCategoryProps = {
   onChange: (category: string, item: string, value: string | boolean) => void
   /** Popup column: always open, no chevron on a layer header. */
   popup?: boolean
+  /** Skip the section's own rows; the children supply the whole body. */
+  bare?: boolean
   children?: React.ReactNode
 }
 
-const ConfigCategoryInner = React.memo(({ name, config, isOpen, toggleOpen, onChange, popup = false, children }: ConfigCategoryProps) => {
-  const handleChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-    const target = event.target
-    const item = target.name
-    const value = target.type === 'checkbox' ? target.checked : target.value
-    onChange(name, item, value)
-  }, [name, onChange])
-
+const ConfigCategoryInner = React.memo(({ name, config, isOpen, toggleOpen, onChange, popup = false, bare = false, children }: ConfigCategoryProps) => {
   const handleToggle = useCallback(() => {
     toggleOpen(name)
   }, [name, toggleOpen])
@@ -63,48 +46,13 @@ const ConfigCategoryInner = React.memo(({ name, config, isOpen, toggleOpen, onCh
   const owner = CATEGORY_LAYER[name]
   const dimmed = owner !== undefined && !config.layers.meta[owner].enabled.value
 
-  const categoryConfig = (config as unknown as Record<string, Record<string, ConfigItem>>)[name] ?? {}
-
   return (
-    <div className={classNames('category-container', { 'category-container--effects': name === 'effects', 'config-inactive': dimmed })}>
+    <div className={classNames('category-container', { 'category-container--effects': name === 'effects', 'category-container--video': name === 'video', 'config-inactive': dimmed })}>
       {headerLayer
         ? <LayerHeader layerKey={headerLayer} title={name} collapsible={!popup} isOpen={isOpen} onToggleOpen={handleToggle} />
         : <h3 className='category-title' onClick={handleToggle}>{name} config</h3>}
       <div className={categoryContentClasses}>
-        {Object.keys(categoryConfig).map((configItem) => {
-          const item = categoryConfig[configItem]!
-          const { type, name: label, value } = item
-
-          if (type === 'checkbox') {
-            return (
-              <ConfigCheckbox
-                name={configItem}
-                label={label}
-                key={configItem}
-                checked={value as boolean}
-                onChange={handleChange}
-              />
-            )
-          }
-          if (type === 'slider') {
-            const { min, max, step } = item as SliderItem
-            return (
-              <ConfigSlider
-                name={configItem}
-                label={label}
-                key={configItem}
-                value={value as number}
-                displayValue={SLIDER_DISPLAY_FORMATTERS[configItem]?.(value as number)}
-                zones={config.layers.meta.fractal.enabled.value ? SLIDER_ZONES[configItem] : undefined}
-                min={min}
-                max={max}
-                step={step}
-                onChange={handleChange}
-              />
-            )
-          }
-          return null
-        })}
+        {!bare && <ConfigSectionItems name={name} config={config} onChange={onChange} />}
         {children}
       </div>
     </div>
