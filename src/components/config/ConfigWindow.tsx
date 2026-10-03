@@ -182,7 +182,7 @@ const ConfigWindowInner = ({
 
     const closeExternalWindow = (): void => externalWindow?.close()
 
-    // Keys pressed while the popup has focus go to the popup's document, so the main page's hotkeys (J, S,
+    // Keys pressed while the popup has focus go to the popup's document, so the main page's hotkeys (F, O, S,
     // E, M, H, arrows, preset numbers) never see them. Replay them on the main document, unless the user is
     // typing in a field or holding a browser-shortcut modifier.
     const forwardKey = (event: KeyboardEvent): void => {

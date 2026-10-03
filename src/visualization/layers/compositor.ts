@@ -13,7 +13,8 @@ export type LayerCompositorOptions = {
 
 /**
  * Draws each planned layer into its own render target, then composites them to the screen in one pass. Targets are
- * created on a layer's first visible frame and kept, so a layer that never shows never allocates one.
+ * created on a layer's first visible frame and kept, so a layer that never shows never allocates one. The composite
+ * pass is a scene of its own (getScene/getCamera) so post effects can take it as their input instead of the screen.
  */
 export class LayerCompositor {
   private readonly targets = new Map<LayerKey, THREE.WebGLRenderTarget>()
@@ -46,7 +47,12 @@ export class LayerCompositor {
     this.scene.add(this.quad)
   }
 
-  render = (deltaTime: number, audio: AudioAnalysedDataForVisualization, config: LayersConfigSection): void => {
+  getScene = (): THREE.Scene => this.scene
+
+  getCamera = (): THREE.OrthographicCamera => this.camera
+
+  /** Draws every planned layer into its target and points the composite pass at them. */
+  renderLayers = (deltaTime: number, audio: AudioAnalysedDataForVisualization, config: LayersConfigSection): void => {
     const planned = planLayers(config).filter(({ key }) => this.layers[key])
     const opacities: number[] = this.material.uniforms.uOpacity!.value
     planned.forEach(({ key, opacity }, slot) => {
@@ -60,6 +66,10 @@ export class LayerCompositor {
       opacities[slot] = 0
     }
     this.material.uniforms.uCount!.value = planned.length
+  }
+
+  /** Draws the composite pass straight to the screen. */
+  composite = (): void => {
     this.renderer.setRenderTarget(null)
     this.renderer.render(this.scene, this.camera)
   }
