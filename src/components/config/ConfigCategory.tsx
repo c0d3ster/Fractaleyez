@@ -36,6 +36,8 @@ type ConfigCategoryProps = {
   name: string
   config: AppConfig
   isOpen: boolean
+  // The pop-out config window: the reset icon sits above the header there, and inside it in the sidebar.
+  expanded?: boolean
   toggleOpen: (name: string) => void
   onChange: (category: string, item: string, value: string | boolean) => void
   resetConfigItem: ConfigContextValue['resetConfigItem']
@@ -43,7 +45,7 @@ type ConfigCategoryProps = {
   children?: React.ReactNode
 }
 
-const ConfigCategoryInner = React.memo(({ name, config, isOpen, toggleOpen, onChange, resetConfigItem, resetConfigSection, children }: ConfigCategoryProps) => {
+const ConfigCategoryInner = React.memo(({ name, config, isOpen, expanded = false, toggleOpen, onChange, resetConfigItem, resetConfigSection, children }: ConfigCategoryProps) => {
   const handleChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const target = event.target
     const item = target.name
@@ -55,7 +57,9 @@ const ConfigCategoryInner = React.memo(({ name, config, isOpen, toggleOpen, onCh
     if (isResettableSection(name)) resetConfigItem(name, event.currentTarget.name)
   }, [name, resetConfigItem])
 
-  const handleSectionReset = useCallback(() => {
+  const handleSectionReset = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
+    // In the sidebar the button lives inside the header, whose click toggles the section.
+    event.stopPropagation()
     if (isResettableSection(name)) void resetConfigSection(name)
   }, [name, resetConfigSection])
 
@@ -71,21 +75,30 @@ const ConfigCategoryInner = React.memo(({ name, config, isOpen, toggleOpen, onCh
   const owner = CATEGORY_VISUALIZER[name]
   const dimmed = owner !== undefined && !active[owner]
 
+  const resetButton = isResettableSection(name) && (
+    <button
+      type='button'
+      className={classNames('category-reset', { 'category-reset--in-header': !expanded })}
+      title='Reset this section to the preset'
+      aria-label={`Reset ${name} config`}
+      onClick={handleSectionReset}
+    >
+      <svg viewBox='0 0 24 24' width='15' height='15' fill='none' stroke='currentColor' strokeWidth='3' strokeLinecap='round' strokeLinejoin='round' aria-hidden>
+        <path d='M3.3 14.3A9 9 0 1 0 12 3a9.75 9.75 0 0 0-6.74 2.74L3 8' />
+        <path d='M3 3v5h5' />
+      </svg>
+    </button>
+  )
+
   const categoryConfig = (config as unknown as Record<string, Record<string, ConfigItem>>)[name] ?? {}
 
   return (
     <div className={classNames('category-container', { 'category-container--effects': name === 'effects', 'config-inactive': dimmed })}>
       <h3 className='category-title' onClick={handleToggle}>
         {name} config
+        {!expanded && resetButton}
       </h3>
-      {isResettableSection(name) && (
-        <button type='button' className='category-reset' title='Reset this section to the preset' aria-label={`Reset ${name} config`} onClick={handleSectionReset}>
-          <svg viewBox='0 0 24 24' width='15' height='15' fill='none' stroke='currentColor' strokeWidth='3' strokeLinecap='round' strokeLinejoin='round' aria-hidden>
-            <path d='M3.3 14.3A9 9 0 1 0 12 3a9.75 9.75 0 0 0-6.74 2.74L3 8' />
-            <path d='M3 3v5h5' />
-          </svg>
-        </button>
-      )}
+      {expanded && resetButton}
       <div className={categoryContentClasses}>
         {Object.keys(categoryConfig).map((configItem) => {
           const item = categoryConfig[configItem]!
