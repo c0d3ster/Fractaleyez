@@ -5,6 +5,7 @@ import { AudioFeed } from './audioanalysis/audio-feed'
 import { beatMonitor } from './audioanalysis/beat'
 import { HopalongManager } from './visualization/hopalong-manager'
 import { JuliaVisualizer } from './visualization/julia-visualizer'
+import { createLayerSpike, LayerSpike } from './visualization/layers'
 
 // Size of the fft transform performed on audio stream
 const FFT_SIZE = 512
@@ -17,6 +18,7 @@ const audioFeed = new AudioFeed(audiostream, new AudioAnalyser(audiostream.getBu
 // Create the Visualization Manager
 const hopalongManager = new HopalongManager()
 const juliaVisualizer = new JuliaVisualizer()
+let layerSpike: LayerSpike | null = null
 
 // Prototype toggle (press J) cycling Hopalong, the Julia set visualizer, and both together -- standalone
 // for now, not wired into config UI, ahead of the Visualizer Layers work. In 'both', the Hopalong canvas
@@ -176,6 +178,12 @@ const init = (): void => {
   hopalongManager.init(startTimer)
   juliaVisualizer.init()
   applyVisualizerLayout()
+  if (new URLSearchParams(window.location.search).has('layerSpike')) {
+    // Prototype layer pipeline replaces both legacy canvases for this session (see visualization/layers/spike.ts).
+    hopalongManager.getDomElement()?.style.setProperty('display', 'none')
+    juliaVisualizer.getDomElement()?.style.setProperty('display', 'none')
+    layerSpike = createLayerSpike()
+  }
   // Owned here (not by a visualizer) so the frequency HUD keeps working in every mode, including Julia solo.
   window.getAudioData = audioFeed.getLatest
   window.getBeatTimeline = beatMonitor.getTimeline
@@ -244,6 +252,11 @@ const analyze = (): void => {
       idleSoundTimer = 0
       audiosource.getAudioContext().resume()
     }
+  }
+
+  if (layerSpike) {
+    layerSpike.render(deltaTime, visualizationData)
+    return
   }
 
   // feed data to whichever visualizer is currently active
