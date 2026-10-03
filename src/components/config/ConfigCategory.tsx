@@ -4,7 +4,7 @@ import './ConfigCategory.css'
 
 import { ConfigSlider } from './ConfigSlider'
 import { ConfigCheckbox } from './ConfigCheckbox'
-import { connectConfig } from './context/ConfigProvider'
+import { connectConfig, ConfigContextValue, ConfigSectionKey } from './context/ConfigProvider'
 import { useVisualizerActive, VisualizerActive } from './useVisualizerActive'
 import { AppConfig, ConfigItem, SliderItem } from '../../config/configDefaults'
 import { SCALE_ZONES, SliderZone } from '../../config/juliaScale.config'
@@ -28,22 +28,37 @@ const SLIDER_ZONES: Partial<Record<string, readonly SliderZone[]>> = {
   scaleFactor: SCALE_ZONES,
 }
 
+// Sections whose items live in the preset and can be reset to its loaded values (video has its own controls).
+const RESETTABLE_SECTIONS: readonly ConfigSectionKey[] = ['user', 'fractal', 'audio', 'effects', 'particle', 'orbit']
+const isResettableSection = (name: string): name is ConfigSectionKey => RESETTABLE_SECTIONS.some((section) => section === name)
+
 type ConfigCategoryProps = {
   name: string
   config: AppConfig
   isOpen: boolean
   toggleOpen: (name: string) => void
   onChange: (category: string, item: string, value: string | boolean) => void
+  resetConfigItem: ConfigContextValue['resetConfigItem']
+  resetConfigSection: ConfigContextValue['resetConfigSection']
   children?: React.ReactNode
 }
 
-const ConfigCategoryInner = React.memo(({ name, config, isOpen, toggleOpen, onChange, children }: ConfigCategoryProps) => {
+const ConfigCategoryInner = React.memo(({ name, config, isOpen, toggleOpen, onChange, resetConfigItem, resetConfigSection, children }: ConfigCategoryProps) => {
   const handleChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const target = event.target
     const item = target.name
     const value = target.type === 'checkbox' ? target.checked : target.value
     onChange(name, item, value)
   }, [name, onChange])
+
+  const handleItemReset = useCallback((event: React.MouseEvent<HTMLInputElement>) => {
+    if (isResettableSection(name)) resetConfigItem(name, event.currentTarget.name)
+  }, [name, resetConfigItem])
+
+  const handleSectionReset = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation()
+    if (isResettableSection(name)) void resetConfigSection(name)
+  }, [name, resetConfigSection])
 
   const handleToggle = useCallback(() => {
     toggleOpen(name)
@@ -63,6 +78,11 @@ const ConfigCategoryInner = React.memo(({ name, config, isOpen, toggleOpen, onCh
     <div className={classNames('category-container', { 'category-container--effects': name === 'effects', 'config-inactive': dimmed })}>
       <h3 className='category-title' onClick={handleToggle}>
         {name} config
+        {isResettableSection(name) && (
+          <button type='button' className='category-reset' title='Reset this section to the preset' onClick={handleSectionReset}>
+            reset
+          </button>
+        )}
       </h3>
       <div className={categoryContentClasses}>
         {Object.keys(categoryConfig).map((configItem) => {
@@ -94,6 +114,7 @@ const ConfigCategoryInner = React.memo(({ name, config, isOpen, toggleOpen, onCh
                 max={max}
                 step={step}
                 onChange={handleChange}
+                onReset={handleItemReset}
               />
             )
           }

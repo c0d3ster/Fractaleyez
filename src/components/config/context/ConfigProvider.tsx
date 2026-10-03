@@ -3,6 +3,7 @@ import axios from 'axios'
 import { useAuth, useUser } from '@clerk/clerk-react'
 
 import { AppConfig, ConfigItem, ParticleConfigSection, configDefaults } from '../../../config/configDefaults'
+import { toStoredConfig } from '../../../config/storedConfig'
 import { particleConfig } from '../../../config/particle.config'
 import { presets } from '../../../config/presets'
 import { warmSpriteCache } from '../../../utils/spriteCache'
@@ -71,20 +72,40 @@ const toLabel = (name: string): string => {
   return spaced.replace(/^./, c => c.toUpperCase())
 }
 
-type ConfigSectionKey = 'user' | 'fractal' | 'audio' | 'effects' | 'particle' | 'orbit'
+export type ConfigSectionKey = 'user' | 'fractal' | 'audio' | 'effects' | 'particle' | 'orbit'
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value)
+
+const isStringArray = (value: unknown): value is string[] =>
+  Array.isArray(value) && value.every((entry) => typeof entry === 'string')
+
+/** A preset item is stored as a bare value; older presets stored the whole item object, so unwrap its `value`. */
+const unwrapStoredValue = (stored: unknown): unknown => (isRecord(stored) && 'value' in stored ? stored.value : stored)
+
+/** Applies a stored value onto a default item, or returns null when the value is the wrong type for that item. */
+const withStoredValue = (item: ConfigItem, stored: unknown): ConfigItem | null => {
+  const value = unwrapStoredValue(stored)
+  switch (item.type) {
+  case 'slider':
+    return typeof value === 'number' && Number.isFinite(value) ? { ...item, value } : null
+  case 'checkbox':
+    return typeof value === 'boolean' ? { ...item, value } : null
+  case 'multiselect':
+    return isStringArray(value) ? { ...item, value } : null
+  }
+}
+
+// Out-of-range slider values are kept on purpose: a preset may go beyond min/max, which only bound the UI.
 const mergeConfigSection = <C extends ConfigSectionKey>(category: C, loaded: Record<string, unknown> | undefined | null): AppConfig[C] => {
   const def = configDefaults[category] as Record<string, ConfigItem>
   if (!loaded || typeof loaded !== 'object') {
     return configDefaults[category]
   }
   const out = { ...def } as Record<string, ConfigItem>
-  for (const key of Object.keys(def)) {
-    const l = loaded[key]
-    if (l && typeof l === 'object' && 'value' in (l as object)) {
-      const loadedItem = l as ConfigItem
-      out[key] = { ...def[key], value: loadedItem.value } as ConfigItem
-    }
+  for (const [key, defaultItem] of Object.entries(def)) {
+    const merged = withStoredValue(defaultItem, loaded[key])
+    if (merged) out[key] = merged
   }
   return out as AppConfig[C]
 }
@@ -142,6 +163,10 @@ export type ConfigContextValue = {
   retrieveConfigPreset: (event: PresetRetrieveEvent) => Promise<void>
   revertConfig: (snapshot: AppConfig) => void
   resetConfig: () => void
+  /** Restore one item to the value it had when the active preset loaded (or was last saved). */
+  resetConfigItem: (category: ConfigSectionKey, item: string) => void
+  /** Restore a whole section to the active preset's loaded values. */
+  resetConfigSection: (category: ConfigSectionKey) => Promise<void>
   savePreset: (name: string, pack: string, force?: boolean) => Promise<void>
   isSignedIn: boolean
   currentUserId: string | null
@@ -171,6 +196,9 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
     window.config = initial
     return initial
   })
+
+  // Values the active preset had when it loaded (or was last saved); the target of per-item and per-section reset.
+  const baselineRef = useRef<AppConfig>(config)
 
   const [presetList, setPresetList] = useState<PresetMeta[]>([])
   const [packList, setPackList] = useState<PackMeta[]>([])
@@ -426,6 +454,7 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
 
     const prevClips = window.config.video.clips
     const next = normalizeLoadedPreset(cfg)
+    baselineRef.current = next
     // Same reasoning as updateParticleSprites: warm the cache before the config write triggers
     // a rebuild, so a preset's not-yet-cached sprites don't race a cold cross-origin load.
     await warmSpriteCache(next.particle.sprites.value)
@@ -449,17 +478,35 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
     [retrieveConfigPreset]
   )
 
+  const resetConfigItem = useCallback((category: ConfigSectionKey, item: string) => {
+    const baseItem = Object.entries<ConfigItem>(baselineRef.current[category]).find(([key]) => key === item)?.[1]
+    if (!baseItem || Array.isArray(baseItem.value)) return
+    updateConfigItem(category, item, baseItem.value)
+  }, [updateConfigItem])
+
+  const resetConfigSection = useCallback(async (category: ConfigSectionKey) => {
+    const baseline = baselineRef.current
+    // Same reasoning as retrieveConfigPreset: warm the sprites before the write triggers a particle rebuild.
+    if (category === 'particle') await warmSpriteCache(baseline.particle.sprites.value)
+    setConfig((prev) => {
+      const next: AppConfig = { ...prev, [category]: baseline[category] }
+      window.config = next
+      return next
+    })
+  }, [])
+
   const savePreset = useCallback(async (name: string, pack: string, force?: boolean) => {
     const token = await getToken()
     if (!token) throw Object.assign(new Error('Not authenticated'), { response: { status: 401, data: { error: 'Not authenticated — try signing out and back in' } } })
     const { data } = await axios.post<{ id: string; name: string }>('/api/savePreset', {
       name,
       pack,
-      config,
+      config: toStoredConfig(config),
       force: force ?? false,
     }, {
       headers: { Authorization: `Bearer ${token}` },
     })
+    baselineRef.current = config
     const sprite = config.particle.sprites.value[0] ?? 'fractaleye.png'
     const newPreset: PresetMeta = { id: data.id, name: data.name, label: toLabel(data.name), pack, sprite, isOwn: true }
     setPresetList(prev => {
@@ -470,7 +517,7 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
   }, [config, getToken])
 
   return (
-    <ConfigContext.Provider value={{ config, updateConfigItem, updateVideoClips, updateParticleSprites, retrieveConfigPreset, revertConfig, resetConfig, savePreset, isSignedIn: isSignedIn ?? false, currentUserId: user?.id ?? null, getToken, presets: presetList, packs: packList, userSettings, updateUserSettings }}>
+    <ConfigContext.Provider value={{ config, updateConfigItem, updateVideoClips, updateParticleSprites, retrieveConfigPreset, revertConfig, resetConfig, resetConfigItem, resetConfigSection, savePreset, isSignedIn: isSignedIn ?? false, currentUserId: user?.id ?? null, getToken, presets: presetList, packs: packList, userSettings, updateUserSettings }}>
       {children}
     </ConfigContext.Provider>
   )

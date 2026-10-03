@@ -31,6 +31,18 @@ export type PublicPresetMeta = {
   isOwn: boolean
 }
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value)
+
+/** First particle sprite of a preset config, in either stored shape: a bare array, or the older `{ value: [...] }` item. */
+const firstSprite = (config: Record<string, unknown>): string => {
+  const { particle } = config
+  const sprites = isRecord(particle) ? particle.sprites : undefined
+  const list = isRecord(sprites) ? sprites.value : sprites
+  const first = Array.isArray(list) ? list[0] : undefined
+  return typeof first === 'string' ? first : 'fractaleye.png'
+}
+
 export class PresetService {
   async listPresetsForViewer(viewerId: string | null): Promise<PublicPresetMeta[]> {
     const rows = await presetRepository.findAll()
@@ -50,9 +62,7 @@ export class PresetService {
   }
 
   async savePreset({ name, pack, packId, config, userId, force }: SavePresetParams): Promise<IPreset> {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sprite = (config as any)?.particle?.sprites?.value?.[0] ?? 'fractaleye.png'
-    const payload = { name, pack, packId, sprite, config, userId }
+    const payload = { name, pack, packId, sprite: firstSprite(config), config, userId }
 
     if (!force) {
       try {
