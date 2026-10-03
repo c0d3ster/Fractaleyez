@@ -64,6 +64,10 @@ const ExternalWindowBridge = ({
   updateConfigItem,
   updateVideoClips,
   updateParticleSprites,
+  updateLogoSprite,
+  setLayerEnabled,
+  setLayerOpacity,
+  moveLayer,
   retrieveConfigPreset,
   revertConfig,
   resetConfig,
@@ -86,6 +90,10 @@ const ExternalWindowBridge = ({
         updateConfigItem,
         updateVideoClips,
         updateParticleSprites,
+        updateLogoSprite,
+        setLayerEnabled,
+        setLayerOpacity,
+        moveLayer,
         retrieveConfigPreset,
         revertConfig,
         resetConfig,
@@ -150,6 +158,10 @@ const ConfigWindowInner = ({
   updateConfigItem,
   updateVideoClips,
   updateParticleSprites,
+  updateLogoSprite,
+  setLayerEnabled,
+  setLayerOpacity,
+  moveLayer,
   retrieveConfigPreset,
   revertConfig,
   resetConfig,
@@ -241,6 +253,10 @@ const ConfigWindowInner = ({
         updateConfigItem={updateConfigItem}
         updateVideoClips={updateVideoClips}
         updateParticleSprites={updateParticleSprites}
+        updateLogoSprite={updateLogoSprite}
+        setLayerEnabled={setLayerEnabled}
+        setLayerOpacity={setLayerOpacity}
+        moveLayer={moveLayer}
         retrieveConfigPreset={retrieveConfigPreset}
         revertConfig={revertConfig}
         resetConfig={resetConfig}
@@ -262,6 +278,10 @@ const ConfigWindowInner = ({
     updateConfigItem,
     updateVideoClips,
     updateParticleSprites,
+    updateLogoSprite,
+    setLayerEnabled,
+    setLayerOpacity,
+    moveLayer,
     retrieveConfigPreset,
     resetConfig,
     resetConfigItem,

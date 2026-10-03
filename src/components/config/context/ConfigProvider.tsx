@@ -2,8 +2,10 @@ import React, { useState, useCallback, useEffect, useRef } from 'react'
 import axios from 'axios'
 import { useAuth, useUser } from '@clerk/clerk-react'
 
-import { AppConfig, ConfigItem, ParticleConfigSection, configDefaults } from '../../../config/configDefaults'
 import { toStoredConfig } from '../../../config/storedConfig'
+import { AppConfig, ConfigItem, LayerKey, ParticleConfigSection, configDefaults } from '../../../config/configDefaults'
+import { LAYER_CAP } from '../../../config/layers'
+import { mergeLayers } from '../../../config/mergeLayers'
 import { particleConfig } from '../../../config/particle.config'
 import { presets } from '../../../config/presets'
 import { warmSpriteCache } from '../../../utils/spriteCache'
@@ -138,6 +140,7 @@ const mergeVideo = (loaded: unknown): AppConfig['video'] => {
 /** Presets from disk/API may omit multiselect metadata or use older shapes — merge with defaults so UI + viz stay valid. */
 const normalizeLoadedPreset = (cfg: Record<string, unknown>): AppConfig => {
   const particle = mergeConfigSection('particle', cfg.particle as Record<string, unknown> | undefined) as ParticleConfigSection
+  const video = mergeVideo(cfg.video)
   return {
     user: mergeConfigSection('user', cfg.user as Record<string, unknown> | undefined),
     fractal: mergeConfigSection('fractal', cfg.fractal as Record<string, unknown> | undefined),
@@ -151,8 +154,8 @@ const normalizeLoadedPreset = (cfg: Record<string, unknown>): AppConfig => {
       },
     },
     orbit: mergeConfigSection('orbit', cfg.orbit as Record<string, unknown> | undefined),
-    video: mergeVideo(cfg.video),
-    layers: configDefaults.layers, // merge + legacy migration land in #22
+    video,
+    layers: mergeLayers(cfg.layers, video.clips.length),
     logo: mergeConfigSection('logo', cfg.logo as Record<string, unknown> | undefined),
   }
 }
@@ -162,6 +165,10 @@ export type ConfigContextValue = {
   updateConfigItem: (category: string, item: string, value: string | boolean | number) => void
   updateVideoClips: (clips: string[]) => void
   updateParticleSprites: (sprites: string[]) => Promise<void>
+  updateLogoSprite: (sprite: string) => Promise<void>
+  setLayerEnabled: (key: LayerKey, enabled: boolean) => boolean
+  setLayerOpacity: (key: LayerKey, opacity: number) => void
+  moveLayer: (key: LayerKey, toIndex: number) => void
   retrieveConfigPreset: (event: PresetRetrieveEvent) => Promise<void>
   revertConfig: (snapshot: AppConfig) => void
   resetConfig: () => void
@@ -392,6 +399,75 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
     })
   }, [])
 
+  const updateLogoSprite = useCallback(async (sprite: string) => {
+    const chosen = sprite || configDefaults.logo.sprite.value[0] || ''
+    await warmSpriteCache([chosen])
+    setConfig((prev) => {
+      const n: AppConfig = {
+        ...prev,
+        logo: { ...prev.logo, sprite: { ...prev.logo.sprite, value: [chosen] } },
+      }
+      window.config = n
+      return n
+    })
+  }, [])
+
+  // Reads window.config (kept in sync with state) so the cap result can be returned synchronously.
+  const setLayerEnabled = useCallback((key: LayerKey, enabled: boolean): boolean => {
+    const prev = window.config
+    const current = prev.layers.meta[key].enabled.value
+    if (current === enabled) return true
+    const enabledCount = Object.values(prev.layers.meta).filter(m => m.enabled.value).length
+    if (enabled && enabledCount >= LAYER_CAP) return false
+    const next: AppConfig = {
+      ...prev,
+      layers: {
+        ...prev.layers,
+        meta: {
+          ...prev.layers.meta,
+          [key]: { ...prev.layers.meta[key], enabled: { ...prev.layers.meta[key].enabled, value: enabled } },
+        },
+      },
+    }
+    window.config = next
+    setConfig(next)
+    if (key === 'video') {
+      window.dispatchEvent(new CustomEvent('videoClipsRestored', { detail: { clips: enabled ? next.video.clips : [] } }))
+    }
+    return true
+  }, [])
+
+  const setLayerOpacity = useCallback((key: LayerKey, opacity: number) => {
+    setConfig((prev) => {
+      const { min, max } = prev.layers.meta[key].opacity
+      const value = Math.min(Math.max(opacity, min), max)
+      const n: AppConfig = {
+        ...prev,
+        layers: {
+          ...prev.layers,
+          meta: {
+            ...prev.layers.meta,
+            [key]: { ...prev.layers.meta[key], opacity: { ...prev.layers.meta[key].opacity, value } },
+          },
+        },
+      }
+      window.config = n
+      return n
+    })
+  }, [])
+
+  const moveLayer = useCallback((key: LayerKey, toIndex: number) => {
+    setConfig((prev) => {
+      const from = prev.layers.order.indexOf(key)
+      if (from === -1) return prev
+      const order = prev.layers.order.filter(k => k !== key)
+      order.splice(Math.min(Math.max(toIndex, 0), order.length), 0, key)
+      const n: AppConfig = { ...prev, layers: { ...prev.layers, order } }
+      window.config = n
+      return n
+    })
+  }, [])
+
   const updateVideoClips = useCallback((clips: string[]) => {
     setConfig((prev) => {
       const hadClips = prev.video.clips.length > 0
@@ -454,7 +530,8 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
       }
     }
 
-    const prevClips = window.config.video.clips
+    // Effective clips: a disabled video layer has no plane, same as an empty clip list.
+    const prevClips = window.config.layers.meta.video.enabled.value ? window.config.video.clips : []
     const next = normalizeLoadedPreset(cfg)
     baselineRef.current = next
     // Same reasoning as updateParticleSprites: warm the cache before the config write triggers
@@ -462,11 +539,12 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
     await warmSpriteCache(next.particle.sprites.value)
     setConfig(next)
     window.config = next
+    const nextClips = next.layers.meta.video.enabled.value ? next.video.clips : []
     const sameClips =
-      prevClips.length === next.video.clips.length &&
-      prevClips.every((c, i) => c === next.video.clips[i])
+      prevClips.length === nextClips.length &&
+      prevClips.every((c, i) => c === nextClips[i])
     if (!sameClips) {
-      window.dispatchEvent(new CustomEvent('videoClipsRestored', { detail: { clips: next.video.clips } }))
+      window.dispatchEvent(new CustomEvent('videoClipsRestored', { detail: { clips: nextClips } }))
     }
   }, [retrieveCachedPreset])
 
@@ -519,7 +597,7 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
   }, [config, getToken])
 
   return (
-    <ConfigContext.Provider value={{ config, updateConfigItem, updateVideoClips, updateParticleSprites, retrieveConfigPreset, revertConfig, resetConfig, resetConfigItem, resetConfigSection, savePreset, isSignedIn: isSignedIn ?? false, currentUserId: user?.id ?? null, getToken, presets: presetList, packs: packList, userSettings, updateUserSettings }}>
+    <ConfigContext.Provider value={{ config, updateConfigItem, updateVideoClips, updateParticleSprites, updateLogoSprite, setLayerEnabled, setLayerOpacity, moveLayer, retrieveConfigPreset, revertConfig, resetConfig, resetConfigItem, resetConfigSection, savePreset, isSignedIn: isSignedIn ?? false, currentUserId: user?.id ?? null, getToken, presets: presetList, packs: packList, userSettings, updateUserSettings }}>
       {children}
     </ConfigContext.Provider>
   )
