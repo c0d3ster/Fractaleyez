@@ -14,8 +14,8 @@ type ParticleCrossfade = {
 }
 
 /**
- * Orbit (Hopalong particles) as a layer. Owns the orbit camera and the particle crossfades between generations. The
- * video plane is hidden (the Video layer owns the video), and bloom and shockwave run once on the final composite.
+ * Orbit (Hopalong particles) as a layer. Owns the orbit camera and the particle crossfades between generations. Bloom
+ * and shockwave run once on the final composite.
  */
 export class OrbitLayer implements Layer {
   private readonly cameraManager = new CameraManager()
@@ -41,7 +41,6 @@ export class OrbitLayer implements Layer {
     this.visualizer.update(deltaTime, audio)
     this.crossfades.forEach((cf) => cf.outgoing.update(deltaTime, audio))
     this.advanceCrossfades(deltaTime)
-    this.hideVideoPlanes()
     this.renderer.setRenderTarget(target)
     this.renderer.setClearColor(0x000000, 1)
     this.renderer.clear()
@@ -68,14 +67,6 @@ export class OrbitLayer implements Layer {
   getCameraTrailPosition = (): { x: number; y: number } => {
     const { position } = this.cameraManager.getCamera()
     return { x: position.x, y: -position.y }
-  }
-
-  // Run every frame because the visualizer (and its video plane) is recreated on config changes.
-  private hideVideoPlanes = (): void => {
-    const visualizers = [this.visualizer, ...this.crossfades.map((cf) => cf.outgoing)]
-    visualizers.forEach(({ videoPlane }) => {
-      if (videoPlane) videoPlane.visible = false
-    })
   }
 
   private particleConfigChanged = (): boolean => {

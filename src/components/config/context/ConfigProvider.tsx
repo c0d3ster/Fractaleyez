@@ -460,8 +460,9 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
       }
       const next = { ...prev, video } as AppConfig
       window.config = next
-      // Only (re)create or tear down the WebGL video plane when clips go on/off.
-      // If we dispatched on every checkbox change, createVideoPlane would restart playback.
+      // Only (re)create or tear down the video element when clips go on/off, and only while the video layer is
+      // enabled (a disabled layer has no element). Dispatching on every checkbox change would restart playback.
+      if (!prev.layers.meta.video.enabled.value) return next
       if (!hadClips && hasClips) {
         window.dispatchEvent(new CustomEvent('videoClipsRestored', { detail: { clips } }))
       } else if (hadClips && !hasClips) {
