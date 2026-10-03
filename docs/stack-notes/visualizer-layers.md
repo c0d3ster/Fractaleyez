@@ -31,3 +31,15 @@ Branch: overnight/2026-10-03/22-merge-migration-layer-actions
 - Bundled `default` preset has explicit `layers` (all but logo enabled, opacity 1, mask, order `['fractal','video','orbit','logo']`).
 - Deviation: `mergeLayers` lives in its own module rather than inline in `ConfigProvider.tsx`, for testability.
 - NEEDS HUMAN: other bundled presets now start with fractal off; confirm none depended on it.
+
+## #23 Layer pipeline spike
+
+Branch: overnight/2026-10-03/23-layer-pipeline-spike
+
+- New `src/visualization/layers/` (barrel `index.ts`): `Layer` type (`render(target, deltaTime, audio)`, `resize(w, h)`, `dispose()`), `LayerCompositor` (shared renderer, lazily created per-layer render targets, optional per-layer `resolutionScale`, one composite pass to screen), pure `planLayers(layersConfig)` (front-to-back list; disabled or zero-opacity layers are skipped, so they never render), `OrbitLayer`, `FractalLayer`, `createLayerSpike()`.
+- `mask` blend is a front-to-back luminance key: a layer shows only where everything in front of it is dark. `layers.order` is back to front, so the compositor walks it reversed. Edge threshold is `layerConfig.MASK_EDGE` (0.33) in `layers.config.ts`, now also interpolated into the Julia shader's `VIDEO_MASK_EDGE` so there is one source.
+- `JuliaVisualizer.init(headless = false)` skips its own renderer and canvas; new `renderTo(renderer, target)` draws into a caller's target. Legacy path unchanged.
+- Opt-in only: `?layerSpike` in `main.ts` hides the legacy canvases and renders Orbit and Fractal through the compositor. Not the production path.
+- Spike scope gaps: Orbit layer has no particle crossfade, no video plane (hidden), no bloom or shockwave. Skipped layers also stop updating (their time freezes). Compositor mask replaces the legacy screen blend between Orbit and Fractal, so the look differs.
+- Post effects decision: bloom and shockwave run once on the final composite (compositor output to a target, then `EffectComposer`), not per layer. Logo would be warped by that; add a per-layer opt-out (draw it after the effect pass) if that is unwanted.
+- Deviation: not verified on a GPU (no browser here); typecheck, lint, and tests pass. NEEDS HUMAN: measure GPU, memory, and frame time with 4-5 layers at the largest resolution; decide whether Fractal can run at reduced resolution (spike uses 0.5).

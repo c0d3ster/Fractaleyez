@@ -1,3 +1,5 @@
+import { layerConfig } from '../../config/layers.config'
+
 export const juliaVertexShader = /* glsl */ `
   varying vec2 vUv;
 
@@ -34,7 +36,7 @@ export const juliaFragmentShader = /* glsl */ `
   varying vec2 vUv;
 
   const int MAX_ITER = 128;
-  const float VIDEO_MASK_EDGE = 0.33;
+  const float VIDEO_MASK_EDGE = ${layerConfig.MASK_EDGE.toFixed(2)};
   const float WIDE_START = 0.25;
   const float WIDE_END = 0.8;
 
