@@ -344,15 +344,19 @@ export class JuliaVisualizer {
   private hasShape = false
   private shockAge = -1
 
-  init(): void {
-    this.renderer = new THREE.WebGLRenderer({ antialias: false })
-    this.renderer.setClearColor(0x000000, 1)
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, this.maxPixelRatio))
-    this.renderer.setSize(window.innerWidth, window.innerHeight)
-    this.renderer.domElement.style.position = 'fixed'
-    this.renderer.domElement.style.inset = '0'
-    this.renderer.domElement.style.display = 'none'
-    document.body.appendChild(this.renderer.domElement)
+  // `headless` skips the visualizer's own renderer and canvas, for the layer compositor, which draws the scene
+  // into a render target with its shared renderer through renderTo().
+  init(headless = false): void {
+    if (!headless) {
+      this.renderer = new THREE.WebGLRenderer({ antialias: false })
+      this.renderer.setClearColor(0x000000, 1)
+      this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, this.maxPixelRatio))
+      this.renderer.setSize(window.innerWidth, window.innerHeight)
+      this.renderer.domElement.style.position = 'fixed'
+      this.renderer.domElement.style.inset = '0'
+      this.renderer.domElement.style.display = 'none'
+      document.body.appendChild(this.renderer.domElement)
+    }
 
     this.scene = new THREE.Scene()
     this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1)
@@ -397,9 +401,9 @@ export class JuliaVisualizer {
   }
 
   private onResize = (): void => {
-    if (!this.renderer || !this.material) return
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, this.maxPixelRatio))
-    this.renderer.setSize(window.innerWidth, window.innerHeight)
+    if (!this.material) return
+    this.renderer?.setPixelRatio(Math.min(window.devicePixelRatio, this.maxPixelRatio))
+    this.renderer?.setSize(window.innerWidth, window.innerHeight)
     this.material.uniforms.uAspect!.value = window.innerWidth / window.innerHeight
   }
 
@@ -815,6 +819,15 @@ export class JuliaVisualizer {
     if (!this.renderer || !this.scene || !this.camera) return
     this.syncVideoTexture()
     this.renderer.render(this.scene, this.camera)
+  }
+
+  // Headless render path: draws into the caller's target with the caller's renderer.
+  renderTo(renderer: THREE.WebGLRenderer, target: THREE.WebGLRenderTarget): void {
+    if (!this.scene || !this.camera) return
+    this.syncVideoTexture()
+    renderer.setRenderTarget(target)
+    renderer.render(this.scene, this.camera)
+    renderer.setRenderTarget(null)
   }
 
   dispose(): void {
