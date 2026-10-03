@@ -166,8 +166,10 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
   const { isSignedIn, user } = useUser()
 
   const [config, setConfig] = useState<AppConfig>(() => {
-    window.config = configDefaults
-    return configDefaults
+    const bundledDefault = presets.default
+    const initial = bundledDefault ? normalizeLoadedPreset(structuredClone(bundledDefault.config)) : configDefaults
+    window.config = initial
+    return initial
   })
 
   const [presetList, setPresetList] = useState<PresetMeta[]>([])
@@ -177,7 +179,7 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
   const settingsSaveTimerRef = useRef<number | null>(null)
 
   useEffect(() => {
-    void warmSpriteCache(configDefaults.particle.sprites.value)
+    void warmSpriteCache(window.config.particle.sprites.value)
   }, [])
 
   useEffect(() => {
