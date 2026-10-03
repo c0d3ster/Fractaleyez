@@ -1,0 +1,34 @@
+.config-sub-accordion {
+  margin-bottom: .25rem;
+}
+
+.config-sub-accordion__title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 6px 10px;
+  font-weight: bold;
+  color: rgba(220, 220, 220, .9);
+  background: rgba(40, 40, 40, .9);
+  border: none;
+  border-radius: .25rem;
+  cursor: pointer;
+}
+
+.config-sub-accordion__title:hover,
+.config-sub-accordion__title:focus {
+  outline: none;
+  color: white;
+  background: #555;
+}
+
+.config-sub-accordion__body {
+  padding: .5rem 0 0;
+  overflow: hidden;
+}
+
+.config-sub-accordion__body.hide-content {
+  padding: 0;
+  background: transparent;
+}
