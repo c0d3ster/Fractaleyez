@@ -71,7 +71,7 @@ const toLabel = (name: string): string => {
   return spaced.replace(/^./, c => c.toUpperCase())
 }
 
-type ConfigSectionKey = 'user' | 'fractal' | 'audio' | 'effects' | 'particle' | 'orbit'
+type ConfigSectionKey = 'user' | 'fractal' | 'audio' | 'effects' | 'particle' | 'orbit' | 'logo'
 
 const mergeConfigSection = <C extends ConfigSectionKey>(category: C, loaded: Record<string, unknown> | undefined | null): AppConfig[C] => {
   const def = configDefaults[category] as Record<string, ConfigItem>
@@ -131,6 +131,8 @@ const normalizeLoadedPreset = (cfg: Record<string, unknown>): AppConfig => {
     },
     orbit: mergeConfigSection('orbit', cfg.orbit as Record<string, unknown> | undefined),
     video: mergeVideo(cfg.video),
+    layers: configDefaults.layers, // merge + legacy migration land in #22
+    logo: mergeConfigSection('logo', cfg.logo as Record<string, unknown> | undefined),
   }
 }
 

@@ -1,7 +1,7 @@
 import { AppConfig, StoredVideoSection } from './configDefaults'
 
 /** Presets predate some sections (video, fractal); normalizeLoadedPreset fills the missing ones from defaults. */
-export type PresetConfig = Omit<AppConfig, 'video' | 'fractal'> & { video?: StoredVideoSection; fractal?: AppConfig['fractal'] }
+export type PresetConfig = Omit<AppConfig, 'video' | 'fractal' | 'layers' | 'logo'> & { video?: StoredVideoSection; fractal?: AppConfig['fractal']; layers?: AppConfig['layers']; logo?: AppConfig['logo'] }
 
 export type BundledPreset = {
   pack: string

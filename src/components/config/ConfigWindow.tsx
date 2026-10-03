@@ -7,7 +7,7 @@ import { SavePreset } from '../presets/SavePreset'
 import { ConfigCategory } from './ConfigCategory'
 import { ConfigVideo } from './ConfigVideo'
 import { copyStyles } from '../../styles/AppStyleCopier'
-import { CONFIG_WINDOW_COLUMN_ORDER } from '../../config/configDefaults'
+import { DISPLAY_ORDER, getEntrySections } from '../../config/layers'
 import { connectConfig, ConfigContext, ConfigContextValue } from './context/ConfigProvider'
 import { CameraTouchpad } from './CameraTouchpad'
 import { ShapePad } from './ShapePad'
@@ -105,7 +105,7 @@ const ExternalWindowBridge = ({
           headerActions={<SavePreset prefill={prefill} onSaved={() => setPrefill(null)} />}
         />
         <div className='config-columns'>
-          {CONFIG_WINDOW_COLUMN_ORDER.map((segment) => {
+          {DISPLAY_ORDER.flatMap(getEntrySections).map((segment) => {
             if (segment === 'video') {
               return (
                 <div className='config-column' key='video'>

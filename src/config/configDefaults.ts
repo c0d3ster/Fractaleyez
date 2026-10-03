@@ -5,6 +5,8 @@ import { orbitConfig } from './orbit.config'
 import { particleConfig } from './particle.config'
 import { videoConfig } from './video.config'
 import { fractalConfig } from './fractal.config'
+import { logoConfig } from './logo.config'
+import { layerConfig } from './layers.config'
 
 export type SliderItem = {
   name: string
@@ -85,6 +87,29 @@ export type VideoConfigSection = {
 /** Stored/authored shape of a preset's video config — allClips is the runtime clip catalog, computed by mergeVideo and never persisted. */
 export type StoredVideoSection = Pick<VideoConfigSection, 'clips' | 'index'>
 
+export type LayerKey = 'video' | 'fractal' | 'orbit' | 'logo' // widened as layer types are added
+export type BlendMode = 'mask' // widened in the blend-mode follow-on
+
+export type LayerMeta = {
+  enabled: CheckboxItem
+  opacity: SliderItem
+  blendMode: BlendMode // not a ConfigItem; no UI until the follow-on
+}
+
+export type LayersConfigSection = {
+  order: LayerKey[] // back to front: index 0 is farthest, the last entry is in front
+  meta: Record<LayerKey, LayerMeta>
+}
+
+export type LogoConfigSection = {
+  sprite: MultiselectItem // single-select via min:1,max:1
+  spin: CheckboxItem
+  spinSpeed: SliderItem
+  beatScale: SliderItem
+  shake: SliderItem
+  glowOnBeat: CheckboxItem
+}
+
 export type AppConfig = {
   user: UserConfigSection
   fractal: FractalConfigSection
@@ -93,30 +118,15 @@ export type AppConfig = {
   particle: ParticleConfigSection
   orbit: OrbitConfigSection
   video: VideoConfigSection
+  layers: LayersConfigSection
+  logo: LogoConfigSection
 }
 
-/** Sidebar accordion row order (effects, then particle, then orbit). */
-export const CONFIG_CATEGORY_ORDER: (keyof AppConfig)[] = [
-  'user',
-  'fractal',
-  'audio',
-  'effects',
-  'particle',
-  'orbit',
-  'video',
-]
-
-export type ConfigWindowColumnKey = keyof AppConfig
-
-export const CONFIG_WINDOW_COLUMN_ORDER: ConfigWindowColumnKey[] = [
-  'user',
-  'audio',
-  'effects',
-  'particle',
-  'orbit',
-  'fractal',
-  'video',
-]
+const createLayerMeta = (enabled: boolean): LayerMeta => ({
+  enabled: { name: 'Enabled', type: 'checkbox', defaultValue: enabled, value: enabled },
+  opacity: { name: 'Opacity', type: 'slider', defaultValue: layerConfig.OPACITY_DEFAULT, value: layerConfig.OPACITY_DEFAULT, min: layerConfig.OPACITY_MIN, max: layerConfig.OPACITY_MAX, step: layerConfig.OPACITY_STEP_SIZE },
+  blendMode: 'mask',
+})
 
 const pd = analyserConfig.options.peakDetection.options
 
@@ -217,5 +227,22 @@ export const configDefaults: AppConfig = {
     clips: [...videoConfig.clips],
     allClips: [...videoConfig.allClips],
     index: videoConfig.index,
+  },
+  layers: {
+    order: [...layerConfig.ORDER_DEFAULT],
+    meta: {
+      video: createLayerMeta(true),
+      fractal: createLayerMeta(true),
+      orbit: createLayerMeta(true),
+      logo: createLayerMeta(false),
+    },
+  },
+  logo: {
+    sprite: { name: 'Sprite', type: 'multiselect', defaultValue: [logoConfig.sprite_DEFAULT], value: [logoConfig.sprite_DEFAULT], min: 1, max: 1 },
+    spin: { name: 'Spin', type: 'checkbox', defaultValue: logoConfig.spin_DEFAULT, value: logoConfig.spin_DEFAULT },
+    spinSpeed: { name: 'Spin Speed', type: 'slider', defaultValue: logoConfig.spinSpeed_DEFAULT, value: logoConfig.spinSpeed_DEFAULT, min: logoConfig.spinSpeed_MIN, max: logoConfig.spinSpeed_MAX, step: logoConfig.spinSpeed_STEP_SIZE },
+    beatScale: { name: 'Beat Scale', type: 'slider', defaultValue: logoConfig.beatScale_DEFAULT, value: logoConfig.beatScale_DEFAULT, min: logoConfig.beatScale_MIN, max: logoConfig.beatScale_MAX, step: logoConfig.beatScale_STEP_SIZE },
+    shake: { name: 'Shake', type: 'slider', defaultValue: logoConfig.shake_DEFAULT, value: logoConfig.shake_DEFAULT, min: logoConfig.shake_MIN, max: logoConfig.shake_MAX, step: logoConfig.shake_STEP_SIZE },
+    glowOnBeat: { name: 'Glow On Beat', type: 'checkbox', defaultValue: logoConfig.glowOnBeat_DEFAULT, value: logoConfig.glowOnBeat_DEFAULT },
   },
 }
