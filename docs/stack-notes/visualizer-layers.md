@@ -76,3 +76,13 @@ Branch: overnight/2026-10-03/26-use-sprite-upload
 - `ParticleSpriteHud` keeps `uploadDisabled` and the label title logic unchanged; only `onFiles`/`uploadError` and the constants moved. Error strings and sign-in path are verbatim. Hook is not in the huds barrel (not a component).
 - Gating contract: `atCapacity` (silent ignore) and `isSignedIn` (error message) are the only gates. `#20`'s premium check is not folded in; add it as a further option or via `uploadDisabled` when `#20` lands. Whether Logo uploads are premium-gated remains open.
 - Deviation: none. No separate dimension check exists client-side beyond `SPRITE_MAX_SIDE_PX` scaling; behavior unchanged. Not exercised in a browser; typecheck and lint pass (no test script).
+
+## #27 Logo layer
+
+Branch: overnight/2026-10-03/27-logo-layer
+
+- New `layers/logo-layer.ts` (`LogoLayer`, in the barrel), registered as `logo` in `createLayerPipeline`. It owns a `CameraManager` that is only `init()`ed and never `manageCameraPosition`ed, so the camera is never panned (`cameraBound`) and the sprite is a camera child at local `z = -10` (viewport height fraction 0.3, independent of `scaleFactor`). Own render target via the compositor; defaults off through `layers.meta.logo`.
+- Beat reactions read `audio.beat` (the shared peak): scale `1 + beat.value * beatScale`; shake = random x/y offset gated and scaled by `beat.value`; `glowOnBeat` brightens by `min(1, beat.value * beat.energy)`; spin adds `spinSpeed * deltaTime / 1000` (deltaTime is ms) to `material.rotation`.
+- Sprite follows `logo.sprite.value[0]` (set by `updateLogoSprite`) via `acquireSpriteTexture`/`getResolvedSpriteUrl`; an empty value or a still-loading image hides the sprite and renders a clear target (no crash). `L` added to `LAYER_HOTKEYS` in `main.ts` (goes through `setLayerEnabled`, cap applies).
+- Deviation: spin is applied to `SpriteMaterial.rotation`, not `rotation.z`, because THREE ignores an Object3D's rotation on a Sprite. Post effects (bloom/shockwave) still apply to the logo, as noted in `#23`. Not verified on a GPU. `#7` wiring not done (`#7` not landed).
+- NEEDS HUMAN: audio-reactive tuning (beatScale, shake and glow strength, logo size/distance); visual check of `L` toggle and layer order.

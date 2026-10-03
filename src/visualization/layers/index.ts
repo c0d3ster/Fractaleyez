@@ -1,6 +1,7 @@
 export * from './compositor'
 export * from './fractal-layer'
 export * from './layer'
+export * from './logo-layer'
 export * from './orbit-layer'
 export * from './pipeline'
 export * from './plan'
