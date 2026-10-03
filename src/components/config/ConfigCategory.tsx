@@ -4,8 +4,10 @@ import './ConfigCategory.css'
 
 import { ConfigSlider } from './ConfigSlider'
 import { ConfigCheckbox } from './ConfigCheckbox'
+import { LayerHeader } from './LayerHeader'
 import { connectConfig } from './context/ConfigProvider'
 import { AppConfig, ConfigItem, LayerKey, SliderItem } from '../../config/configDefaults'
+import { LAYER_REGISTRY } from '../../config/layers'
 import { SCALE_ZONES, SliderZone } from '../../config/juliaScale.config'
 
 // Per-field overrides for how a slider's raw numeric value is displayed; the raw value
@@ -22,6 +24,8 @@ const CATEGORY_LAYER: Partial<Record<string, LayerKey>> = {
   orbit: 'orbit',
 }
 
+const LAYER_KEYS = Object.values(LAYER_REGISTRY).map(({ key }) => key)
+
 // Sliders whose track is painted in zones (Scale: the Julia view's regimes).
 const SLIDER_ZONES: Partial<Record<string, readonly SliderZone[]>> = {
   scaleFactor: SCALE_ZONES,
@@ -33,10 +37,12 @@ type ConfigCategoryProps = {
   isOpen: boolean
   toggleOpen: (name: string) => void
   onChange: (category: string, item: string, value: string | boolean) => void
+  /** Popup column: always open, no chevron on a layer header. */
+  popup?: boolean
   children?: React.ReactNode
 }
 
-const ConfigCategoryInner = React.memo(({ name, config, isOpen, toggleOpen, onChange, children }: ConfigCategoryProps) => {
+const ConfigCategoryInner = React.memo(({ name, config, isOpen, toggleOpen, onChange, popup = false, children }: ConfigCategoryProps) => {
   const handleChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const target = event.target
     const item = target.name
@@ -52,6 +58,8 @@ const ConfigCategoryInner = React.memo(({ name, config, isOpen, toggleOpen, onCh
     'hide-content': !isOpen
   })
 
+  // A layer's primary section carries the layer header; secondary sections (particle) keep a plain title.
+  const headerLayer = LAYER_KEYS.find((key) => key === name)
   const owner = CATEGORY_LAYER[name]
   const dimmed = owner !== undefined && !config.layers.meta[owner].enabled.value
 
@@ -59,9 +67,9 @@ const ConfigCategoryInner = React.memo(({ name, config, isOpen, toggleOpen, onCh
 
   return (
     <div className={classNames('category-container', { 'category-container--effects': name === 'effects', 'config-inactive': dimmed })}>
-      <h3 className='category-title' onClick={handleToggle}>
-        {name} config
-      </h3>
+      {headerLayer
+        ? <LayerHeader layerKey={headerLayer} title={name} collapsible={!popup} isOpen={isOpen} onToggleOpen={handleToggle} />
+        : <h3 className='category-title' onClick={handleToggle}>{name} config</h3>}
       <div className={categoryContentClasses}>
         {Object.keys(categoryConfig).map((configItem) => {
           const item = categoryConfig[configItem]!

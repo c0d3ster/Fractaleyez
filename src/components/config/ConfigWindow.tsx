@@ -117,7 +117,7 @@ const ExternalWindowBridge = ({
             if (segment === 'video') {
               return (
                 <div className='config-column' key='video'>
-                  <ConfigVideo isOpen={true} toggleOpen={() => null} />
+                  <ConfigVideo isOpen={true} toggleOpen={() => null} popup />
                   <PerfHud />
                 </div>
               )
@@ -129,6 +129,7 @@ const ExternalWindowBridge = ({
                   onChange={updateConfigItem}
                   isOpen={true}
                   toggleOpen={() => null}
+                  popup
                 >
                   {segment === 'user' ? <CameraTouchpad /> : null}
                   {segment === 'audio' ? <><FrequencyHud /><BeatHud /></> : null}

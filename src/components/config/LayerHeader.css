@@ -1,0 +1,83 @@
+.layer-header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
+}
+
+.layer-header > :not(.layer-header__fill) {
+  position: relative;
+}
+
+.layer-header__fill {
+  position: absolute;
+  inset: 0;
+  transform-origin: left center;
+  background: rgba(59, 130, 246, .55);
+  pointer-events: none;
+  will-change: transform;
+}
+
+.layer-header--off .layer-header__fill {
+  background: rgba(100, 116, 139, .35);
+}
+
+.layer-header--off .layer-header__name,
+.layer-header--off .layer-header__percent {
+  opacity: .6;
+}
+
+.layer-header__power,
+.layer-header__stepper button {
+  background: transparent;
+  border: none;
+  color: inherit;
+  padding: 0 .25rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.layer-header__power--on {
+  color: #93c5fd;
+}
+
+.layer-header__power:disabled,
+.layer-header__stepper button:disabled {
+  opacity: .35;
+  cursor: not-allowed;
+}
+
+.layer-header__name {
+  flex: 1;
+  text-transform: lowercase;
+}
+
+.layer-header__percent {
+  font-variant-numeric: tabular-nums;
+  font-size: .8rem;
+}
+
+.layer-header__stepper {
+  display: inline-flex;
+  align-items: center;
+}
+
+.layer-header__stepper .layer-header__badge {
+  min-width: 1.4rem;
+  border-radius: .75rem;
+  background: rgba(255, 255, 255, .15);
+  font-size: .75rem;
+  font-weight: bold;
+}
+
+.layer-header__chevron {
+  transition: transform .15s ease;
+  transform: rotate(-90deg);
+}
+
+.layer-header__chevron--open {
+  transform: none;
+}
