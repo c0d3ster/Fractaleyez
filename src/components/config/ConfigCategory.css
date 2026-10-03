@@ -1,12 +1,10 @@
 .category-container {
   position: relative;
   margin: 0 1rem;
-  /* The strip above the header; the reset icon sits in its right corner. */
-  padding-top: 1.4rem;
 }
 
 .category-title {
-  margin: 0;
+  margin: 1rem 0 0 0;
   font-weight: bold;
   padding: 10px;
   color: rgba(220, 220, 220,.9);
@@ -45,22 +43,22 @@
   transition: opacity 0.2s ease, filter 0.2s ease;
 }
 
-/* Top-right corner, in the strip above the section header. */
+/* Top-right corner, in the margin above the section header (the header's top margin collapses out of the container,
+   so bottom: 100% lands in that gap and nothing is pushed down). */
 .category-reset {
   position: absolute;
-  top: 0;
+  bottom: 100%;
   right: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 1.4rem;
   padding: 0 2px;
-  color: rgba(40, 40, 40, .9);
+  color: rgba(220, 220, 220, .7);
   background: transparent;
   border: none;
   cursor: pointer;
 }
 
 .category-reset:hover {
-  color: black;
+  color: white;
 }
