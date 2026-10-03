@@ -8,4 +8,6 @@ export type Layer = {
   /** Called with the drawing buffer size in pixels; the layer's own target is sized by the compositor. */
   resize: (width: number, height: number) => void
   dispose: () => void
+  /** When it returns false the layer is skipped this frame, same as a disabled one. Omitted means always active. */
+  isActive?: () => boolean
 }

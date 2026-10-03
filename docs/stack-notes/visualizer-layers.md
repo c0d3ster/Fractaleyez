@@ -57,3 +57,13 @@ Branch: overnight/2026-10-03/24-port-layers-replace-modes
 - Persistence: Julia/Hopalong/both mode was runtime-only in `main.ts`; not stored in any preset or setting.
 - Deviations: Video is not rendered between this task and `#25` (plane hidden, `V` removed). Fractal runs at full resolution (no 0.5 scale) and the renderer is at pixel ratio 1 (Hopalong's old cap; Julia solo used up to 1.5). Compositor `mask` blend replaces the legacy screen blend, and bloom now applies to the whole composite, so Orbit/Fractal look differs slightly. Orbit and Fractal layers are constructed eagerly even when disabled (they just do not render).
 - NEEDS HUMAN: before/after visual parity check (Orbit, Fractal, both; particle crossfade on Particle Config drag; `S` shockwave; F/O toggles including from the popup).
+
+## #25 Port Video onto the layer pipeline and remove the ad hoc mask code
+
+Branch: overnight/2026-10-03/25-port-video-layer
+
+- New `layers/video-layer.ts` (`VideoLayer`, exported from the barrel): fullscreen quad textured from the clip, owns the `<video>` element, its 2px-dot attachment, muted `play()`, resume-if-paused, clip advance on `ended` (all moved from `HopalongVisualizer`), and a plain `THREE.Texture` with a `requestVideoFrameCallback` loop (from Julia's mask code). Created in `createLayerPipeline` and registered as `video` in the compositor.
+- `Layer` gains optional `isActive?: () => boolean`; the compositor skips a layer whose `isActive` is false. `VideoLayer.isActive` is true only while a clip is loaded, so the gate is `video.enabled && clips.length` (enabled via `planLayers`, clips via the element). The `videoClipsRestored` event (from `ConfigProvider`) still creates/tears down the element. `updateVideoClips` now skips the dispatch while the video layer is disabled (reconciles the `#22` note).
+- Removed: `HopalongVisualizer` video plane/element code, `OrbitLayer.hideVideoPlanes`, Julia `uVideo`/`uVideoMask`/`setVideoMask` and the shader block (`VIDEO_MASK_EDGE` const gone; `layerConfig.MASK_EDGE` is now only the compositor's). No mask-specific code remains outside the compositor's `mask` blend.
+- `V` toggles video through `LAYER_HOTKEYS` in `main.ts` (same `setLayerEnabled` rules).
+- Deviation: the old plane had camera-pan overscan; the video layer is a plain fullscreen quad (stretched to the viewport, as before) that ignores the orbit camera. Not verified on a GPU. NEEDS HUMAN: visual parity check, including video in front of Julia (`mask`, order `fractal` behind `video`) and the reverse.

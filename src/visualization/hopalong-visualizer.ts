@@ -3,7 +3,6 @@ import * as THREE from 'three'
 import { AudioAnalysedDataForVisualization } from '../audioanalysis/audio-analysed-data'
 import { getResolvedSpriteUrl } from '../utils/spriteCache'
 import { acquireSpriteTexture, releaseSpriteTexture } from '../utils/textureCache'
-import { getViewportSize } from '../utils/viewportSize'
 import { getParticleCrossfadeDurationMs, MAX_CROSSFADE_GENERATIONS } from '../config/visualizer.config'
 import { userConfig } from '../config/user.config'
 
@@ -12,8 +11,6 @@ import { userConfig } from '../config/user.config'
  * Modifications made by Cody Douglass and Conor O'Neill
  */
 const DEF_BRIGHTNESS = .5
-const VIDEO_RESUME_DELAY_MS = 250
-const VIDEO_RESUME_MAX_ATTEMPTS = 5
 
 // Orbit parameters
 let a = 0; let b = 0; let c = 0; let d = 0; let e = 0
@@ -51,10 +48,6 @@ export class HopalongVisualizer {
   particleSize: number
   needsParticleReset: boolean
   lights: THREE.PointLight[]
-  video: HTMLVideoElement | null
-  videoPlane: THREE.Mesh | null
-  /** Tracks bound + viewport so the plane can grow when cameraBound or window size changes. */
-  private lastVideoPlaneSizeKey: string | null
   objects: ParticleSystem[]
   hueValues: number[]
   scene: THREE.Scene
@@ -76,36 +69,6 @@ export class HopalongVisualizer {
   /** Current (newest) orbit shape's own fade-in progress. */
   private orbitIncomingElapsedMs: number
 
-  private resumeAttempts = 0
-  private resumeTimer: ReturnType<typeof setTimeout> | undefined
-
-  private onVideoClipsRestored = (event: Event): void => {
-    const ce = event as CustomEvent<{ clips: string[] }>
-    this.createVideoPlane(ce.detail.clips)
-  }
-
-  // Resume if the browser pauses the clip on its own (it never stops for a reason we want). Only while the page
-  // is visible, after a short delay, one request at a time, and a few tries in a row (reset once it plays again),
-  // so a browser that keeps pausing it can't turn this into a tight retry loop.
-  private onVideoPaused = (): void => {
-    const { video } = this
-    if (!video || video.ended || !window.config.video.clips.length || document.visibilityState !== 'visible') return
-    if (this.resumeTimer !== undefined || this.resumeAttempts >= VIDEO_RESUME_MAX_ATTEMPTS) return
-    this.resumeAttempts++
-    this.resumeTimer = setTimeout(() => {
-      this.resumeTimer = undefined
-      if (this.video === video && video.paused && !video.ended) video.play().catch(() => undefined)
-    }, VIDEO_RESUME_DELAY_MS)
-  }
-
-  private onVideoPlaying = (): void => {
-    this.resumeAttempts = 0
-  }
-
-  private onVideoEnded = (): void => {
-    if (this.video) this.nextVideo(this.video)
-  }
-
   constructor() {
     this.particlesPerLayer = window.config.particle.particlesPerLayer.value
     this.layers = window.config.particle.layers.value
@@ -115,9 +78,6 @@ export class HopalongVisualizer {
     this.particleSize = window.config.particle.particleSize.value
     this.needsParticleReset = false
     this.lights = []
-    this.video = null
-    this.videoPlane = null
-    this.lastVideoPlaneSizeKey = null
     this.objects = []
     this.hueValues = []
     this.scene = new THREE.Scene()
@@ -161,12 +121,6 @@ export class HopalongVisualizer {
 
     this.generateOrbit()
 
-    if (window.config.video && window.config.video.clips.length) {
-      this.createVideoPlane(window.config.video.clips)
-    }
-
-    window.addEventListener('videoClipsRestored', this.onVideoClipsRestored)
-
     for (let level = 0; level < this.levels; level++) {
       for (let s = 0; s < this.layers; s++) {
         const points: THREE.Vector3[] = []
@@ -206,95 +160,8 @@ export class HopalongVisualizer {
     this.updateInterval = setInterval(() => { this.updateOrbit() }, 250)
   }
 
-  createVideoPlane(clips: string[]): void {
-    this.disposeVideoPlane()
-    if (!clips.length) return
-
-    this.video = document.createElement('video')
-    this.video.src = clips[0]!
-    // Started with play() rather than the autoplay attribute: Chrome auto-pauses muted autoplay videos that
-    // aren't sufficiently in view, and this one is only a 2px dot. Muted so playback is always allowed (and the clip's audio can't feed back into the mic).
-    this.video.muted = true
-    this.video.playsInline = true
-    // Chrome only keeps decoding a video that is attached, fully opaque and not covered: a detached one
-    // stalls after its first ~14 frames (so the texture froze after about a second), and one that is hidden,
-    // translucent or under a canvas stalls the same way. So it lives on the page as a 2px dot in the corner,
-    // above everything, and the texture below samples from it.
-    Object.assign(this.video.style, {
-      position: 'fixed',
-      left: '0',
-      top: '0',
-      width: '2px',
-      height: '2px',
-      zIndex: '2147483647',
-      pointerEvents: 'none'
-    })
-    document.body.appendChild(this.video)
-    this.video.play().catch(() => undefined)
-    window.config.video.index = 0
-
-    this.video.addEventListener('ended', this.onVideoEnded)
-    this.video.addEventListener('pause', this.onVideoPaused)
-    this.video.addEventListener('playing', this.onVideoPlaying)
-
-    const videoTexture = new THREE.VideoTexture(this.video)
-    // Overscan: camera can pan up to cameraBound in x/y; enlarge the plane so edges stay
-    // covered at the current bound setting.
-    const currentBound = window.config.user.cameraBound.value
-    const panMargin = 1 + (2 * currentBound) / Math.min(window.innerWidth, window.innerHeight)
-    const planeW = window.innerWidth * panMargin
-    const planeH = window.innerHeight * panMargin
-    const planeGeometry = new THREE.PlaneGeometry(planeW, planeH)
-    const planeMaterial = new THREE.MeshBasicMaterial({ map: videoTexture })
-    this.videoPlane = new THREE.Mesh(planeGeometry, planeMaterial)
-    this.videoPlane.position.z = 5
-    this.scene.add(this.videoPlane)
-    this.lastVideoPlaneSizeKey = this.computeVideoPlaneSizeKey()
-  }
-
-  private computeVideoPlaneSizeKey(): string {
-    const bound = window.config.user.cameraBound.value
-    const { width, height } = getViewportSize()
-    return `${bound}:${width}x${height}`
-  }
-
-  private resizeVideoPlaneGeometry(): void {
-    if (!this.videoPlane) return
-    const currentBound = window.config.user.cameraBound.value
-    const panMargin = 1 + (2 * currentBound) / Math.min(window.innerWidth, window.innerHeight)
-    const planeW = window.innerWidth * panMargin
-    const planeH = window.innerHeight * panMargin
-    const oldGeo = this.videoPlane.geometry
-    this.videoPlane.geometry = new THREE.PlaneGeometry(planeW, planeH)
-    oldGeo.dispose()
-  }
-
-  nextVideo(videoElement: HTMLVideoElement): void {
-    const clips = window.config.video.clips
-    if (!clips.length) {
-      videoElement.pause()
-      videoElement.src = ''
-      this.disposeVideoPlane()
-      return
-    }
-    window.config.video.index++
-    if (window.config.video.index >= clips.length) {
-      window.config.video.index = 0
-    }
-    videoElement.src = clips[window.config.video.index]!
-    videoElement.play()
-  }
-
   update(deltaTime: number, audioData: AudioAnalysedDataForVisualization): void {
     this.advanceOrbitFade(deltaTime)
-
-    if (this.videoPlane) {
-      const key = this.computeVideoPlaneSizeKey()
-      if (key !== this.lastVideoPlaneSizeKey) {
-        this.lastVideoPlaneSizeKey = key
-        this.resizeVideoPlaneGeometry()
-      }
-    }
 
     if (audioData.beat.active) {
       this.audioPeak = true
@@ -601,9 +468,7 @@ export class HopalongVisualizer {
   }
 
   destroyVisualization(): void {
-    window.removeEventListener('videoClipsRestored', this.onVideoClipsRestored)
     if (this.updateInterval !== undefined) clearInterval(this.updateInterval)
-    this.disposeVideoPlane()
     this.disposeScene(this.scene)
   }
 
@@ -612,11 +477,7 @@ export class HopalongVisualizer {
    * is now live in window.config. Also resolves any in-progress orbit-shape fade immediately:
    * once OrbitLayer starts driving this visualizer's overall opacity as a single outgoing
    * generation, an unrelated inner fade still animating individual objects' opacity would fight
-   * it for control of the same materials. Tears down any video plane/element too -- only
-   * particle Points get reparented into the incoming visualizer's scene, so an outgoing video
-   * plane is no longer part of what's actually rendered, but its underlying <video> element
-   * would otherwise keep playing (and its audio keeps sounding) until this visualizer is
-   * eventually disposed at the end of its fade. */
+   * it for control of the same materials. */
   freezeConfig = (): void => {
     this.frozen = true
     if (this.updateInterval !== undefined) {
@@ -627,33 +488,6 @@ export class HopalongVisualizer {
       this.setObjectsOpacity(this.objects, 1)
       this.orbitFades.forEach((fade) => this.finalizeOutgoingOrbitFade(fade))
       this.orbitFades = []
-    }
-    window.removeEventListener('videoClipsRestored', this.onVideoClipsRestored)
-    this.disposeVideoPlane()
-  }
-
-  disposeVideoPlane(): void {
-    this.lastVideoPlaneSizeKey = null
-    if (this.videoPlane) {
-      this.scene.remove(this.videoPlane)
-      this.videoPlane.geometry.dispose()
-      const mat = this.videoPlane.material as THREE.MeshBasicMaterial
-      mat.map?.dispose()
-      mat.dispose()
-      this.videoPlane = null
-    }
-    if (this.video) {
-      this.video.removeEventListener('ended', this.onVideoEnded)
-      this.video.removeEventListener('pause', this.onVideoPaused)
-      this.video.removeEventListener('playing', this.onVideoPlaying)
-      clearTimeout(this.resumeTimer)
-      this.resumeTimer = undefined
-      this.resumeAttempts = 0
-      this.video.pause()
-      this.video.removeAttribute('src')
-      this.video.load()
-      this.video.remove()
-      this.video = null
     }
   }
 
