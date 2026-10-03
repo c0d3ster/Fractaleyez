@@ -96,3 +96,12 @@ Branch: overnight/2026-10-03/28-layer-fades
 - Layers at effective opacity 0 are dropped by `planLayers`, so they get no render, no target allocation, and no composite slot. A layer mid-fade still renders.
 - Tests: `fade.test.ts`, extra cases in `plan.test.ts`.
 - Deviation: none. Not verified on a GPU. Note: a layer that finishes fading out stops updating (its time freezes), as already noted in `#23`.
+
+## #29 Shared `LayerHeader` component and `ConfigVideo.tsx` split
+
+Branch: overnight/2026-10-03/29-layer-header
+
+- New `components/config/LayerHeader.tsx` (+ `.css`): `LayerHeader({ layerKey, title, collapsible?, isOpen?, onToggleOpen? })`, connected to config context. Power button (only enable toggle; disabled with a tooltip at `LAYER_CAP`), name, opacity percent, `-`/badge/`+` stepper (badge click cycles forward, wrapping; both call `moveLayer`), chevron when `collapsible`. Root is `role='slider'`, focusable; Left/Right step opacity by 0.05; Enter/Space toggles the body when collapsible; all other keys bubble untouched.
+- Drag: pointer capture, one `getBoundingClientRect` per drag, then `scaleX` on the fill via ref plus a rAF-throttled `setLayerOpacity`. A 4px threshold separates click (toggles body) from drag. Dragging an off layer calls `setLayerEnabled(key, true)` first; if the cap refuses, the drag is aborted. Fill is blue, dim steel when off (remembered opacity stays visible).
+- `ConfigVideo.tsx` is now just header + body shell (`popup` prop = always open, no chevron); clip list moved to `ConfigVideoBody.tsx`. `ConfigCategory` renders `LayerHeader` for sections whose name is a layer key (video's sibling `fractal`, `orbit`, `logo`); `particle` keeps the plain title. `ConfigWindow` passes `popup`.
+- Deviation: layer number is the 0-based index in `layers.order`. Stepper `-`/`+` added alongside the badge. Not checked against the canvas (no design access) or in a browser. NEEDS HUMAN: visual check of the six header states.
