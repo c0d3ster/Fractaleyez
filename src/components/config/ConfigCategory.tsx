@@ -6,8 +6,10 @@ import { ConfirmModal } from '../common/ConfirmModal'
 
 import { ConfigSlider } from './ConfigSlider'
 import { ConfigCheckbox } from './ConfigCheckbox'
+import { LayerHeader } from './LayerHeader'
 import { connectConfig, ConfigContextValue, ConfigSectionKey } from './context/ConfigProvider'
 import { AppConfig, ConfigItem, LayerKey, SliderItem } from '../../config/configDefaults'
+import { LAYER_REGISTRY } from '../../config/layers'
 import { SCALE_ZONES, SliderZone } from '../../config/juliaScale.config'
 import {
   isParticleLoadKey,
@@ -34,6 +36,8 @@ const CATEGORY_LAYER: Partial<Record<string, LayerKey>> = {
   orbit: 'orbit',
 }
 
+const LAYER_KEYS = Object.values(LAYER_REGISTRY).map(({ key }) => key)
+
 // Sliders whose track is painted in zones (Scale: the Julia view's regimes).
 const SLIDER_ZONES: Partial<Record<string, readonly SliderZone[]>> = {
   scaleFactor: SCALE_ZONES,
@@ -56,6 +60,8 @@ type ConfigCategoryProps = {
   isSignedIn: ConfigContextValue['isSignedIn']
   userSettings: ConfigContextValue['userSettings']
   updateUserSettings: ConfigContextValue['updateUserSettings']
+  /** Popup column: always open, no chevron on a layer header. */
+  popup?: boolean
   children?: React.ReactNode
 }
 
@@ -65,7 +71,7 @@ type PendingRedChange = {
   value: number
 }
 
-const ConfigCategoryInner = React.memo(({ name, config, isOpen, expanded = false, toggleOpen, onChange, resetConfigItem, resetConfigSection, isSignedIn, userSettings, updateUserSettings, children }: ConfigCategoryProps) => {
+const ConfigCategoryInner = React.memo(({ name, config, isOpen, expanded = false, toggleOpen, onChange, popup = false, resetConfigItem, resetConfigSection, isSignedIn, userSettings, updateUserSettings, children }: ConfigCategoryProps) => {
   // Load comes from the count, layers, levels and size sliders together, not any one in isolation.
   const { particlesPerLayer, layers, levels, particleSize } = config.particle
   const loadInputs = useMemo<ParticleLoadInputs>(() => ({
@@ -142,6 +148,8 @@ const ConfigCategoryInner = React.memo(({ name, config, isOpen, expanded = false
     'hide-content': !isOpen
   })
 
+  // A layer's primary section carries the layer header; secondary sections (particle) keep a plain title.
+  const headerLayer = LAYER_KEYS.find((key) => key === name)
   const owner = CATEGORY_LAYER[name]
   const dimmed = owner !== undefined && !config.layers.meta[owner].enabled.value
 
@@ -164,10 +172,14 @@ const ConfigCategoryInner = React.memo(({ name, config, isOpen, expanded = false
 
   return (
     <div className={classNames('category-container', { 'category-container--effects': name === 'effects', 'config-inactive': dimmed })}>
-      <h3 className='category-title' onClick={handleToggle}>
-        {name} config
-        {!expanded && resetButton}
-      </h3>
+      {headerLayer
+        ? <LayerHeader layerKey={headerLayer} title={name} collapsible={!popup} isOpen={isOpen} onToggleOpen={handleToggle} />
+        : (
+          <h3 className='category-title' onClick={handleToggle}>
+            {name} config
+            {!expanded && resetButton}
+          </h3>
+        )}
       {expanded && resetButton}
       {pendingRed && (
         <ConfirmModal
