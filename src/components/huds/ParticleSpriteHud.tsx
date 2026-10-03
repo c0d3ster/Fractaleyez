@@ -1,23 +1,11 @@
-import React, { useCallback, useRef, useState } from 'react'
-import axios from 'axios'
-import { prepareSprite } from 'sprite-strip'
+import React, { useCallback, useRef } from 'react'
 import './ParticleSpriteHud.css'
 
 import { connectConfig } from '../config/context/ConfigProvider'
 import { AppConfig } from '../../config/configDefaults'
 import { BUILTIN_PARTICLE_SPRITES, particleConfig } from '../../config/particle.config'
 import { presetSpriteSrc } from '../../utils/presetSpriteSrc'
-
-// Mirrors the server's MAX_UPLOAD_BYTES / MAX_DECODED_DIMENSION_PX in uploadParticleHandler.ts —
-// these client-side checks only save a round trip, the server enforces its own limits independently.
-const MAX_DATA_URL_BYTES = 2 * 1024 * 1024
-const SPRITE_MAX_SIDE_PX = 512
-const UPLOAD_ERROR_DISPLAY_MS = 4000
-
-const dataUrlToBlob = async (dataUrl: string): Promise<Blob> => {
-  const res = await fetch(dataUrl)
-  return res.blob()
-}
+import { useSpriteUpload } from './useSpriteUpload'
 
 const spriteLabel = (src: string): string => {
   if (src.startsWith('data:')) return 'Custom'
@@ -39,12 +27,6 @@ const ParticleSpriteHudInner = ({ config, updateParticleSprites, isSignedIn, get
   const { sprites_MIN: minN, sprites_MAX: maxN } = particleConfig
   const atCapacity = sprites.length >= maxN
   const uploadDisabled = atCapacity || !isSignedIn
-  const [uploadError, setUploadError] = useState<string | null>(null)
-
-  const showUploadError = useCallback((message: string) => {
-    setUploadError(message)
-    setTimeout(() => setUploadError(null), UPLOAD_ERROR_DISPLAY_MS)
-  }, [])
 
   const setSprites = useCallback(
     (next: string[]) => {
@@ -75,63 +57,12 @@ const ParticleSpriteHudInner = ({ config, updateParticleSprites, isSignedIn, get
     [sprites, minN, maxN, setSprites],
   )
 
-  const onFiles = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const files = e.target.files
-      if (!files?.length) return
-      const file = files[0]
-      if (!file || !file.type.startsWith('image/')) return
-      if (!isSignedIn) {
-        showUploadError('Sign in to upload a custom particle.')
-        e.target.value = ''
-        return
-      }
-      if (sprites.length >= maxN) {
-        e.target.value = ''
-        return
-      }
-      if (file.size > MAX_DATA_URL_BYTES) {
-        showUploadError(`Image is too large (max ${MAX_DATA_URL_BYTES / (1024 * 1024)} MB per file).`)
-        e.target.value = ''
-        return
-      }
+  // setSprites -> updateParticleSprites awaits the sprite cache warming before
+  // updating the live config, so the particle system rebuild it triggers resolves
+  // straight to the cached blob: URL instead of racing a cold cross-origin fetch.
+  const onUploaded = useCallback((url: string): void => setSprites([...spritesRef.current, url]), [setSprites])
 
-      const reader = new FileReader()
-      reader.onload = () => {
-        const raw = typeof reader.result === 'string' ? reader.result : ''
-        if (!raw) return
-        void (async () => {
-          try {
-            const processed = await prepareSprite(raw, SPRITE_MAX_SIDE_PX)
-            const blob = await dataUrlToBlob(processed)
-            if (blob.size > MAX_DATA_URL_BYTES) {
-              showUploadError(
-                `After scaling, the image is still over ${MAX_DATA_URL_BYTES / (1024 * 1024)} MB. Try a smaller or simpler image.`,
-              )
-              return
-            }
-            const token = await getToken()
-            if (!token) {
-              showUploadError('Sign in to upload a custom particle.')
-              return
-            }
-            const { data } = await axios.post<{ url: string }>('/api/uploadParticle', blob, {
-              headers: { Authorization: `Bearer ${token}`, 'Content-Type': blob.type || 'image/png' },
-            })
-            // setSprites -> updateParticleSprites awaits the sprite cache warming before
-            // updating the live config, so the particle system rebuild it triggers resolves
-            // straight to the cached blob: URL instead of racing a cold cross-origin fetch.
-            setSprites([...spritesRef.current, data.url])
-          } catch {
-            showUploadError('Could not upload this image.')
-          }
-        })()
-      }
-      reader.readAsDataURL(file)
-      e.target.value = ''
-    },
-    [sprites, maxN, setSprites, isSignedIn, getToken, showUploadError],
-  )
+  const { onFiles, uploadError } = useSpriteUpload({ isSignedIn, getToken, atCapacity, onUploaded })
 
   return (
     <div className='particle-sprite-hud'>
