@@ -88,3 +88,13 @@ Branch: overnight/2026-10-03/27-logo-layer
 - Edge-on glitch: seen exactly edge-on, the blended front/back faces fell back to the smallest mipmap (the average of the whole image: dim, part transparent) and drew a faint line across the full image height. The faces now fade out as `|cos(spin)|` drops below 0.3 (gone below 0.05, constants in `logo-layer.ts`); the cutout sides carry the shape. The sides use their own no-mipmap copy of the texture (`createSideTexture`), because a mipmapped lookup edge-on averaged the image under the 0.5 alpha cutoff and cut the middle of the sliver out.
 - Deviation: the logo is a stack of 64 textured `PlaneGeometry` slices (both faces drawn) over 10% of its height, not a `Sprite`, so spin is a 3D turn around its vertical axis (`group.rotation.y`) instead of a flat roll; the two outer slices are blended faces (soft edges kept) and the ones between are opaque alpha cutouts (0.5) that write depth, so the sides show the image's own edge colors; the back shows the image mirrored. Slice count, depth and shade are constants in `logo-layer.ts`. Swappable for a real extrusion later. Post effects (bloom/shockwave) still apply to the logo, as noted in `#23`. Not verified on a GPU. `#7` wiring not done (`#7` not landed).
 - NEEDS HUMAN: audio-reactive tuning (beatScale, shake and glow strength, logo size/distance); visual check of `L` toggle and layer order.
+
+## #28 Enable/disable fades and opacity in the compositor
+
+Branch: overnight/2026-10-03/28-layer-fades
+
+- New `layers/fade.ts` exports pure `stepOpacity(current, target, deltaMs, durationMs)` (linear, full 0..1 sweep per duration, duration <= 0 snaps, no overshoot). `plan.ts` gains `targetOpacity(meta, key)` and `planLayers(config, effective?)`; `effective` overrides the target for layers mid-fade.
+- `LayerCompositor` keeps an effective opacity per layer, stepped each `renderLayers` by `deltaTime` (ms) toward `targetOpacity` using `getParticleCrossfadeDurationMs()` (no new setting). First sighting of a layer starts at its target, so nothing fades in on load. Because the state is the current value, toggling mid-fade reverses from where it is.
+- Layers at effective opacity 0 are dropped by `planLayers`, so they get no render, no target allocation, and no composite slot. A layer mid-fade still renders.
+- Tests: `fade.test.ts`, extra cases in `plan.test.ts`.
+- Deviation: none. Not verified on a GPU. Note: a layer that finishes fading out stops updating (its time freezes), as already noted in `#23`.

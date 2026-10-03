@@ -4,7 +4,9 @@ import { AudioAnalysedDataForVisualization } from '../../audioanalysis/audio-ana
 import { LayerKey, LayersConfigSection } from '../../config/configDefaults'
 import { BLEND_CODES, compositeFragmentShader, compositeVertexShader, MAX_COMPOSITE_LAYERS } from './composite.glsl'
 import { Layer } from './layer'
-import { planLayers } from './plan'
+import { getParticleCrossfadeDurationMs } from '../../config/visualizer.config'
+import { stepOpacity } from './fade'
+import { planLayers, targetOpacity } from './plan'
 
 export type LayerCompositorOptions = {
   /** Per-layer render target scale against the drawing buffer (default 1). Soft layers can go below 1. */
@@ -18,6 +20,7 @@ export type LayerCompositorOptions = {
  */
 export class LayerCompositor {
   private readonly targets = new Map<LayerKey, THREE.WebGLRenderTarget>()
+  private readonly effectiveOpacity: Partial<Record<LayerKey, number>> = {}
   private readonly blank: THREE.DataTexture
   private readonly scene = new THREE.Scene()
   private readonly camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1)
@@ -54,7 +57,7 @@ export class LayerCompositor {
 
   /** Draws every planned layer into its target and points the composite pass at them. */
   renderLayers = (deltaTime: number, audio: AudioAnalysedDataForVisualization, config: LayersConfigSection): void => {
-    const planned = planLayers(config).filter(({ key }) => this.layers[key]?.isActive?.() ?? Boolean(this.layers[key]))
+    const planned = planLayers(config, this.stepOpacities(deltaTime, config)).filter(({ key }) => this.layers[key]?.isActive?.() ?? Boolean(this.layers[key]))
     const opacities: number[] = this.material.uniforms.uOpacity!.value
     const blends: number[] = this.material.uniforms.uBlend!.value
     planned.forEach(({ key, opacity, blendMode }, slot) => {
@@ -70,6 +73,23 @@ export class LayerCompositor {
       blends[slot] = BLEND_CODES.mask
     }
     this.material.uniforms.uCount!.value = planned.length
+  }
+
+  /**
+   * Eases each layer's effective opacity toward its target over the shared particle crossfade duration. A layer seen
+   * for the first time starts at its target, so nothing fades in on load.
+   */
+  private stepOpacities = (
+    deltaTime: number,
+    { order, meta }: LayersConfigSection,
+  ): Partial<Record<LayerKey, number>> => {
+    const durationMs = getParticleCrossfadeDurationMs()
+    order.forEach((key) => {
+      const target = targetOpacity(meta, key)
+      const current = this.effectiveOpacity[key]
+      this.effectiveOpacity[key] = current === undefined ? target : stepOpacity(current, target, deltaTime, durationMs)
+    })
+    return this.effectiveOpacity
   }
 
   /** Draws the composite pass straight to the screen. */
