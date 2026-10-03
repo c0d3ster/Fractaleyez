@@ -114,3 +114,13 @@ Branch: overnight/2026-10-03/30-sidebar-accordions
 - New `ConfigSectionItems` (rows of one section, extracted from `ConfigCategory`), `ConfigSubAccordion` (+ css, collapsed by default), `LogoSpritePicker` (single-select built-ins plus custom, upload via `useSpriteUpload` -> `updateLogoSprite`). `ConfigCategory` gains `bare` (skip own rows) and dims video/logo by their layer's enabled flag.
 - Bodies: video = `ConfigVideoBody`; fractal = tour + `ShapePad`; orbit = nested `orbit config` (a-e) and `particle config` (sliders + `ParticleSpriteHud`); logo = sprite picker, then spin/glow toggles and sliders. The popup also shows `LogoSpritePicker` under logo.
 - Deviation: `ParticleSpriteHud.tsx` is reused in place rather than relocated (avoids conflicts with `#20`; it still also renders in the popup particle column). Logo uploads are gated by sign-in only. Not checked against the canvas boards or in a browser; typecheck and lint pass. NEEDS HUMAN: visual check (collapsed, Video, Fractal, Orbit open), and toggle/opacity/number/cap end to end.
+
+## #31 Expanded view in `ConfigWindow.tsx`
+
+Branch: overnight/2026-10-03/31-expanded-view
+
+- Popup now renders one `config-column` per `DISPLAY_ORDER` entry (8: user + `CameraTouchpad`, color placeholder, effects, audio + `FrequencyHud`/`BeatHud`, video + `PerfHud`, fractal + `ShapePad`, orbit, logo), instead of flat-mapping sections. Layer columns get `LayerHeader` (no chevron, `popup`) via `ConfigCategory`; disabled layers dim through the existing `config-inactive` (no `pointer-events: none`).
+- Orbit column: header plus `OrbitColumnBody` (local to `ConfigWindow.tsx`), two nested `ConfigSubAccordion`s, single-open, `particle config` open by default. `ConfigSubAccordion` gained optional controlled `isOpen`/`onToggle` (uncontrolled behavior unchanged, used by the sidebar). `ColorPreview` is now exported from `ConfigAccordion.tsx` and reused as the popup's color column.
+- Logo column matches the sidebar order (sprite picker, then rows). `--config-column-count` 7 -> 8, `POPOUT_WIDTH` 1500 -> 1670 (8 x 205 + 30; fits 1920).
+- Layer actions were already forwarded through `ExternalWindowBridge` (`#22`); `forwardKey` untouched, so F/O/V/L still reach the main window.
+- Deviation: none. Not checked against the canvas board or in a browser. NEEDS HUMAN: visual check of the popup against the canvas expanded-view board, and F/O/V/L from the popup.

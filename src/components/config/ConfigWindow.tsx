@@ -5,17 +5,43 @@ import { Grid } from 'react-bootstrap'
 import { Presets, PresetSelection } from '../presets/Presets'
 import { SavePreset } from '../presets/SavePreset'
 import { ConfigCategory } from './ConfigCategory'
+import { ColorPreview } from './ConfigAccordion'
+import { ConfigSectionItems } from './ConfigSectionItems'
+import { ConfigSubAccordion } from './ConfigSubAccordion'
 import { ConfigVideo } from './ConfigVideo'
 import { copyStyles } from '../../styles/AppStyleCopier'
-import { DISPLAY_ORDER, getEntrySections } from '../../config/layers'
+import { DISPLAY_ORDER } from '../../config/layers'
 import { connectConfig, ConfigContext, ConfigContextValue } from './context/ConfigProvider'
 import { CameraTouchpad } from './CameraTouchpad'
 import { ShapePad } from './ShapePad'
 import { LogoSpritePicker } from './LogoSpritePicker'
 import { BeatHud, FrequencyHud, PerfHud, ParticleSpriteHud } from '../huds'
+import { AppConfig } from '../../config/configDefaults'
 
-// Seven 205px columns (1435) plus the grid's 15px side padding is 1465; the rest is margin.
-const POPOUT_WIDTH = 1500
+type OrbitColumnBodyProps = {
+  config: AppConfig
+  onChange: ConfigContextValue['updateConfigItem']
+}
+
+// Two nested accordions, single-open, particle config open by default.
+const OrbitColumnBody = ({ config, onChange }: OrbitColumnBodyProps): React.ReactElement => {
+  const [open, setOpen] = useState<'orbit' | 'particle' | null>('particle')
+  const toggle = (id: 'orbit' | 'particle') => (): void => setOpen((prev) => (prev === id ? null : id))
+  return (
+    <>
+      <ConfigSubAccordion title='orbit config' isOpen={open === 'orbit'} onToggle={toggle('orbit')}>
+        <ConfigSectionItems name='orbit' config={config} onChange={onChange} />
+      </ConfigSubAccordion>
+      <ConfigSubAccordion title='particle config' isOpen={open === 'particle'} onToggle={toggle('particle')}>
+        <ConfigSectionItems name='particle' config={config} onChange={onChange} />
+        <ParticleSpriteHud />
+      </ConfigSubAccordion>
+    </>
+  )
+}
+
+// Eight 205px columns (1640) plus the grid's 15px side padding is 1670, which fits a 1920px screen.
+const POPOUT_WIDTH = 1670
 const DEFAULT_WINDOW_FEATURES = `width=${POPOUT_WIDTH},height=860,location=no`
 
 // Positions the popout on a second screen at full available height when the Window Management
@@ -114,33 +140,34 @@ const ExternalWindowBridge = ({
           headerActions={<SavePreset prefill={prefill} onSaved={() => setPrefill(null)} />}
         />
         <div className='config-columns'>
-          {DISPLAY_ORDER.flatMap(getEntrySections).map((segment) => {
-            if (segment === 'video') {
-              return (
-                <div className='config-column' key='video'>
-                  <ConfigVideo isOpen={true} toggleOpen={() => null} popup />
-                  <PerfHud />
-                </div>
-              )
-            }
-            return (
-              <div className='config-column' key={segment}>
-                <ConfigCategory
-                  name={segment}
-                  onChange={updateConfigItem}
-                  isOpen={true}
-                  toggleOpen={() => null}
-                  popup
-                >
-                  {segment === 'user' ? <CameraTouchpad /> : null}
-                  {segment === 'audio' ? <><FrequencyHud /><BeatHud /></> : null}
-                  {segment === 'particle' ? <ParticleSpriteHud /> : null}
-                  {segment === 'fractal' ? <ShapePad /> : null}
-                  {segment === 'logo' ? <LogoSpritePicker /> : null}
+          {DISPLAY_ORDER.map((entry) => (
+            <div className='config-column' key={entry}>
+              {entry === 'color' ? <ColorPreview /> : null}
+              {entry === 'video' ? <><ConfigVideo isOpen={true} toggleOpen={() => null} popup /><PerfHud /></> : null}
+              {entry === 'orbit' ? (
+                <ConfigCategory name='orbit' onChange={updateConfigItem} isOpen={true} toggleOpen={() => null} popup bare>
+                  <OrbitColumnBody config={config} onChange={updateConfigItem} />
                 </ConfigCategory>
-              </div>
-            )
-          })}
+              ) : null}
+              {entry === 'logo' ? (
+                <ConfigCategory name='logo' onChange={updateConfigItem} isOpen={true} toggleOpen={() => null} popup bare>
+                  <LogoSpritePicker />
+                  <ConfigSectionItems name='logo' config={config} onChange={updateConfigItem} />
+                </ConfigCategory>
+              ) : null}
+              {entry === 'fractal' ? (
+                <ConfigCategory name='fractal' onChange={updateConfigItem} isOpen={true} toggleOpen={() => null} popup>
+                  <ShapePad />
+                </ConfigCategory>
+              ) : null}
+              {entry === 'user' || entry === 'effects' || entry === 'audio' ? (
+                <ConfigCategory name={entry} onChange={updateConfigItem} isOpen={true} toggleOpen={() => null} popup>
+                  {entry === 'user' ? <CameraTouchpad /> : null}
+                  {entry === 'audio' ? <><FrequencyHud /><BeatHud /></> : null}
+                </ConfigCategory>
+              ) : null}
+            </div>
+          ))}
         </div>
       </Grid>
     </ConfigContext.Provider>
