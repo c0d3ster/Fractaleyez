@@ -54,7 +54,7 @@ export class LayerCompositor {
 
   /** Draws every planned layer into its target and points the composite pass at them. */
   renderLayers = (deltaTime: number, audio: AudioAnalysedDataForVisualization, config: LayersConfigSection): void => {
-    const planned = planLayers(config).filter(({ key }) => this.layers[key])
+    const planned = planLayers(config).filter(({ key }) => this.layers[key]?.isActive?.() ?? Boolean(this.layers[key]))
     const opacities: number[] = this.material.uniforms.uOpacity!.value
     const screens: number[] = this.material.uniforms.uScreen!.value
     planned.forEach(({ key, opacity, blendMode }, slot) => {

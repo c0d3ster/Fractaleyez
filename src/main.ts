@@ -22,7 +22,7 @@ let pipeline: LayerPipeline | null = null
 window.getCameraSteer = () => pipeline?.getCameraSteer() ?? null
 
 // Layers toggled by a hotkey. The cap is enforced by setLayerEnabled, which refuses an enable past it.
-const LAYER_HOTKEYS: LayerKey[] = ['fractal', 'orbit']
+const LAYER_HOTKEYS: LayerKey[] = ['video', 'fractal', 'orbit']
 
 const toggleLayer = (key: LayerKey): void => {
   window.setLayerEnabled?.(key, !window.config.layers.meta[key].enabled.value)
