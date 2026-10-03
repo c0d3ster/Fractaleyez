@@ -1,9 +1,12 @@
 .category-container {
+  position: relative;
   margin: 0 1rem;
+  /* The strip above the header; the reset icon sits in its right corner. */
+  padding-top: 1.4rem;
 }
 
 .category-title {
-  margin: 1rem 0 0 0;
+  margin: 0;
   font-weight: bold;
   padding: 10px;
   color: rgba(220, 220, 220,.9);
@@ -42,24 +45,22 @@
   transition: opacity 0.2s ease, filter 0.2s ease;
 }
 
-.category-title {
+/* Top-right corner, in the strip above the section header. */
+.category-reset {
+  position: absolute;
+  top: 0;
+  right: 0;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-}
-
-.category-reset {
-  margin-left: 1rem;
-  padding: 2px 8px;
-  font-size: .75rem;
-  font-weight: normal;
-  color: inherit;
+  justify-content: center;
+  height: 1.4rem;
+  padding: 0 2px;
+  color: rgba(40, 40, 40, .9);
   background: transparent;
-  border: 1px solid rgba(220, 220, 220, .5);
-  border-radius: .25rem;
+  border: none;
   cursor: pointer;
 }
 
 .category-reset:hover {
-  background: rgba(255, 255, 255, .15);
+  color: black;
 }
