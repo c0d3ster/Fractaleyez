@@ -30,3 +30,15 @@ describe('planLayers', () => {
     expect(planLayers(layers)[0]).toEqual({ key: 'orbit', opacity: 0.4 })
   })
 })
+
+describe('planLayers with effective opacity', () => {
+  it('uses the in-flight value instead of the target', () => {
+    const layers = makeLayers()
+    layers.meta.orbit.enabled.value = false
+    expect(planLayers(layers, { orbit: 0.5 })[0]).toEqual({ key: 'orbit', opacity: 0.5 })
+  })
+
+  it('drops a layer once its effective opacity reaches 0', () => {
+    expect(planLayers(makeLayers(), { orbit: 0 }).map(({ key }) => key)).toEqual(['fractal', 'video'])
+  })
+})
