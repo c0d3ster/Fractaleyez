@@ -19,3 +19,15 @@ Branch: overnight/2026-10-03/21-layer-types-registry
 - `ConfigAccordion` and `ConfigWindow` iterate `DISPLAY_ORDER.flatMap(getEntrySections)`; `color` renders nothing yet, and `logo` now shows as a generic category (popup column count/width still 7 columns, left for the popup task).
 - `ConfigProvider`: `ConfigSectionKey` includes `'logo'`; `normalizeLoadedPreset` merges `logo` and sets `layers: configDefaults.layers` as a placeholder (real `mergeLayers` and legacy migration are `#22`).
 - Deviation: registry has no body component field yet (no body components exist); add it when the layer bodies land. Layer number is 0-based per the task. Design canvas not fetched (no web access); plan doc only.
+
+## #22 Merge, migration, and layer actions in `ConfigProvider.tsx`
+
+Branch: overnight/2026-10-03/22-merge-migration-layer-actions
+
+- New `src/config/mergeLayers.ts` exports `mergeLayers(loaded: unknown, clipCount: number): LayersConfigSection` (pure, so vitest can import it without React/Clerk). Order repair keeps known keys deduped then appends missing in default order; meta merges field by field over `configDefaults`. Missing/non-object `layers` gives legacy defaults (orbit on, video on iff clips, fractal/logo off). Loaded `layers` missing `enabled` for a layer falls back to the same legacy rule. Tests in `mergeLayers.test.ts`.
+- `normalizeLoadedPreset` now sets `layers: mergeLayers(cfg.layers, video.clips.length)`. `ConfigSectionKey` already had `'logo'` from `#21`.
+- `ConfigContextValue` gains `updateLogoSprite(sprite)`, `setLayerEnabled(key, enabled): boolean` (cap via `LAYER_CAP`, reads `window.config` to return synchronously), `setLayerOpacity(key, opacity)` (clamped), `moveLayer(key, toIndex)` (clamped). `ConfigWindow` bridge props pass them through.
+- Video enable/disable dispatches `videoClipsRestored` (clips, or `[]` when disabled). `retrieveConfigPreset` now compares effective clips (empty when video layer disabled). `updateVideoClips` is unchanged and still ignores the `enabled` flag; `#25` should reconcile.
+- Bundled `default` preset has explicit `layers` (all but logo enabled, opacity 1, mask, order `['fractal','video','orbit','logo']`).
+- Deviation: `mergeLayers` lives in its own module rather than inline in `ConfigProvider.tsx`, for testability.
+- NEEDS HUMAN: other bundled presets now start with fractal off; confirm none depended on it.
