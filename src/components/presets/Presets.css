@@ -296,7 +296,7 @@
 
 /* Expanded window overrides */
 .presets-container--expanded {
-  margin: 2.25rem;
+  margin: 1.75rem 2.25rem;
 }
 
 .presets-container--expanded .preset-item {
