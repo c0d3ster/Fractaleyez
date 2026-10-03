@@ -24,7 +24,7 @@ type EntryProps = {
 }
 
 // Non-functional placeholder until the shared Color config lands.
-const ColorPreview = (): React.ReactElement => (
+export const ColorPreview = (): React.ReactElement => (
   <div className='category-container'>
     <h3 className='category-title'>color config</h3>
   </div>
