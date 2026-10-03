@@ -1,4 +1,4 @@
-import type { AppConfig } from '../config/configDefaults'
+import type { AppConfig, LayerKey } from '../config/configDefaults'
 import type { BeatTimeline } from '../audioanalysis/beat'
 
 // Window Management API — not yet in TypeScript's lib.dom.d.ts.
@@ -28,8 +28,7 @@ declare global {
     setJuliaShape?: (re: number, im: number) => void
     getJuliaShape?: () => { re: number; im: number; manual: boolean; hue: number; saturation: number; targetRe: number; targetIm: number }
     clearJuliaShape?: () => void
-    juliaActive?: boolean
-    orbitActive?: boolean
+    setLayerEnabled?: (key: LayerKey, enabled: boolean) => boolean
     getCameraSteer?: () => { x: number; y: number } | null
     getAudioData?: () => {
       multibandEnergy?: number[]

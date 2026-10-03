@@ -7,8 +7,7 @@ import { ConfirmModal } from '../common/ConfirmModal'
 import { ConfigSlider } from './ConfigSlider'
 import { ConfigCheckbox } from './ConfigCheckbox'
 import { connectConfig, ConfigContextValue, ConfigSectionKey } from './context/ConfigProvider'
-import { useVisualizerActive, VisualizerActive } from './useVisualizerActive'
-import { AppConfig, ConfigItem, SliderItem } from '../../config/configDefaults'
+import { AppConfig, ConfigItem, LayerKey, SliderItem } from '../../config/configDefaults'
 import { SCALE_ZONES, SliderZone } from '../../config/juliaScale.config'
 import {
   isParticleLoadKey,
@@ -28,9 +27,9 @@ const SLIDER_DISPLAY_FORMATTERS: Partial<Record<string, (value: number) => strin
   cameraBound: (value) => (value / 100).toFixed(1),
 }
 
-// Categories that only matter while one visualizer is on; they grey out otherwise.
-const CATEGORY_VISUALIZER: Partial<Record<string, keyof VisualizerActive>> = {
-  fractal: 'julia',
+// Categories that only matter while one layer is enabled; they grey out otherwise.
+const CATEGORY_LAYER: Partial<Record<string, LayerKey>> = {
+  fractal: 'fractal',
   particle: 'orbit',
   orbit: 'orbit',
 }
@@ -143,9 +142,8 @@ const ConfigCategoryInner = React.memo(({ name, config, isOpen, expanded = false
     'hide-content': !isOpen
   })
 
-  const active = useVisualizerActive()
-  const owner = CATEGORY_VISUALIZER[name]
-  const dimmed = owner !== undefined && !active[owner]
+  const owner = CATEGORY_LAYER[name]
+  const dimmed = owner !== undefined && !config.layers.meta[owner].enabled.value
 
   const resetButton = isResettableSection(name) && (
     <button
@@ -211,7 +209,7 @@ const ConfigCategoryInner = React.memo(({ name, config, isOpen, expanded = false
                 displayValue={SLIDER_DISPLAY_FORMATTERS[configItem]?.(value as number)}
                 zones={name === 'particle' && isParticleLoadKey(configItem)
                   ? particleLoadZones(loadInputs, configItem, min, max)
-                  : active.julia ? SLIDER_ZONES[configItem] : undefined}
+                  : config.layers.meta.fractal.enabled.value ? SLIDER_ZONES[configItem] : undefined}
                 min={min}
                 max={max}
                 step={step}

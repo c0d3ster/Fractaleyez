@@ -43,3 +43,17 @@ Branch: overnight/2026-10-03/23-layer-pipeline-spike
 - Spike scope gaps: Orbit layer has no particle crossfade, no video plane (hidden), no bloom or shockwave. Skipped layers also stop updating (their time freezes). Compositor mask replaces the legacy screen blend between Orbit and Fractal, so the look differs.
 - Post effects decision: bloom and shockwave run once on the final composite (compositor output to a target, then `EffectComposer`), not per layer. Logo would be warped by that; add a per-layer opt-out (draw it after the effect pass) if that is unwanted.
 - Deviation: not verified on a GPU (no browser here); typecheck, lint, and tests pass. NEEDS HUMAN: measure GPU, memory, and frame time with 4-5 layers at the largest resolution; decide whether Fractal can run at reduced resolution (spike uses 0.5).
+
+## #24 Port Orbit and Fractal onto the layer pipeline, replace `main.ts` mode switching
+
+Branch: overnight/2026-10-03/24-port-layers-replace-modes
+
+- New `layers/pipeline.ts` (`createLayerPipeline(): LayerPipeline` with `render`, `triggerShockwave`, `getCameraSteer`, `dispose`) replaces `spike.ts` and `?layerSpike`; it is the production path. One renderer and canvas; Orbit and Fractal render to their own targets, `main.ts` just calls `pipeline.render`.
+- `LayerCompositor.render` split into `renderLayers(...)` and `composite()`, plus `getScene()`/`getCamera()`. New `layers/post-effects.ts` (`PostEffects`: bloom and shockwave via `EffectComposer` over the compositor's scene, `triggerShockwave`, beat-driven `render(audio)`); logic moved from `hopalong-manager.ts`, which is deleted.
+- `OrbitLayer` now owns the orbit camera, mouse and arrow-key handling, `window.setVirtualCameraPosition`/`getVirtualCameraPosition`/`enabledFreqBands`, and the particle crossfade logic (moved verbatim from the manager; crossfades still work). Video planes are forced hidden. `getCameraTrailPosition()` feeds the shockwave aim.
+- `JuliaVisualizer` is headless only: removed own renderer/canvas, `setVisible`, `setLayered`, `getDomElement`, `render()`, pixel-ratio caps; `getSteerPosition()` no longer returns null. `setVideoMask`/`uVideoMask` left in place for `#25` to remove.
+- `activeVisualizer`, `J`, `V`, `applyVisualizerLayout`, `window.juliaActive`/`orbitActive` and `useVisualizerActive.ts` are gone. `ConfigCategory` dims by `config.layers.meta[layer].enabled`. `F`/`O` toggle via `window.setLayerEnabled` (bridge set by `ConfigProvider`; cap enforced there; ignored in INPUT/TEXTAREA and on key repeat); hotkeys read from `LAYER_REGISTRY`. Popup `forwardKey` already forwards every key, so F/O work from the popup.
+- `window.getCameraSteer`: Fractal steering only when Orbit is off and Fractal on, else the orbit camera.
+- Persistence: Julia/Hopalong/both mode was runtime-only in `main.ts`; not stored in any preset or setting.
+- Deviations: Video is not rendered between this task and `#25` (plane hidden, `V` removed). Fractal runs at full resolution (no 0.5 scale) and the renderer is at pixel ratio 1 (Hopalong's old cap; Julia solo used up to 1.5). Compositor `mask` blend replaces the legacy screen blend, and bloom now applies to the whole composite, so Orbit/Fractal look differs slightly. Orbit and Fractal layers are constructed eagerly even when disabled (they just do not render).
+- NEEDS HUMAN: before/after visual parity check (Orbit, Fractal, both; particle crossfade on Particle Config drag; `S` shockwave; F/O toggles including from the popup).
