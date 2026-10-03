@@ -13,6 +13,8 @@ type ConfigSliderProps = {
   max: number
   step: number
   onChange: React.ChangeEventHandler<HTMLInputElement>
+  // Optional: double-click on the slider resets it (the consumer decides what "default" means).
+  onReset?: React.MouseEventHandler<HTMLInputElement>
   // Optional: fires once, with the final value, when a drag/keypress ends -- lets a consumer
   // track the live value locally (for smooth dragging) while deferring any expensive/networked
   // work (e.g. persisting to the server) until the user releases the slider.
@@ -35,7 +37,7 @@ const zoneGradient = (zones: readonly SliderZone[], min: number, max: number): s
   return `linear-gradient(to right, ${stops.join(', ')})`
 }
 
-export const ConfigSlider = React.memo(({ name, label, value, displayValue, zones, min, max, step, onChange, onCommit }: ConfigSliderProps) => {
+export const ConfigSlider = React.memo(({ name, label, value, displayValue, zones, min, max, step, onChange, onReset, onCommit }: ConfigSliderProps) => {
   const handleCommit = useCallback((e: React.SyntheticEvent<HTMLInputElement>): void => {
     onCommit?.(Number(e.currentTarget.value))
   }, [onCommit])
@@ -58,6 +60,8 @@ export const ConfigSlider = React.memo(({ name, label, value, displayValue, zone
         step={step}
         style={zoneBackground ? { background: zoneBackground } : undefined}
         onChange={onChange}
+        onDoubleClick={onReset}
+        title={onReset ? 'Double-click to reset' : undefined}
         onPointerDown={e => e.currentTarget.setPointerCapture(e.pointerId)}
         onPointerUp={handleCommit}
         onKeyUp={handleCommit} />

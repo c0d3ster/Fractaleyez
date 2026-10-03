@@ -41,3 +41,25 @@
   filter: grayscale(1);
   transition: opacity 0.2s ease, filter 0.2s ease;
 }
+
+.category-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.category-reset {
+  margin-left: 1rem;
+  padding: 2px 8px;
+  font-size: .75rem;
+  font-weight: normal;
+  color: inherit;
+  background: transparent;
+  border: 1px solid rgba(220, 220, 220, .5);
+  border-radius: .25rem;
+  cursor: pointer;
+}
+
+.category-reset:hover {
+  background: rgba(255, 255, 255, .15);
+}

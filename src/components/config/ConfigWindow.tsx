@@ -67,6 +67,8 @@ const ExternalWindowBridge = ({
   retrieveConfigPreset,
   revertConfig,
   resetConfig,
+  resetConfigItem,
+  resetConfigSection,
   savePreset,
   isSignedIn,
   currentUserId,
@@ -87,6 +89,8 @@ const ExternalWindowBridge = ({
         retrieveConfigPreset,
         revertConfig,
         resetConfig,
+        resetConfigItem,
+        resetConfigSection,
         savePreset,
         isSignedIn,
         currentUserId,
@@ -148,6 +152,8 @@ const ConfigWindowInner = ({
   retrieveConfigPreset,
   revertConfig,
   resetConfig,
+  resetConfigItem,
+  resetConfigSection,
   savePreset,
   isSignedIn,
   currentUserId,
@@ -237,6 +243,8 @@ const ConfigWindowInner = ({
         retrieveConfigPreset={retrieveConfigPreset}
         revertConfig={revertConfig}
         resetConfig={resetConfig}
+        resetConfigItem={resetConfigItem}
+        resetConfigSection={resetConfigSection}
         savePreset={savePreset}
         isSignedIn={isSignedIn}
         currentUserId={currentUserId}
@@ -255,6 +263,8 @@ const ConfigWindowInner = ({
     updateParticleSprites,
     retrieveConfigPreset,
     resetConfig,
+    resetConfigItem,
+    resetConfigSection,
     savePreset,
     isSignedIn,
     currentUserId,
