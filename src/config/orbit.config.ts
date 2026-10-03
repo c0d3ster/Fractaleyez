@@ -1,7 +1,7 @@
 export const orbitConfig = {
   A_MIN: 1,
   A_MAX: 10,
-  A_DEFAULT: 2.5,
+  A_DEFAULT: 5,
   A_STEP_SIZE: 0.1,
 
   B_MIN: 0,

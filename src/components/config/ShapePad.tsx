@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { JULIA_FAMOUS_SHAPES, JULIA_MAP_VIEW, JULIA_TOUR } from '../../visualization/julia-tour'
 import './ShapePad.css'
 import { subscribeUiTick } from '../../utils/uiTicker'
+import { particleConfig } from '../../config/particle.config'
 
 // The pad fills its column (3:2, see ShapePad.css); the canvases use a fixed backing size that
 // stays sharp when scaled to the column width.
@@ -176,16 +177,16 @@ export const ShapePad = (): React.ReactElement => {
   const lastDrawnKey = useRef('')
   const iterationsRef = useRef<Float32Array | null>(null)
   const drawnHueRef = useRef(Number.NaN)
-  const drawnSaturationRef = useRef(1)
+  const drawnSaturationRef = useRef<number>(particleConfig.saturation_DEFAULT)
   const lastRecolorAtRef = useRef(0)
-  const [readout, setReadout] = useState<ShapeReadout>({ re: -0.75, im: 0, manual: false, hue: 0, saturation: 1, targetRe: -0.75, targetIm: 0 })
+  const [readout, setReadout] = useState<ShapeReadout>({ re: -0.75, im: 0, manual: false, hue: 0, saturation: particleConfig.saturation_DEFAULT, targetRe: -0.75, targetIm: 0 })
 
   useEffect(() => {
     const canvas = mandelbrotRef.current
     if (!canvas) return
     iterationsRef.current = computeIterations(canvas.width, canvas.height)
     drawnHueRef.current = 0
-    drawMandelbrot(canvas, iterationsRef.current, 0, 1)
+    drawMandelbrot(canvas, iterationsRef.current, 0, particleConfig.saturation_DEFAULT)
   }, [])
 
   // Poll the visualizer's current shape on the shared UI tick so the dot follows the Tour slider, glides, and
