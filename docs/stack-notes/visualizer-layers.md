@@ -67,3 +67,12 @@ Branch: overnight/2026-10-03/25-port-video-layer
 - Removed: `HopalongVisualizer` video plane/element code, `OrbitLayer.hideVideoPlanes`, Julia `uVideo`/`uVideoMask`/`setVideoMask` and the shader block (`VIDEO_MASK_EDGE` const gone; `layerConfig.MASK_EDGE` is now only the compositor's). No mask-specific code remains outside the compositor's `mask` blend.
 - `V` toggles video through `LAYER_HOTKEYS` in `main.ts` (same `setLayerEnabled` rules).
 - Deviation: the old plane had camera-pan overscan; the video layer is a plain fullscreen quad (stretched to the viewport, as before) that ignores the orbit camera. Not verified on a GPU. NEEDS HUMAN: visual parity check, including video in front of Julia (`mask`, order `fractal` behind `video`) and the reverse.
+
+## #26 Extract `useSpriteUpload` from `ParticleSpriteHud.tsx`
+
+Branch: overnight/2026-10-03/26-use-sprite-upload
+
+- New `src/components/huds/useSpriteUpload.ts` exports `useSpriteUpload({ isSignedIn, getToken, atCapacity, onUploaded }): { onFiles, uploadError }`, plus `MAX_DATA_URL_BYTES` and `SPRITE_MAX_SIDE_PX`. It owns the file checks, `prepareSprite`, size recheck, token fetch, `/api/uploadParticle` POST, and error display timer. The caller decides what to do with the URL: the particle picker appends (`[...spritesRef.current, url]`), a Logo picker can replace its value.
+- `ParticleSpriteHud` keeps `uploadDisabled` and the label title logic unchanged; only `onFiles`/`uploadError` and the constants moved. Error strings and sign-in path are verbatim. Hook is not in the huds barrel (not a component).
+- Gating contract: `atCapacity` (silent ignore) and `isSignedIn` (error message) are the only gates. `#20`'s premium check is not folded in; add it as a further option or via `uploadDisabled` when `#20` lands. Whether Logo uploads are premium-gated remains open.
+- Deviation: none. No separate dimension check exists client-side beyond `SPRITE_MAX_SIDE_PX` scaling; behavior unchanged. Not exercised in a browser; typecheck and lint pass (no test script).
