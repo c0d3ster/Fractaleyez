@@ -37,3 +37,15 @@ describe('planLayers', () => {
     expect(blends).toEqual({ logo: 'over', orbit: 'screen', fractal: 'mask', video: 'mask' })
   })
 })
+
+describe('planLayers with effective opacity', () => {
+  it('uses the in-flight value instead of the target', () => {
+    const layers = makeLayers()
+    layers.meta.orbit.enabled.value = false
+    expect(planLayers(layers, { orbit: 0.5 })[0]).toEqual({ key: 'orbit', opacity: 0.5, blendMode: 'screen' })
+  })
+
+  it('drops a layer once its effective opacity reaches 0', () => {
+    expect(planLayers(makeLayers(), { orbit: 0 }).map(({ key }) => key)).toEqual(['fractal', 'video'])
+  })
+})
