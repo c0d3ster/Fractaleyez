@@ -105,3 +105,12 @@ Branch: overnight/2026-10-03/29-layer-header
 - Drag: pointer capture, one `getBoundingClientRect` per drag, then `scaleX` on the fill via ref plus a rAF-throttled `setLayerOpacity`. A 4px threshold separates click (toggles body) from drag. Dragging an off layer calls `setLayerEnabled(key, true)` first; if the cap refuses, the drag is aborted. Fill is blue, dim steel when off (remembered opacity stays visible).
 - `ConfigVideo.tsx` is now just header + body shell (`popup` prop = always open, no chevron); clip list moved to `ConfigVideoBody.tsx`. `ConfigCategory` renders `LayerHeader` for sections whose name is a layer key (video's sibling `fractal`, `orbit`, `logo`); `particle` keeps the plain title. `ConfigWindow` passes `popup`.
 - Deviation: layer number is the 0-based index in `layers.order`. Stepper `-`/`+` added alongside the badge. Not checked against the canvas (no design access) or in a browser. NEEDS HUMAN: visual check of the six header states.
+
+## #30 Sidebar layer accordions
+
+Branch: overnight/2026-10-03/30-sidebar-accordions
+
+- `ConfigAccordion` now maps `DISPLAY_ORDER` entries through a registry-driven `Entry` switch; the `category === 'video'` special case is gone. Global rows use `ConfigCategory`; layer rows get `LayerHeader` via `ConfigCategory`. Single-open behavior unchanged. `color` renders a non-functional title-only placeholder until `#38`.
+- New `ConfigSectionItems` (rows of one section, extracted from `ConfigCategory`), `ConfigSubAccordion` (+ css, collapsed by default), `LogoSpritePicker` (single-select built-ins plus custom, upload via `useSpriteUpload` -> `updateLogoSprite`). `ConfigCategory` gains `bare` (skip own rows) and dims video/logo by their layer's enabled flag.
+- Bodies: video = `ConfigVideoBody`; fractal = tour + `ShapePad`; orbit = nested `orbit config` (a-e) and `particle config` (sliders + `ParticleSpriteHud`); logo = sprite picker, then spin/glow toggles and sliders. The popup also shows `LogoSpritePicker` under logo.
+- Deviation: `ParticleSpriteHud.tsx` is reused in place rather than relocated (avoids conflicts with `#20`; it still also renders in the popup particle column). Logo uploads are gated by sign-in only. Not checked against the canvas boards or in a browser; typecheck and lint pass. NEEDS HUMAN: visual check (collapsed, Video, Fractal, Orbit open), and toggle/opacity/number/cap end to end.

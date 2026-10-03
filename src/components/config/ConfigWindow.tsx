@@ -11,6 +11,7 @@ import { DISPLAY_ORDER, getEntrySections } from '../../config/layers'
 import { connectConfig, ConfigContext, ConfigContextValue } from './context/ConfigProvider'
 import { CameraTouchpad } from './CameraTouchpad'
 import { ShapePad } from './ShapePad'
+import { LogoSpritePicker } from './LogoSpritePicker'
 import { BeatHud, FrequencyHud, PerfHud, ParticleSpriteHud } from '../huds'
 
 // Seven 205px columns (1435) plus the grid's 15px side padding is 1465; the rest is margin.
@@ -135,6 +136,7 @@ const ExternalWindowBridge = ({
                   {segment === 'audio' ? <><FrequencyHud /><BeatHud /></> : null}
                   {segment === 'particle' ? <ParticleSpriteHud /> : null}
                   {segment === 'fractal' ? <ShapePad /> : null}
+                  {segment === 'logo' ? <LogoSpritePicker /> : null}
                 </ConfigCategory>
               </div>
             )
