@@ -81,7 +81,7 @@ body {
    the presets row inherits it, so presets and columns line up. Narrower windows scroll instead. */
 .config-window-root {
   --config-column-width: 205px;
-  --config-column-count: 7;
+  --config-column-count: 8;
 }
 
 .config-window-root .container-fluid {
