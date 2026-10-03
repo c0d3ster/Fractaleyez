@@ -49,6 +49,7 @@
   position: absolute;
   bottom: 100%;
   right: 0;
+  margin-bottom: 2px;
   display: flex;
   align-items: center;
   justify-content: center;
