@@ -24,12 +24,12 @@ const juliaVisualizer = new JuliaVisualizer()
 // particles add light over the fractal.
 type ActiveVisualizer = 'hopalong' | 'julia' | 'both'
 const VISUALIZER_CYCLE: ActiveVisualizer[] = ['hopalong', 'julia', 'both']
-let activeVisualizer: ActiveVisualizer = 'hopalong'
+let activeVisualizer: ActiveVisualizer = 'both'
 
 // The config UI greys out controls for a visualizer that is off (Fractal config and the Scale zones for Julia,
 // Particle and Orbit config for Hopalong). The event name matches VISUALIZER_ACTIVE_EVENT in
 // components/config/useVisualizerActive.ts.
-window.juliaActive = false
+window.juliaActive = true
 window.orbitActive = true
 // Where the camera pad's trailing dot sits: the Julia steering when Julia is alone on screen, the Hopalong camera
 // otherwise (in 'both' they share the same ease, so either reads the same).
@@ -49,7 +49,7 @@ const publishActiveVisualizers = (): void => {
 // Video mask (press V): the video only shows where the visualizer is black. In Julia (solo or both) the Julia
 // shader fills its black areas with the video itself. In Hopalong solo the particles darken the video instead of
 // adding light. In 'both', Hopalong's own video plane is hidden so the video is only drawn once, by Julia.
-let videoMask = false
+let videoMask = true
 
 const applyVisualizerLayout = (): void => {
   const hopalongCanvas = hopalongManager.getDomElement()
@@ -175,6 +175,7 @@ const init = (): void => {
 
   hopalongManager.init(startTimer)
   juliaVisualizer.init()
+  applyVisualizerLayout()
   // Owned here (not by a visualizer) so the frequency HUD keeps working in every mode, including Julia solo.
   window.getAudioData = audioFeed.getLatest
   window.getBeatTimeline = beatMonitor.getTimeline
