@@ -8,6 +8,6 @@ export const layerConfig = {
   OPACITY_STEP_SIZE: 0.01,
 
   // Luminance-key edge for the `mask` blend: a lower layer is fully hidden once the layers in front reach this
-  // brightness. Shared with the Julia shader's video mask (was its VIDEO_MASK_EDGE).
+  // brightness.
   MASK_EDGE: 0.33,
 } as const
