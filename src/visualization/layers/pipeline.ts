@@ -3,6 +3,7 @@ import * as THREE from 'three'
 import { AudioAnalysedDataForVisualization } from '../../audioanalysis/audio-analysed-data'
 import { LayerCompositor } from './compositor'
 import { FractalLayer } from './fractal-layer'
+import { LogoLayer } from './logo-layer'
 import { OrbitLayer } from './orbit-layer'
 import { PostEffects } from './post-effects'
 import { VideoLayer } from './video-layer'
@@ -15,7 +16,7 @@ export type LayerPipeline = {
   dispose: () => void
 }
 
-/** One renderer and canvas; Video, Orbit and Fractal draw to their own targets, composed in `layers.order`, then bloom and shockwave. */
+/** One renderer and canvas; Video, Orbit, Fractal and Logo draw to their own targets, composed in `layers.order`, then bloom and shockwave. */
 export const createLayerPipeline = (): LayerPipeline => {
   const renderer = new THREE.WebGLRenderer({ antialias: false })
   renderer.setClearColor(0x000000, 1)
@@ -27,7 +28,8 @@ export const createLayerPipeline = (): LayerPipeline => {
   const orbit = new OrbitLayer(renderer)
   const fractal = new FractalLayer(renderer)
   const video = new VideoLayer(renderer)
-  const compositor = new LayerCompositor(renderer, { orbit, fractal, video })
+  const logo = new LogoLayer(renderer)
+  const compositor = new LayerCompositor(renderer, { orbit, fractal, video, logo })
   const effects = new PostEffects(renderer, compositor.getScene(), compositor.getCamera(), orbit.getCameraTrailPosition)
 
   const onResize = (): void => {
