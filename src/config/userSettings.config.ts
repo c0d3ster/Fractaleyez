@@ -6,6 +6,7 @@ export type UserHudSettings = {
 export type UserSettings = {
   crossfadeDurationMs?: number
   logoParticle?: string
+  skipRedZoneWarning?: boolean
   hud?: UserHudSettings
 }
 

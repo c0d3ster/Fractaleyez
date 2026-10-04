@@ -6,12 +6,6 @@ export const BUILTIN_PARTICLE_SPRITES = [
   'galaxy3Sprite.png',
 ] as const
 
-/**
- * Computed total (particlesPerLayer × layers) above which GPU load risks stutter or a crash,
- * per the README's Particle Config performance warning. Tune here.
- */
-export const PARTICLE_COUNT_RED_ZONE_THRESHOLD = 100_000
-
 export const particleConfig = {
   sprites_DEFAULT: ['galaxySprite.png', 'galaxy2Sprite.png', 'galaxy3Sprite.png'],
   sprites_MIN: 1,
