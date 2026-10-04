@@ -11,6 +11,7 @@ import { DISPLAY_ORDER, getEntrySections } from '../../config/layers'
 import { connectConfig, ConfigContext, ConfigContextValue } from './context/ConfigProvider'
 import { CameraTouchpad } from './CameraTouchpad'
 import { ShapePad } from './ShapePad'
+import { LogConfigButton } from './LogConfigButton'
 import { BeatHud, FrequencyHud, PerfHud, ParticleSpriteHud } from '../huds'
 
 // Seven 205px columns (1435) plus the grid's 15px side padding is 1465; the rest is margin.
@@ -114,7 +115,7 @@ const ExternalWindowBridge = ({
           expanded
           onSelect={setPrefill}
           onPackSelect={(pack: string) => setPrefill(prev => prev ? { ...prev, pack } : { name: '', label: '', pack, isOwn: false })}
-          headerActions={<SavePreset prefill={prefill} onSaved={() => setPrefill(null)} />}
+          headerActions={<><SavePreset prefill={prefill} onSaved={() => setPrefill(null)} /><LogConfigButton /></>}
         />
         <div className='config-columns'>
           {DISPLAY_ORDER.flatMap(getEntrySections).map((segment) => {
