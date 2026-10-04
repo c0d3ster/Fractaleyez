@@ -16,7 +16,13 @@ const seed = async () => {
   await mongoose.connect(requireEnv.MONGO_URI())
   console.info('Connected to MongoDB')
 
+  // Optional preset names as args (yarn seed galaxySpiral) limit the run to those; none seeds everything.
+  const only = process.argv.slice(2)
+  const unknown = only.filter(name => !(name in presets))
+  if (unknown.length) throw new Error(`Unknown preset(s): ${unknown.join(', ')}`)
+
   for (const [name, data] of Object.entries(presets)) {
+    if (only.length && !only.includes(name)) continue
     // Target only global (unowned) rows so we never overwrite a user's preset with the same name.
     await Preset.findOneAndUpdate(
       { name, $or: [{ userId: { $exists: false } }, { userId: null }] },
