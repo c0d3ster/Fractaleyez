@@ -4,6 +4,7 @@ import {
   ConfigItem,
   EffectsConfigSection,
   FractalConfigSection,
+  LogoConfigSection,
   OrbitConfigSection,
   ParticleConfigSection,
   StoredVideoSection,
@@ -25,13 +26,14 @@ export type StoredConfig = {
   particle?: Partial<ItemValues<ParticleConfigSection>>
   orbit?: Partial<ItemValues<OrbitConfigSection>>
   video?: StoredVideoSection
+  logo?: Partial<ItemValues<LogoConfigSection>>
 }
 
 // Object.fromEntries widens to an index signature, so the one cast lives here instead of at each section.
 const valuesOf = <S extends Record<string, ConfigItem>>(section: S): ItemValues<S> =>
   Object.fromEntries(Object.entries(section).map(([key, item]) => [key, item.value])) as ItemValues<S>
 
-export const toStoredConfig = ({ user, fractal, audio, effects, particle, orbit, video }: AppConfig): StoredConfig => ({
+export const toStoredConfig = ({ user, fractal, audio, effects, particle, orbit, video, logo }: AppConfig): StoredConfig => ({
   user: valuesOf(user),
   fractal: valuesOf(fractal),
   audio: valuesOf(audio),
@@ -39,4 +41,5 @@ export const toStoredConfig = ({ user, fractal, audio, effects, particle, orbit,
   particle: valuesOf(particle),
   orbit: valuesOf(orbit),
   video: { clips: video.clips, index: video.index },
+  logo: valuesOf(logo),
 })
