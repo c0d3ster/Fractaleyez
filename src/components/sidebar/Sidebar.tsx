@@ -8,6 +8,7 @@ import { SavePreset } from '../presets/SavePreset'
 import { ConfigAccordion } from '../config/ConfigAccordion'
 import { connectConfig } from '../config/context/ConfigProvider'
 import { AppConfig } from '../../config/configDefaults'
+import { toStoredConfig } from '../../config/storedConfig'
 
 type SidebarProps = {
   config: AppConfig
@@ -15,7 +16,7 @@ type SidebarProps = {
   configWindowVisible: boolean
 }
 
-const SidebarInner = ({ config: _config, setConfigWindow, configWindowVisible }: SidebarProps): React.ReactElement => {
+const SidebarInner = ({ config, setConfigWindow, configWindowVisible }: SidebarProps): React.ReactElement => {
   const [sidebarVisible, setSidebarVisible] = useState<boolean | null>(null)
   const [tabVisible, setTabVisible] = useState(true)
   const [prefill, setPrefill] = useState<PresetSelection | null>(null)
@@ -39,6 +40,12 @@ const SidebarInner = ({ config: _config, setConfigWindow, configWindowVisible }:
   }, [])
 
   const toggleSidebar = useCallback(() => setSidebarVisible((prev) => !prev), [])
+
+  const logConfig = useCallback((): void => {
+    const json = JSON.stringify(toStoredConfig(config))
+    console.info(json)
+    navigator.clipboard?.writeText(json).catch(() => undefined)
+  }, [config])
 
   const handleSetConfigWindow = useCallback(() => {
     if (!configWindowVisible) setSidebarVisible(false)
@@ -96,8 +103,15 @@ const SidebarInner = ({ config: _config, setConfigWindow, configWindowVisible }:
             <h2 className='sidebar-title'>Configuration</h2>
             <button
               className={expandConfigClasses}
+              style={{ marginRight: 0 }}
               onClick={handleSetConfigWindow}>
               ⤢
+            </button>
+            <button
+              className='expand-config'
+              title='Log the current config (slim preset JSON) to the console and copy it'
+              onClick={logConfig}>
+              Log Config
             </button>
           </Row>
           <ConfigAccordion canOpenMultiple={false} />
