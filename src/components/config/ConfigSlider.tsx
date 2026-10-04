@@ -65,7 +65,7 @@ export const ConfigSlider = React.memo(({ name, label, value, displayValue, zone
         onPointerDown={e => e.currentTarget.setPointerCapture(e.pointerId)}
         onPointerUp={handleCommit}
         onKeyUp={handleCommit} />
-      {currentZone && <span className='slider-zone-tag'>{currentZone.label}</span>}
+      {currentZone?.label && <span className='slider-zone-tag'>{currentZone.label}</span>}
     </div>
   )
 })

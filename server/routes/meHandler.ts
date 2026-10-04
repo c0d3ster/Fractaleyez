@@ -86,6 +86,14 @@ export const updateMeHandler = async (req: Request, res: Response): Promise<void
     patch.logoParticle = body.logoParticle
   }
 
+  if ('skipRedZoneWarning' in body) {
+    if (typeof body.skipRedZoneWarning !== 'boolean') {
+      res.status(400).json({ error: 'skipRedZoneWarning must be a boolean' })
+      return
+    }
+    patch.skipRedZoneWarning = body.skipRedZoneWarning
+  }
+
   if ('hud' in body) {
     if (!isValidHud(body.hud)) {
       res.status(400).json({ error: 'hud.enabledFreqBands must be an array of booleans' })

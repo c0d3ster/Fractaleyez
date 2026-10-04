@@ -65,6 +65,12 @@ const UserSettingsPageInner = ({ userSettings, updateUserSettings, getToken }: U
     updateUserSettings({ crossfadeDurationMs: value })
   }, [updateUserSettings])
 
+  const warnBeforeRedZone = userSettings?.skipRedZoneWarning !== true
+
+  const onRedZoneWarningChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    updateUserSettings({ skipRedZoneWarning: !e.target.checked })
+  }, [updateUserSettings])
+
   const onLogoFile = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
     const file = files?.[0]
@@ -125,6 +131,10 @@ const UserSettingsPageInner = ({ userSettings, updateUserSettings, getToken }: U
         onChange={onCrossfadeChange}
         onCommit={onCrossfadeCommit}
       />
+      <label className='user-settings-page__checkbox'>
+        <input type='checkbox' checked={warnBeforeRedZone} onChange={onRedZoneWarningChange} />
+        Warn me before going into the red zone
+      </label>
       <div className='user-settings-page__row'>
         <span className='user-settings-page__label'>Logo</span>
         <div className='user-settings-page__logo'>

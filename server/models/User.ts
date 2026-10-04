@@ -3,6 +3,7 @@ import { Schema, model, Document } from 'mongoose'
 export type UserSettings = {
   crossfadeDurationMs?: number
   logoParticle?: string
+  skipRedZoneWarning?: boolean
   hud?: Record<string, unknown>
 }
 
@@ -17,6 +18,7 @@ export interface IUser extends Document {
 const userSettingsSchema = new Schema<UserSettings>({
   crossfadeDurationMs: { type: Number },
   logoParticle: { type: String },
+  skipRedZoneWarning: { type: Boolean },
   hud: { type: Schema.Types.Mixed },
 }, { _id: false })
 

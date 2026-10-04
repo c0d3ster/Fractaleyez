@@ -82,3 +82,19 @@
   color: #e08080;
   text-align: center;
 }
+
+.user-settings-page__checkbox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: normal;
+  line-height: 1.2;
+  margin: 0;
+  color: #666;
+  cursor: pointer;
+}
+
+.user-settings-page__checkbox input[type='checkbox'] {
+  margin: 0;
+}

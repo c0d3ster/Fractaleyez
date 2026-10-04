@@ -115,6 +115,20 @@ describe('updateMeHandler', () => {
     expect(res.statusCode).toBe(200)
   })
 
+  it('persists a boolean skipRedZoneWarning patch', async () => {
+    const res = makeRes()
+    await updateMeHandler(makeReq(undefined, { skipRedZoneWarning: true }), res)
+    expect(userService.updateSettings).toHaveBeenCalledWith('user_123', { skipRedZoneWarning: true })
+    expect(res.statusCode).toBe(200)
+  })
+
+  it('rejects a non-boolean skipRedZoneWarning', async () => {
+    const res = makeRes()
+    await updateMeHandler(makeReq(undefined, { skipRedZoneWarning: 'yes' }), res)
+    expect(res.statusCode).toBe(400)
+    expect(userService.updateSettings).not.toHaveBeenCalled()
+  })
+
   it('accepts a valid hud.enabledFreqBands patch', async () => {
     const res = makeRes()
     await updateMeHandler(makeReq(undefined, { hud: { enabledFreqBands: [true, false] } }), res)

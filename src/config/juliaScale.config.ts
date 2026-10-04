@@ -17,7 +17,8 @@ export const SCALE_UNITS_PER_SLIDER_STEP = 1000
 export type SliderZone = {
   // Upper bound of the zone, in slider units. Zones run from the slider's min up to each bound in order.
   upTo: number
-  label: string
+  // Named under the slider while the value sits in this zone; leave out for a plain color band.
+  label?: string
   color: string
   // When set, the zone fades from `color` to this color instead of being flat.
   toColor?: string
@@ -26,9 +27,9 @@ export type SliderZone = {
 const toUnits = (scale: number): number => Math.round(scale * SCALE_UNITS_PER_SLIDER_STEP)
 
 export const SCALE_ZONES: readonly SliderZone[] = [
-  { upTo: toUnits(JULIA_SCALE.wholeSet), label: 'eyeball', color: '#5b3d8f' },
-  { upTo: toUnits(JULIA_SCALE.settled), label: 'whole set', color: '#2f6f8f' },
-  { upTo: toUnits(JULIA_SCALE.seam), label: 'settling', color: '#2f6f8f', toColor: '#7a7a2f' },
-  { upTo: toUnits(JULIA_SCALE.default), label: 'dive', color: '#3d7a3d' },
-  { upTo: toUnits(JULIA_SCALE.max), label: 'deeper', color: '#8f4a3d' },
+  { upTo: toUnits(JULIA_SCALE.wholeSet), label: 'eyeball', color: '#625479' },
+  { upTo: toUnits(JULIA_SCALE.settled), label: 'whole set', color: '#4f6f80' },
+  { upTo: toUnits(JULIA_SCALE.seam), label: 'settling', color: '#4f6f80', toColor: '#7d7b52' },
+  { upTo: toUnits(JULIA_SCALE.default), label: 'dive', color: '#56705a' },
+  { upTo: toUnits(JULIA_SCALE.max), label: 'deeper', color: '#85594f' },
 ]
