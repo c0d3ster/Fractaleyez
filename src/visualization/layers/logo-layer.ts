@@ -58,8 +58,13 @@ export class LogoLayer implements Layer {
     return material
   })
   private readonly faces: THREE.MeshBasicMaterial[] = this.slices.filter((_, i) => isFace(i))
+  private readonly sides: THREE.MeshBasicMaterial[] = this.slices.filter((_, i) => !isFace(i))
   private spriteUrl = ''
   private texture: THREE.Texture | null = null
+  // The sides' own copy of the image without mipmaps. Seen nearly edge-on, a mipmapped lookup averages the whole image
+  // down to a partly transparent blur, which falls under `SIDE_ALPHA_CUTOFF` and cuts the middle of the sliver out.
+  // Without mipmaps each pixel samples real texels, so the sides keep their coverage (a little aliasing, briefly).
+  private sideTexture: THREE.Texture | null = null
 
   constructor(private readonly renderer: THREE.WebGLRenderer) {
     this.cameraManager.init()
@@ -107,6 +112,8 @@ export class LogoLayer implements Layer {
   private releaseTexture = (): void => {
     if (this.texture) releaseSpriteTexture(this.texture)
     this.texture = null
+    this.sideTexture?.dispose()
+    this.sideTexture = null
     this.setMap(null)
     this.logo.visible = false
   }
@@ -118,10 +125,24 @@ export class LogoLayer implements Layer {
     })
   }
 
+  /** Copies the loaded image for the sides without mipmaps; the original (shared, mipmapped) stays on the faces. */
+  private createSideTexture = (source: THREE.Texture): void => {
+    const texture = source.clone()
+    texture.generateMipmaps = false
+    texture.minFilter = THREE.LinearFilter
+    texture.needsUpdate = true
+    this.sideTexture = texture
+    this.sides.forEach((material) => {
+      material.map = texture
+      material.needsUpdate = true
+    })
+  }
+
   private animate = (deltaTime: number, { beat }: AudioAnalysedDataForVisualization): void => {
     const { logo } = window.config
     const image: unknown = this.texture?.image
-    if (!hasSize(image)) return // still loading
+    if (!this.texture || !hasSize(image)) return // still loading
+    if (!this.sideTexture) this.createSideTexture(this.texture)
     const camera = this.cameraManager.getCamera()
     const viewHeight = 2 * LOGO_DISTANCE * Math.tan((camera.fov / 2) * (Math.PI / 180))
     const size = viewHeight * LOGO_HEIGHT_FRACTION * (1 + beat.value * logo.beatScale.value)
