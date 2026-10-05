@@ -17,7 +17,7 @@ const SHAKE_VIEWPORT_FRACTION = 0.05
 // image's own edge colors instead of see-through layers. More slices hide the gaps between them when seen nearly
 // edge-on.
 const SLICE_COUNT = 64
-const DEPTH_FRACTION = 0.15
+const DEPTH_FRACTION = 0.1
 const SIDE_ALPHA_CUTOFF = 0.5
 
 // Seen nearly edge-on, a face is a sliver so thin that each pixel spans most of the texture, and the GPU falls back to
