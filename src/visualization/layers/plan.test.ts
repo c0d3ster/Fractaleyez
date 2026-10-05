@@ -30,10 +30,10 @@ describe('planLayers', () => {
     expect(planLayers(layers)[0]).toEqual({ key: 'orbit', opacity: 0.4, blendMode: 'screen' })
   })
 
-  it('carries each layer blend mode: orbit screens, the rest mask', () => {
+  it('carries each layer blend mode: logo overs, orbit screens, fractal and video mask', () => {
     const layers = makeLayers()
     layers.meta.logo.enabled.value = true
     const blends = Object.fromEntries(planLayers(layers).map(({ key, blendMode }) => [key, blendMode]))
-    expect(blends).toEqual({ logo: 'mask', orbit: 'screen', fractal: 'mask', video: 'mask' })
+    expect(blends).toEqual({ logo: 'over', orbit: 'screen', fractal: 'mask', video: 'mask' })
   })
 })

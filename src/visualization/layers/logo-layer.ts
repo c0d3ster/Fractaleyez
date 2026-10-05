@@ -66,9 +66,11 @@ export class LogoLayer implements Layer {
     if (this.texture) this.animate(deltaTime, audio)
     const camera = this.cameraManager.getCamera()
     this.renderer.setRenderTarget(target)
-    this.renderer.setClearColor(0x000000, 1)
+    // Transparent, not black: the compositor covers what is behind the logo by its alpha (the `over` blend).
+    this.renderer.setClearColor(0x000000, 0)
     this.renderer.clear()
     this.renderer.render(this.scene, camera)
+    this.renderer.setClearColor(0x000000, 1)
     this.renderer.setRenderTarget(null)
   }
 

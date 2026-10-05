@@ -88,7 +88,7 @@ export type VideoConfigSection = {
 export type StoredVideoSection = Pick<VideoConfigSection, 'clips' | 'index'>
 
 export type LayerKey = 'video' | 'fractal' | 'orbit' | 'logo' // widened as layer types are added
-export type BlendMode = 'mask' | 'screen' // fixed per layer for now (see createLayerMeta); no UI until it is configurable
+export type BlendMode = 'mask' | 'screen' | 'over' // fixed per layer for now (see createLayerMeta); no UI until it is configurable
 
 export type LayerMeta = {
   enabled: CheckboxItem
@@ -232,7 +232,7 @@ export const configDefaults: AppConfig = {
       video: createLayerMeta(true),
       fractal: createLayerMeta(true),
       orbit: createLayerMeta(true, 'screen'),
-      logo: createLayerMeta(false),
+      logo: createLayerMeta(false, 'over'),
     },
   },
   logo: {
