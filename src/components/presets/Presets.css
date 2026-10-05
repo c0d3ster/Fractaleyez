@@ -173,7 +173,7 @@
   display: flex;
   flex-wrap: wrap;
   align-content: flex-start;
-  min-height: 180px;
+  min-height: 140px;
   transition: opacity 0.15s ease;
 }
 
