@@ -5,6 +5,7 @@ import { getResolvedSpriteUrl } from '../utils/spriteCache'
 import { acquireSpriteTexture, releaseSpriteTexture } from '../utils/textureCache'
 import { getParticleCrossfadeDurationMs, MAX_CROSSFADE_GENERATIONS } from '../config/visualizer.config'
 import { userConfig } from '../config/user.config'
+import { getMusicSpeedMultiplier } from './music-speed'
 
 /*
  * ORIGINAL AUTHOR: Iacopo Sassarini
@@ -174,8 +175,7 @@ export class HopalongVisualizer {
     this.deltaTime = deltaTime
     this.elapsedTime += deltaTime
 
-    const musicSpeed = (audioData.energyAverage ?? 0) + (audioData.energy ?? 0)
-    const musicSpeedMultiplier = 1 + musicSpeed / 10
+    const musicSpeedMultiplier = getMusicSpeedMultiplier(audioData)
 
     let count = 0
     let switcherooGenerated = false
