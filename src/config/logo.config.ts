@@ -1,11 +1,9 @@
 export const logoConfig = {
   sprite_DEFAULT: 'fractaleye.png',
 
-  spin_DEFAULT: false,
-
   spinSpeed_MIN: 0,
   spinSpeed_MAX: 5,
-  spinSpeed_DEFAULT: 0.5,
+  spinSpeed_DEFAULT: 0, // 0 is no spin
   spinSpeed_STEP_SIZE: 0.1,
 
   beatScale_MIN: 0,
@@ -17,6 +15,4 @@ export const logoConfig = {
   shake_MAX: 1,
   shake_DEFAULT: 0,
   shake_STEP_SIZE: 0.01,
-
-  glowOnBeat_DEFAULT: false,
 } as const

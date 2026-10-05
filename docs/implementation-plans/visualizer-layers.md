@@ -49,11 +49,9 @@ export type FractalConfigSection = { tour: SliderItem }
 export type VideoConfigSection = { clips: string[]; allClips: string[]; index: number }
 export type LogoConfigSection = {
   sprite: MultiselectItem // single-select via min:1,max:1
-  spin: CheckboxItem
   spinSpeed: SliderItem
   beatScale: SliderItem
   shake: SliderItem
-  glowOnBeat: CheckboxItem
 }
 ```
 
@@ -98,8 +96,8 @@ Notes:
 - **Logo** (new, in `hopalong-manager.ts` or its own module): owns its sprite directly, parented to the camera with a small local `position.z` offset via `CameraManager.getCamera()`, so it ignores `cameraBound` panning and `scaleFactor`. Reactive fields follow the existing `glow` / `shockwave` convention in `update()` (read `audioData.peak.value` / `.energy`):
   - `beatScale`: scale by `1 + peak.value * beatScale.value` when peak crosses the existing threshold.
   - `shake`: small random position offset scaled by `shake.value`, same peak gate.
-  - `glowOnBeat`: nudge sprite opacity or tint with `peak.value * peak.energy`, the same formula the `glow` effect uses.
-  - `spin` / `spinSpeed`: not beat-reactive; constant `rotation.z += spinSpeed.value * deltaTime` per frame.
+  - glow: no logo setting; the Effects `glow` switch nudges the sprite tint with `peak.value * peak.energy`, the same formula the `glow` effect uses.
+  - `spinSpeed`: not beat-reactive; constant `rotation.z += spinSpeed.value * deltaTime` per frame. 0 is no spin (there is no separate spin toggle).
 - **Fades:** the compositor drives each layer's effective opacity toward its target (configured `opacity` if enabled, else 0) over the shared crossfade duration, instead of writing it directly.
 
 ## Sidebar UI
@@ -116,7 +114,7 @@ The visual design is the "Fractaleyez Layer Sidebar" canvas (current as of the f
 - **Orbit layer body:** two nested accordions, "orbit config" (a-e sliders via the existing `ConfigCategory`) and "particle config" (the existing particle sliders plus the particle sprite selector, moved in from `ParticleSpriteHud`, which today only appears in the popup). Both start collapsed since they do not fit together. The nested accordions use the same title and content styling as the existing categories.
 - **Fractal layer body:** "tour" slider plus the Shape pad. The Shape pad stays in Fractal config. The Camera pad stays in User config.
 - **Video layer body:** the clip picker (the clip-pill list), split out of `ConfigVideo.tsx`. There is no separate Video row in the global group. Video has a body, so it expands like the other layers.
-- **Logo layer body** (preview only until the Logo layer is functional): single-select sprite picker, spin / glow on beat toggles, spin speed / beat scale / shake sliders.
+- **Logo layer body** (preview only until the Logo layer is functional): single-select sprite picker, spin speed / beat scale / shake sliders.
 - **`ConfigVideo.tsx` refactor:** split its collapse-header ownership from its clip-list body so the body can be reused inside the Video layer accordion without a redundant nested header.
 - **New sprite-upload hook** (e.g. `useSpriteUpload`), extracted from `ParticleSpriteHud.tsx` (`onFiles`, size and dimension constants), shared between `ParticleSpriteHud` (multi-select, add-to-array) and the Logo picker (single-select, replace-value).
 - **`ConfigAccordion.tsx`:** renders the entries from the descriptor registry in the fixed display order, using `ConfigCategory` for global entries and the layer accordion for layer entries. The current `category === 'video'` special case goes away.
