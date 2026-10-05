@@ -1,8 +1,9 @@
-import { LayerKey, LayersConfigSection } from '../../config/configDefaults'
+import { BlendMode, LayerKey, LayersConfigSection } from '../../config/configDefaults'
 
 export type LayerPlanEntry = {
   key: LayerKey
   opacity: number
+  blendMode: BlendMode
 }
 
 /**
@@ -12,5 +13,9 @@ export type LayerPlanEntry = {
 export const planLayers = ({ order, meta }: LayersConfigSection): LayerPlanEntry[] =>
   [...order]
     .reverse()
-    .map((key) => ({ key, opacity: meta[key].enabled.value ? meta[key].opacity.value : 0 }))
+    .map((key) => ({
+      key,
+      opacity: meta[key].enabled.value ? meta[key].opacity.value : 0,
+      blendMode: meta[key].blendMode,
+    }))
     .filter(({ opacity }) => opacity > 0)

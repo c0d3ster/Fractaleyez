@@ -88,12 +88,12 @@ export type VideoConfigSection = {
 export type StoredVideoSection = Pick<VideoConfigSection, 'clips' | 'index'>
 
 export type LayerKey = 'video' | 'fractal' | 'orbit' | 'logo' // widened as layer types are added
-export type BlendMode = 'mask' // widened in the blend-mode follow-on
+export type BlendMode = 'mask' | 'screen' // fixed per layer for now (see createLayerMeta); no UI until it is configurable
 
 export type LayerMeta = {
   enabled: CheckboxItem
   opacity: SliderItem
-  blendMode: BlendMode // not a ConfigItem; no UI until the follow-on
+  blendMode: BlendMode // not a ConfigItem; not stored or loaded, always the layer's default
 }
 
 export type LayersConfigSection = {
@@ -122,10 +122,10 @@ export type AppConfig = {
   logo: LogoConfigSection
 }
 
-const createLayerMeta = (enabled: boolean): LayerMeta => ({
+const createLayerMeta = (enabled: boolean, blendMode: BlendMode = 'mask'): LayerMeta => ({
   enabled: { name: 'Enabled', type: 'checkbox', defaultValue: enabled, value: enabled },
   opacity: { name: 'Opacity', type: 'slider', defaultValue: layerConfig.OPACITY_DEFAULT, value: layerConfig.OPACITY_DEFAULT, min: layerConfig.OPACITY_MIN, max: layerConfig.OPACITY_MAX, step: layerConfig.OPACITY_STEP_SIZE },
-  blendMode: 'mask',
+  blendMode,
 })
 
 const pd = analyserConfig.options.peakDetection.options
@@ -233,7 +233,7 @@ export const configDefaults: AppConfig = {
     meta: {
       video: createLayerMeta(true),
       fractal: createLayerMeta(true),
-      orbit: createLayerMeta(true),
+      orbit: createLayerMeta(true, 'screen'),
       logo: createLayerMeta(false),
     },
   },

@@ -27,6 +27,13 @@ describe('planLayers', () => {
   it('carries each layer opacity', () => {
     const layers = makeLayers()
     layers.meta.orbit.opacity.value = 0.4
-    expect(planLayers(layers)[0]).toEqual({ key: 'orbit', opacity: 0.4 })
+    expect(planLayers(layers)[0]).toEqual({ key: 'orbit', opacity: 0.4, blendMode: 'screen' })
+  })
+
+  it('carries each layer blend mode: orbit screens, the rest mask', () => {
+    const layers = makeLayers()
+    layers.meta.logo.enabled.value = true
+    const blends = Object.fromEntries(planLayers(layers).map(({ key, blendMode }) => [key, blendMode]))
+    expect(blends).toEqual({ logo: 'mask', orbit: 'screen', fractal: 'mask', video: 'mask' })
   })
 })
