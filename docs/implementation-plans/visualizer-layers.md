@@ -97,7 +97,7 @@ Notes:
   - `beatScale`: scale by `1 + peak.value * beatScale.value` when peak crosses the existing threshold.
   - `shake`: small random position offset scaled by `shake.value`, same peak gate.
   - glow: no logo setting; the Effects `glow` switch nudges the sprite tint with `peak.value * peak.energy`, the same formula the `glow` effect uses.
-  - `spinSpeed`: not beat-reactive; constant `rotation.z += spinSpeed.value * deltaTime` per frame. 0 is no spin (there is no separate spin toggle).
+  - `spinSpeed`: not beat-reactive; constant `rotation.y += spinSpeed.value * deltaTime` per frame (a 3D turn on the logo's vertical axis). 0 is no spin (there is no separate spin toggle).
 - **Fades:** the compositor drives each layer's effective opacity toward its target (configured `opacity` if enabled, else 0) over the shared crossfade duration, instead of writing it directly.
 
 ## Sidebar UI
