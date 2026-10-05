@@ -131,3 +131,4 @@ Branch: overnight/2026-10-03/31-expanded-view
 - Logo column matches the sidebar order (sprite picker, then rows). `--config-column-count` 7 -> 8, `POPOUT_WIDTH` 1500 -> 1670 (8 x 205 + 30; fits 1920).
 - Layer actions were already forwarded through `ExternalWindowBridge` (`#22`); `forwardKey` untouched, so F/O/V/L still reach the main window.
 - Deviation: none. Not checked against the canvas board or in a browser. NEEDS HUMAN: visual check of the popup against the canvas expanded-view board, and F/O/V/L from the popup.
+- Video reset in the sidebar: the sidebar renders video through `ConfigCategory name='video' bare`, not `ConfigVideo` (which only the pop-out uses), and `'video'` is not a resettable section, so its header had no reset button. `ConfigCategory` now gives the video header a reset that calls `resetVideoClips` (restores the preset's clip list).

@@ -30,6 +30,7 @@ type ConfigCategoryProps = {
   toggleOpen: (name: string) => void
   onChange: (category: string, item: string, value: string | boolean) => void
   resetConfigSection: ConfigContextValue['resetConfigSection']
+  resetVideoClips: ConfigContextValue['resetVideoClips']
   /** Popup column: always open. */
   popup?: boolean
   /** Skip the section's own rows; the children supply the whole body. */
@@ -37,17 +38,24 @@ type ConfigCategoryProps = {
   children?: React.ReactNode
 }
 
-const ConfigCategoryInner = React.memo(({ name, config, isOpen, expanded = false, toggleOpen, onChange, resetConfigSection, popup = false, bare = false, children }: ConfigCategoryProps) => {
+const ConfigCategoryInner = React.memo(({ name, config, isOpen, expanded = false, toggleOpen, onChange, resetConfigSection, resetVideoClips, popup = false, bare = false, children }: ConfigCategoryProps) => {
   const handleSectionReset = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
     // In the sidebar the button lives inside the header, whose click toggles the section.
     event.stopPropagation()
     if (isResettableSection(name)) void resetConfigSection(name)
   }, [name, resetConfigSection])
 
+  // Video is not a plain config section: its reset restores the preset's clip list (the sidebar renders it through here).
+  const hasLayerReset = isResettableSection(name) || name === 'video'
+
   // The layer header's own reset button (sidebar); it stops the click itself, so there is no event to take here.
   const handleLayerReset = useCallback(() => {
+    if (name === 'video') {
+      resetVideoClips()
+      return
+    }
     if (isResettableSection(name)) void resetConfigSection(name)
-  }, [name, resetConfigSection])
+  }, [name, resetConfigSection, resetVideoClips])
 
   const handleToggle = useCallback(() => {
     toggleOpen(name)
@@ -84,7 +92,7 @@ const ConfigCategoryInner = React.memo(({ name, config, isOpen, expanded = false
             title={name}
             collapsible={!popup}
             onToggleOpen={handleToggle}
-            onReset={!expanded && isResettableSection(name) ? handleLayerReset : undefined}
+            onReset={!expanded && hasLayerReset ? handleLayerReset : undefined}
           />
         )
         : (
