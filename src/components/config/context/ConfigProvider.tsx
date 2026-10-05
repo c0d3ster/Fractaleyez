@@ -499,6 +499,9 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
         window.dispatchEvent(new CustomEvent('videoClipsRestored', { detail: { clips } }))
       } else if (hadClips && !hasClips) {
         window.dispatchEvent(new CustomEvent('videoClipsRestored', { detail: { clips: [] } }))
+      } else if (hadClips && hasClips) {
+        // The list changed while playing: let the layer fade away from a clip that was just unselected.
+        window.dispatchEvent(new CustomEvent('videoClipsChanged', { detail: { clips } }))
       }
       return next
     })

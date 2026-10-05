@@ -21,6 +21,7 @@ export type LayerCompositorOptions = {
 export class LayerCompositor {
   private readonly targets = new Map<LayerKey, THREE.WebGLRenderTarget>()
   private readonly effectiveOpacity: Partial<Record<LayerKey, number>> = {}
+  private readonly wasActive: Partial<Record<LayerKey, boolean>> = {}
   private readonly blank: THREE.DataTexture
   private readonly scene = new THREE.Scene()
   private readonly camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1)
@@ -85,8 +86,13 @@ export class LayerCompositor {
   ): Partial<Record<LayerKey, number>> => {
     const durationMs = getParticleCrossfadeDurationMs()
     order.forEach((key) => {
-      const target = targetOpacity(meta, key)
-      const current = this.effectiveOpacity[key]
+      const layer = this.layers[key]
+      const target = layer?.isFadingOut?.() ? 0 : targetOpacity(meta, key)
+      const active = layer?.isActive?.() ?? Boolean(layer)
+      // A layer that just became active (e.g. the first video clip was selected) fades in from 0. Not on first sight, so nothing fades in on load.
+      const startsFromZero = this.wasActive[key] === false && active
+      this.wasActive[key] = active
+      const current = startsFromZero ? 0 : this.effectiveOpacity[key]
       const next = current === undefined ? target : stepOpacity(current, target, deltaTime, durationMs)
       this.effectiveOpacity[key] = next
       if (next === 0 && target === 0) this.layers[key]?.onHidden?.()

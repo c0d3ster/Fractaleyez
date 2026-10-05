@@ -10,6 +10,8 @@ export type Layer = {
   dispose: () => void
   /** When it returns false the layer is skipped this frame, same as a disabled one. Omitted means always active. */
   isActive?: () => boolean
+  /** When it returns true the layer fades out even though it is enabled (e.g. video with every clip unselected). */
+  isFadingOut?: () => boolean
   /** Called every frame the layer is fully faded out (effective and target opacity 0), e.g. to free its resources. */
   onHidden?: () => void
 }

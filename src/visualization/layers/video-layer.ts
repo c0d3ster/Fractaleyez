@@ -15,6 +15,7 @@ const isClipsDetail = (detail: unknown): detail is { clips: string[] } =>
 /** One playing clip: its <video> element, the texture sampling it, and its own resume-after-pause bookkeeping. */
 type VideoSlot = {
   video: HTMLVideoElement
+  src: string
   texture: THREE.Texture
   frameHandle: number | null
   resumeAttempts: number
@@ -60,12 +61,16 @@ export class VideoLayer implements Layer {
     this.incomingQuad.renderOrder = 1
     this.scene.add(this.incomingQuad)
     window.addEventListener('videoClipsRestored', this.onClipsRestored)
+    window.addEventListener('videoClipsChanged', this.onClipsChanged)
     const { clips } = window.config.video
     if (window.config.layers.meta.video.enabled.value && clips.length) this.createVideo(clips)
   }
 
   /** Only has something to draw while a clip is loaded (the layer gate is `video.enabled && clips.length`). */
   isActive = (): boolean => this.current !== null
+
+  /** Every clip was unselected (or the layer disabled): the compositor fades the layer out, then `onHidden` frees it. */
+  isFadingOut = (): boolean => this.teardownWhenHidden
 
   /** Fully faded out: free the video if the clips were cleared (the layer was disabled) while it was fading. */
   onHidden = (): void => {
@@ -87,6 +92,7 @@ export class VideoLayer implements Layer {
 
   dispose = (): void => {
     window.removeEventListener('videoClipsRestored', this.onClipsRestored)
+    window.removeEventListener('videoClipsChanged', this.onClipsChanged)
     this.disposeVideo()
     this.currentMaterial.dispose()
     this.incomingMaterial.dispose()
@@ -106,6 +112,40 @@ export class VideoLayer implements Layer {
       return
     }
     this.createVideo(clips)
+  }
+
+  /**
+   * The selection changed while clips are playing. A clip that was just unselected fades out right away instead of
+   * playing to its end: the crossfade to a still-selected clip starts now.
+   */
+  private onClipsChanged = (event: Event): void => {
+    if (!(event instanceof CustomEvent) || !isClipsDetail(event.detail)) return
+    const { clips } = event.detail
+    const { current, incoming } = this
+    if (!current || this.teardownWhenHidden || !clips.length) return
+    // A pending clip that was unselected is dropped; the fade restarts below if the current one is also gone.
+    if (incoming && !clips.includes(incoming.src)) this.cancelIncoming()
+    const currentIndex = clips.indexOf(current.src)
+    if (currentIndex !== -1) {
+      // Still selected: keep "next" pointing at the right neighbour in the new list.
+      window.config.video.index = currentIndex
+      return
+    }
+    if (this.incoming) return
+    const nextIndex = Math.min(window.config.video.index, clips.length - 1)
+    // startIncoming steps forward from the index, so back up one to land on nextIndex itself.
+    window.config.video.index = (nextIndex - 1 + clips.length) % clips.length
+    this.startIncoming()
+  }
+
+  private cancelIncoming = (): void => {
+    if (this.incoming) this.disposeSlot(this.incoming)
+    this.incoming = null
+    this.fade = 0
+    this.incomingMaterial.map = null
+    this.incomingMaterial.needsUpdate = true
+    this.incomingMaterial.opacity = 0
+    this.incomingQuad.visible = false
   }
 
   private createVideo = (clips: string[]): void => {
@@ -152,6 +192,7 @@ export class VideoLayer implements Layer {
 
     const slot: VideoSlot = {
       video,
+      src,
       texture,
       frameHandle: null,
       resumeAttempts: 0,
@@ -267,7 +308,8 @@ export class VideoLayer implements Layer {
     }
     // No crossfade (duration 0, or the clip was too short to reach it): a plain cut to the next clip.
     window.config.video.index = (window.config.video.index + 1) % clips.length
-    slot.video.src = clips[window.config.video.index]!
+    slot.src = clips[window.config.video.index]!
+    slot.video.src = slot.src
     slot.video.play().catch(() => undefined)
   }
 
