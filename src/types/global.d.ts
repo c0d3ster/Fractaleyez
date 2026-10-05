@@ -29,6 +29,7 @@ declare global {
     getJuliaShape?: () => { re: number; im: number; manual: boolean; hue: number; saturation: number; targetRe: number; targetIm: number }
     clearJuliaShape?: () => void
     setLayerEnabled?: (key: LayerKey, enabled: boolean) => boolean
+    updateConfigItem?: (category: string, item: string, value: string | boolean | number) => void
     getCameraSteer?: () => { x: number; y: number } | null
     getAudioData?: () => {
       multibandEnergy?: number[]

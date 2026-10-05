@@ -437,13 +437,15 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
     return true
   }, [])
 
-  // Bridge for main.ts's layer hotkeys, which live outside the React tree.
+  // Bridge for main.ts's hotkeys (layer toggles, the shockwave switch), which live outside the React tree.
   useEffect(() => {
     window.setLayerEnabled = setLayerEnabled
+    window.updateConfigItem = updateConfigItem
     return () => {
       delete window.setLayerEnabled
+      delete window.updateConfigItem
     }
-  }, [setLayerEnabled])
+  }, [setLayerEnabled, updateConfigItem])
 
   const setLayerOpacity = useCallback((key: LayerKey, opacity: number) => {
     setConfig((prev) => {

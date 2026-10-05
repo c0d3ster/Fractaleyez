@@ -10,7 +10,6 @@ import { VideoLayer } from './video-layer'
 
 export type LayerPipeline = {
   render: (deltaTime: number, audio: AudioAnalysedDataForVisualization) => void
-  triggerShockwave: () => void
   /** Where the camera pad's trailing dot sits: the fractal's steering when it is the only camera-driven layer, else the orbit camera. */
   getCameraSteer: () => { x: number; y: number }
   dispose: () => void
@@ -45,7 +44,6 @@ export const createLayerPipeline = (): LayerPipeline => {
       compositor.renderLayers(deltaTime, audio, window.config.layers)
       effects.render(audio)
     },
-    triggerShockwave: effects.triggerShockwave,
     getCameraSteer: () => {
       const { orbit: orbitMeta, fractal: fractalMeta } = window.config.layers.meta
       return !orbitMeta.enabled.value && fractalMeta.enabled.value ? fractal.getSteerPosition() : orbit.getCameraTrailPosition()
