@@ -21,10 +21,6 @@
   will-change: transform;
 }
 
-.layer-header--off .layer-header__fill {
-  background: rgba(100, 116, 139, .35);
-}
-
 .layer-header--off .layer-header__name,
 .layer-header--off .layer-header__percent {
   opacity: .6;
@@ -40,6 +36,19 @@
   cursor: pointer;
 }
 
+.layer-header__power {
+  /* Centered in the box with equal padding all round. An inline SVG sits on the text baseline and leaves a gap
+     below it, which made the hover area uneven (less room above the icon than below). */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px .3rem;
+}
+
+.layer-header__power svg {
+  display: block;
+}
+
 .layer-header__power--on {
   color: #93c5fd;
 }
@@ -53,6 +62,7 @@
 .layer-header__name {
   flex: 1;
   text-transform: lowercase;
+  font-size: 1.15rem;
 }
 
 .layer-header__percent {

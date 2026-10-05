@@ -1,10 +1,12 @@
-import React, { useCallback, useRef } from 'react'
+import React, { useCallback, useEffect, useRef } from 'react'
 import classNames from 'classnames'
 import './LayerHeader.css'
 
 import { connectConfig } from './context/ConfigProvider'
 import { AppConfig, LayerKey } from '../../config/configDefaults'
 import { LAYER_CAP } from '../../config/layers'
+import { getParticleCrossfadeDurationMs } from '../../config/visualizer.config'
+import { stepOpacity } from '../../visualization/layers/fade'
 
 const DRAG_THRESHOLD_PX = 4
 const KEY_STEP = 0.05
@@ -55,10 +57,31 @@ const LayerHeaderInner = ({
   const atCap = !enabled && enabledCount >= LAYER_CAP
   const index = order.indexOf(layerKey)
 
+  // What the layer is actually showing: its opacity while on, nothing while off. The fill follows this, so toggling the
+  // power button sweeps it right to left (or back) instead of jumping, at the same rate the compositor fades the layer.
+  const effective = enabled ? opacity : 0
+  const displayedRef = useRef(effective)
+  const initialFill = useRef(effective).current
+
   // Transform only: no layout reads or writes while dragging.
-  const paintFill = (value: number): void => {
+  const paintFill = useCallback((value: number): void => {
+    displayedRef.current = value
     if (fillRef.current) fillRef.current.style.transform = `scaleX(${value})`
-  }
+  }, [])
+
+  useEffect((): (() => void) | undefined => {
+    // A drag or arrow key paints the fill itself; only a change it did not paint (the power button) animates.
+    if (dragRef.current?.active || displayedRef.current === effective) return undefined
+    let frame = 0
+    let last = performance.now()
+    const tick = (now: number): void => {
+      paintFill(stepOpacity(displayedRef.current, effective, now - last, getParticleCrossfadeDurationMs()))
+      last = now
+      if (displayedRef.current !== effective) frame = requestAnimationFrame(tick)
+    }
+    frame = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(frame)
+  }, [effective, paintFill])
 
   const commitOpacity = useCallback((value: number): void => {
     if (frameRef.current !== null) cancelAnimationFrame(frameRef.current)
@@ -106,7 +129,7 @@ const LayerHeaderInner = ({
     if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
       event.preventDefault()
       const next = clamp01(Math.round((opacity + (event.key === 'ArrowRight' ? KEY_STEP : -KEY_STEP)) * 100) / 100)
-      paintFill(next)
+      if (enabled) paintFill(next)
       setLayerOpacity(layerKey, next)
       return
     }
@@ -140,7 +163,7 @@ const LayerHeaderInner = ({
       onPointerCancel={onPointerUp}
       onKeyDown={onKeyDown}
     >
-      <div className='layer-header__fill' ref={fillRef} style={{ transform: `scaleX(${opacity})` }} />
+      <div className='layer-header__fill' ref={fillRef} style={{ transform: `scaleX(${initialFill})` }} />
       <button
         type='button'
         className={classNames('layer-header__power', { 'layer-header__power--on': enabled })}
@@ -155,7 +178,7 @@ const LayerHeaderInner = ({
           setLayerEnabled(layerKey, !enabled)
         }}
       >
-        <svg viewBox='0 0 16 16' width='14' height='14' aria-hidden='true' fill='none' stroke='currentColor' strokeWidth='1.8' strokeLinecap='round'>
+        <svg viewBox='0 -0.5 16 16' width='18' height='18' aria-hidden='true' fill='none' stroke='currentColor' strokeWidth='1.8' strokeLinecap='round'>
           <path d='M8 1.5v6' />
           <path d='M4.4 3.8a5.5 5.5 0 1 0 7.2 0' />
         </svg>
