@@ -11,7 +11,8 @@ describe('mergeLayers', () => {
     expect(enabledOf(out)).toEqual({ video: false, fractal: false, orbit: true, logo: false })
     expect(out.order).toEqual(['video', 'fractal', 'orbit', 'logo'])
     expect(out.meta.orbit.opacity.value).toBe(1)
-    expect(out.meta.orbit.blendMode).toBe('mask')
+    expect(out.meta.orbit.blendMode).toBe('screen')
+    expect(out.meta.fractal.blendMode).toBe('mask')
   })
 
   it('turns video on for legacy presets with clips', () => {

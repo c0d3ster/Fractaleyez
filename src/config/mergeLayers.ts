@@ -37,7 +37,7 @@ const mergeMeta = (key: LayerKey, loaded: unknown, clipCount: number): LayerMeta
   return {
     enabled: { ...base.enabled, value: enabled },
     opacity: { ...base.opacity, value: opacity },
-    blendMode: l.blendMode === 'mask' ? l.blendMode : base.blendMode,
+    blendMode: base.blendMode,
   }
 }
 
