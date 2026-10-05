@@ -12,21 +12,17 @@ const LOGO_HEIGHT_FRACTION = 0.3
 const SHAKE_VIEWPORT_FRACTION = 0.05
 
 // Fake thickness: the image is drawn as this many parallel slices spread over `DEPTH_FRACTION` of the logo's height.
-// The two outer slices show the image at full brightness; the ones between are shaded so the stack reads as a solid
-// edge when it turns. More slices hide the gaps between them when seen nearly edge-on.
-const SLICE_COUNT = 32
+// The two outer slices are the front and back faces, blended so the image keeps its soft edges. The slices between
+// are cut out at `SIDE_ALPHA_CUTOFF` and drawn solid with depth, so where the stack turns away the sides show the
+// image's own edge colors instead of see-through layers. More slices hide the gaps between them when seen nearly
+// edge-on.
+const SLICE_COUNT = 64
 const DEPTH_FRACTION = 0.15
-const SIDE_SHADE = 0.5
+const SIDE_ALPHA_CUTOFF = 0.5
 
 const hasSize = (image: unknown): image is { width: number; height: number } =>
   typeof image === 'object' && image !== null && 'width' in image && 'height' in image
   && typeof image.width === 'number' && typeof image.height === 'number' && image.width > 0 && image.height > 0
-
-type LogoSlice = {
-  material: THREE.MeshBasicMaterial
-  /** Brightness multiplier: 1 on the front and back faces, `SIDE_SHADE` for the slices between. */
-  shade: number
-}
 
 /**
  * Logo as a layer: a stack of textured planes parented to its own camera, so it ignores `cameraBound` panning (the
@@ -41,14 +37,17 @@ export class LogoLayer implements Layer {
   // sit at unit z offsets in [-0.5, 0.5]. Swappable for a real extrusion later.
   private readonly geometry = new THREE.PlaneGeometry(1, 1)
   private readonly logo = new THREE.Group()
-  private readonly slices: LogoSlice[] = Array.from({ length: SLICE_COUNT }, (_, i): LogoSlice => {
-    // Transparent without depth writes, so a slice's empty pixels never hide the ones behind it; three sorts them
-    // back to front each frame, which stays correct as the stack turns.
-    const material = new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide })
+  private readonly slices: THREE.MeshBasicMaterial[] = Array.from({ length: SLICE_COUNT }, (_, i): THREE.MeshBasicMaterial => {
+    const face = i === 0 || i === SLICE_COUNT - 1
+    // Faces: transparent without depth writes, so their soft edges blend over what is behind. Slices between: opaque
+    // cutouts that write depth, so the nearest one wins and nothing beneath shows through the side.
+    const material = face
+      ? new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide })
+      : new THREE.MeshBasicMaterial({ alphaTest: SIDE_ALPHA_CUTOFF, side: THREE.DoubleSide })
     const mesh = new THREE.Mesh(this.geometry, material)
     mesh.position.z = i / (SLICE_COUNT - 1) - 0.5
     this.logo.add(mesh)
-    return { material, shade: i === 0 || i === SLICE_COUNT - 1 ? 1 : SIDE_SHADE }
+    return material
   })
   private spriteUrl = ''
   private texture: THREE.Texture | null = null
@@ -79,7 +78,7 @@ export class LogoLayer implements Layer {
 
   dispose = (): void => {
     this.releaseTexture()
-    this.slices.forEach(({ material }) => material.dispose())
+    this.slices.forEach((material) => material.dispose())
     this.geometry.dispose()
   }
 
@@ -102,7 +101,7 @@ export class LogoLayer implements Layer {
   }
 
   private setMap = (map: THREE.Texture | null): void => {
-    this.slices.forEach(({ material }) => {
+    this.slices.forEach((material) => {
       material.map = map
       material.needsUpdate = true
     })
@@ -126,6 +125,6 @@ export class LogoLayer implements Layer {
     this.logo.rotation.y = (this.logo.rotation.y + logo.spinSpeed.value * (deltaTime / 1000)) % (2 * Math.PI)
     // The Effects glow switch drives the logo too, with the same formula as the global bloom.
     const glow = window.config.effects.glow.value ? Math.min(1, beat.value * beat.energy) : 0
-    this.slices.forEach(({ material, shade }) => material.color.setScalar(shade * (1 + glow)))
+    this.slices.forEach((material) => material.color.setScalar(1 + glow))
   }
 }
