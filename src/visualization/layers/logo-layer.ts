@@ -20,6 +20,15 @@ const SLICE_COUNT = 64
 const DEPTH_FRACTION = 0.15
 const SIDE_ALPHA_CUTOFF = 0.5
 
+// Seen nearly edge-on, a face is a sliver so thin that each pixel spans most of the texture, and the GPU falls back to
+// the smallest mipmap: the average of the whole image, which is dim and part transparent. That drew a faint line
+// across the full image height, transparent margins included. So the faces fade out as the logo turns edge-on: fully
+// visible while |cos(spin)| is above `FACE_FADE_START`, gone below `FACE_FADE_END`. The cutout sides carry the shape.
+const FACE_FADE_START = 0.3
+const FACE_FADE_END = 0.05
+
+const isFace = (slice: number): boolean => slice === 0 || slice === SLICE_COUNT - 1
+
 const hasSize = (image: unknown): image is { width: number; height: number } =>
   typeof image === 'object' && image !== null && 'width' in image && 'height' in image
   && typeof image.width === 'number' && typeof image.height === 'number' && image.width > 0 && image.height > 0
@@ -38,10 +47,9 @@ export class LogoLayer implements Layer {
   private readonly geometry = new THREE.PlaneGeometry(1, 1)
   private readonly logo = new THREE.Group()
   private readonly slices: THREE.MeshBasicMaterial[] = Array.from({ length: SLICE_COUNT }, (_, i): THREE.MeshBasicMaterial => {
-    const face = i === 0 || i === SLICE_COUNT - 1
     // Faces: transparent without depth writes, so their soft edges blend over what is behind. Slices between: opaque
     // cutouts that write depth, so the nearest one wins and nothing beneath shows through the side.
-    const material = face
+    const material = isFace(i)
       ? new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide })
       : new THREE.MeshBasicMaterial({ alphaTest: SIDE_ALPHA_CUTOFF, side: THREE.DoubleSide })
     const mesh = new THREE.Mesh(this.geometry, material)
@@ -49,6 +57,7 @@ export class LogoLayer implements Layer {
     this.logo.add(mesh)
     return material
   })
+  private readonly faces: THREE.MeshBasicMaterial[] = this.slices.filter((_, i) => isFace(i))
   private spriteUrl = ''
   private texture: THREE.Texture | null = null
 
@@ -125,6 +134,8 @@ export class LogoLayer implements Layer {
 
     // Turns around the vertical axis through the logo's center, like a planet on its axis (speed 0 is still).
     this.logo.rotation.y = (this.logo.rotation.y + logo.spinSpeed.value * (deltaTime / 1000)) % (2 * Math.PI)
+    const faceOpacity = THREE.MathUtils.smoothstep(Math.abs(Math.cos(this.logo.rotation.y)), FACE_FADE_END, FACE_FADE_START)
+    this.faces.forEach((material) => { material.opacity = faceOpacity })
     // The Effects glow switch drives the logo too, with the same formula as the global bloom.
     const glow = window.config.effects.glow.value ? Math.min(1, beat.value * beat.energy) : 0
     this.slices.forEach((material) => material.color.setScalar(1 + glow))
