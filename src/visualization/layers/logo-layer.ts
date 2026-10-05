@@ -4,6 +4,7 @@ import { AudioAnalysedDataForVisualization } from '../../audioanalysis/audio-ana
 import { getResolvedSpriteUrl } from '../../utils/spriteCache'
 import { acquireSpriteTexture, releaseSpriteTexture } from '../../utils/textureCache'
 import { CameraManager } from '../camera-manager'
+import { getMusicSpeedMultiplier } from '../music-speed'
 import { Layer } from './layer'
 
 // Local distance in front of the camera, and the fraction of the viewport height the logo fills at beatScale 0.
@@ -138,7 +139,8 @@ export class LogoLayer implements Layer {
     })
   }
 
-  private animate = (deltaTime: number, { beat }: AudioAnalysedDataForVisualization): void => {
+  private animate = (deltaTime: number, audio: AudioAnalysedDataForVisualization): void => {
+    const { beat } = audio
     const { logo } = window.config
     const image: unknown = this.texture?.image
     if (!this.texture || !hasSize(image)) return // still loading
@@ -153,8 +155,10 @@ export class LogoLayer implements Layer {
     this.logo.position.x = shake ? (Math.random() - 0.5) * 2 * shake : 0
     this.logo.position.y = shake ? (Math.random() - 0.5) * 2 * shake : 0
 
-    // Turns around the vertical axis through the logo's center, like a planet on its axis (speed 0 is still).
-    this.logo.rotation.y = (this.logo.rotation.y + logo.spinSpeed.value * (deltaTime / 1000)) % (2 * Math.PI)
+    // Turns around the vertical axis through the logo's center, like a planet on its axis (speed 0 is still), faster
+    // with the music by the same multiplier Orbit uses.
+    const spin = logo.spinSpeed.value * getMusicSpeedMultiplier(audio) * (deltaTime / 1000)
+    this.logo.rotation.y = (this.logo.rotation.y + spin) % (2 * Math.PI)
     const faceOpacity = THREE.MathUtils.smoothstep(Math.abs(Math.cos(this.logo.rotation.y)), FACE_FADE_END, FACE_FADE_START)
     this.faces.forEach((material) => { material.opacity = faceOpacity })
     // The Effects glow switch drives the logo too, with the same formula as the global bloom.
