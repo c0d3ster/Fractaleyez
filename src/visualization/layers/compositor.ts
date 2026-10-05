@@ -2,7 +2,7 @@ import * as THREE from 'three'
 
 import { AudioAnalysedDataForVisualization } from '../../audioanalysis/audio-analysed-data'
 import { LayerKey, LayersConfigSection } from '../../config/configDefaults'
-import { compositeFragmentShader, compositeVertexShader, MAX_COMPOSITE_LAYERS } from './composite.glsl'
+import { BLEND_CODES, compositeFragmentShader, compositeVertexShader, MAX_COMPOSITE_LAYERS } from './composite.glsl'
 import { Layer } from './layer'
 import { planLayers } from './plan'
 
@@ -33,7 +33,7 @@ export class LayerCompositor {
     this.blank.needsUpdate = true
     const uniforms: Record<string, THREE.IUniform> = {
       uOpacity: { value: new Array<number>(MAX_COMPOSITE_LAYERS).fill(0) },
-      uScreen: { value: new Array<number>(MAX_COMPOSITE_LAYERS).fill(0) },
+      uBlend: { value: new Array<number>(MAX_COMPOSITE_LAYERS).fill(BLEND_CODES.mask) },
       uCount: { value: 0 },
     }
     for (let i = 0; i < MAX_COMPOSITE_LAYERS; i++) uniforms[`uLayer${i}`] = { value: this.blank }
@@ -56,18 +56,18 @@ export class LayerCompositor {
   renderLayers = (deltaTime: number, audio: AudioAnalysedDataForVisualization, config: LayersConfigSection): void => {
     const planned = planLayers(config).filter(({ key }) => this.layers[key]?.isActive?.() ?? Boolean(this.layers[key]))
     const opacities: number[] = this.material.uniforms.uOpacity!.value
-    const screens: number[] = this.material.uniforms.uScreen!.value
+    const blends: number[] = this.material.uniforms.uBlend!.value
     planned.forEach(({ key, opacity, blendMode }, slot) => {
       const target = this.getTarget(key)
       this.layers[key]!.render(target, deltaTime, audio)
       this.material.uniforms[`uLayer${slot}`]!.value = target.texture
       opacities[slot] = opacity
-      screens[slot] = blendMode === 'screen' ? 1 : 0
+      blends[slot] = BLEND_CODES[blendMode]
     })
     for (let slot = planned.length; slot < MAX_COMPOSITE_LAYERS; slot++) {
       this.material.uniforms[`uLayer${slot}`]!.value = this.blank
       opacities[slot] = 0
-      screens[slot] = 0
+      blends[slot] = BLEND_CODES.mask
     }
     this.material.uniforms.uCount!.value = planned.length
   }
