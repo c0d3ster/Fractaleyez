@@ -16,6 +16,10 @@
   border-radius: .5rem .5rem 0 0;
 }
 
+.category-title::first-letter {
+  text-transform: uppercase;
+}
+
 .category-title:active,
 .category-title:focus,
 .category-title:hover {

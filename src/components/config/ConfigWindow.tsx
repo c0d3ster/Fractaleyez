@@ -16,7 +16,7 @@ import { CameraTouchpad } from './CameraTouchpad'
 import { ShapePad } from './ShapePad'
 import { LogConfigButton } from './LogConfigButton'
 import { LogoSpritePicker } from './LogoSpritePicker'
-import { BeatHud, FrequencyHud, PerfHud, ParticleSpriteHud } from '../huds'
+import { BeatHud, FrequencyHud, ParticleSpriteHud } from '../huds'
 
 type OrbitColumnBodyProps = {
   onChange: ConfigContextValue['updateConfigItem']
@@ -148,7 +148,7 @@ const ExternalWindowBridge = ({
           {DISPLAY_ORDER.map((entry) => (
             <div className='config-column' key={entry}>
               {entry === 'color' ? <ColorPreview /> : null}
-              {entry === 'video' ? <><ConfigVideo isOpen={true} toggleOpen={() => null} popup /><PerfHud /></> : null}
+              {entry === 'video' ? <ConfigVideo isOpen={true} toggleOpen={() => null} popup /> : null}
               {entry === 'orbit' ? (
                 <ConfigCategory name='orbit' onChange={updateConfigItem} isOpen={true} toggleOpen={() => null} expanded popup bare>
                   <OrbitColumnBody onChange={updateConfigItem} />

@@ -16,6 +16,10 @@
   cursor: pointer;
 }
 
+.config-sub-accordion__title span:first-child::first-letter {
+  text-transform: uppercase;
+}
+
 .config-sub-accordion__title:hover,
 .config-sub-accordion__title:focus {
   outline: none;

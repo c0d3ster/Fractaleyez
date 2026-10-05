@@ -3,6 +3,7 @@ import './ConfigCategory.css'
 
 import { LayerHeader } from './LayerHeader'
 import { ConfigVideoBody } from './ConfigVideoBody'
+import { PerfHud } from '../huds'
 import { ResetIcon } from './ResetIcon'
 import { connectConfig, ConfigContextValue } from './context/ConfigProvider'
 
@@ -36,6 +37,7 @@ const ConfigVideoInner = ({ isOpen, toggleOpen, popup = false, resetVideoClips }
     )}
     <div className={`category-content${isOpen ? '' : ' hide-content'}`}>
       <ConfigVideoBody />
+      {popup && <PerfHud />}
     </div>
   </div>
 )
