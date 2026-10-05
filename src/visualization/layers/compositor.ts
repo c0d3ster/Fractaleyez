@@ -87,7 +87,9 @@ export class LayerCompositor {
     order.forEach((key) => {
       const target = targetOpacity(meta, key)
       const current = this.effectiveOpacity[key]
-      this.effectiveOpacity[key] = current === undefined ? target : stepOpacity(current, target, deltaTime, durationMs)
+      const next = current === undefined ? target : stepOpacity(current, target, deltaTime, durationMs)
+      this.effectiveOpacity[key] = next
+      if (next === 0 && target === 0) this.layers[key]?.onHidden?.()
     })
     return this.effectiveOpacity
   }

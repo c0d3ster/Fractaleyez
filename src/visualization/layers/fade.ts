@@ -10,3 +10,7 @@ export const stepOpacity = (
   if (current < target) return Math.min(target, current + step)
   return Math.max(target, current - step)
 }
+
+/** True once a clip has `crossfadeMs` or less left, so the next one can start fading in underneath it. */
+export const isNearEnd = (durationSec: number, currentTimeSec: number, crossfadeMs: number): boolean =>
+  Number.isFinite(durationSec) && durationSec > 0 && (durationSec - currentTimeSec) * 1000 <= crossfadeMs
