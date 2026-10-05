@@ -73,7 +73,7 @@
 
 .layer-header__name {
   flex: 1;
-  font-size: 1.35em; /* em, not rem: the pop-out container is already 1.2rem, so this scales from whichever surface it is in */
+  font-size: 1.5em; /* em, not rem: the pop-out container is already 1.2rem, so this scales from whichever surface it is in */
 }
 
 .layer-header__name::first-letter {
