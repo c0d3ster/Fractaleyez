@@ -34,8 +34,8 @@ document.addEventListener('keydown', (event: KeyboardEvent) => {
   const key = event.key.toLowerCase()
   const hotkeyLayer = LAYER_HOTKEYS.find((layerKey) => LAYER_REGISTRY[layerKey].hotkey === key)
   if (hotkeyLayer) toggleLayer(hotkeyLayer)
-  // S fires the orbit shockwave on demand, so it can be tested without waiting for a beat.
-  if (key === 's') pipeline?.triggerShockwave()
+  // S turns the shockwave effect on and off (the Effects Shockwave checkbox follows).
+  if (key === 's') window.updateConfigItem?.('effects', 'shockwave', !window.config.effects.shockwave.value)
 })
 
 // Create timing mechanism
