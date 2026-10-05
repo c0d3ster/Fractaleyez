@@ -27,6 +27,7 @@
 }
 
 .layer-header__power,
+.layer-header__reset,
 .layer-header__stepper button {
   background: transparent;
   border: none;
@@ -49,6 +50,17 @@
   display: block;
 }
 
+.layer-header__reset {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: .7;
+}
+
+.layer-header__reset:hover {
+  opacity: 1;
+}
+
 .layer-header__power--on {
   color: #93c5fd;
 }
@@ -62,12 +74,12 @@
 .layer-header__name {
   flex: 1;
   text-transform: lowercase;
-  font-size: 1.2em; /* em, not rem: the pop-out container is already 1.2rem, so this scales from whichever surface it is in */
+  font-size: 1.3em; /* em, not rem: the pop-out container is already 1.2rem, so this scales from whichever surface it is in */
 }
 
 .layer-header__percent {
   font-variant-numeric: tabular-nums;
-  font-size: .8rem;
+  font-size: .9rem;
 }
 
 .layer-header__stepper {
@@ -75,19 +87,15 @@
   align-items: center;
 }
 
+/* Buttons do not inherit the page font size, so without this the - and + fall back to the small browser default. */
+.layer-header__stepper button {
+  font-size: 1.1rem;
+}
+
 .layer-header__stepper .layer-header__badge {
-  min-width: 1.4rem;
-  border-radius: .75rem;
+  min-width: 1.8rem;
+  border-radius: 1rem;
   background: rgba(255, 255, 255, .15);
-  font-size: .75rem;
+  font-size: 1rem;
   font-weight: bold;
-}
-
-.layer-header__chevron {
-  transition: transform .15s ease;
-  transform: rotate(-90deg);
-}
-
-.layer-header__chevron--open {
-  transform: none;
 }

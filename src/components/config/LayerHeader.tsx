@@ -3,6 +3,7 @@ import classNames from 'classnames'
 import './LayerHeader.css'
 
 import { connectConfig } from './context/ConfigProvider'
+import { ResetIcon } from './ResetIcon'
 import { AppConfig, LayerKey } from '../../config/configDefaults'
 import { LAYER_CAP } from '../../config/layers'
 import { getParticleCrossfadeDurationMs } from '../../config/visualizer.config'
@@ -18,9 +19,10 @@ type LayerHeaderProps = {
   setLayerEnabled: (key: LayerKey, enabled: boolean) => boolean
   setLayerOpacity: (key: LayerKey, opacity: number) => void
   moveLayer: (key: LayerKey, toIndex: number) => void
-  /** Sidebar only: shows the chevron and makes a plain click toggle the body. */
+  /** Sidebar only: shows a reset button that restores the layer's section to the preset (the pop-out has its own above the header). */
+  onReset?: () => void
+  /** Sidebar only: makes a plain click toggle the body. */
   collapsible?: boolean
-  isOpen?: boolean
   onToggleOpen?: () => void
 }
 
@@ -42,8 +44,8 @@ const LayerHeaderInner = ({
   setLayerEnabled,
   setLayerOpacity,
   moveLayer,
+  onReset,
   collapsible = false,
-  isOpen = false,
   onToggleOpen,
 }: LayerHeaderProps): React.ReactElement => {
   const fillRef = useRef<HTMLDivElement>(null)
@@ -178,7 +180,7 @@ const LayerHeaderInner = ({
           setLayerEnabled(layerKey, !enabled)
         }}
       >
-        <svg viewBox='0 -0.5 16 16' width='18' height='18' aria-hidden='true' fill='none' stroke='currentColor' strokeWidth='1.8' strokeLinecap='round'>
+        <svg viewBox='0 -0.5 16 16' width='16' height='16' aria-hidden='true' fill='none' stroke='currentColor' strokeWidth='1.8' strokeLinecap='round'>
           <path d='M8 1.5v6' />
           <path d='M4.4 3.8a5.5 5.5 0 1 0 7.2 0' />
         </svg>
@@ -192,7 +194,23 @@ const LayerHeaderInner = ({
         </button>
         <button type='button' aria-label={`Move ${title} forward`} disabled={index >= order.length - 1} onClick={() => move(index + 1)}>+</button>
       </span>
-      {collapsible && <span className={classNames('layer-header__chevron', { 'layer-header__chevron--open': isOpen })} aria-hidden='true'>&#9662;</span>}
+      {/* Last, so it sits at the header's right edge where the reset icon always was; the rest sits to its left. */}
+      {onReset && (
+        <button
+          type='button'
+          className='layer-header__reset'
+          title='Reset this section to the preset'
+          aria-label={`Reset ${title} config`}
+          onPointerDown={stop}
+          onPointerUp={stop}
+          onClick={(event) => {
+            stop(event)
+            onReset()
+          }}
+        >
+          <ResetIcon />
+        </button>
+      )}
     </div>
   )
 }
