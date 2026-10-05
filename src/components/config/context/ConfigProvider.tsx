@@ -176,6 +176,8 @@ export type ConfigContextValue = {
   resetConfigItem: (category: ConfigSectionKey, item: string) => void
   /** Restore a whole section to the active preset's loaded values. */
   resetConfigSection: (category: ConfigSectionKey) => Promise<void>
+  /** Restore the video clip list to the active preset's loaded clips (video is not a plain config section). */
+  resetVideoClips: () => void
   savePreset: (name: string, pack: string, force?: boolean) => Promise<void>
   isSignedIn: boolean
   currentUserId: string | null
@@ -586,6 +588,10 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
     })
   }, [])
 
+  const resetVideoClips = useCallback(() => {
+    updateVideoClips(baselineRef.current.video.clips)
+  }, [updateVideoClips])
+
   const savePreset = useCallback(async (name: string, pack: string, force?: boolean) => {
     const token = await getToken()
     if (!token) throw Object.assign(new Error('Not authenticated'), { response: { status: 401, data: { error: 'Not authenticated — try signing out and back in' } } })
@@ -608,7 +614,7 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
   }, [config, getToken])
 
   return (
-    <ConfigContext.Provider value={{ config, updateConfigItem, updateVideoClips, updateParticleSprites, updateLogoSprite, setLayerEnabled, setLayerOpacity, moveLayer, retrieveConfigPreset, revertConfig, resetConfig, resetConfigItem, resetConfigSection, savePreset, isSignedIn: isSignedIn ?? false, currentUserId: user?.id ?? null, getToken, presets: presetList, packs: packList, userSettings, updateUserSettings }}>
+    <ConfigContext.Provider value={{ config, updateConfigItem, updateVideoClips, updateParticleSprites, updateLogoSprite, setLayerEnabled, setLayerOpacity, moveLayer, retrieveConfigPreset, revertConfig, resetConfig, resetConfigItem, resetConfigSection, resetVideoClips, savePreset, isSignedIn: isSignedIn ?? false, currentUserId: user?.id ?? null, getToken, presets: presetList, packs: packList, userSettings, updateUserSettings }}>
       {children}
     </ConfigContext.Provider>
   )

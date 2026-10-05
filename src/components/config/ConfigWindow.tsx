@@ -74,6 +74,7 @@ const ExternalWindowBridge = ({
   resetConfig,
   resetConfigItem,
   resetConfigSection,
+  resetVideoClips,
   savePreset,
   isSignedIn,
   currentUserId,
@@ -100,6 +101,7 @@ const ExternalWindowBridge = ({
         resetConfig,
         resetConfigItem,
         resetConfigSection,
+        resetVideoClips,
         savePreset,
         isSignedIn,
         currentUserId,
@@ -169,6 +171,7 @@ const ConfigWindowInner = ({
   resetConfig,
   resetConfigItem,
   resetConfigSection,
+  resetVideoClips,
   savePreset,
   isSignedIn,
   currentUserId,
@@ -264,6 +267,7 @@ const ConfigWindowInner = ({
         resetConfig={resetConfig}
         resetConfigItem={resetConfigItem}
         resetConfigSection={resetConfigSection}
+        resetVideoClips={resetVideoClips}
         savePreset={savePreset}
         isSignedIn={isSignedIn}
         currentUserId={currentUserId}
@@ -288,6 +292,7 @@ const ConfigWindowInner = ({
     resetConfig,
     resetConfigItem,
     resetConfigSection,
+    resetVideoClips,
     savePreset,
     isSignedIn,
     currentUserId,

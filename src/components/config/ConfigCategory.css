@@ -7,7 +7,7 @@
   position: relative;
   margin: 1rem 0 0 0;
   font-weight: bold;
-  padding: 10px;
+  padding: 8px;
   color: rgba(220, 220, 220,.9);
   background: rgba(40, 40, 40, .9);
   border: none;
@@ -50,7 +50,7 @@
   position: absolute;
   bottom: 100%;
   right: 0;
-  margin-bottom: 2px;
+  margin-bottom: 4px;
   display: flex;
   align-items: center;
   justify-content: center;

@@ -7,6 +7,7 @@ import { ConfirmModal } from '../common/ConfirmModal'
 import { ConfigSlider } from './ConfigSlider'
 import { ConfigCheckbox } from './ConfigCheckbox'
 import { LayerHeader } from './LayerHeader'
+import { ResetIcon } from './ResetIcon'
 import { connectConfig, ConfigContextValue, ConfigSectionKey } from './context/ConfigProvider'
 import { AppConfig, ConfigItem, LayerKey, SliderItem } from '../../config/configDefaults'
 import { LAYER_REGISTRY } from '../../config/layers'
@@ -43,8 +44,9 @@ const SLIDER_ZONES: Partial<Record<string, readonly SliderZone[]>> = {
   scaleFactor: SCALE_ZONES,
 }
 
-// Sections whose items live in the preset and can be reset to its loaded values (video has its own controls).
-const RESETTABLE_SECTIONS: readonly ConfigSectionKey[] = ['user', 'fractal', 'audio', 'effects', 'particle', 'orbit']
+// Sections whose items live in the preset and can be reset to its loaded values (video is reset by ConfigVideo, since
+// its clip list is not a plain section).
+const RESETTABLE_SECTIONS: readonly ConfigSectionKey[] = ['user', 'fractal', 'audio', 'effects', 'particle', 'orbit', 'logo']
 const isResettableSection = (name: string): name is ConfigSectionKey => RESETTABLE_SECTIONS.some((section) => section === name)
 
 type ConfigCategoryProps = {
@@ -60,7 +62,7 @@ type ConfigCategoryProps = {
   isSignedIn: ConfigContextValue['isSignedIn']
   userSettings: ConfigContextValue['userSettings']
   updateUserSettings: ConfigContextValue['updateUserSettings']
-  /** Popup column: always open, no chevron on a layer header. */
+  /** Popup column: always open. */
   popup?: boolean
   children?: React.ReactNode
 }
@@ -140,6 +142,11 @@ const ConfigCategoryInner = React.memo(({ name, config, isOpen, expanded = false
     if (isResettableSection(name)) void resetConfigSection(name)
   }, [name, resetConfigSection])
 
+  // The layer header's own reset button (sidebar); it stops the click itself, so there is no event to take here.
+  const handleLayerReset = useCallback(() => {
+    if (isResettableSection(name)) void resetConfigSection(name)
+  }, [name, resetConfigSection])
+
   const handleToggle = useCallback(() => {
     toggleOpen(name)
   }, [name, toggleOpen])
@@ -161,10 +168,7 @@ const ConfigCategoryInner = React.memo(({ name, config, isOpen, expanded = false
       aria-label={`Reset ${name} config`}
       onClick={handleSectionReset}
     >
-      <svg viewBox='0 0 24 24' width='15' height='15' fill='none' stroke='currentColor' strokeWidth='3' strokeLinecap='round' strokeLinejoin='round' aria-hidden>
-        <path d='M3.3 14.3A9 9 0 1 0 12 3a9.75 9.75 0 0 0-6.74 2.74L3 8' />
-        <path d='M3 3v5h5' />
-      </svg>
+      <ResetIcon />
     </button>
   )
 
@@ -173,7 +177,15 @@ const ConfigCategoryInner = React.memo(({ name, config, isOpen, expanded = false
   return (
     <div className={classNames('category-container', { 'category-container--effects': name === 'effects', 'config-inactive': dimmed })}>
       {headerLayer
-        ? <LayerHeader layerKey={headerLayer} title={name} collapsible={!popup} isOpen={isOpen} onToggleOpen={handleToggle} />
+        ? (
+          <LayerHeader
+            layerKey={headerLayer}
+            title={name}
+            collapsible={!popup}
+            onToggleOpen={handleToggle}
+            onReset={!expanded && isResettableSection(name) ? handleLayerReset : undefined}
+          />
+        )
         : (
           <h3 className='category-title' onClick={handleToggle}>
             {name} config
