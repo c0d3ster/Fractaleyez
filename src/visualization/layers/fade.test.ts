@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { stepOpacity } from './fade'
+import { isNearEnd, stepOpacity } from './fade'
 
 describe('stepOpacity', () => {
   it('snaps when the duration is 0', () => {
@@ -21,5 +21,19 @@ describe('stepOpacity', () => {
   it('reverses from the current value mid-fade', () => {
     const up = stepOpacity(0, 1, 400, 1000)
     expect(stepOpacity(up, 0, 100, 1000)).toBeCloseTo(0.3)
+  })
+})
+
+describe('isNearEnd', () => {
+  it('is true once the time left is within the crossfade', () => {
+    expect(isNearEnd(10, 9.2, 1000)).toBe(true)
+    expect(isNearEnd(10, 9, 1000)).toBe(true)
+    expect(isNearEnd(10, 8.9, 1000)).toBe(false)
+  })
+
+  it('is false while the duration is unknown or empty', () => {
+    expect(isNearEnd(NaN, 0, 1000)).toBe(false)
+    expect(isNearEnd(Infinity, 0, 1000)).toBe(false)
+    expect(isNearEnd(0, 0, 1000)).toBe(false)
   })
 })
