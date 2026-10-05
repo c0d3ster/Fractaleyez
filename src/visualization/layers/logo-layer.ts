@@ -16,24 +16,27 @@ const hasSize = (image: unknown): image is { width: number; height: number } =>
   && typeof image.width === 'number' && typeof image.height === 'number' && image.width > 0 && image.height > 0
 
 /**
- * Logo as a layer: a sprite parented to its own camera, so it ignores `cameraBound` panning (the camera is never
+ * Logo as a layer: a textured plane parented to its own camera, so it ignores `cameraBound` panning (the camera is never
  * steered) and `scaleFactor`. Reacts to the shared beat: scale pulse, shake, glow (the Effects glow switch), and a spin (speed 0 is still).
  */
 export class LogoLayer implements Layer {
   private readonly scene = new THREE.Scene()
   private readonly cameraManager = new CameraManager()
-  private readonly material = new THREE.SpriteMaterial({ color: 0xffffff, transparent: true, depthTest: false })
-  private readonly sprite = new THREE.Sprite(this.material)
+  // A unit plane (not a Sprite, which always faces the camera) so the logo can turn on its vertical axis. Both faces
+  // draw, so the back shows the image mirrored. Swappable for thicker geometry (stacked slices, extrusion) later.
+  private readonly geometry = new THREE.PlaneGeometry(1, 1)
+  private readonly material = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, side: THREE.DoubleSide })
+  private readonly mesh = new THREE.Mesh(this.geometry, this.material)
   private spriteUrl = ''
   private texture: THREE.Texture | null = null
 
   constructor(private readonly renderer: THREE.WebGLRenderer) {
     this.cameraManager.init()
     const camera = this.cameraManager.getCamera()
-    camera.add(this.sprite)
-    this.sprite.position.z = -LOGO_DISTANCE
+    camera.add(this.mesh)
+    this.mesh.position.z = -LOGO_DISTANCE
     this.scene.add(camera)
-    this.sprite.visible = false
+    this.mesh.visible = false
   }
 
   render = (target: THREE.WebGLRenderTarget, deltaTime: number, audio: AudioAnalysedDataForVisualization): void => {
@@ -54,6 +57,7 @@ export class LogoLayer implements Layer {
   dispose = (): void => {
     this.releaseTexture()
     this.material.dispose()
+    this.geometry.dispose()
   }
 
   /** Follows `logo.sprite`; an empty value just hides the sprite. */
@@ -72,7 +76,7 @@ export class LogoLayer implements Layer {
     if (this.texture) releaseSpriteTexture(this.texture)
     this.texture = null
     this.material.map = null
-    this.sprite.visible = false
+    this.mesh.visible = false
   }
 
   private animate = (deltaTime: number, { beat }: AudioAnalysedDataForVisualization): void => {
@@ -82,14 +86,15 @@ export class LogoLayer implements Layer {
     const camera = this.cameraManager.getCamera()
     const viewHeight = 2 * LOGO_DISTANCE * Math.tan((camera.fov / 2) * (Math.PI / 180))
     const size = viewHeight * LOGO_HEIGHT_FRACTION * (1 + beat.value * logo.beatScale.value)
-    this.sprite.scale.set(size * (image.width / image.height), size, 1)
-    this.sprite.visible = true
+    this.mesh.scale.set(size * (image.width / image.height), size, 1)
+    this.mesh.visible = true
 
     const shake = beat.value * logo.shake.value * viewHeight * SHAKE_VIEWPORT_FRACTION
-    this.sprite.position.x = shake ? (Math.random() - 0.5) * 2 * shake : 0
-    this.sprite.position.y = shake ? (Math.random() - 0.5) * 2 * shake : 0
+    this.mesh.position.x = shake ? (Math.random() - 0.5) * 2 * shake : 0
+    this.mesh.position.y = shake ? (Math.random() - 0.5) * 2 * shake : 0
 
-    this.material.rotation += logo.spinSpeed.value * (deltaTime / 1000)
+    // Turns around the vertical axis through the logo's center, like a planet on its axis (speed 0 is still).
+    this.mesh.rotation.y = (this.mesh.rotation.y + logo.spinSpeed.value * (deltaTime / 1000)) % (2 * Math.PI)
     // The Effects glow switch drives the logo too, with the same formula as the global bloom.
     const glow = window.config.effects.glow.value ? Math.min(1, beat.value * beat.energy) : 0
     this.material.color.setScalar(1 + glow)
