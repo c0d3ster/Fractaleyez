@@ -103,11 +103,9 @@ export type LayersConfigSection = {
 
 export type LogoConfigSection = {
   sprite: MultiselectItem // single-select via min:1,max:1
-  spin: CheckboxItem
   spinSpeed: SliderItem
   beatScale: SliderItem
   shake: SliderItem
-  glowOnBeat: CheckboxItem
 }
 
 export type AppConfig = {
@@ -239,10 +237,8 @@ export const configDefaults: AppConfig = {
   },
   logo: {
     sprite: { name: 'Sprite', type: 'multiselect', defaultValue: [logoConfig.sprite_DEFAULT], value: [logoConfig.sprite_DEFAULT], min: 1, max: 1 },
-    spin: { name: 'Spin', type: 'checkbox', defaultValue: logoConfig.spin_DEFAULT, value: logoConfig.spin_DEFAULT },
     spinSpeed: { name: 'Spin Speed', type: 'slider', defaultValue: logoConfig.spinSpeed_DEFAULT, value: logoConfig.spinSpeed_DEFAULT, min: logoConfig.spinSpeed_MIN, max: logoConfig.spinSpeed_MAX, step: logoConfig.spinSpeed_STEP_SIZE },
     beatScale: { name: 'Beat Scale', type: 'slider', defaultValue: logoConfig.beatScale_DEFAULT, value: logoConfig.beatScale_DEFAULT, min: logoConfig.beatScale_MIN, max: logoConfig.beatScale_MAX, step: logoConfig.beatScale_STEP_SIZE },
     shake: { name: 'Shake', type: 'slider', defaultValue: logoConfig.shake_DEFAULT, value: logoConfig.shake_DEFAULT, min: logoConfig.shake_MIN, max: logoConfig.shake_MAX, step: logoConfig.shake_STEP_SIZE },
-    glowOnBeat: { name: 'Glow On Beat', type: 'checkbox', defaultValue: logoConfig.glowOnBeat_DEFAULT, value: logoConfig.glowOnBeat_DEFAULT },
   },
 }

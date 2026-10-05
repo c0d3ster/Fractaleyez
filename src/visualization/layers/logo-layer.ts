@@ -17,7 +17,7 @@ const hasSize = (image: unknown): image is { width: number; height: number } =>
 
 /**
  * Logo as a layer: a sprite parented to its own camera, so it ignores `cameraBound` panning (the camera is never
- * steered) and `scaleFactor`. Reacts to the shared beat: scale pulse, shake, glow, and an optional spin.
+ * steered) and `scaleFactor`. Reacts to the shared beat: scale pulse, shake, glow (the Effects glow switch), and a spin (speed 0 is still).
  */
 export class LogoLayer implements Layer {
   private readonly scene = new THREE.Scene()
@@ -89,8 +89,9 @@ export class LogoLayer implements Layer {
     this.sprite.position.x = shake ? (Math.random() - 0.5) * 2 * shake : 0
     this.sprite.position.y = shake ? (Math.random() - 0.5) * 2 * shake : 0
 
-    if (logo.spin.value) this.material.rotation += logo.spinSpeed.value * (deltaTime / 1000)
-    const glow = logo.glowOnBeat.value ? Math.min(1, beat.value * beat.energy) : 0
+    this.material.rotation += logo.spinSpeed.value * (deltaTime / 1000)
+    // The Effects glow switch drives the logo too, with the same formula as the global bloom.
+    const glow = window.config.effects.glow.value ? Math.min(1, beat.value * beat.energy) : 0
     this.material.color.setScalar(1 + glow)
   }
 }
