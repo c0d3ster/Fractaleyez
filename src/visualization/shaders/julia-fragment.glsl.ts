@@ -21,6 +21,10 @@ export const juliaFragmentShader = /* glsl */ `
   uniform float uHuePhase;
   uniform float uHueStart;
   uniform float uHueSpan;
+  uniform float uPaletteOn;
+  uniform float uPaletteCycles;
+  uniform float uPalettePhase;
+  uniform sampler2D uPalette;
   uniform float uSaturation;
   uniform vec2 uCenterOffset;
   uniform float uIterOffset;
@@ -75,6 +79,11 @@ export const juliaFragmentShader = /* glsl */ `
   }
 
   vec3 palette(float t) {
+    // A chosen palette (the Color config) is read from a lookup texture; its cycles set how fast the escape count
+    // runs through it, and the hue phase keeps drifting it along.
+    if (uPaletteOn > 0.5) {
+      return texture2D(uPalette, vec2(fract(t * uPaletteCycles + uHuePhase + uPalettePhase), 0.5)).rgb;
+    }
     vec3 a = vec3(0.5);
     vec3 b = vec3(0.5);
     vec3 d = vec3(0.0, 0.33, 0.67);

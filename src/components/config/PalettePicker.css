@@ -1,0 +1,94 @@
+.palette-picker {
+  padding: 4px 0 8px;
+  user-select: none;
+}
+
+.palette-picker__grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+}
+
+.palette-picker__choice {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 4px;
+  border: 2px solid transparent;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.08);
+  cursor: pointer;
+}
+
+.palette-picker__choice:hover {
+  background: rgba(0, 0, 0, 0.16);
+}
+
+.palette-picker__choice--selected {
+  border-color: #2b6cb0;
+  background: rgba(43, 108, 176, 0.18);
+}
+
+.palette-picker__swatch {
+  display: block;
+  height: 14px;
+  border-radius: 3px;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35);
+}
+
+.palette-picker__name {
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: #333;
+  text-align: left;
+}
+
+.palette-picker__stops {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding-top: 8px;
+}
+
+.palette-picker__stop {
+  position: relative;
+  display: inline-flex;
+}
+
+.palette-picker__stop input[type='color'] {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid #555;
+  border-radius: 6px;
+  background: none;
+  cursor: pointer;
+}
+
+.palette-picker__stop-remove {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: #444;
+  color: #fff;
+  font-size: 12px;
+  line-height: 16px;
+  cursor: pointer;
+}
+
+.palette-picker__stop-add {
+  width: 32px;
+  height: 32px;
+  border: 1px dashed #555;
+  border-radius: 6px;
+  background: none;
+  color: #333;
+  font-size: 18px;
+  cursor: pointer;
+}

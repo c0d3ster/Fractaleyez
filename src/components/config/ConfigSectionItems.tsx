@@ -35,11 +35,6 @@ const SLIDER_ZONES: Partial<Record<string, readonly SliderZone[]>> = {
 const RESETTABLE_SECTIONS: readonly ConfigSectionKey[] = ['user', 'fractal', 'audio', 'effects', 'color', 'particle', 'orbit', 'logo']
 export const isResettableSection = (name: string): name is ConfigSectionKey => RESETTABLE_SECTIONS.some((section) => section === name)
 
-// Items stored as sliders but edited by their own control (Color's hue window is set with the hue ring).
-const CUSTOM_EDITED_ITEMS: Partial<Record<string, readonly string[]>> = {
-  color: ['hueStart', 'hueSpan'],
-}
-
 // A load-slider change held back at the red zone's edge until the user confirms it.
 type PendingRedChange = {
   item: ParticleLoadKey
@@ -48,6 +43,8 @@ type PendingRedChange = {
 
 type ConfigSectionItemsProps = {
   name: string
+  /** Render just these items (the Color section is laid out in pieces around its own controls). */
+  only?: readonly string[]
   config: AppConfig
   onChange: (category: string, item: string, value: string | boolean) => void
   resetConfigItem: ConfigContextValue['resetConfigItem']
@@ -56,7 +53,7 @@ type ConfigSectionItemsProps = {
   updateUserSettings: ConfigContextValue['updateUserSettings']
 }
 
-const ConfigSectionItemsInner = ({ name, config, onChange, resetConfigItem, isSignedIn, userSettings, updateUserSettings }: ConfigSectionItemsProps): React.ReactElement => {
+const ConfigSectionItemsInner = ({ name, only, config, onChange, resetConfigItem, isSignedIn, userSettings, updateUserSettings }: ConfigSectionItemsProps): React.ReactElement => {
   // Load comes from the count, layers, levels and size sliders together, not any one in isolation.
   const { particlesPerLayer, layers, levels, particleSize } = config.particle
   const loadInputs = useMemo<ParticleLoadInputs>(() => ({
@@ -136,7 +133,7 @@ const ConfigSectionItemsInner = ({ name, config, onChange, resetConfigItem, isSi
           That can freeze or crash your browser, and swapping presets will stutter.
         </ConfirmModal>
       )}
-      {Object.keys(categoryConfig).filter((configItem) => !CUSTOM_EDITED_ITEMS[name]?.includes(configItem)).map((configItem) => {
+      {Object.keys(categoryConfig).filter((configItem) => !only || only.includes(configItem)).map((configItem) => {
         const item = categoryConfig[configItem]!
         const { type, name: label, value } = item
 

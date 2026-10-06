@@ -4,6 +4,8 @@ import { AudioAnalysedDataForVisualization } from '../audioanalysis/audio-analys
 import { juliaFragmentShader, juliaVertexShader } from './shaders/julia-fragment.glsl'
 import { JULIA_MAP_VIEW, JULIA_TOUR } from './julia-tour'
 import { userConfig } from '../config/user.config'
+import { resolveColorState } from '../config/colorState'
+import { LUT_SIZE } from '../config/paletteLut'
 import { JULIA_SCALE, SCALE_UNITS_PER_SLIDER_STEP } from '../config/juliaScale.config'
 import { SHAPE_EASE_SECONDS, SHAPE_MAX_TRANSITION_SECONDS, SHAPE_VELOCITY_HALF_LIFE_SECONDS, ShapeGlider } from './shape-glider'
 
@@ -295,6 +297,9 @@ export class JuliaVisualizer {
   private orientAngle = 0
   private hasOrient = false
   private huePhase = 0
+  // The chosen Color palette, as a one-row texture the shader reads; paletteKey is the palette it was last filled for.
+  private readonly paletteTexture = new THREE.DataTexture(new Uint8Array(LUT_SIZE * 4), LUT_SIZE, 1, THREE.RGBAFormat)
+  private paletteKey = ''
   private cycloneAmount = 0
   private hasStartedLoop = false
 
@@ -332,6 +337,9 @@ export class JuliaVisualizer {
   init(): void {
     this.scene = new THREE.Scene()
     this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1)
+    this.paletteTexture.wrapS = THREE.RepeatWrapping
+    this.paletteTexture.magFilter = THREE.LinearFilter
+    this.paletteTexture.minFilter = THREE.LinearFilter
 
     this.material = new THREE.ShaderMaterial({
       vertexShader: juliaVertexShader,
@@ -347,6 +355,10 @@ export class JuliaVisualizer {
         uHuePhase: { value: 0 },
         uHueStart: { value: 0 },
         uHueSpan: { value: 1 },
+        uPaletteOn: { value: 0 },
+        uPaletteCycles: { value: 1 },
+        uPalettePhase: { value: 0 },
+        uPalette: { value: this.paletteTexture },
         uCenterOffset: { value: new THREE.Vector2() },
         uIterOffset: { value: 0 },
         uRotation: { value: 0 },
@@ -420,22 +432,19 @@ export class JuliaVisualizer {
 
   // The shape's current c (before the small drift and audio offsets), whether it is manual, and the
   // current palette hue and saturation so the shape pad can match the visualizer's colors.
-  getShape(): { re: number; im: number; manual: boolean; hue: number; hueStart: number; hueSpan: number; saturation: number; targetRe: number; targetIm: number } {
+  getShape(): { re: number; im: number; manual: boolean; hue: number; saturation: number; targetRe: number; targetIm: number } {
     const hue = this.huePhase
-    const { saturation: saturationItem, hueStart: hueStartItem, hueSpan: hueSpanItem } = window.config.color
-    const saturation = saturationItem.value
-    const hueStart = hueStartItem.value
-    const hueSpan = hueSpanItem.value
+    const saturation = window.config.color.saturation.value
     if (this.hasShape) {
       // The shape trails its target: in manual mode that is where the pointer last put it (plus any
       // Switcheroo hop), on the tour it is the Tour slider's point plus the hop.
       const tourTarget = tourPoint(this.currentTourTarget())
       const targetRe = this.manual ? this.manualHomeRe + this.manualHopRe : tourTarget.re
       const targetIm = this.manual ? this.manualHomeIm + this.manualHopIm : tourTarget.im
-      return { re: this.shapeRe, im: this.shapeIm, manual: this.manual, hue, hueStart, hueSpan, saturation, targetRe, targetIm }
+      return { re: this.shapeRe, im: this.shapeIm, manual: this.manual, hue, saturation, targetRe, targetIm }
     }
     const start = tourPoint(getShapePosition() * (TOUR.length - 1))
-    return { re: start.re, im: start.im, manual: false, hue, hueStart, hueSpan, saturation, targetRe: start.re, targetIm: start.im }
+    return { re: start.re, im: start.im, manual: false, hue, saturation, targetRe: start.re, targetIm: start.im }
   }
 
   private currentTourTarget(): number {
@@ -714,8 +723,17 @@ export class JuliaVisualizer {
     uniforms.uCyclone!.value = this.cycloneAmount
     uniforms.uGlow!.value = glow
     uniforms.uSaturation!.value = window.config.color.saturation.value
-    uniforms.uHueStart!.value = window.config.color.hueStart.value
-    uniforms.uHueSpan!.value = window.config.color.hueSpan.value
+    const color = resolveColorState(window.config.color)
+    uniforms.uHueStart!.value = color.hueStart
+    uniforms.uHueSpan!.value = color.hueSpan
+    uniforms.uPaletteOn!.value = color.lut ? 1 : 0
+    uniforms.uPaletteCycles!.value = color.cycles
+    uniforms.uPalettePhase!.value = color.phase
+    if (color.lut && color.key !== this.paletteKey) {
+      this.paletteKey = color.key
+      this.paletteTexture.image.data.set(color.lut)
+      this.paletteTexture.needsUpdate = true
+    }
     uniforms.uShockRadius!.value = shockRadius
     uniforms.uShockStrength!.value = shockStrength
   }

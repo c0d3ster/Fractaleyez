@@ -14,7 +14,7 @@ import { connectConfig, ConfigContext, ConfigContextValue } from './context/Conf
 import { CameraTouchpad } from './CameraTouchpad'
 import { ShapePad } from './ShapePad'
 import { LogConfigButton } from './LogConfigButton'
-import { HueRangeRing } from './HueRangeRing'
+import { ColorConfigBody } from './ColorConfigBody'
 import { LogoSpritePicker } from './LogoSpritePicker'
 import { BeatHud, FrequencyHud, ParticleSpriteHud } from '../huds'
 
@@ -91,6 +91,7 @@ const ExternalWindowBridge = ({
   updateVideoClips,
   updateParticleSprites,
   updateLogoSprite,
+  updateColorList,
   setLayerEnabled,
   setLayerOpacity,
   moveLayer,
@@ -118,6 +119,7 @@ const ExternalWindowBridge = ({
         updateVideoClips,
         updateParticleSprites,
         updateLogoSprite,
+        updateColorList,
         setLayerEnabled,
         setLayerOpacity,
         moveLayer,
@@ -148,6 +150,11 @@ const ExternalWindowBridge = ({
           {DISPLAY_ORDER.map((entry) => (
             <div className='config-column' key={entry}>
               {entry === 'video' ? <ConfigVideo isOpen={true} toggleOpen={() => null} popup /> : null}
+              {entry === 'color' ? (
+                <ConfigCategory name='color' onChange={updateConfigItem} isOpen={true} toggleOpen={() => null} expanded popup bare>
+                  <ColorConfigBody />
+                </ConfigCategory>
+              ) : null}
               {entry === 'orbit' ? (
                 <ConfigCategory name='orbit' onChange={updateConfigItem} isOpen={true} toggleOpen={() => null} expanded popup bare>
                   <OrbitColumnBody onChange={updateConfigItem} />
@@ -164,10 +171,9 @@ const ExternalWindowBridge = ({
                   <ShapePad />
                 </ConfigCategory>
               ) : null}
-              {entry === 'user' || entry === 'color' || entry === 'effects' || entry === 'audio' ? (
+              {entry === 'user' || entry === 'effects' || entry === 'audio' ? (
                 <ConfigCategory name={entry} onChange={updateConfigItem} isOpen={true} toggleOpen={() => null} expanded popup>
                   {entry === 'user' ? <CameraTouchpad /> : null}
-                  {entry === 'color' ? <HueRangeRing /> : null}
                   {entry === 'audio' ? <><FrequencyHud /><BeatHud /></> : null}
                 </ConfigCategory>
               ) : null}
@@ -189,6 +195,7 @@ const ConfigWindowInner = ({
   updateVideoClips,
   updateParticleSprites,
   updateLogoSprite,
+  updateColorList,
   setLayerEnabled,
   setLayerOpacity,
   moveLayer,
@@ -285,6 +292,7 @@ const ConfigWindowInner = ({
         updateVideoClips={updateVideoClips}
         updateParticleSprites={updateParticleSprites}
         updateLogoSprite={updateLogoSprite}
+        updateColorList={updateColorList}
         setLayerEnabled={setLayerEnabled}
         setLayerOpacity={setLayerOpacity}
         moveLayer={moveLayer}
@@ -311,6 +319,7 @@ const ConfigWindowInner = ({
     updateVideoClips,
     updateParticleSprites,
     updateLogoSprite,
+    updateColorList,
     setLayerEnabled,
     setLayerOpacity,
     moveLayer,

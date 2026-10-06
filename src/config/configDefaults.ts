@@ -74,6 +74,12 @@ export type ColorConfigSection = {
   saturation: SliderItem
   hueStart: SliderItem
   hueSpan: SliderItem
+  palette: MultiselectItem // single-select via min:1,max:1; 'rainbow', 'custom' or a named palette id
+  customStops: MultiselectItem // hex colors of the custom palette
+  paletteCycles: SliderItem
+  palettePhase: SliderItem
+  paletteReverse: CheckboxItem
+  paletteMirror: CheckboxItem
 }
 
 export type ParticleConfigSection = {
@@ -217,6 +223,12 @@ export const configDefaults: AppConfig = {
     saturation: { name: 'Saturation', type: 'slider', defaultValue: colorConfig.saturation_DEFAULT, value: colorConfig.saturation_DEFAULT, min: colorConfig.saturation_MIN, max: colorConfig.saturation_MAX, step: colorConfig.saturation_STEP_SIZE },
     hueStart: { name: 'Hue Start', type: 'slider', defaultValue: colorConfig.hueStart_DEFAULT, value: colorConfig.hueStart_DEFAULT, min: colorConfig.hueStart_MIN, max: colorConfig.hueStart_MAX, step: colorConfig.hueStart_STEP_SIZE },
     hueSpan: { name: 'Hue Span', type: 'slider', defaultValue: colorConfig.hueSpan_DEFAULT, value: colorConfig.hueSpan_DEFAULT, min: colorConfig.hueSpan_MIN, max: colorConfig.hueSpan_MAX, step: colorConfig.hueSpan_STEP_SIZE },
+    palette: { name: 'Palette', type: 'multiselect', defaultValue: [colorConfig.palette_DEFAULT], value: [colorConfig.palette_DEFAULT], min: 1, max: 1 },
+    customStops: { name: 'Custom Colors', type: 'multiselect', defaultValue: [...colorConfig.customStops_DEFAULT], value: [...colorConfig.customStops_DEFAULT], min: colorConfig.customStops_MIN, max: colorConfig.customStops_MAX },
+    paletteCycles: { name: 'Cycles', type: 'slider', defaultValue: colorConfig.paletteCycles_DEFAULT, value: colorConfig.paletteCycles_DEFAULT, min: colorConfig.paletteCycles_MIN, max: colorConfig.paletteCycles_MAX, step: colorConfig.paletteCycles_STEP_SIZE },
+    palettePhase: { name: 'Phase', type: 'slider', defaultValue: colorConfig.palettePhase_DEFAULT, value: colorConfig.palettePhase_DEFAULT, min: colorConfig.palettePhase_MIN, max: colorConfig.palettePhase_MAX, step: colorConfig.palettePhase_STEP_SIZE },
+    paletteReverse: { name: 'Reverse', type: 'checkbox', defaultValue: false, value: false },
+    paletteMirror: { name: 'Mirror', type: 'checkbox', defaultValue: false, value: false },
   },
   particle: {
     particleSize: { name: 'Size', type: 'slider', defaultValue: particleConfig.size_DEFAULT, value: particleConfig.size_DEFAULT, min: particleConfig.size_MIN, max: particleConfig.size_MAX, step: particleConfig.size_STEP_SIZE },
