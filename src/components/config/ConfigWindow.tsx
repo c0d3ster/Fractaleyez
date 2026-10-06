@@ -14,6 +14,7 @@ import { connectConfig, ConfigContext, ConfigContextValue } from './context/Conf
 import { CameraTouchpad } from './CameraTouchpad'
 import { ShapePad } from './ShapePad'
 import { LogConfigButton } from './LogConfigButton'
+import { HueRangeRing } from './HueRangeRing'
 import { LogoSpritePicker } from './LogoSpritePicker'
 import { BeatHud, FrequencyHud, ParticleSpriteHud } from '../huds'
 
@@ -166,6 +167,7 @@ const ExternalWindowBridge = ({
               {entry === 'user' || entry === 'color' || entry === 'effects' || entry === 'audio' ? (
                 <ConfigCategory name={entry} onChange={updateConfigItem} isOpen={true} toggleOpen={() => null} expanded popup>
                   {entry === 'user' ? <CameraTouchpad /> : null}
+                  {entry === 'color' ? <HueRangeRing /> : null}
                   {entry === 'audio' ? <><FrequencyHud /><BeatHud /></> : null}
                 </ConfigCategory>
               ) : null}

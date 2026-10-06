@@ -19,6 +19,8 @@ export const juliaFragmentShader = /* glsl */ `
   uniform float uWStart;
   uniform float uAspect;
   uniform float uHuePhase;
+  uniform float uHueStart;
+  uniform float uHueSpan;
   uniform float uSaturation;
   uniform vec2 uCenterOffset;
   uniform float uIterOffset;
@@ -64,11 +66,19 @@ export const juliaFragmentShader = /* glsl */ `
     return n + 1.0 - log2(logZn);
   }
 
+  // Mirrors cosineParam in config/hueWindow.ts: the Color config's hue window picks which stretch of the wheel the
+  // palette runs through. The full wheel just turns by the start; a narrower window sweeps back and forth across itself.
+  float hueParam(float position) {
+    if (uHueSpan >= 0.999) return position - uHueStart;
+    float sweep = 1.0 - abs(2.0 * fract(position) - 1.0);
+    return -(uHueStart + uHueSpan * sweep);
+  }
+
   vec3 palette(float t) {
     vec3 a = vec3(0.5);
     vec3 b = vec3(0.5);
     vec3 d = vec3(0.0, 0.33, 0.67);
-    return a + b * cos(6.28318 * (vec3(t) + d + uHuePhase));
+    return a + b * cos(6.28318 * (vec3(hueParam(t + uHuePhase)) + d));
   }
 
   void main() {

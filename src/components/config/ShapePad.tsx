@@ -3,6 +3,7 @@ import { JULIA_FAMOUS_SHAPES, JULIA_MAP_VIEW, JULIA_TOUR } from '../../visualiza
 import './ShapePad.css'
 import { subscribeUiTick } from '../../utils/uiTicker'
 import { colorConfig } from '../../config/color.config'
+import { cosineParam } from '../../config/hueWindow'
 
 // The pad fills its column (3:2, see ShapePad.css); the canvases use a fixed backing size that
 // stays sharp when scaled to the column width.
@@ -16,7 +17,7 @@ const MAP_MAX_ITER = 120
 /** Main app window when config runs in a popup; otherwise `window`. */
 const mainWindow = (): Window => window.opener ?? window
 
-type ShapeReadout = { re: number; im: number; manual: boolean; hue: number; saturation: number; targetRe: number; targetIm: number }
+type ShapeReadout = { re: number; im: number; manual: boolean; hue: number; hueStart: number; hueSpan: number; saturation: number; targetRe: number; targetIm: number }
 
 const VIEW_WIDTH = JULIA_MAP_VIEW.reMax - JULIA_MAP_VIEW.reMin
 const VIEW_HEIGHT = JULIA_MAP_VIEW.imMax - JULIA_MAP_VIEW.imMin
@@ -64,12 +65,12 @@ const MIN_RECOLOR_HUE_STEP = 0.03
 const COLOR_LUT_SIZE = 2048
 const COLOR_LUT_SCALE = (COLOR_LUT_SIZE - 1) / MAP_MAX_ITER
 
-const buildColorLut = (hue: number, saturation: number): Uint8ClampedArray => {
+const buildColorLut = (hue: number, hueStart: number, hueSpan: number, saturation: number): Uint8ClampedArray => {
   const lut = new Uint8ClampedArray(COLOR_LUT_SIZE * 3)
   const TAU = Math.PI * 2
   for (let i = 0; i < COLOR_LUT_SIZE; i++) {
     const nu = i / COLOR_LUT_SCALE
-    const phase = nu * 0.045 + 0.55 + hue
+    const phase = cosineParam(nu * 0.045 + 0.55 + hue, hueStart, hueSpan)
     const glow = 0.18 + 0.82 * Math.exp(-nu * 0.16)
     const red = (0.5 + 0.5 * Math.cos(TAU * phase)) * 255 * glow
     const green = (0.5 + 0.5 * Math.cos(TAU * (phase + 0.33))) * 255 * glow
@@ -83,12 +84,12 @@ const buildColorLut = (hue: number, saturation: number): Uint8ClampedArray => {
   return lut
 }
 
-const drawMandelbrot = (canvas: HTMLCanvasElement, iterations: Float32Array, hue: number, saturation: number): void => {
+const drawMandelbrot = (canvas: HTMLCanvasElement, iterations: Float32Array, hue: number, hueStart: number, hueSpan: number, saturation: number): void => {
   const context = canvas.getContext('2d')
   if (!context) return
   const { width, height } = canvas
   const image = context.createImageData(width, height)
-  const lut = buildColorLut(hue, saturation)
+  const lut = buildColorLut(hue, hueStart, hueSpan, saturation)
   const pixelCount = width * height
   for (let pixel = 0; pixel < pixelCount; pixel++) {
     const nu = iterations[pixel] ?? -1
@@ -178,15 +179,16 @@ export const ShapePad = (): React.ReactElement => {
   const iterationsRef = useRef<Float32Array | null>(null)
   const drawnHueRef = useRef(Number.NaN)
   const drawnSaturationRef = useRef<number>(colorConfig.saturation_DEFAULT)
+  const drawnWindowRef = useRef('')
   const lastRecolorAtRef = useRef(0)
-  const [readout, setReadout] = useState<ShapeReadout>({ re: -0.75, im: 0, manual: false, hue: 0, saturation: colorConfig.saturation_DEFAULT, targetRe: -0.75, targetIm: 0 })
+  const [readout, setReadout] = useState<ShapeReadout>({ re: -0.75, im: 0, manual: false, hue: 0, hueStart: colorConfig.hueStart_DEFAULT, hueSpan: colorConfig.hueSpan_DEFAULT, saturation: colorConfig.saturation_DEFAULT, targetRe: -0.75, targetIm: 0 })
 
   useEffect(() => {
     const canvas = mandelbrotRef.current
     if (!canvas) return
     iterationsRef.current = computeIterations(canvas.width, canvas.height)
     drawnHueRef.current = 0
-    drawMandelbrot(canvas, iterationsRef.current, 0, colorConfig.saturation_DEFAULT)
+    drawMandelbrot(canvas, iterationsRef.current, 0, colorConfig.hueStart_DEFAULT, colorConfig.hueSpan_DEFAULT, colorConfig.saturation_DEFAULT)
   }, [])
 
   // Poll the visualizer's current shape on the shared UI tick so the dot follows the Tour slider, glides, and
@@ -198,14 +200,16 @@ export const ShapePad = (): React.ReactElement => {
       const map = mandelbrotRef.current
       const iterations = iterationsRef.current
       // Recolor the map when the visualizer's hue moves (slow drift plus the beat color shift) by a visible
-      // step, or when Saturation changes.
+      // step, or when Saturation or the hue window changes.
+      const windowKey = shape ? `${shape.hueStart}/${shape.hueSpan}` : ''
       const colorChanged = shape
-        && (Math.abs(shape.hue - drawnHueRef.current) >= MIN_RECOLOR_HUE_STEP || shape.saturation !== drawnSaturationRef.current)
+        && (Math.abs(shape.hue - drawnHueRef.current) >= MIN_RECOLOR_HUE_STEP || shape.saturation !== drawnSaturationRef.current || windowKey !== drawnWindowRef.current)
       if (shape && colorChanged && map && iterations && now - lastRecolorAtRef.current >= MIN_RECOLOR_INTERVAL_MS) {
         lastRecolorAtRef.current = now
         drawnHueRef.current = shape.hue
         drawnSaturationRef.current = shape.saturation
-        drawMandelbrot(map, iterations, shape.hue, shape.saturation)
+        drawnWindowRef.current = windowKey
+        drawMandelbrot(map, iterations, shape.hue, shape.hueStart, shape.hueSpan, shape.saturation)
       }
       if (overlay && shape) {
         const key = `${shape.re.toFixed(4)},${shape.im.toFixed(4)},${shape.manual},${shape.targetRe.toFixed(3)},${shape.targetIm.toFixed(3)}`
