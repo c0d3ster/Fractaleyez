@@ -32,7 +32,7 @@ const SLIDER_ZONES: Partial<Record<string, readonly SliderZone[]>> = {
 
 // Sections whose items live in the preset and can be reset to its loaded values (video is reset by ConfigVideo, since
 // its clip list is not a plain section).
-const RESETTABLE_SECTIONS: readonly ConfigSectionKey[] = ['user', 'fractal', 'audio', 'effects', 'particle', 'orbit', 'logo']
+const RESETTABLE_SECTIONS: readonly ConfigSectionKey[] = ['user', 'fractal', 'audio', 'effects', 'color', 'particle', 'orbit', 'logo']
 export const isResettableSection = (name: string): name is ConfigSectionKey => RESETTABLE_SECTIONS.some((section) => section === name)
 
 // A load-slider change held back at the red zone's edge until the user confirms it.

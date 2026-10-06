@@ -3,6 +3,7 @@ import { userConfig } from './user.config'
 import { visualizerConfig } from './visualizer.config'
 import { orbitConfig } from './orbit.config'
 import { particleConfig } from './particle.config'
+import { colorConfig } from './color.config'
 import { videoConfig } from './video.config'
 import { fractalConfig } from './fractal.config'
 import { logoConfig } from './logo.config'
@@ -69,12 +70,15 @@ export type OrbitConfigSection = {
   e: SliderItem
 }
 
+export type ColorConfigSection = {
+  saturation: SliderItem
+}
+
 export type ParticleConfigSection = {
   particleSize: SliderItem
   particlesPerLayer: SliderItem
   layers: SliderItem
   levels: SliderItem
-  saturation: SliderItem
   sprites: MultiselectItem
 }
 
@@ -113,6 +117,7 @@ export type AppConfig = {
   fractal: FractalConfigSection
   audio: AudioConfigSection
   effects: EffectsConfigSection
+  color: ColorConfigSection
   particle: ParticleConfigSection
   orbit: OrbitConfigSection
   video: VideoConfigSection
@@ -206,12 +211,14 @@ export const configDefaults: AppConfig = {
     glow: { name: 'Glow', type: 'checkbox', defaultValue: visualizerConfig.glow, value: visualizerConfig.glow },
     shockwave: { name: 'Shockwave', type: 'checkbox', defaultValue: visualizerConfig.shockwave, value: visualizerConfig.shockwave },
   },
+  color: {
+    saturation: { name: 'Saturation', type: 'slider', defaultValue: colorConfig.saturation_DEFAULT, value: colorConfig.saturation_DEFAULT, min: colorConfig.saturation_MIN, max: colorConfig.saturation_MAX, step: colorConfig.saturation_STEP_SIZE },
+  },
   particle: {
     particleSize: { name: 'Size', type: 'slider', defaultValue: particleConfig.size_DEFAULT, value: particleConfig.size_DEFAULT, min: particleConfig.size_MIN, max: particleConfig.size_MAX, step: particleConfig.size_STEP_SIZE },
     particlesPerLayer: { name: 'Count', type: 'slider', defaultValue: particleConfig.particles_DEFAULT, value: particleConfig.particles_DEFAULT, min: particleConfig.particles_MIN, max: particleConfig.particles_MAX, step: particleConfig.particles_STEP_SIZE },
     layers: { name: 'Layers', type: 'slider', defaultValue: particleConfig.layers_DEFAULT, value: particleConfig.layers_DEFAULT, min: particleConfig.layers_MIN, max: particleConfig.layers_MAX, step: particleConfig.layers_STEP_SIZE },
     levels: { name: 'Levels', type: 'slider', defaultValue: particleConfig.levels_DEFAULT, value: particleConfig.levels_DEFAULT, min: particleConfig.levels_MIN, max: particleConfig.levels_MAX, step: particleConfig.levels_STEP_SIZE },
-    saturation: { name: 'Saturation', type: 'slider', defaultValue: particleConfig.saturation_DEFAULT, value: particleConfig.saturation_DEFAULT, min: particleConfig.saturation_MIN, max: particleConfig.saturation_MAX, step: particleConfig.saturation_STEP_SIZE },
     sprites: { name: 'Sprites', type: 'multiselect', defaultValue: [...particleConfig.sprites_DEFAULT], value: [...particleConfig.sprites_DEFAULT], min: particleConfig.sprites_MIN, max: particleConfig.sprites_MAX },
   },
   orbit: {

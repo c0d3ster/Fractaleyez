@@ -23,18 +23,9 @@ type EntryProps = {
   toggleOpen: (id: string) => void
 }
 
-// Non-functional placeholder until the shared Color config lands.
-export const ColorPreview = (): React.ReactElement => (
-  <div className='category-container'>
-    <h3 className='category-title'>color config</h3>
-  </div>
-)
-
 const Entry = ({ entry, onChange, isOpen, toggleOpen }: EntryProps): React.ReactElement | null => {
   const shared = { name: entry, onChange, isOpen, toggleOpen }
   switch (entry) {
-  case 'color':
-    return <ColorPreview />
   case 'video':
     return <ConfigCategory {...shared} bare><ConfigVideoBody /></ConfigCategory>
   case 'fractal':

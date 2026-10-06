@@ -74,7 +74,7 @@ const toLabel = (name: string): string => {
   return spaced.replace(/^./, c => c.toUpperCase())
 }
 
-export type ConfigSectionKey = 'user' | 'fractal' | 'audio' | 'effects' | 'particle' | 'orbit' | 'logo'
+export type ConfigSectionKey = 'user' | 'fractal' | 'audio' | 'effects' | 'color' | 'particle' | 'orbit' | 'logo'
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -137,6 +137,14 @@ const mergeVideo = (loaded: unknown): AppConfig['video'] => {
   return { clips, allClips, index }
 }
 
+/** Saturation used to live in the particle section; older presets (bundled, cached or stored) still carry it there. */
+const colorSectionFrom = (cfg: Record<string, unknown>): Record<string, unknown> | undefined => {
+  const legacySaturation = isRecord(cfg.particle) ? cfg.particle.saturation : undefined
+  const color = isRecord(cfg.color) ? cfg.color : undefined
+  if (legacySaturation === undefined) return color
+  return { saturation: legacySaturation, ...color }
+}
+
 /** Presets from disk/API may omit multiselect metadata or use older shapes — merge with defaults so UI + viz stay valid. */
 const normalizeLoadedPreset = (cfg: Record<string, unknown>): AppConfig => {
   const particle = mergeConfigSection('particle', cfg.particle as Record<string, unknown> | undefined) as ParticleConfigSection
@@ -146,6 +154,7 @@ const normalizeLoadedPreset = (cfg: Record<string, unknown>): AppConfig => {
     fractal: mergeConfigSection('fractal', cfg.fractal as Record<string, unknown> | undefined),
     audio: mergeConfigSection('audio', cfg.audio as Record<string, unknown> | undefined),
     effects: mergeConfigSection('effects', cfg.effects as Record<string, unknown> | undefined),
+    color: mergeConfigSection('color', colorSectionFrom(cfg)),
     particle: {
       ...particle,
       sprites: {
