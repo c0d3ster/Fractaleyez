@@ -5,7 +5,6 @@ import { Grid } from 'react-bootstrap'
 import { Presets, PresetSelection } from '../presets/Presets'
 import { SavePreset } from '../presets/SavePreset'
 import { ConfigCategory } from './ConfigCategory'
-import { ColorPreview } from './ConfigAccordion'
 import { ConfigSectionItems } from './ConfigSectionItems'
 import { ConfigSubAccordion } from './ConfigSubAccordion'
 import { ConfigVideo } from './ConfigVideo'
@@ -147,7 +146,6 @@ const ExternalWindowBridge = ({
         <div className='config-columns'>
           {DISPLAY_ORDER.map((entry) => (
             <div className='config-column' key={entry}>
-              {entry === 'color' ? <ColorPreview /> : null}
               {entry === 'video' ? <ConfigVideo isOpen={true} toggleOpen={() => null} popup /> : null}
               {entry === 'orbit' ? (
                 <ConfigCategory name='orbit' onChange={updateConfigItem} isOpen={true} toggleOpen={() => null} expanded popup bare>
@@ -165,7 +163,7 @@ const ExternalWindowBridge = ({
                   <ShapePad />
                 </ConfigCategory>
               ) : null}
-              {entry === 'user' || entry === 'effects' || entry === 'audio' ? (
+              {entry === 'user' || entry === 'color' || entry === 'effects' || entry === 'audio' ? (
                 <ConfigCategory name={entry} onChange={updateConfigItem} isOpen={true} toggleOpen={() => null} expanded popup>
                   {entry === 'user' ? <CameraTouchpad /> : null}
                   {entry === 'audio' ? <><FrequencyHud /><BeatHud /></> : null}

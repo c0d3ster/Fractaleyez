@@ -74,7 +74,7 @@ export class HopalongVisualizer {
     this.particlesPerLayer = window.config.particle.particlesPerLayer.value
     this.layers = window.config.particle.layers.value
     this.levels = window.config.particle.levels.value
-    this.saturation = window.config.particle.saturation ? window.config.particle.saturation.value : 1
+    this.saturation = window.config.color.saturation.value
     this.levelDepth = 500
     this.particleSize = window.config.particle.particleSize.value
     this.needsParticleReset = false
@@ -163,6 +163,7 @@ export class HopalongVisualizer {
 
   update(deltaTime: number, audioData: AudioAnalysedDataForVisualization): void {
     this.advanceOrbitFade(deltaTime)
+    this.syncSaturation()
 
     if (audioData.beat.active) {
       this.audioPeak = true
@@ -223,6 +224,19 @@ export class HopalongVisualizer {
 
       count++
     })
+  }
+
+  // Saturation lives in the Color config, outside the particle diff that rebuilds the system, so a change recolors
+  // the existing particles in place.
+  private syncSaturation = (): void => {
+    const { value } = window.config.color.saturation
+    if (value === this.saturation) return
+    this.saturation = value
+    const recolor = (obj: ParticleSystem): void => {
+      obj.myMaterial.color.setHSL(this.hueValues[obj.mySubset]!, this.saturation, DEF_BRIGHTNESS)
+    }
+    this.objects.forEach(recolor)
+    this.orbitFades.forEach((fade) => fade.outgoing.forEach(recolor))
   }
 
   private applyParticleMotion = (obj: ParticleSystem, count: number, musicSpeedMultiplier: number, applyPeakEffects: boolean): void => {

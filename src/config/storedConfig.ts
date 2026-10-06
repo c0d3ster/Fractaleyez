@@ -1,6 +1,7 @@
 import {
   AppConfig,
   AudioConfigSection,
+  ColorConfigSection,
   ConfigItem,
   EffectsConfigSection,
   FractalConfigSection,
@@ -30,7 +31,9 @@ export type StoredConfig = {
   fractal?: Partial<ItemValues<FractalConfigSection>>
   audio?: Partial<ItemValues<AudioConfigSection>>
   effects?: Partial<ItemValues<EffectsConfigSection>>
-  particle?: Partial<ItemValues<ParticleConfigSection>>
+  color?: Partial<ItemValues<ColorConfigSection>>
+  // Saturation moved to the color section; older presets still carry it here and the loader reads it from there.
+  particle?: Partial<ItemValues<ParticleConfigSection>> & { saturation?: number }
   orbit?: Partial<ItemValues<OrbitConfigSection>>
   video?: StoredVideoSection
   logo?: Partial<ItemValues<LogoConfigSection>>
@@ -51,11 +54,12 @@ const toStoredLayers = ({ order, meta }: LayersConfigSection): StoredLayersSecti
   },
 })
 
-export const toStoredConfig = ({ user, fractal, audio, effects, particle, orbit, video, logo, layers }: AppConfig): StoredConfig => ({
+export const toStoredConfig = ({ user, fractal, audio, effects, color, particle, orbit, video, logo, layers }: AppConfig): StoredConfig => ({
   user: valuesOf(user),
   fractal: valuesOf(fractal),
   audio: valuesOf(audio),
   effects: valuesOf(effects),
+  color: valuesOf(color),
   particle: valuesOf(particle),
   orbit: valuesOf(orbit),
   video: { clips: video.clips, index: video.index },

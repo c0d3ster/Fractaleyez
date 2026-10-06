@@ -22,10 +22,10 @@ export const LAYER_REGISTRY: Record<LayerKey, LayerDescriptor> = {
   logo: { key: 'logo', label: 'Logo', hotkey: 'l', hasBody: true, popupColumn: ['logo'] },
 }
 
-/** Global (non-layer) entries. `color` has no config section until the shared Color config lands. */
+/** Global (non-layer) entries. */
 export const GLOBAL_ENTRIES: Record<GlobalKey, { key: GlobalKey; label: string; sections: (keyof AppConfig)[] }> = {
   user: { key: 'user', label: 'User', sections: ['user'] },
-  color: { key: 'color', label: 'Color', sections: [] },
+  color: { key: 'color', label: 'Color', sections: ['color'] },
   effects: { key: 'effects', label: 'Effects', sections: ['effects'] },
   audio: { key: 'audio', label: 'Audio', sections: ['audio'] },
 }

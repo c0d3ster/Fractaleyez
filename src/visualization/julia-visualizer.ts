@@ -420,7 +420,7 @@ export class JuliaVisualizer {
   // current palette hue and saturation so the shape pad can match the visualizer's colors.
   getShape(): { re: number; im: number; manual: boolean; hue: number; saturation: number; targetRe: number; targetIm: number } {
     const hue = this.huePhase
-    const saturation = window.config.particle.saturation.value
+    const saturation = window.config.color.saturation.value
     if (this.hasShape) {
       // The shape trails its target: in manual mode that is where the pointer last put it (plus any
       // Switcheroo hop), on the tour it is the Tour slider's point plus the hop.
@@ -708,7 +708,7 @@ export class JuliaVisualizer {
     this.cycloneAmount += ((effects.cyclone.value ? 1 : 0) - this.cycloneAmount) * (1 - Math.pow(0.5, dt / CYCLONE_HALF_LIFE_SECONDS))
     uniforms.uCyclone!.value = this.cycloneAmount
     uniforms.uGlow!.value = glow
-    uniforms.uSaturation!.value = window.config.particle.saturation.value
+    uniforms.uSaturation!.value = window.config.color.saturation.value
     uniforms.uShockRadius!.value = shockRadius
     uniforms.uShockStrength!.value = shockStrength
   }
