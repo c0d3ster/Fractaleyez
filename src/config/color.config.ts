@@ -15,4 +15,20 @@ export const colorConfig = {
   hueSpan_MIN: 0.01,
   hueSpan_MAX: 1,
   hueSpan_STEP_SIZE: 0.01,
+
+  // Palettes (see palettes.ts). The default is the rainbow, so none of these show until another palette is picked.
+  palette_DEFAULT: 'rainbow',
+  customStops_DEFAULT: ['#ff2d95', '#ffd23f', '#2de2e6'],
+  customStops_MIN: 2,
+  customStops_MAX: 12,
+
+  paletteCycles_DEFAULT: 1,
+  paletteCycles_MIN: 0.25,
+  paletteCycles_MAX: 8,
+  paletteCycles_STEP_SIZE: 0.25,
+
+  palettePhase_DEFAULT: 0,
+  palettePhase_MIN: 0,
+  palettePhase_MAX: 1,
+  palettePhase_STEP_SIZE: 0.01,
 } as const

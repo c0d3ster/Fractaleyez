@@ -5,7 +5,9 @@ import { getResolvedSpriteUrl } from '../utils/spriteCache'
 import { acquireSpriteTexture, releaseSpriteTexture } from '../utils/textureCache'
 import { getParticleCrossfadeDurationMs, MAX_CROSSFADE_GENERATIONS } from '../config/visualizer.config'
 import { userConfig } from '../config/user.config'
+import { ColorState, resolveColorState } from '../config/colorState'
 import { windowHue } from '../config/hueWindow'
+import { sampleLut } from '../config/paletteLut'
 import { getMusicSpeedMultiplier } from './music-speed'
 
 /*
@@ -45,9 +47,7 @@ export class HopalongVisualizer {
   particlesPerLayer: number
   layers: number
   levels: number
-  saturation: number
-  hueStart: number
-  hueSpan: number
+  colorState: ColorState
   levelDepth: number
   particleSize: number
   needsParticleReset: boolean
@@ -77,9 +77,7 @@ export class HopalongVisualizer {
     this.particlesPerLayer = window.config.particle.particlesPerLayer.value
     this.layers = window.config.particle.layers.value
     this.levels = window.config.particle.levels.value
-    this.saturation = window.config.color.saturation.value
-    this.hueStart = window.config.color.hueStart.value
-    this.hueSpan = window.config.color.hueSpan.value
+    this.colorState = resolveColorState(window.config.color)
     this.levelDepth = 500
     this.particleSize = window.config.particle.particleSize.value
     this.needsParticleReset = false
@@ -231,19 +229,26 @@ export class HopalongVisualizer {
     })
   }
 
-  // hueValues holds each subset's raw 0..1 hue; the Color config's hue window and saturation are applied here.
+  // hueValues holds each subset's raw 0..1 position; the Color config decides what color that is. The rainbow maps it
+  // into the hue window; a palette reads the color at that spot (turned by its phase) and desaturates it toward gray.
   private colorize = (obj: ParticleSystem, subset: number): void => {
-    obj.myMaterial.color.setHSL(windowHue(this.hueValues[subset]!, this.hueStart, this.hueSpan), this.saturation, DEF_BRIGHTNESS)
+    const { lut, hueStart, hueSpan, phase, saturation } = this.colorState
+    const raw = this.hueValues[subset]!
+    if (!lut) {
+      obj.myMaterial.color.setHSL(windowHue(raw, hueStart, hueSpan), saturation, DEF_BRIGHTNESS)
+      return
+    }
+    const [red, green, blue] = sampleLut(lut, raw + phase)
+    const luma = 0.299 * red + 0.587 * green + 0.114 * blue
+    obj.myMaterial.color.setRGB(luma + (red - luma) * saturation, luma + (green - luma) * saturation, luma + (blue - luma) * saturation)
   }
 
   // The Color config sits outside the particle diff that rebuilds the system, so a change recolors the existing
   // particles in place.
   private syncColor = (): void => {
-    const { saturation, hueStart, hueSpan } = window.config.color
-    if (saturation.value === this.saturation && hueStart.value === this.hueStart && hueSpan.value === this.hueSpan) return
-    this.saturation = saturation.value
-    this.hueStart = hueStart.value
-    this.hueSpan = hueSpan.value
+    const next = resolveColorState(window.config.color)
+    if (next === this.colorState) return
+    this.colorState = next
     const recolor = (obj: ParticleSystem): void => this.colorize(obj, obj.mySubset)
     this.objects.forEach(recolor)
     this.orbitFades.forEach((fade) => fade.outgoing.forEach(recolor))

@@ -5,7 +5,7 @@ import { ConfigCategory } from '../config/ConfigCategory'
 import { ConfigSectionItems } from './ConfigSectionItems'
 import { ConfigSubAccordion } from './ConfigSubAccordion'
 import { ConfigVideoBody } from './ConfigVideoBody'
-import { HueRangeRing } from './HueRangeRing'
+import { ColorConfigBody } from './ColorConfigBody'
 import { LogoSpritePicker } from './LogoSpritePicker'
 import { ShapePad } from './ShapePad'
 import { ParticleSpriteHud } from '../huds'
@@ -28,7 +28,7 @@ const Entry = ({ entry, onChange, isOpen, toggleOpen }: EntryProps): React.React
   const shared = { name: entry, onChange, isOpen, toggleOpen }
   switch (entry) {
   case 'color':
-    return <ConfigCategory {...shared}><HueRangeRing /></ConfigCategory>
+    return <ConfigCategory {...shared} bare><ColorConfigBody /></ConfigCategory>
   case 'video':
     return <ConfigCategory {...shared} bare><ConfigVideoBody /></ConfigCategory>
   case 'fractal':

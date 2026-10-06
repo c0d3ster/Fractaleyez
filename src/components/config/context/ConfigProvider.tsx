@@ -175,6 +175,8 @@ export type ConfigContextValue = {
   updateVideoClips: (clips: string[]) => void
   updateParticleSprites: (sprites: string[]) => Promise<void>
   updateLogoSprite: (sprite: string) => Promise<void>
+  /** Sets one of the Color section's list items: the chosen palette (one id) or the custom palette's colors. */
+  updateColorList: (item: 'palette' | 'customStops', values: string[]) => void
   setLayerEnabled: (key: LayerKey, enabled: boolean) => boolean
   setLayerOpacity: (key: LayerKey, opacity: number) => void
   moveLayer: (key: LayerKey, toIndex: number) => void
@@ -410,6 +412,14 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
     })
   }, [])
 
+  const updateColorList = useCallback((item: 'palette' | 'customStops', values: string[]) => {
+    setConfig((prev) => {
+      const n: AppConfig = { ...prev, color: { ...prev.color, [item]: { ...prev.color[item], value: values } } }
+      window.config = n
+      return n
+    })
+  }, [])
+
   const updateLogoSprite = useCallback(async (sprite: string) => {
     const chosen = sprite || configDefaults.logo.sprite.value[0] || ''
     await warmSpriteCache([chosen])
@@ -626,7 +636,7 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
   }, [config, getToken])
 
   return (
-    <ConfigContext.Provider value={{ config, updateConfigItem, updateVideoClips, updateParticleSprites, updateLogoSprite, setLayerEnabled, setLayerOpacity, moveLayer, retrieveConfigPreset, revertConfig, resetConfig, resetConfigItem, resetConfigSection, resetVideoClips, savePreset, isSignedIn: isSignedIn ?? false, currentUserId: user?.id ?? null, getToken, presets: presetList, packs: packList, userSettings, updateUserSettings }}>
+    <ConfigContext.Provider value={{ config, updateConfigItem, updateVideoClips, updateParticleSprites, updateLogoSprite, updateColorList, setLayerEnabled, setLayerOpacity, moveLayer, retrieveConfigPreset, revertConfig, resetConfig, resetConfigItem, resetConfigSection, resetVideoClips, savePreset, isSignedIn: isSignedIn ?? false, currentUserId: user?.id ?? null, getToken, presets: presetList, packs: packList, userSettings, updateUserSettings }}>
       {children}
     </ConfigContext.Provider>
   )
