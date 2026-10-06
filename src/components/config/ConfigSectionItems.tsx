@@ -35,6 +35,11 @@ const SLIDER_ZONES: Partial<Record<string, readonly SliderZone[]>> = {
 const RESETTABLE_SECTIONS: readonly ConfigSectionKey[] = ['user', 'fractal', 'audio', 'effects', 'color', 'particle', 'orbit', 'logo']
 export const isResettableSection = (name: string): name is ConfigSectionKey => RESETTABLE_SECTIONS.some((section) => section === name)
 
+// Items stored as sliders but edited by their own control (Color's hue window is set with the hue ring).
+const CUSTOM_EDITED_ITEMS: Partial<Record<string, readonly string[]>> = {
+  color: ['hueStart', 'hueSpan'],
+}
+
 // A load-slider change held back at the red zone's edge until the user confirms it.
 type PendingRedChange = {
   item: ParticleLoadKey
@@ -131,7 +136,7 @@ const ConfigSectionItemsInner = ({ name, config, onChange, resetConfigItem, isSi
           That can freeze or crash your browser, and swapping presets will stutter.
         </ConfirmModal>
       )}
-      {Object.keys(categoryConfig).map((configItem) => {
+      {Object.keys(categoryConfig).filter((configItem) => !CUSTOM_EDITED_ITEMS[name]?.includes(configItem)).map((configItem) => {
         const item = categoryConfig[configItem]!
         const { type, name: label, value } = item
 

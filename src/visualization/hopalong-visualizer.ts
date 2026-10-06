@@ -5,6 +5,7 @@ import { getResolvedSpriteUrl } from '../utils/spriteCache'
 import { acquireSpriteTexture, releaseSpriteTexture } from '../utils/textureCache'
 import { getParticleCrossfadeDurationMs, MAX_CROSSFADE_GENERATIONS } from '../config/visualizer.config'
 import { userConfig } from '../config/user.config'
+import { windowHue } from '../config/hueWindow'
 import { getMusicSpeedMultiplier } from './music-speed'
 
 /*
@@ -45,6 +46,8 @@ export class HopalongVisualizer {
   layers: number
   levels: number
   saturation: number
+  hueStart: number
+  hueSpan: number
   levelDepth: number
   particleSize: number
   needsParticleReset: boolean
@@ -75,6 +78,8 @@ export class HopalongVisualizer {
     this.layers = window.config.particle.layers.value
     this.levels = window.config.particle.levels.value
     this.saturation = window.config.color.saturation.value
+    this.hueStart = window.config.color.hueStart.value
+    this.hueSpan = window.config.color.hueSpan.value
     this.levelDepth = 500
     this.particleSize = window.config.particle.particleSize.value
     this.needsParticleReset = false
@@ -151,7 +156,7 @@ export class HopalongVisualizer {
         particles.position.y = 0
         particles.position.z = -this.levelDepth * level - (s * this.levelDepth / this.layers) + window.config.user.scaleFactor.value / 2
         particles.needsUpdate = 0
-        particles.myMaterial.color.setHSL(this.hueValues[s]!, this.saturation, DEF_BRIGHTNESS)
+        this.colorize(particles, s)
         this.objects.push(particles)
         this.scene.add(particles)
         count++
@@ -163,7 +168,7 @@ export class HopalongVisualizer {
 
   update(deltaTime: number, audioData: AudioAnalysedDataForVisualization): void {
     this.advanceOrbitFade(deltaTime)
-    this.syncSaturation()
+    this.syncColor()
 
     if (audioData.beat.active) {
       this.audioPeak = true
@@ -226,15 +231,20 @@ export class HopalongVisualizer {
     })
   }
 
-  // Saturation lives in the Color config, outside the particle diff that rebuilds the system, so a change recolors
-  // the existing particles in place.
-  private syncSaturation = (): void => {
-    const { value } = window.config.color.saturation
-    if (value === this.saturation) return
-    this.saturation = value
-    const recolor = (obj: ParticleSystem): void => {
-      obj.myMaterial.color.setHSL(this.hueValues[obj.mySubset]!, this.saturation, DEF_BRIGHTNESS)
-    }
+  // hueValues holds each subset's raw 0..1 hue; the Color config's hue window and saturation are applied here.
+  private colorize = (obj: ParticleSystem, subset: number): void => {
+    obj.myMaterial.color.setHSL(windowHue(this.hueValues[subset]!, this.hueStart, this.hueSpan), this.saturation, DEF_BRIGHTNESS)
+  }
+
+  // The Color config sits outside the particle diff that rebuilds the system, so a change recolors the existing
+  // particles in place.
+  private syncColor = (): void => {
+    const { saturation, hueStart, hueSpan } = window.config.color
+    if (saturation.value === this.saturation && hueStart.value === this.hueStart && hueSpan.value === this.hueSpan) return
+    this.saturation = saturation.value
+    this.hueStart = hueStart.value
+    this.hueSpan = hueSpan.value
+    const recolor = (obj: ParticleSystem): void => this.colorize(obj, obj.mySubset)
     this.objects.forEach(recolor)
     this.orbitFades.forEach((fade) => fade.outgoing.forEach(recolor))
   }
@@ -248,7 +258,7 @@ export class HopalongVisualizer {
       }
 
       if (window.config.effects.colorShift.value) {
-        obj.myMaterial.color.setHSL(this.hueValues[obj.mySubset]!, this.saturation, DEF_BRIGHTNESS)
+        this.colorize(obj, obj.mySubset)
       }
     }
 
@@ -358,7 +368,7 @@ export class HopalongVisualizer {
       particles.position.z += depthShift
       particles.rotation.z = obj.rotation.z
       particles.needsUpdate = 0
-      particles.myMaterial.color.setHSL(this.hueValues[obj.mySubset]!, this.saturation, DEF_BRIGHTNESS)
+      this.colorize(particles, obj.mySubset)
       this.scene.add(particles)
       return particles
     })

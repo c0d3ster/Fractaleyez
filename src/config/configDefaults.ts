@@ -72,6 +72,8 @@ export type OrbitConfigSection = {
 
 export type ColorConfigSection = {
   saturation: SliderItem
+  hueStart: SliderItem
+  hueSpan: SliderItem
 }
 
 export type ParticleConfigSection = {
@@ -213,6 +215,8 @@ export const configDefaults: AppConfig = {
   },
   color: {
     saturation: { name: 'Saturation', type: 'slider', defaultValue: colorConfig.saturation_DEFAULT, value: colorConfig.saturation_DEFAULT, min: colorConfig.saturation_MIN, max: colorConfig.saturation_MAX, step: colorConfig.saturation_STEP_SIZE },
+    hueStart: { name: 'Hue Start', type: 'slider', defaultValue: colorConfig.hueStart_DEFAULT, value: colorConfig.hueStart_DEFAULT, min: colorConfig.hueStart_MIN, max: colorConfig.hueStart_MAX, step: colorConfig.hueStart_STEP_SIZE },
+    hueSpan: { name: 'Hue Span', type: 'slider', defaultValue: colorConfig.hueSpan_DEFAULT, value: colorConfig.hueSpan_DEFAULT, min: colorConfig.hueSpan_MIN, max: colorConfig.hueSpan_MAX, step: colorConfig.hueSpan_STEP_SIZE },
   },
   particle: {
     particleSize: { name: 'Size', type: 'slider', defaultValue: particleConfig.size_DEFAULT, value: particleConfig.size_DEFAULT, min: particleConfig.size_MIN, max: particleConfig.size_MAX, step: particleConfig.size_STEP_SIZE },

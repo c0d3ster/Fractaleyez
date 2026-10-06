@@ -345,6 +345,8 @@ export class JuliaVisualizer {
         uWStart: { value: W_START },
         uAspect: { value: window.innerWidth / window.innerHeight },
         uHuePhase: { value: 0 },
+        uHueStart: { value: 0 },
+        uHueSpan: { value: 1 },
         uCenterOffset: { value: new THREE.Vector2() },
         uIterOffset: { value: 0 },
         uRotation: { value: 0 },
@@ -418,19 +420,22 @@ export class JuliaVisualizer {
 
   // The shape's current c (before the small drift and audio offsets), whether it is manual, and the
   // current palette hue and saturation so the shape pad can match the visualizer's colors.
-  getShape(): { re: number; im: number; manual: boolean; hue: number; saturation: number; targetRe: number; targetIm: number } {
+  getShape(): { re: number; im: number; manual: boolean; hue: number; hueStart: number; hueSpan: number; saturation: number; targetRe: number; targetIm: number } {
     const hue = this.huePhase
-    const saturation = window.config.color.saturation.value
+    const { saturation: saturationItem, hueStart: hueStartItem, hueSpan: hueSpanItem } = window.config.color
+    const saturation = saturationItem.value
+    const hueStart = hueStartItem.value
+    const hueSpan = hueSpanItem.value
     if (this.hasShape) {
       // The shape trails its target: in manual mode that is where the pointer last put it (plus any
       // Switcheroo hop), on the tour it is the Tour slider's point plus the hop.
       const tourTarget = tourPoint(this.currentTourTarget())
       const targetRe = this.manual ? this.manualHomeRe + this.manualHopRe : tourTarget.re
       const targetIm = this.manual ? this.manualHomeIm + this.manualHopIm : tourTarget.im
-      return { re: this.shapeRe, im: this.shapeIm, manual: this.manual, hue, saturation, targetRe, targetIm }
+      return { re: this.shapeRe, im: this.shapeIm, manual: this.manual, hue, hueStart, hueSpan, saturation, targetRe, targetIm }
     }
     const start = tourPoint(getShapePosition() * (TOUR.length - 1))
-    return { re: start.re, im: start.im, manual: false, hue, saturation, targetRe: start.re, targetIm: start.im }
+    return { re: start.re, im: start.im, manual: false, hue, hueStart, hueSpan, saturation, targetRe: start.re, targetIm: start.im }
   }
 
   private currentTourTarget(): number {
@@ -709,6 +714,8 @@ export class JuliaVisualizer {
     uniforms.uCyclone!.value = this.cycloneAmount
     uniforms.uGlow!.value = glow
     uniforms.uSaturation!.value = window.config.color.saturation.value
+    uniforms.uHueStart!.value = window.config.color.hueStart.value
+    uniforms.uHueSpan!.value = window.config.color.hueSpan.value
     uniforms.uShockRadius!.value = shockRadius
     uniforms.uShockStrength!.value = shockStrength
   }
