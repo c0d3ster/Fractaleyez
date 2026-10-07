@@ -18,18 +18,27 @@ export const RAINBOW_PALETTE = 'rainbow'
 /** The user's own stops, edited in the Color config. */
 export const CUSTOM_PALETTE = 'custom'
 
-/** A fully saturated, half-light color of the wheel (hue in degrees) as #rrggbb: HSL (hue, 100%, 50%). */
+const easeInOut = (t: number): number => t * t * (3 - 2 * t)
+
+/**
+ * A fully saturated, half-light color of the wheel (hue in degrees) as #rrggbb: the HSL wheel (hue, 100%, 50%) with its
+ * channel ramps eased. Plain HSL changes slope abruptly at every primary and secondary, which shows as hard lines in the
+ * fractal's gradients; easing the ramps keeps the same colors but makes the slope continuous.
+ */
 const wheelColor = (hue: number): string => {
   const channel = (offset: number): string => {
     const k = (offset + hue / 30) % 12
-    const value = 0.5 - 0.5 * Math.max(-1, Math.min(k - 3, 9 - k, 1))
-    return Math.round(value * 255).toString(16).padStart(2, '0')
+    const ramp = (Math.max(-1, Math.min(k - 3, 9 - k, 1)) + 1) / 2
+    return Math.round((1 - easeInOut(ramp)) * 255).toString(16).padStart(2, '0')
   }
   return `#${channel(0)}${channel(8)}${channel(4)}`
 }
 
+const RAINBOW_STEP_DEGREES = 3
+
 // Runs the wheel the way the fractal's original palette did (hue falling as the color position rises), ending back at red.
-const RAINBOW_STOPS = Array.from({ length: 13 }, (_, i) => wheelColor((360 - i * 30) % 360))
+// Closely spaced stops keep the blending between them (which clips at the pure primaries) from showing.
+const RAINBOW_STOPS = Array.from({ length: 360 / RAINBOW_STEP_DEGREES + 1 }, (_, i) => wheelColor((360 - i * RAINBOW_STEP_DEGREES) % 360))
 
 export const PALETTES: readonly PaletteDefinition[] = [
   { id: RAINBOW_PALETTE, label: 'Rainbow', stops: RAINBOW_STOPS, cyclic: true },
