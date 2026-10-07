@@ -14,7 +14,7 @@ const ColorConfigBodyInner = ({ updateConfigItem }: ColorConfigBodyProps): React
       <PalettePicker />
       <PaletteRange />
       <ConfigSectionItems name='color' only={['paletteCycles', 'palettePhase']} onChange={updateConfigItem} />
-      <ConfigSectionItems name='color' only={['saturation']} onChange={updateConfigItem} />
+      <ConfigSectionItems name='color' only={['saturation', 'maskEdge']} onChange={updateConfigItem} />
       <ConfigSectionItems name='color' only={['paletteReverse', 'paletteMirror']} onChange={updateConfigItem} />
     </>
   )

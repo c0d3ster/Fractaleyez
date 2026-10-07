@@ -80,6 +80,7 @@ export type ColorConfigSection = {
   palettePhase: SliderItem
   paletteReverse: CheckboxItem
   paletteMirror: CheckboxItem
+  maskEdge: SliderItem // how bright a color can be and still let the layers behind show through (the mask blend's key)
 }
 
 export type ParticleConfigSection = {
@@ -229,6 +230,7 @@ export const configDefaults: AppConfig = {
     palettePhase: { name: 'Phase', type: 'slider', defaultValue: colorConfig.palettePhase_DEFAULT, value: colorConfig.palettePhase_DEFAULT, min: colorConfig.palettePhase_MIN, max: colorConfig.palettePhase_MAX, step: colorConfig.palettePhase_STEP_SIZE },
     paletteReverse: { name: 'Reverse', type: 'checkbox', defaultValue: false, value: false },
     paletteMirror: { name: 'Mirror', type: 'checkbox', defaultValue: false, value: false },
+    maskEdge: { name: 'See-Through', type: 'slider', defaultValue: colorConfig.maskEdge_DEFAULT, value: colorConfig.maskEdge_DEFAULT, min: colorConfig.maskEdge_MIN, max: colorConfig.maskEdge_MAX, step: colorConfig.maskEdge_STEP_SIZE },
   },
   particle: {
     particleSize: { name: 'Size', type: 'slider', defaultValue: particleConfig.size_DEFAULT, value: particleConfig.size_DEFAULT, min: particleConfig.size_MIN, max: particleConfig.size_MAX, step: particleConfig.size_STEP_SIZE },
