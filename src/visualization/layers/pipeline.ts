@@ -46,6 +46,7 @@ export const createLayerPipeline = (): LayerPipeline => {
   return {
     render: (deltaTime, audio) => {
       compositor.renderLayers(deltaTime, audio, window.config.layers)
+      orbit.stepCamera(deltaTime)
       effects.render(audio)
     },
     getCameraSteer: () => {

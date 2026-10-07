@@ -253,6 +253,8 @@ const ConfigWindowInner = ({
 
       externalWindow = window.open('', '', features)
       if (!externalWindow) return
+      // The pointer is just a cursor on the stream while the config is up, so it stops steering the camera.
+      window.setCameraMouseTracking?.(false)
 
       const container = externalWindow.document.createElement('div')
       container.className = 'config-window-root'
@@ -272,6 +274,7 @@ const ConfigWindowInner = ({
 
     return () => {
       cancelled = true
+      window.setCameraMouseTracking?.(true)
       window.removeEventListener('beforeunload', closeExternalWindow)
       externalWindow?.removeEventListener('beforeunload', onClose)
       externalWindow?.document.removeEventListener('keydown', forwardKey)
