@@ -99,7 +99,7 @@ const PaletteRangeInner = ({ config, updateConfigItem, resetConfigItem }: Palett
 
   // The parts of the bar outside the range: either side of it, or the stretch between the handles when it wraps.
   const dimmed = wraps ? [{ from: end, to: start }] : [{ from: 0, to: start }, { from: end, to: 1 }]
-  // The range itself shows the palette as it is actually used (reversed, mirrored, cycled, phased and desaturated),
+  // The range itself shows the palette as it is actually used (reversed, looped, cycled, phased and desaturated),
   // squeezed into the selection. A wrapped range is two pieces of the bar that carry on from each other.
   const span = rangeSpan(start, end)
   const lit = wraps
@@ -145,6 +145,6 @@ const PaletteRangeInner = ({ config, updateConfigItem, resetConfigItem }: Palett
 /**
  * The palette as one slider-height bar with two handles that crop it to the range the colors are drawn from (the whole
  * palette by default). The range shows the palette as the fractal gets it, so it changes with Cycles, Phase, Reverse,
- * Mirror and Saturation as well as the handles; the end can pass the start to wrap.
+ * Hard Edge and Saturation as well as the handles; the end can pass the start to wrap.
  */
 export const PaletteRange = connectConfig(PaletteRangeInner)

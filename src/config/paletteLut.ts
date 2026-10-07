@@ -12,8 +12,12 @@ export type Rgb = [number, number, number]
 
 export type PaletteShape = {
   reverse: boolean
-  /** Play the colors forward then back, so a palette that does not loop on its own has no seam where it wraps. */
-  mirror: boolean
+  /**
+   * Leave the seam where the palette wraps. By default a palette whose first and last colors differ (a one-way ramp,
+   * or a cropped range) is played out and back so it wraps smoothly; one that already ends where it starts is left
+   * alone.
+   */
+  hardEdge: boolean
   /** The palette range handles (0..1); an end before the start wraps through the seam. Whole palette when left out. */
   start?: number
   end?: number
@@ -65,13 +69,16 @@ const oklabToRgb = ([lightness, a, b]: Rgb): Rgb => {
 }
 
 /** The colors in play order: reversed if asked, then mirrored back to the first one so the loop closes. */
-export const arrangeStops = <T>(stops: readonly T[], { reverse, mirror }: Pick<PaletteShape, 'reverse' | 'mirror'>): T[] => {
+export const arrangeStops = <T>(stops: readonly T[], { reverse, mirror }: { reverse: boolean; mirror: boolean }): T[] => {
   const ordered = reverse ? [...stops].reverse() : [...stops]
   return mirror ? [...ordered, ...ordered.slice(0, -1).reverse()] : ordered
 }
 
-/** How finely the cropped range is cut before it is reversed, mirrored and baked. */
+/** How finely the cropped range is cut before it is closed and baked. */
 const RANGE_STEPS = 256
+
+/** How close (in OKLab) a range's first and last colors have to be for it to count as already looping. */
+const LOOP_TOLERANCE = 0.005
 
 /** Blends along a list of OKLab colors, `position` running from 0 (first) to 1 (last). */
 const blendAlong = (colors: readonly Rgb[], position: number): Rgb => {
@@ -87,7 +94,7 @@ const blendAlong = (colors: readonly Rgb[], position: number): Rgb => {
 
 /**
  * Bakes stops into `size` RGBA bytes spanning one pass through the palette: the stops are reversed if asked, the range is
- * cut out of them, then the cut is mirrored. The last entry stops one step short of the end, so a palette that already ends where it
+ * cut out of them, then the cut is played out and back unless it already loops (or `hardEdge` is set). The last entry stops one step short of the end, so a palette that already ends where it
  * starts wraps without a repeated color.
  */
 export const buildPaletteLut = (stops: readonly string[], shape: PaletteShape, size: number = LUT_SIZE): Uint8Array => {
@@ -99,7 +106,10 @@ export const buildPaletteLut = (stops: readonly string[], shape: PaletteShape, s
   // Reverse comes first so the range handles always point at what the bar shows: a reversed palette is cropped as drawn.
   const shown = shape.reverse ? colors.reverse() : colors
   const range = Array.from({ length: RANGE_STEPS }, (_, i) => blendAlong(shown, rangePosition(start, end, i / (RANGE_STEPS - 1))))
-  const played = arrangeStops(range, { reverse: false, mirror: shape.mirror })
+  const first = range[0] ?? [0, 0, 0]
+  const last = range[range.length - 1] ?? first
+  const loops = Math.hypot(first[0] - last[0], first[1] - last[1], first[2] - last[2]) < LOOP_TOLERANCE
+  const played = arrangeStops(range, { reverse: false, mirror: !shape.hardEdge && !loops })
   const lut = new Uint8Array(size * 4)
   for (let i = 0; i < size; i++) {
     const [red, green, blue] = oklabToRgb(blendAlong(played, i / size))
