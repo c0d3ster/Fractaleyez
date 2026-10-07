@@ -3,7 +3,39 @@
   user-select: none;
 }
 
+.palette-picker__current {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.08);
+  color: #333;
+  cursor: pointer;
+}
+
+.palette-picker__current:hover {
+  background: rgba(0, 0, 0, 0.16);
+}
+
+.palette-picker__swatch--current {
+  flex: 1;
+  height: 16px;
+}
+
+.palette-picker__current-name {
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+
+.palette-picker__chevron {
+  font-size: 12px;
+}
+
 .palette-picker__grid {
+  margin-top: 6px;
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 6px;
