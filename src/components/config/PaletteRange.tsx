@@ -103,13 +103,9 @@ const PaletteRangeInner = ({ config, updateConfigItem, resetConfigItem }: Palett
 
   return (
     <div className='palette-range'>
-      <div className='palette-range__label'>
-        <span>Range</span>
-        <span>{full ? 'All' : `${percent(start)} to ${percent(end)}`}</span>
-      </div>
       <div
         className='palette-range__track'
-        title='Drag a handle to crop the palette, or the lit part to slide it. Double-click for the whole palette.'
+        title={`Range: ${full ? 'whole palette' : `${percent(start)} to ${percent(end)}`}. Drag a handle to crop the palette, or the lit part to slide it. Double-click for the whole palette.`}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}

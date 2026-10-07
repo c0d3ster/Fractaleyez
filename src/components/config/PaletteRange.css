@@ -1,16 +1,6 @@
 .palette-range {
-  padding: 8px 1rem 4px;
+  padding: 4px 1rem 0;
   user-select: none;
-}
-
-.palette-range__label {
-  display: flex;
-  justify-content: space-between;
-  padding-bottom: 6px;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: #444;
 }
 
 .palette-range__track {
@@ -34,10 +24,12 @@
   pointer-events: none;
 }
 
-/* Under the bar, so it stays clean: the handle track is part of the grab area. */
+/* Hangs from the bar, and is part of the grab area. */
 .palette-range__handles {
   position: relative;
-  height: 20px;
+  height: 17px;
+  /* Pulled up so each marker's tip overlaps the bar and points at its spot on it. */
+  margin-top: -9px;
   /* On the parent, since a filter on a clipped element would be clipped away with it. */
   filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.9));
 }
@@ -45,7 +37,7 @@
 /* A house-shaped marker pointing up at its place on the bar, like the stops on a gradient editor. */
 .palette-range__handle {
   position: absolute;
-  top: 1px;
+  top: 0;
   width: 14px;
   height: 16px;
   margin-left: -7px;

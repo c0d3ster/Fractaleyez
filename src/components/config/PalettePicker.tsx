@@ -30,7 +30,8 @@ const PalettePickerInner = ({ config, updateConfigItem, updateColorList }: Palet
   const selected = palette.value[0] ?? RAINBOW_PALETTE
   const stops = customStops.value
 
-  // Opens on the page holding the current palette.
+  // Collapsed to the current palette to save room; opens onto the page holding it.
+  const [open, setOpen] = useState(false)
   const [page, setPage] = useState(() => Math.floor(Math.max(0, PALETTE_IDS.indexOf(selected)) / PALETTES_PER_PAGE))
 
   const choices: Choice[] = [
@@ -38,6 +39,8 @@ const PalettePickerInner = ({ config, updateConfigItem, updateColorList }: Palet
     { id: CUSTOM_PALETTE, label: 'Custom', gradient: stopsGradient(stops.length > 1 ? stops : [...stops, ...stops, '#000000']) },
   ]
   const visible = choices.slice(page * PALETTES_PER_PAGE, (page + 1) * PALETTES_PER_PAGE)
+  const selectedChoice = choices.find(({ id }) => id === selected) ?? choices[0]
+  const toggleOpen = useCallback((): void => setOpen((isOpen) => !isOpen), [])
 
   // A one-way ramp only loops cleanly played out and back, so picking one turns Mirror on (it can still be turned off).
   const choose = useCallback((id: string): void => {
@@ -65,25 +68,34 @@ const PalettePickerInner = ({ config, updateConfigItem, updateColorList }: Palet
 
   return (
     <div className='palette-picker'>
-      <div className='palette-picker__grid'>
-        {visible.map(({ id, label, gradient }) => (
-          <button
-            key={id}
-            type='button'
-            className={`palette-picker__choice${id === selected ? ' palette-picker__choice--selected' : ''}`}
-            aria-pressed={id === selected}
-            onClick={() => choose(id)}
-          >
-            <span className='palette-picker__swatch' style={{ background: gradient }} />
-            <span className='palette-picker__name'>{label}</span>
-          </button>
-        ))}
-      </div>
-      <div className='palette-picker__pager'>
-        <button type='button' aria-label='Previous palettes' disabled={page === 0} onClick={previousPage}>←</button>
-        <span>{page + 1}/{PAGE_COUNT}</span>
-        <button type='button' aria-label='Next palettes' disabled={page === PAGE_COUNT - 1} onClick={nextPage}>→</button>
-      </div>
+      <button type='button' className='palette-picker__current' aria-expanded={open} onClick={toggleOpen}>
+        <span className='palette-picker__swatch palette-picker__swatch--current' style={{ background: selectedChoice?.gradient }} />
+        <span className='palette-picker__current-name'>{selectedChoice?.label}</span>
+        <span className='palette-picker__chevron'>{open ? '▾' : '▸'}</span>
+      </button>
+      {open && (
+        <div className='palette-picker__grid'>
+          {visible.map(({ id, label, gradient }) => (
+            <button
+              key={id}
+              type='button'
+              className={`palette-picker__choice${id === selected ? ' palette-picker__choice--selected' : ''}`}
+              aria-pressed={id === selected}
+              onClick={() => choose(id)}
+            >
+              <span className='palette-picker__swatch' style={{ background: gradient }} />
+              <span className='palette-picker__name'>{label}</span>
+            </button>
+          ))}
+        </div>
+      )}
+      {open && (
+        <div className='palette-picker__pager'>
+          <button type='button' aria-label='Previous palettes' disabled={page === 0} onClick={previousPage}>←</button>
+          <span>{page + 1}/{PAGE_COUNT}</span>
+          <button type='button' aria-label='Next palettes' disabled={page === PAGE_COUNT - 1} onClick={nextPage}>→</button>
+        </div>
+      )}
       {selected === CUSTOM_PALETTE && (
         <div className='palette-picker__stops'>
           {stops.map((stop, index) => (
