@@ -5,7 +5,7 @@ import { connectConfig, ConfigContextValue } from './context/ConfigProvider'
 import { AppConfig } from '../../config/configDefaults'
 import { resolveColorState } from '../../config/colorState'
 import { lutToCssGradient } from '../../config/paletteLut'
-import { isFullRange, MIN_RANGE_GAP, rangeSpan } from '../../config/paletteRange'
+import { isFullRange, MIN_RANGE_GAP } from '../../config/paletteRange'
 
 type DragKind = 'start' | 'end' | 'window'
 
@@ -105,23 +105,26 @@ const PaletteRangeInner = ({ config, updateConfigItem, resetConfigItem }: Palett
     <div className='palette-range'>
       <div className='palette-range__label'>
         <span>Range</span>
-        <span>{full ? 'All' : `${percent(start)} to ${percent(end)}${rangeSpan(start, end) < 1 && wraps ? ' (wraps)' : ''}`}</span>
+        <span>{full ? 'All' : `${percent(start)} to ${percent(end)}`}</span>
       </div>
       <div
-        className='palette-range__strip'
+        className='palette-range__track'
         title='Drag a handle to crop the palette, or the lit part to slide it. Double-click for the whole palette.'
-        style={{ background: lutToCssGradient(baseLut) }}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
         onDoubleClick={handleReset}
       >
-        {dimmed.map(({ from, to }) => (
-          <div key={from} className='palette-range__dim' style={{ left: `${from * 100}%`, width: `${(to - from) * 100}%` }} />
-        ))}
-        <div className='palette-range__handle' style={{ left: `${start * 100}%` }} />
-        <div className='palette-range__handle' style={{ left: `${end * 100}%` }} />
+        <div className='palette-range__strip' style={{ background: lutToCssGradient(baseLut) }}>
+          {dimmed.map(({ from, to }) => (
+            <div key={from} className='palette-range__dim' style={{ left: `${from * 100}%`, width: `${(to - from) * 100}%` }} />
+          ))}
+        </div>
+        <div className='palette-range__handles'>
+          <div className='palette-range__handle' style={{ left: `${start * 100}%` }} />
+          <div className='palette-range__handle' style={{ left: `${end * 100}%` }} />
+        </div>
       </div>
     </div>
   )

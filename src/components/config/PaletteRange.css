@@ -13,14 +13,17 @@
   color: #444;
 }
 
+.palette-range__track {
+  touch-action: none;
+  cursor: pointer;
+}
+
 .palette-range__strip {
   position: relative;
   height: 26px;
-  margin-bottom: 14px;
   border-radius: 6px;
+  overflow: hidden;
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35);
-  touch-action: none;
-  cursor: pointer;
 }
 
 .palette-range__dim {
@@ -31,27 +34,22 @@
   pointer-events: none;
 }
 
-/* A bar across the strip with a small pointer under it: the |^| thumb. */
-.palette-range__handle {
-  position: absolute;
-  top: -3px;
-  bottom: -3px;
-  width: 4px;
-  margin-left: -2px;
-  border-radius: 2px;
-  background: #fff;
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6);
-  pointer-events: none;
+/* Under the bar, so it stays clean: the handle track is part of the grab area. */
+.palette-range__handles {
+  position: relative;
+  height: 20px;
+  /* On the parent, since a filter on a clipped element would be clipped away with it. */
+  filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.9));
 }
 
-.palette-range__handle::after {
-  content: '';
+/* A house-shaped marker pointing up at its place on the bar, like the stops on a gradient editor. */
+.palette-range__handle {
   position: absolute;
-  top: 100%;
-  left: 50%;
-  margin: 1px 0 0 -5px;
-  border: 5px solid transparent;
-  border-top: 0;
-  border-bottom: 7px solid #fff;
-  filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.8));
+  top: 1px;
+  width: 14px;
+  height: 16px;
+  margin-left: -7px;
+  background: #fff;
+  clip-path: polygon(50% 0, 100% 35%, 100% 100%, 0 100%, 0 35%);
+  pointer-events: none;
 }
