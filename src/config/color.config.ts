@@ -15,13 +15,6 @@ export const colorConfig = {
   rangeEnd_MAX: 1,
   rangeEnd_STEP_SIZE: 0.01,
 
-  // How bright the layers in front can get (their brightest channel) before the `mask` blend hides the layers behind
-  // them completely; below it they show through more the darker it gets. Lower keeps dark colors solid.
-  maskEdge_DEFAULT: 0.25,
-  maskEdge_MIN: 0.05,
-  maskEdge_MAX: 0.6,
-  maskEdge_STEP_SIZE: 0.01,
-
   // Palettes (see palettes.ts). The default is the rainbow.
   palette_DEFAULT: 'rainbow',
   customStops_DEFAULT: ['#ff2d95', '#ffd23f', '#2de2e6'],
