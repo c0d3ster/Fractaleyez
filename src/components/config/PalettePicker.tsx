@@ -18,7 +18,10 @@ type Choice = {
   gradient: string
 }
 
-const PALETTES_PER_PAGE = 8
+const PALETTES_PER_PAGE = 6
+const PALETTE_COLUMNS = 2
+// Every page reserves the rows of a full one (the last page is shorter), so opening the grid or turning the page never moves what is below it.
+const GRID_ROWS = `repeat(${PALETTES_PER_PAGE / PALETTE_COLUMNS}, minmax(45px, auto))`
 
 const stopsGradient = (stops: readonly string[]): string => `linear-gradient(to right, ${stops.join(', ')})`
 
@@ -74,7 +77,7 @@ const PalettePickerInner = ({ config, updateConfigItem, updateColorList }: Palet
         <span className='palette-picker__chevron'>{open ? '▾' : '▸'}</span>
       </button>
       {open && (
-        <div className='palette-picker__grid'>
+        <div className='palette-picker__grid' style={{ gridTemplateRows: GRID_ROWS }}>
           {visible.map(({ id, label, gradient }) => (
             <button
               key={id}
