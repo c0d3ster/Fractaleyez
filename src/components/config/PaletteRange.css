@@ -4,7 +4,7 @@
 
 /* The same pill as the other sliders' track (see Slider.css), so the bar lines up with them. */
 .palette-range__track {
-  margin: 0 8px 1.2rem;
+  margin: 0 0 1.2rem;
   touch-action: none;
   cursor: pointer;
 }
@@ -32,21 +32,31 @@
 /* Hangs from the bar, and is part of the grab area. */
 .palette-range__handles {
   position: relative;
-  height: 17px;
+  height: 26px;
   /* Pulled up so each marker's tip just overlaps the bar and points at its spot on it. */
-  margin-top: -5px;
+  margin-top: -6px;
   /* On the parent, since a filter on a clipped element would be clipped away with it. */
   filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.9));
 }
 
-/* A house-shaped marker pointing up at its place on the bar, like the stops on a gradient editor. */
+/*
+ * Half a house, standing on the edge it marks: the start's body is on its right and the end's on its left, so each one
+ * faces the lit part of the bar (also when the range wraps) and nothing hangs past either end of the bar.
+ */
 .palette-range__handle {
   position: absolute;
   top: 0;
-  width: 14px;
-  height: 16px;
-  margin-left: -7px;
+  width: 16px;
+  height: 24px;
   background: #fff;
-  clip-path: polygon(50% 0, 100% 35%, 100% 100%, 0 100%, 0 35%);
   pointer-events: none;
+}
+
+.palette-range__handle--start {
+  clip-path: polygon(0 0, 100% 30%, 100% 100%, 0 100%);
+}
+
+.palette-range__handle--end {
+  margin-left: -16px;
+  clip-path: polygon(100% 0, 100% 100%, 0 100%, 0 30%);
 }

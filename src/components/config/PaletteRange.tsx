@@ -134,8 +134,8 @@ const PaletteRangeInner = ({ config, updateConfigItem, resetConfigItem }: Palett
           ))}
         </div>
         <div className='palette-range__handles'>
-          <div className='palette-range__handle' style={{ left: `${start * 100}%` }} />
-          <div className='palette-range__handle' style={{ left: `${end * 100}%` }} />
+          <div className='palette-range__handle palette-range__handle--start' style={{ left: `${start * 100}%` }} />
+          <div className='palette-range__handle palette-range__handle--end' style={{ left: `${end * 100}%` }} />
         </div>
       </div>
     </div>
