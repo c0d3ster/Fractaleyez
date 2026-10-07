@@ -18,6 +18,8 @@ export type ColorState = {
   lut: Uint8Array
   /** The whole palette (reversed if asked, not cropped or looped), for the range bar the handles sit on. */
   baseLut: Uint8Array
+  /** The cropped range as it is cut from the palette, before it is looped, for the lit part of the range bar. */
+  rangeLut: Uint8Array
 }
 
 const stopsFor = (color: ColorConfigSection): readonly string[] => {
@@ -47,6 +49,7 @@ export const resolveColorState = (color: ColorConfigSection): ColorState => {
     cycles: paletteCycles.value,
     lut: buildPaletteLut(stops, { reverse: paletteReverse.value, hardEdge: paletteHardEdge.value, start: rangeStart.value, end: rangeEnd.value }),
     baseLut: buildPaletteLut(stops, { reverse: paletteReverse.value, hardEdge: true }),
+    rangeLut: buildPaletteLut(stops, { reverse: paletteReverse.value, hardEdge: true, start: rangeStart.value, end: rangeEnd.value }),
   }
   return cached
 }
