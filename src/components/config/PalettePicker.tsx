@@ -4,10 +4,11 @@ import './PalettePicker.css'
 import { connectConfig, ConfigContextValue } from './context/ConfigProvider'
 import { AppConfig } from '../../config/configDefaults'
 import { colorConfig } from '../../config/color.config'
-import { CUSTOM_PALETTE, PALETTES, RAINBOW_PALETTE } from '../../config/palettes'
+import { CUSTOM_PALETTE, PALETTE_BY_ID, PALETTES, RAINBOW_PALETTE } from '../../config/palettes'
 
 type PalettePickerProps = {
   config: AppConfig
+  updateConfigItem: ConfigContextValue['updateConfigItem']
   updateColorList: ConfigContextValue['updateColorList']
 }
 
@@ -26,7 +27,7 @@ const stopsGradient = (stops: readonly string[]): string => `linear-gradient(to 
 const PALETTE_IDS = [RAINBOW_PALETTE, ...PALETTES.map(({ id }) => id), CUSTOM_PALETTE]
 const PAGE_COUNT = Math.ceil(PALETTE_IDS.length / PALETTES_PER_PAGE)
 
-const PalettePickerInner = ({ config, updateColorList }: PalettePickerProps): React.ReactElement => {
+const PalettePickerInner = ({ config, updateConfigItem, updateColorList }: PalettePickerProps): React.ReactElement => {
   const { palette, customStops } = config.color
   const selected = palette.value[0] ?? RAINBOW_PALETTE
   const stops = customStops.value
@@ -41,7 +42,13 @@ const PalettePickerInner = ({ config, updateColorList }: PalettePickerProps): Re
   ]
   const visible = choices.slice(page * PALETTES_PER_PAGE, (page + 1) * PALETTES_PER_PAGE)
 
-  const choose = useCallback((id: string): void => updateColorList('palette', [id]), [updateColorList])
+  // A one-way ramp only loops cleanly played out and back, so picking one turns Mirror on (it can still be turned off).
+  const choose = useCallback((id: string): void => {
+    if (id === selected) return
+    updateColorList('palette', [id])
+    const chosen = PALETTE_BY_ID[id]
+    if (chosen) updateConfigItem('color', 'paletteMirror', !chosen.cyclic)
+  }, [selected, updateColorList, updateConfigItem])
   const previousPage = useCallback((): void => setPage((current) => Math.max(0, current - 1)), [])
   const nextPage = useCallback((): void => setPage((current) => Math.min(PAGE_COUNT - 1, current + 1)), [])
 
