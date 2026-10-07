@@ -32,7 +32,7 @@ const tidy = (value: number): number => Math.round(value * PRECISION) / PRECISIO
 const percent = (value: number): string => `${Math.round(value * 100)}%`
 
 const PaletteRangeInner = ({ config, updateConfigItem, resetConfigItem }: PaletteRangeProps): React.ReactElement => {
-  const { baseLut } = resolveColorState(config.color)
+  const { baseLut, saturation } = resolveColorState(config.color)
   const start = config.color.rangeStart.value
   const end = config.color.rangeEnd.value
   const wraps = end < start
@@ -103,16 +103,20 @@ const PaletteRangeInner = ({ config, updateConfigItem, resetConfigItem }: Palett
 
   return (
     <div className='palette-range'>
+      <div className='slider-info'>
+        <h4 className='slider-name'>Range: </h4>
+        <h4 className='slider-value'>{full ? 'All' : `${percent(start)} to ${percent(end)}`}</h4>
+      </div>
       <div
         className='palette-range__track'
-        title={`Range: ${full ? 'whole palette' : `${percent(start)} to ${percent(end)}`}. Drag a handle to crop the palette, or the lit part to slide it. Double-click for the whole palette.`}
+        title='Drag a handle to crop the palette, or the lit part to slide it. Double-click for the whole palette.'
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
         onDoubleClick={handleReset}
       >
-        <div className='palette-range__strip' style={{ background: lutToCssGradient(baseLut) }}>
+        <div className='palette-range__strip' style={{ background: lutToCssGradient(baseLut, 0, 1, saturation) }}>
           {dimmed.map(({ from, to }) => (
             <div key={from} className='palette-range__dim' style={{ left: `${from * 100}%`, width: `${(to - from) * 100}%` }} />
           ))}
@@ -126,5 +130,8 @@ const PaletteRangeInner = ({ config, updateConfigItem, resetConfigItem }: Palett
   )
 }
 
-/** The palette with two handles to crop it to a range (the whole palette by default). The end can pass the start to wrap. */
+/**
+ * The palette as one slider-height bar with two handles that crop it to the range the colors are drawn from (the whole
+ * palette by default). The lit part is what the fractal cycles through; the end can pass the start to wrap.
+ */
 export const PaletteRange = connectConfig(PaletteRangeInner)
