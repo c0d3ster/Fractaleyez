@@ -106,10 +106,11 @@ export const sampleLut = (lut: Uint8Array, position: number): Rgb => {
   return [channel(0), channel(1), channel(2)]
 }
 
-/** A CSS gradient of one pass through the palette starting `offset` of the way in, for previews. */
-export const lutToCssGradient = (lut: Uint8Array, offset: number = 0, samples: number = 24): string => {
+/** A CSS gradient of the palette starting `offset` of the way in and running through it `cycles` times, for previews. */
+export const lutToCssGradient = (lut: Uint8Array, offset: number = 0, cycles: number = 1): string => {
+  const samples = Math.ceil(24 * Math.max(cycles, 1))
   const colors = Array.from({ length: samples + 1 }, (_, i) => {
-    const [red, green, blue] = sampleLut(lut, offset + i / samples)
+    const [red, green, blue] = sampleLut(lut, offset + (i / samples) * cycles)
     return `rgb(${Math.round(red * 255)}, ${Math.round(green * 255)}, ${Math.round(blue * 255)}) ${((i / samples) * 100).toFixed(1)}%`
   })
   return `linear-gradient(to right, ${colors.join(', ')})`
