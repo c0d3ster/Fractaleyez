@@ -359,7 +359,7 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
     setConfig((prev) => {
       // category/item are dynamic DOM input `name` attributes, not statically known keys of AppConfig
       const sections = prev as unknown as Record<string, Record<string, ConfigItem>>
-      const next: AppConfig = {
+      const updated: AppConfig = {
         ...prev,
         [category]: {
           ...sections[category],
@@ -369,6 +369,18 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
           }
         }
       }
+      // Reversing the palette flips the whole range bar, so its handles flip with it and keep the same colors selected.
+      const flipsRange = category === 'color' && item === 'paletteReverse' && typeof parsedValue === 'boolean' && parsedValue !== prev.color.paletteReverse.value
+      const next: AppConfig = flipsRange
+        ? {
+          ...updated,
+          color: {
+            ...updated.color,
+            rangeStart: { ...updated.color.rangeStart, value: Math.round((1 - prev.color.rangeEnd.value) * 1000) / 1000 },
+            rangeEnd: { ...updated.color.rangeEnd, value: Math.round((1 - prev.color.rangeStart.value) * 1000) / 1000 },
+          },
+        }
+        : updated
       window.config = next
       return next
     })

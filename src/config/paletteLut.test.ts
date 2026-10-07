@@ -95,6 +95,14 @@ describe('buildPaletteLut range', () => {
     expect(pixel(lut, LUT_SIZE - 1)[0]).toBeLessThan(120)
   })
 
+  it('crops a reversed palette as it is drawn', () => {
+    // Reversed, the ramp runs white to black, so the first half starts at white and heads toward gray.
+    const lut = buildPaletteLut(ramp, { reverse: true, mirror: false, start: 0, end: 0.5 })
+    expect(pixel(lut, 0)[0]).toBe(255)
+    expect(pixel(lut, LUT_SIZE - 1)[0]).toBeGreaterThan(90)
+    expect(pixel(lut, LUT_SIZE - 1)[0]).toBeLessThan(150)
+  })
+
   it('mirrors the cropped range', () => {
     const lut = buildPaletteLut(ramp, { reverse: false, mirror: true, start: 0, end: 0.5 })
     expect(pixel(lut, LUT_SIZE / 2)[0]).toBeGreaterThan(90)

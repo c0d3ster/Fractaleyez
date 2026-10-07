@@ -16,7 +16,7 @@ export type ColorState = {
   cycles: number
   /** RGBA bytes of one pass through the palette as used: ranged, reversed and mirrored. */
   lut: Uint8Array
-  /** The whole palette as authored, for the range strip the handles sit on. */
+  /** The whole palette (reversed if asked, not cropped or mirrored), for the range bar the handles sit on. */
   baseLut: Uint8Array
 }
 
@@ -46,7 +46,7 @@ export const resolveColorState = (color: ColorConfigSection): ColorState => {
     phase: palettePhase.value,
     cycles: paletteCycles.value,
     lut: buildPaletteLut(stops, { reverse: paletteReverse.value, mirror: paletteMirror.value, start: rangeStart.value, end: rangeEnd.value }),
-    baseLut: buildPaletteLut(stops, { reverse: false, mirror: false }),
+    baseLut: buildPaletteLut(stops, { reverse: paletteReverse.value, mirror: false }),
   }
   return cached
 }
