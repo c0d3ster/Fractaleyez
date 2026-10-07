@@ -2,7 +2,6 @@ import * as THREE from 'three'
 
 import { AudioAnalysedDataForVisualization } from '../../audioanalysis/audio-analysed-data'
 import { LayerKey, LayersConfigSection } from '../../config/configDefaults'
-import { colorConfig } from '../../config/color.config'
 import { BLEND_CODES, compositeFragmentShader, compositeVertexShader, MAX_COMPOSITE_LAYERS } from './composite.glsl'
 import { Layer } from './layer'
 import { getParticleCrossfadeDurationMs } from '../../config/visualizer.config'
@@ -40,7 +39,6 @@ export class LayerCompositor {
       uOpacity: { value: new Array<number>(MAX_COMPOSITE_LAYERS).fill(0) },
       uBlend: { value: new Array<number>(MAX_COMPOSITE_LAYERS).fill(BLEND_CODES.mask) },
       uCount: { value: 0 },
-      uMaskEdge: { value: colorConfig.maskEdge_DEFAULT },
     }
     for (let i = 0; i < MAX_COMPOSITE_LAYERS; i++) uniforms[`uLayer${i}`] = { value: this.blank }
     this.material = new THREE.ShaderMaterial({
@@ -76,7 +74,6 @@ export class LayerCompositor {
       blends[slot] = BLEND_CODES.mask
     }
     this.material.uniforms.uCount!.value = planned.length
-    this.material.uniforms.uMaskEdge!.value = window.config.color.maskEdge.value
   }
 
   /**
