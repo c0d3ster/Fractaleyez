@@ -32,7 +32,7 @@
 /* Hangs from the bar, and is part of the grab area. */
 .palette-range__handles {
   position: relative;
-  height: 26px;
+  height: 24px;
   /* Pulled up so each marker's tip just overlaps the bar and points at its spot on it. */
   margin-top: -6px;
   /* On the parent, since a filter on a clipped element would be clipped away with it. */
@@ -46,8 +46,6 @@
 .palette-range__handle {
   position: absolute;
   top: 0;
-  width: 16px;
-  height: 24px;
   background: #fff;
   pointer-events: none;
 }
@@ -57,6 +55,5 @@
 }
 
 .palette-range__handle--end {
-  margin-left: -16px;
   clip-path: polygon(100% 0, 100% 100%, 0 100%, 0 30%);
 }
