@@ -35,7 +35,7 @@ const tidy = (value: number): number => Math.round(value * PRECISION) / PRECISIO
 const scaled = (value: number): number => Math.round(value * 100)
 
 const PaletteRangeInner = ({ config, updateConfigItem, resetConfigItem }: PaletteRangeProps): React.ReactElement => {
-  const { lut, baseLut, phase, cycles, saturation } = resolveColorState(config.color)
+  const { rangeLut, baseLut, phase, cycles, saturation } = resolveColorState(config.color)
   const start = config.color.rangeStart.value
   const end = config.color.rangeEnd.value
   const wraps = end < start
@@ -107,8 +107,9 @@ const PaletteRangeInner = ({ config, updateConfigItem, resetConfigItem }: Palett
 
   // The parts of the bar outside the range: either side of it, or the stretch between the handles when it wraps.
   const dimmed = wraps ? [{ from: end, to: start }] : [{ from: 0, to: start }, { from: end, to: 1 }]
-  // The range itself shows the palette as it is actually used (reversed, looped, cycled, phased and desaturated),
-  // squeezed into the selection. A wrapped range is two pieces of the bar that carry on from each other.
+  // The range itself shows the colors it selects, squeezed into the selection (cycled, phased and desaturated like the
+  // fractal's), but not the out-and-back that closes the loop afterward, so the lit part matches the palette under it.
+  // A wrapped range is two pieces of the bar that carry on from each other.
   const span = rangeSpan(start, end)
   const lit = wraps
     ? [{ from: start, to: 1, part: [0, (1 - start) / span] }, { from: 0, to: end, part: [(1 - start) / span, 1] }]
@@ -137,7 +138,7 @@ const PaletteRangeInner = ({ config, updateConfigItem, resetConfigItem }: Palett
             <div
               key={from}
               className='palette-range__lit'
-              style={{ left: `${from * 100}%`, width: `${(to - from) * 100}%`, background: lutToCssGradient(lut, phase + partFrom * cycles, (partTo - partFrom) * cycles, saturation) }}
+              style={{ left: `${from * 100}%`, width: `${(to - from) * 100}%`, background: lutToCssGradient(rangeLut, phase + partFrom * cycles, (partTo - partFrom) * cycles, saturation) }}
             />
           ))}
         </div>
@@ -152,7 +153,7 @@ const PaletteRangeInner = ({ config, updateConfigItem, resetConfigItem }: Palett
 
 /**
  * The palette as one slider-height bar with two handles that crop it to the range the colors are drawn from (the whole
- * palette by default). The range shows the palette as the fractal gets it, so it changes with Cycles, Phase, Reverse,
- * Hard Edge and Saturation as well as the handles; the end can pass the start to wrap.
+ * palette by default). The range shows the colors it selects, so it changes with Cycles, Phase, Reverse and Saturation
+ * as well as the handles; the end can pass the start to wrap.
  */
 export const PaletteRange = connectConfig(PaletteRangeInner)
