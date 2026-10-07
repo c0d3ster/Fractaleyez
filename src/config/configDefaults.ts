@@ -115,6 +115,9 @@ export type LayersConfigSection = {
 
 export type LogoConfigSection = {
   sprite: MultiselectItem // single-select via min:1,max:1
+  threeD: CheckboxItem // off is flat: one plane that spins in the screen plane
+  size: SliderItem // multiplier on the logo's base size
+  tilt: SliderItem // how far the logo turns toward the camera position, 0 is always facing front
   spinSpeed: SliderItem
   beatScale: SliderItem
   shake: SliderItem
@@ -260,6 +263,9 @@ export const configDefaults: AppConfig = {
   },
   logo: {
     sprite: { name: 'Sprite', type: 'multiselect', defaultValue: [logoConfig.sprite_DEFAULT], value: [logoConfig.sprite_DEFAULT], min: 1, max: 1 },
+    threeD: { name: '3D', type: 'checkbox', defaultValue: logoConfig.threeD_DEFAULT, value: logoConfig.threeD_DEFAULT },
+    size: { name: 'Size', type: 'slider', defaultValue: logoConfig.size_DEFAULT, value: logoConfig.size_DEFAULT, min: logoConfig.size_MIN, max: logoConfig.size_MAX, step: logoConfig.size_STEP_SIZE },
+    tilt: { name: 'Camera Tilt', type: 'slider', defaultValue: logoConfig.tilt_DEFAULT, value: logoConfig.tilt_DEFAULT, min: logoConfig.tilt_MIN, max: logoConfig.tilt_MAX, step: logoConfig.tilt_STEP_SIZE },
     spinSpeed: { name: 'Spin Speed', type: 'slider', defaultValue: logoConfig.spinSpeed_DEFAULT, value: logoConfig.spinSpeed_DEFAULT, min: logoConfig.spinSpeed_MIN, max: logoConfig.spinSpeed_MAX, step: logoConfig.spinSpeed_STEP_SIZE },
     beatScale: { name: 'Beat Scale', type: 'slider', defaultValue: logoConfig.beatScale_DEFAULT, value: logoConfig.beatScale_DEFAULT, min: logoConfig.beatScale_MIN, max: logoConfig.beatScale_MAX, step: logoConfig.beatScale_STEP_SIZE },
     shake: { name: 'Shake', type: 'slider', defaultValue: logoConfig.shake_DEFAULT, value: logoConfig.shake_DEFAULT, min: logoConfig.shake_MIN, max: logoConfig.shake_MAX, step: logoConfig.shake_STEP_SIZE },
