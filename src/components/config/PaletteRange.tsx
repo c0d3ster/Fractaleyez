@@ -23,8 +23,11 @@ type PaletteRangeProps = {
   resetConfigItem: ConfigContextValue['resetConfigItem']
 }
 
-// A press this close to a handle (as a share of the strip) grabs the handle; anywhere else on the lit part drags it whole.
-const HANDLE_GRAB = 0.04
+// A handle's size in pixels. A press anywhere on its body (or this close to it) grabs it, whatever the bar's width;
+// anywhere else on the lit part drags the whole range.
+const HANDLE_WIDTH_PX = 10
+const HANDLE_HEIGHT_PX = 22
+const HANDLE_SLACK_PX = 4
 const PRECISION = 1000
 
 const clamp = (value: number, min: number, max: number): number => Math.min(max, Math.max(min, value))
@@ -55,12 +58,17 @@ const PaletteRangeInner = ({ config, updateConfigItem, resetConfigItem }: Palett
 
   const handlePointerDown = useCallback((event: React.PointerEvent<HTMLDivElement>): void => {
     const x = fractionAt(event)
+    const { width } = event.currentTarget.getBoundingClientRect()
     const current = liveRef.current
     const toStart = Math.abs(x - current.start)
     const toEnd = Math.abs(x - current.end)
+    // Each handle's body hangs on the lit side of its edge: right of the start, left of the end.
+    const pixels = x * width
+    const onStart = pixels >= current.start * width - HANDLE_SLACK_PX && pixels <= current.start * width + HANDLE_WIDTH_PX + HANDLE_SLACK_PX
+    const onEnd = pixels >= current.end * width - HANDLE_WIDTH_PX - HANDLE_SLACK_PX && pixels <= current.end * width + HANDLE_SLACK_PX
     const inRange = current.start <= current.end ? x >= current.start && x <= current.end : false
     // The whole lit part only drags when it does not run off the end of the palette (it would have nowhere to go).
-    const kind: DragKind = Math.min(toStart, toEnd) > HANDLE_GRAB && inRange ? 'window' : toStart < toEnd ? 'start' : 'end'
+    const kind: DragKind = !onStart && !onEnd && inRange ? 'window' : onStart && (!onEnd || toStart <= toEnd) ? 'start' : onEnd ? 'end' : toStart < toEnd ? 'start' : 'end'
     dragRef.current = { kind, grabX: x, grabStart: current.start, grabEnd: current.end }
     event.currentTarget.setPointerCapture(event.pointerId)
   }, [])
@@ -134,8 +142,8 @@ const PaletteRangeInner = ({ config, updateConfigItem, resetConfigItem }: Palett
           ))}
         </div>
         <div className='palette-range__handles'>
-          <div className='palette-range__handle palette-range__handle--start' style={{ left: `${start * 100}%` }} />
-          <div className='palette-range__handle palette-range__handle--end' style={{ left: `${end * 100}%` }} />
+          <div className='palette-range__handle palette-range__handle--start' style={{ left: `${start * 100}%`, width: HANDLE_WIDTH_PX, height: HANDLE_HEIGHT_PX }} />
+          <div className='palette-range__handle palette-range__handle--end' style={{ left: `${end * 100}%`, width: HANDLE_WIDTH_PX, height: HANDLE_HEIGHT_PX, marginLeft: -HANDLE_WIDTH_PX }} />
         </div>
       </div>
     </div>
