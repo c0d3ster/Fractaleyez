@@ -43,7 +43,7 @@ const RAINBOW_STOPS = Array.from({ length: 360 / RAINBOW_STEP_DEGREES + 1 }, (_,
 export const PALETTES: readonly PaletteDefinition[] = [
   { id: RAINBOW_PALETTE, label: 'Rainbow', stops: RAINBOW_STOPS, cyclic: true },
   { id: 'twilight', label: 'Twilight', stops: ['#2f1437', '#701f57', '#b43e55', '#d9805f', '#dcae9e', '#e2d9e2', '#a9c2d0', '#6f95b8', '#5f68ad', '#5a3b8c', '#2f1437'], cyclic: true },
-  { id: 'candy', label: 'Candy', stops: ['#ff9fd0', '#ffb3da', '#8fd3ff', '#a9ddff', '#ff9fd0'], cyclic: true },
+  { id: 'candy', label: 'Candy', stops: ['#ffa9d5', '#ffb3da', '#e1bee1', '#8fd3ff', '#9cd8ff', '#a9ddff', '#e1bee1', '#ff9fd0', '#ffa9d5'], cyclic: true },
   { id: 'neon', label: 'Neon', stops: ['#ff00c8', '#7a00ff', '#00e5ff', '#00ff9c', '#ff00c8'], cyclic: true },
   { id: 'pastel', label: 'Pastel', stops: ['#ffadad', '#ffd6a5', '#fdffb6', '#caffbf', '#9bf6ff', '#a0c4ff', '#bdb2ff', '#ffc6ff', '#ffadad'], cyclic: true },
   { id: 'viridis', label: 'Viridis', stops: ['#440154', '#482878', '#3e4989', '#31688e', '#26828e', '#1f9e89', '#35b779', '#6ece58', '#b5de2b', '#fde725'], cyclic: false },
