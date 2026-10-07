@@ -17,20 +17,24 @@
   box-shadow: 0 1px 0 rgba(0, 0, 0, 0.75), inset 0 0 0 1px rgba(0, 0, 0, 0.35);
 }
 
-.palette-range__dim {
+.palette-range__dim,
+.palette-range__lit {
   position: absolute;
   top: 0;
   bottom: 0;
-  background: rgba(20, 20, 20, 0.72);
   pointer-events: none;
+}
+
+.palette-range__dim {
+  background: rgba(20, 20, 20, 0.72);
 }
 
 /* Hangs from the bar, and is part of the grab area. */
 .palette-range__handles {
   position: relative;
   height: 17px;
-  /* Pulled up so each marker's tip overlaps the bar and points at its spot on it. */
-  margin-top: -9px;
+  /* Pulled up so each marker's tip just overlaps the bar and points at its spot on it. */
+  margin-top: -5px;
   /* On the parent, since a filter on a clipped element would be clipped away with it. */
   filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.9));
 }

@@ -5,7 +5,7 @@ import { connectConfig, ConfigContextValue } from './context/ConfigProvider'
 import { AppConfig } from '../../config/configDefaults'
 import { resolveColorState } from '../../config/colorState'
 import { lutToCssGradient } from '../../config/paletteLut'
-import { isFullRange, MIN_RANGE_GAP } from '../../config/paletteRange'
+import { MIN_RANGE_GAP, rangeSpan } from '../../config/paletteRange'
 
 type DragKind = 'start' | 'end' | 'window'
 
@@ -29,10 +29,10 @@ const PRECISION = 1000
 
 const clamp = (value: number, min: number, max: number): number => Math.min(max, Math.max(min, value))
 const tidy = (value: number): number => Math.round(value * PRECISION) / PRECISION
-const percent = (value: number): string => `${Math.round(value * 100)}%`
+const scaled = (value: number): number => Math.round(value * 100)
 
 const PaletteRangeInner = ({ config, updateConfigItem, resetConfigItem }: PaletteRangeProps): React.ReactElement => {
-  const { baseLut, saturation } = resolveColorState(config.color)
+  const { lut, baseLut, phase, cycles, saturation } = resolveColorState(config.color)
   const start = config.color.rangeStart.value
   const end = config.color.rangeEnd.value
   const wraps = end < start
@@ -58,9 +58,9 @@ const PaletteRangeInner = ({ config, updateConfigItem, resetConfigItem }: Palett
     const current = liveRef.current
     const toStart = Math.abs(x - current.start)
     const toEnd = Math.abs(x - current.end)
-    const lit = current.start <= current.end ? x >= current.start && x <= current.end : false
+    const inRange = current.start <= current.end ? x >= current.start && x <= current.end : false
     // The whole lit part only drags when it does not run off the end of the palette (it would have nowhere to go).
-    const kind: DragKind = Math.min(toStart, toEnd) > HANDLE_GRAB && lit ? 'window' : toStart < toEnd ? 'start' : 'end'
+    const kind: DragKind = Math.min(toStart, toEnd) > HANDLE_GRAB && inRange ? 'window' : toStart < toEnd ? 'start' : 'end'
     dragRef.current = { kind, grabX: x, grabStart: current.start, grabEnd: current.end }
     event.currentTarget.setPointerCapture(event.pointerId)
   }, [])
@@ -71,9 +71,9 @@ const PaletteRangeInner = ({ config, updateConfigItem, resetConfigItem }: Palett
     const x = fractionAt(event)
     const current = liveRef.current
     if (drag.kind === 'window') {
-      const span = drag.grabEnd - drag.grabStart
-      const nextStart = clamp(drag.grabStart + x - drag.grabX, 0, 1 - span)
-      commit(nextStart, nextStart + span)
+      const width = drag.grabEnd - drag.grabStart
+      const nextStart = clamp(drag.grabStart + x - drag.grabX, 0, 1 - width)
+      commit(nextStart, nextStart + width)
       return
     }
     // A handle follows the pointer and may pass the other one (the range then runs off the end and back in at the
@@ -97,15 +97,20 @@ const PaletteRangeInner = ({ config, updateConfigItem, resetConfigItem }: Palett
     resetConfigItem('color', 'rangeEnd')
   }, [resetConfigItem])
 
-  const full = isFullRange(start, end)
-  // The parts of the strip outside the range: either side of it, or the stretch between the handles when it wraps.
+  // The parts of the bar outside the range: either side of it, or the stretch between the handles when it wraps.
   const dimmed = wraps ? [{ from: end, to: start }] : [{ from: 0, to: start }, { from: end, to: 1 }]
+  // The range itself shows the palette as it is actually used (reversed, mirrored, cycled, phased and desaturated),
+  // squeezed into the selection. A wrapped range is two pieces of the bar that carry on from each other.
+  const span = rangeSpan(start, end)
+  const lit = wraps
+    ? [{ from: start, to: 1, part: [0, (1 - start) / span] }, { from: 0, to: end, part: [(1 - start) / span, 1] }]
+    : [{ from: start, to: end, part: [0, 1] }]
 
   return (
     <div className='palette-range'>
       <div className='slider-info'>
         <h4 className='slider-name'>Range: </h4>
-        <h4 className='slider-value'>{full ? 'All' : `${percent(start)} to ${percent(end)}`}</h4>
+        <h4 className='slider-value'>{scaled(start)} - {scaled(end)}</h4>
       </div>
       <div
         className='palette-range__track'
@@ -120,6 +125,13 @@ const PaletteRangeInner = ({ config, updateConfigItem, resetConfigItem }: Palett
           {dimmed.map(({ from, to }) => (
             <div key={from} className='palette-range__dim' style={{ left: `${from * 100}%`, width: `${(to - from) * 100}%` }} />
           ))}
+          {lit.map(({ from, to, part: [partFrom = 0, partTo = 1] }) => (
+            <div
+              key={from}
+              className='palette-range__lit'
+              style={{ left: `${from * 100}%`, width: `${(to - from) * 100}%`, background: lutToCssGradient(lut, phase + partFrom * cycles, (partTo - partFrom) * cycles, saturation) }}
+            />
+          ))}
         </div>
         <div className='palette-range__handles'>
           <div className='palette-range__handle' style={{ left: `${start * 100}%` }} />
@@ -132,6 +144,7 @@ const PaletteRangeInner = ({ config, updateConfigItem, resetConfigItem }: Palett
 
 /**
  * The palette as one slider-height bar with two handles that crop it to the range the colors are drawn from (the whole
- * palette by default). The lit part is what the fractal cycles through; the end can pass the start to wrap.
+ * palette by default). The range shows the palette as the fractal gets it, so it changes with Cycles, Phase, Reverse,
+ * Mirror and Saturation as well as the handles; the end can pass the start to wrap.
  */
 export const PaletteRange = connectConfig(PaletteRangeInner)
