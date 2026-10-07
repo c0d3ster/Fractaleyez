@@ -3,6 +3,7 @@ import * as THREE from 'three'
 import { AudioAnalysedDataForVisualization } from '../../audioanalysis/audio-analysed-data'
 import { getResolvedSpriteUrl } from '../../utils/spriteCache'
 import { acquireSpriteTexture, releaseSpriteTexture } from '../../utils/textureCache'
+import { logoConfig } from '../../config/logo.config'
 import { userConfig } from '../../config/user.config'
 import { CameraManager } from '../camera-manager'
 import { getMusicSpeedMultiplier } from '../music-speed'
@@ -28,9 +29,6 @@ const SIDE_ALPHA_CUTOFF = 0.5
 // visible while |cos(spin)| is above `FACE_FADE_START`, gone below `FACE_FADE_END`. The cutout sides carry the shape.
 const FACE_FADE_START = 0.3
 const FACE_FADE_END = 0.05
-
-// How far the logo turns at full Camera Tilt when the camera sits at the edge of the largest Sway.
-const MAX_TILT_RADIANS = Math.PI / 2
 
 // How the lean at the edge of the swing grows with Sway: (Sway / max Sway) to this power. 1 is linear (Sway 100 leans a
 // fifth as far as 500); lower lifts the small Sways, so at 0.5 Sway 100 leans about 45% as far and Sway 20 about 20%.
@@ -185,7 +183,7 @@ export class LogoLayer implements Layer {
     const range = window.config.user.cameraBound.value
     const steer = window.getCameraSteer?.() ?? { x: 0, y: 0 }
     const swayFactor = Math.pow(clamp(range / userConfig.cameraBound_MAX, 0, 1), SWAY_LEAN_EXPONENT)
-    const lean = range > 0 ? MAX_TILT_RADIANS * logo.tilt.value * swayFactor / range : 0
+    const lean = logo.tilt.value && range > 0 ? logoConfig.tilt_MAX_RADIANS * swayFactor / range : 0
     this.pivot.rotation.set(
       clamp(steer.y, -range, range) * lean,
       clamp(steer.x, -range, range) * lean,
