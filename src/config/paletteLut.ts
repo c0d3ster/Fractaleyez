@@ -86,8 +86,8 @@ const blendAlong = (colors: readonly Rgb[], position: number): Rgb => {
 }
 
 /**
- * Bakes stops into `size` RGBA bytes spanning one pass through the palette: the range is cut out of the stops, then
- * reversed and mirrored. The last entry stops one step short of the end, so a palette that already ends where it
+ * Bakes stops into `size` RGBA bytes spanning one pass through the palette: the stops are reversed if asked, the range is
+ * cut out of them, then the cut is mirrored. The last entry stops one step short of the end, so a palette that already ends where it
  * starts wraps without a repeated color.
  */
 export const buildPaletteLut = (stops: readonly string[], shape: PaletteShape, size: number = LUT_SIZE): Uint8Array => {
@@ -96,8 +96,10 @@ export const buildPaletteLut = (stops: readonly string[], shape: PaletteShape, s
     return rgb ? [rgbToOklab(rgb)] : []
   })
   const { start = 0, end = 1 } = shape
-  const range = Array.from({ length: RANGE_STEPS }, (_, i) => blendAlong(colors, rangePosition(start, end, i / (RANGE_STEPS - 1))))
-  const played = arrangeStops(range, shape)
+  // Reverse comes first so the range handles always point at what the bar shows: a reversed palette is cropped as drawn.
+  const shown = shape.reverse ? colors.reverse() : colors
+  const range = Array.from({ length: RANGE_STEPS }, (_, i) => blendAlong(shown, rangePosition(start, end, i / (RANGE_STEPS - 1))))
+  const played = arrangeStops(range, { reverse: false, mirror: shape.mirror })
   const lut = new Uint8Array(size * 4)
   for (let i = 0; i < size; i++) {
     const [red, green, blue] = oklabToRgb(blendAlong(played, i / size))
