@@ -96,8 +96,8 @@ export const juliaFragmentShader = /* glsl */ `
     vec2 p = (vUv - (vec2(0.5, 0.5) + uCenterOffset)) * vec2(uAspect, 1.0) * 2.0;
     float r = length(p);
 
-    // Shockwave: a ring of lens distortion expanding from the fixed point. It only bends the frame
-    // coordinates, so it can't disturb the zoom loop's self-similarity.
+    // Shockwave: a ring of lens distortion expanding from the fixed point, so it stays centered on the visual as the
+    // steering moves it. It only bends the frame coordinates, so it can't disturb the zoom loop's self-similarity.
     if (uShockStrength > 0.0 && r > 0.0001) {
       float ring = uShockStrength * exp(-pow((r - uShockRadius) / 0.3, 2.0));
       p -= (p / r) * ring * 0.35;

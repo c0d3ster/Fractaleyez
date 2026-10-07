@@ -126,7 +126,10 @@ const STEER_EMA_HALF_LIFE_SECONDS = 0.7
 
 // Effect tuning. Each mirrors a Hopalong effect behind the same checkbox.
 const WOBWOB_RECOIL = 2
-const SHOCKWAVE_BASE_SPEED = 0.9
+// Ring speed is the post-processing shockwave's formula (see PostEffects.render): the Speed slider over 15 plus a beat term,
+// with a small base added so the ring keeps pace with it.
+const SHOCKWAVE_BASE_SPEED = 0.15
+const SHOCKWAVE_BEAT_SPEED_GAIN = 1.25
 const SHOCKWAVE_MAX_RADIUS = 3
 const GLOW_ENERGY_REFERENCE = 30
 
@@ -332,6 +335,7 @@ export class JuliaVisualizer {
   private shapeIm = 0
   private hasShape = false
   private shockAge = -1
+  private shockRadius = 0
 
   // Draws into a render target with the layer compositor's shared renderer through renderTo().
   init(): void {
@@ -656,14 +660,15 @@ export class JuliaVisualizer {
     // Shockwave: a ripple expanding from the fixed point on every beat (the Frequency HUD picks which bands count).
     if (effects.shockwave.value && freshBeat) {
       this.shockAge = 0
+      this.shockRadius = 0
     }
-    let shockRadius = 0
     let shockStrength = 0
     if (this.shockAge >= 0) {
       this.shockAge += dt
-      shockRadius = this.shockAge * (SHOCKWAVE_BASE_SPEED + speed.value / 15)
-      if (shockRadius > SHOCKWAVE_MAX_RADIUS) this.shockAge = -1
-      else shockStrength = 1 - shockRadius / SHOCKWAVE_MAX_RADIUS
+      // Integrated, not age * speed, because the beat term decays while the ring is out.
+      this.shockRadius += dt * (SHOCKWAVE_BASE_SPEED + speed.value / 15 + peakValue * SHOCKWAVE_BEAT_SPEED_GAIN)
+      if (this.shockRadius > SHOCKWAVE_MAX_RADIUS) this.shockAge = -1
+      else shockStrength = 1 - this.shockRadius / SHOCKWAVE_MAX_RADIUS
     }
 
     // Glow: Hopalong drives bloom opacity with peak value * peak energy.
@@ -734,7 +739,7 @@ export class JuliaVisualizer {
       this.paletteTexture.image.data.set(color.lut)
       this.paletteTexture.needsUpdate = true
     }
-    uniforms.uShockRadius!.value = shockRadius
+    uniforms.uShockRadius!.value = this.shockRadius
     uniforms.uShockStrength!.value = shockStrength
   }
 

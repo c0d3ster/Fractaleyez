@@ -29,7 +29,11 @@ export const createLayerPipeline = (): LayerPipeline => {
   const video = new VideoLayer(renderer)
   const logo = new LogoLayer(renderer)
   const compositor = new LayerCompositor(renderer, { orbit, fractal, video, logo })
-  const effects = new PostEffects(renderer, compositor.getScene(), compositor.getCamera(), orbit.getCameraTrailPosition)
+  // The center of the visual: where the fractal's steering has got to while it is drawn (the center its own shockwave
+  // ring expands from, so the post-processing wave stays on it), otherwise the Orbit camera's trail.
+  const getVisualCenter = (): { x: number; y: number } =>
+    window.config.layers.meta.fractal.enabled.value ? fractal.getSteerPosition() : orbit.getCameraTrailPosition()
+  const effects = new PostEffects(renderer, compositor.getScene(), compositor.getCamera(), getVisualCenter)
 
   const onResize = (): void => {
     renderer.setSize(window.innerWidth, window.innerHeight)

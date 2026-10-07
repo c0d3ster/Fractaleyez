@@ -9,6 +9,8 @@ import { CAMERA_STEER_SCREEN_FRACTION_PER_PAD_UNIT } from '../../config/visualiz
 const SHOCKWAVE_CAMERA_FOV = 60
 const SHOCKWAVE_CAMERA_Z = 7
 const SHOCKWAVE_PLANE_Z = -5
+// Added to the Speed slider and beat terms so the wave never crawls at a low Speed.
+const SHOCKWAVE_BASE_SPEED = 0.05
 
 /** Bloom and shockwave, run once over the compositor's output (not per layer) and drawn to the screen. */
 export class PostEffects {
@@ -69,10 +71,12 @@ export class PostEffects {
 
   /** Beat-driven effect state, then renders the composite scene through the effects to the screen. */
   render = (audio: AudioAnalysedDataForVisualization): void => {
-    this.shockwaveEffect.speed = (window.config.user.speed.value / 15) + audio.beat.value * 1.25
+    this.shockwaveEffect.speed = SHOCKWAVE_BASE_SPEED + (window.config.user.speed.value / 15) + audio.beat.value * 1.25
     if (window.config.effects.glow.value) {
       this.bloomEffect.blendMode.opacity.value = audio.beat.value * audio.beat.energy
     }
+    // The wave's source follows the camera while it is out (the effect re-projects its position every frame).
+    this.aimShockwaveAtCameraPointer()
     // Which bands can set off a beat is chosen in the Frequency HUD and applied by the beat detector itself.
     if (audio.beat.fresh && window.config.effects.shockwave.value) this.triggerShockwave()
     this.composer.render(this.clock.getDelta())
