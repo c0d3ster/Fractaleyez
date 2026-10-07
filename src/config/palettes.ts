@@ -52,7 +52,7 @@ export const PALETTES: readonly PaletteDefinition[] = [
   { id: 'ocean', label: 'Ocean', stops: ['#03045e', '#0077b6', '#00b4d8', '#90e0ef', '#caf0f8'], cyclic: false },
   { id: 'ember', label: 'Ember', stops: ['#4a0d0d', '#9b1c0a', '#e8590c', '#ffb703', '#fff3b0'], cyclic: false },
   { id: 'ice', label: 'Ice', stops: ['#0b132b', '#1c2541', '#3a6ea5', '#5bc0eb', '#e8f7ff'], cyclic: false },
-  { id: 'sunset', label: 'Sunset', stops: ['#1a0b3b', '#5b2a86', '#c13584', '#fd5949', '#feda75', '#fff6d5'], cyclic: false },
+  { id: 'sunset', label: 'Sunset', stops: ['#ffd24d', '#ff9d1f', '#ff5f1f', '#e5322d', '#c92a5e'], cyclic: false },
   { id: 'forest', label: 'Forest', stops: ['#0f3d1e', '#1b5e20', '#4c9a2a', '#a3c853', '#f1f8e9'], cyclic: false },
   { id: 'gold', label: 'Black Gold', stops: ['#000000', '#3d2c00', '#a67c00', '#ffd700', '#fff8dc'], cyclic: false },
   { id: 'mono', label: 'Mono', stops: ['#000000', '#ffffff'], cyclic: false },
