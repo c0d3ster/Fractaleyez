@@ -79,7 +79,7 @@ export type ColorConfigSection = {
   paletteCycles: SliderItem
   palettePhase: SliderItem
   paletteReverse: CheckboxItem
-  paletteMirror: CheckboxItem
+  paletteHardEdge: CheckboxItem // keeps the seam where a palette wraps instead of playing it out and back
 }
 
 export type ParticleConfigSection = {
@@ -228,7 +228,7 @@ export const configDefaults: AppConfig = {
     paletteCycles: { name: 'Cycles', type: 'slider', defaultValue: colorConfig.paletteCycles_DEFAULT, value: colorConfig.paletteCycles_DEFAULT, min: colorConfig.paletteCycles_MIN, max: colorConfig.paletteCycles_MAX, step: colorConfig.paletteCycles_STEP_SIZE },
     palettePhase: { name: 'Phase', type: 'slider', defaultValue: colorConfig.palettePhase_DEFAULT, value: colorConfig.palettePhase_DEFAULT, min: colorConfig.palettePhase_MIN, max: colorConfig.palettePhase_MAX, step: colorConfig.palettePhase_STEP_SIZE },
     paletteReverse: { name: 'Reverse', type: 'checkbox', defaultValue: false, value: false },
-    paletteMirror: { name: 'Mirror', type: 'checkbox', defaultValue: false, value: false },
+    paletteHardEdge: { name: 'Hard Edge', type: 'checkbox', defaultValue: false, value: false },
   },
   particle: {
     particleSize: { name: 'Size', type: 'slider', defaultValue: particleConfig.size_DEFAULT, value: particleConfig.size_DEFAULT, min: particleConfig.size_MIN, max: particleConfig.size_MAX, step: particleConfig.size_STEP_SIZE },

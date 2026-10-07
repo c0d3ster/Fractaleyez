@@ -13,18 +13,11 @@ describe('PALETTES', () => {
   it('has unique ids', () => {
     expect(new Set(PALETTES.map(({ id }) => id)).size).toBe(PALETTES.length)
   })
-
-  it('ends a cyclic palette where it starts and leaves a ramp open', () => {
-    PALETTES.forEach(({ id, stops, cyclic }) => {
-      const closed = stops[0] === stops[stops.length - 1]
-      expect(closed, id).toBe(cyclic)
-    })
-  })
 })
 
 describe('rainbow', () => {
   it('has no sharp bends in its gradient (they show as hard lines in the fractal)', () => {
-    const lut = buildPaletteLut(PALETTE_BY_ID.rainbow?.stops ?? [], { reverse: false, mirror: false })
+    const lut = buildPaletteLut(PALETTE_BY_ID.rainbow?.stops ?? [], { reverse: false, hardEdge: true })
     const size = lut.length / 4
     const channel = (index: number, offset: number): number => lut[(((index % size) + size) % size) * 4 + offset] ?? 0
     for (let i = 0; i < size; i++) {

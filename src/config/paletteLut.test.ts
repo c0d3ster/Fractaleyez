@@ -24,7 +24,7 @@ describe('arrangeStops', () => {
 })
 
 describe('buildPaletteLut', () => {
-  const shape = { reverse: false, mirror: false }
+  const shape = { reverse: false, hardEdge: true }
 
   it('starts at the first stop and heads to the last', () => {
     const lut = buildPaletteLut(['#000000', '#ffffff'], shape)
@@ -43,12 +43,12 @@ describe('buildPaletteLut', () => {
   })
 
   it('reverses', () => {
-    const lut = buildPaletteLut(['#000000', '#ffffff'], { reverse: true, mirror: false })
+    const lut = buildPaletteLut(['#000000', '#ffffff'], { reverse: true, hardEdge: true })
     expect(pixel(lut, 0)).toEqual([255, 255, 255, 255])
   })
 
-  it('closes the loop when mirrored', () => {
-    const lut = buildPaletteLut(['#000000', '#ffffff'], { reverse: false, mirror: true })
+  it('plays a one-way ramp out and back by default so it loops', () => {
+    const lut = buildPaletteLut(['#000000', '#ffffff'], { reverse: false, hardEdge: false })
     const middle = pixel(lut, LUT_SIZE / 2)
     expect(middle[0]).toBeGreaterThan(245)
     const end = pixel(lut, LUT_SIZE - 1)
@@ -63,7 +63,7 @@ describe('buildPaletteLut', () => {
 })
 
 describe('sampleLut', () => {
-  const lut = buildPaletteLut(['#000000', '#ffffff'], { reverse: false, mirror: false })
+  const lut = buildPaletteLut(['#000000', '#ffffff'], { reverse: false, hardEdge: true })
 
   it('reads the start at position 0 and wraps whole turns', () => {
     expect(sampleLut(lut, 0)[0]).toBe(0)
@@ -82,14 +82,14 @@ describe('buildPaletteLut range', () => {
   const ramp = ['#000000', '#ffffff']
 
   it('crops the palette to the range', () => {
-    const lut = buildPaletteLut(ramp, { reverse: false, mirror: false, start: 0.5, end: 1 })
+    const lut = buildPaletteLut(ramp, { reverse: false, hardEdge: true, start: 0.5, end: 1 })
     expect(pixel(lut, 0)[0]).toBeGreaterThan(90)
     expect(pixel(lut, 0)[0]).toBeLessThan(140)
     expect(pixel(lut, LUT_SIZE - 1)[0]).toBeGreaterThan(245)
   })
 
   it('wraps through the seam when the end is before the start', () => {
-    const lut = buildPaletteLut(ramp, { reverse: false, mirror: false, start: 0.8, end: 0.2 })
+    const lut = buildPaletteLut(ramp, { reverse: false, hardEdge: true, start: 0.8, end: 0.2 })
     expect(pixel(lut, 0)[0]).toBeGreaterThan(170)
     expect(pixel(lut, 100)[0]).toBeGreaterThan(220)
     expect(pixel(lut, LUT_SIZE - 1)[0]).toBeLessThan(120)
@@ -97,14 +97,14 @@ describe('buildPaletteLut range', () => {
 
   it('crops a reversed palette as it is drawn', () => {
     // Reversed, the ramp runs white to black, so the first half starts at white and heads toward gray.
-    const lut = buildPaletteLut(ramp, { reverse: true, mirror: false, start: 0, end: 0.5 })
+    const lut = buildPaletteLut(ramp, { reverse: true, hardEdge: true, start: 0, end: 0.5 })
     expect(pixel(lut, 0)[0]).toBe(255)
     expect(pixel(lut, LUT_SIZE - 1)[0]).toBeGreaterThan(90)
     expect(pixel(lut, LUT_SIZE - 1)[0]).toBeLessThan(150)
   })
 
-  it('mirrors the cropped range', () => {
-    const lut = buildPaletteLut(ramp, { reverse: false, mirror: true, start: 0, end: 0.5 })
+  it('plays a cropped range out and back', () => {
+    const lut = buildPaletteLut(ramp, { reverse: false, hardEdge: false, start: 0, end: 0.5 })
     expect(pixel(lut, LUT_SIZE / 2)[0]).toBeGreaterThan(90)
     expect(pixel(lut, LUT_SIZE - 1)[0]).toBeLessThan(10)
   })
@@ -112,9 +112,32 @@ describe('buildPaletteLut range', () => {
 
 describe('lutToCssGradient', () => {
   it('ends on the last color of a one-way palette instead of wrapping to the first', () => {
-    const lut = buildPaletteLut(['#000000', '#ffffff'], { reverse: false, mirror: false })
+    const lut = buildPaletteLut(['#000000', '#ffffff'], { reverse: false, hardEdge: true })
     const stops = lutToCssGradient(lut).match(/rgb\((\d+), \d+, \d+\)/g) ?? []
     expect(stops[0]).toBe('rgb(0, 0, 0)')
     expect(Number(/rgb\((\d+)/.exec(stops[stops.length - 1] ?? '')?.[1])).toBeGreaterThan(245)
+  })
+})
+
+describe('buildPaletteLut loops', () => {
+  const closed = ['#ff0000', '#00ff00', '#0000ff', '#ff0000']
+  const gap = (lut: Uint8Array): number =>
+    Math.abs((lut[0] ?? 0) - (lut[(LUT_SIZE - 1) * 4] ?? 0)) + Math.abs((lut[1] ?? 0) - (lut[(LUT_SIZE - 1) * 4 + 1] ?? 0))
+
+  it('leaves a palette that already ends where it starts alone', () => {
+    expect(buildPaletteLut(closed, { reverse: false, hardEdge: false })).toEqual(buildPaletteLut(closed, { reverse: false, hardEdge: true }))
+  })
+
+  it('closes a cropped range of a looping palette', () => {
+    const smooth = buildPaletteLut(closed, { reverse: false, hardEdge: false, start: 0, end: 0.5 })
+    const hard = buildPaletteLut(closed, { reverse: false, hardEdge: true, start: 0, end: 0.5 })
+    expect(gap(smooth)).toBeLessThan(30)
+    expect(gap(hard)).toBeGreaterThan(100)
+  })
+
+  it('keeps the seam of a one-way ramp with a hard edge', () => {
+    const lut = buildPaletteLut(['#000000', '#ffffff'], { reverse: false, hardEdge: true })
+    expect(pixel(lut, 0)[0]).toBe(0)
+    expect(pixel(lut, LUT_SIZE - 1)[0]).toBeGreaterThan(245)
   })
 })
