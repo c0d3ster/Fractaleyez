@@ -4,7 +4,6 @@ import './ShapePad.css'
 import { subscribeUiTick } from '../../utils/uiTicker'
 import { colorConfig } from '../../config/color.config'
 import { ColorState, resolveColorState } from '../../config/colorState'
-import { cosineParam } from '../../config/hueWindow'
 import { sampleLut } from '../../config/paletteLut'
 
 // The pad fills its column (3:2, see ShapePad.css); the canvases use a fixed backing size that
@@ -67,20 +66,11 @@ const MIN_RECOLOR_HUE_STEP = 0.03
 const COLOR_LUT_SIZE = 2048
 const COLOR_LUT_SCALE = (COLOR_LUT_SIZE - 1) / MAP_MAX_ITER
 
-// The map's colors for one escape count: the same rainbow or palette lookup as the Julia shader, dimmed toward the set.
+// The map's colors for one escape count: the same palette lookup as the Julia shader, dimmed toward the set.
 const colorAt = (nu: number, hue: number, color: ColorState): [number, number, number] => {
   const glow = 0.18 + 0.82 * Math.exp(-nu * 0.16)
-  if (color.lut) {
-    const [red, green, blue] = sampleLut(color.lut, nu * 0.05 * color.cycles + hue + color.phase)
-    return [red * 255 * glow, green * 255 * glow, blue * 255 * glow]
-  }
-  const TAU = Math.PI * 2
-  const phase = cosineParam(nu * 0.045 + 0.55 + hue, color.hueStart, color.hueSpan)
-  return [
-    (0.5 + 0.5 * Math.cos(TAU * phase)) * 255 * glow,
-    (0.5 + 0.5 * Math.cos(TAU * (phase + 0.33))) * 255 * glow,
-    (0.5 + 0.5 * Math.cos(TAU * (phase + 0.67))) * 255 * glow,
-  ]
+  const [red, green, blue] = sampleLut(color.lut, nu * 0.05 * color.cycles + hue + color.phase)
+  return [red * 255 * glow, green * 255 * glow, blue * 255 * glow]
 }
 
 const buildColorLut = (hue: number, color: ColorState): Uint8ClampedArray => {

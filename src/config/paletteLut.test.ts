@@ -77,3 +77,27 @@ describe('sampleLut', () => {
     expect(red).toBeLessThan(0.5)
   })
 })
+
+describe('buildPaletteLut range', () => {
+  const ramp = ['#000000', '#ffffff']
+
+  it('crops the palette to the range', () => {
+    const lut = buildPaletteLut(ramp, { reverse: false, mirror: false, start: 0.5, end: 1 })
+    expect(pixel(lut, 0)[0]).toBeGreaterThan(90)
+    expect(pixel(lut, 0)[0]).toBeLessThan(140)
+    expect(pixel(lut, LUT_SIZE - 1)[0]).toBeGreaterThan(245)
+  })
+
+  it('wraps through the seam when the end is before the start', () => {
+    const lut = buildPaletteLut(ramp, { reverse: false, mirror: false, start: 0.8, end: 0.2 })
+    expect(pixel(lut, 0)[0]).toBeGreaterThan(170)
+    expect(pixel(lut, 100)[0]).toBeGreaterThan(220)
+    expect(pixel(lut, LUT_SIZE - 1)[0]).toBeLessThan(120)
+  })
+
+  it('mirrors the cropped range', () => {
+    const lut = buildPaletteLut(ramp, { reverse: false, mirror: true, start: 0, end: 0.5 })
+    expect(pixel(lut, LUT_SIZE / 2)[0]).toBeGreaterThan(90)
+    expect(pixel(lut, LUT_SIZE - 1)[0]).toBeLessThan(10)
+  })
+})

@@ -19,9 +19,6 @@ export const juliaFragmentShader = /* glsl */ `
   uniform float uWStart;
   uniform float uAspect;
   uniform float uHuePhase;
-  uniform float uHueStart;
-  uniform float uHueSpan;
-  uniform float uPaletteOn;
   uniform float uPaletteCycles;
   uniform float uPalettePhase;
   uniform sampler2D uPalette;
@@ -70,24 +67,10 @@ export const juliaFragmentShader = /* glsl */ `
     return n + 1.0 - log2(logZn);
   }
 
-  // Mirrors cosineParam in config/hueWindow.ts: the Color config's hue window picks which stretch of the wheel the
-  // palette runs through. The full wheel just turns by the start; a narrower window sweeps back and forth across itself.
-  float hueParam(float position) {
-    if (uHueSpan >= 0.999) return position - uHueStart;
-    float sweep = 1.0 - abs(2.0 * fract(position) - 1.0);
-    return -(uHueStart + uHueSpan * sweep);
-  }
-
+  // The Color config's palette is read from a lookup texture. Its cycles set how fast the escape count runs through it,
+  // and the hue phase keeps drifting it along.
   vec3 palette(float t) {
-    // A chosen palette (the Color config) is read from a lookup texture; its cycles set how fast the escape count
-    // runs through it, and the hue phase keeps drifting it along.
-    if (uPaletteOn > 0.5) {
-      return texture2D(uPalette, vec2(fract(t * uPaletteCycles + uHuePhase + uPalettePhase), 0.5)).rgb;
-    }
-    vec3 a = vec3(0.5);
-    vec3 b = vec3(0.5);
-    vec3 d = vec3(0.0, 0.33, 0.67);
-    return a + b * cos(6.28318 * (vec3(hueParam(t + uHuePhase)) + d));
+    return texture2D(uPalette, vec2(fract(t * uPaletteCycles + uHuePhase + uPalettePhase), 0.5)).rgb;
   }
 
   void main() {

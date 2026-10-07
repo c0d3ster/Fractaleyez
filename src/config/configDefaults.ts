@@ -72,9 +72,9 @@ export type OrbitConfigSection = {
 
 export type ColorConfigSection = {
   saturation: SliderItem
-  hueStart: SliderItem
-  hueSpan: SliderItem
-  palette: MultiselectItem // single-select via min:1,max:1; 'rainbow', 'custom' or a named palette id
+  rangeStart: SliderItem // the range handles on the palette strip, 0..1; an end before the start wraps through the seam
+  rangeEnd: SliderItem
+  palette: MultiselectItem // single-select via min:1,max:1; 'custom' or a named palette id (the default is 'rainbow')
   customStops: MultiselectItem // hex colors of the custom palette
   paletteCycles: SliderItem
   palettePhase: SliderItem
@@ -221,8 +221,8 @@ export const configDefaults: AppConfig = {
   },
   color: {
     saturation: { name: 'Saturation', type: 'slider', defaultValue: colorConfig.saturation_DEFAULT, value: colorConfig.saturation_DEFAULT, min: colorConfig.saturation_MIN, max: colorConfig.saturation_MAX, step: colorConfig.saturation_STEP_SIZE },
-    hueStart: { name: 'Hue Start', type: 'slider', defaultValue: colorConfig.hueStart_DEFAULT, value: colorConfig.hueStart_DEFAULT, min: colorConfig.hueStart_MIN, max: colorConfig.hueStart_MAX, step: colorConfig.hueStart_STEP_SIZE },
-    hueSpan: { name: 'Hue Span', type: 'slider', defaultValue: colorConfig.hueSpan_DEFAULT, value: colorConfig.hueSpan_DEFAULT, min: colorConfig.hueSpan_MIN, max: colorConfig.hueSpan_MAX, step: colorConfig.hueSpan_STEP_SIZE },
+    rangeStart: { name: 'Range Start', type: 'slider', defaultValue: colorConfig.rangeStart_DEFAULT, value: colorConfig.rangeStart_DEFAULT, min: colorConfig.rangeStart_MIN, max: colorConfig.rangeStart_MAX, step: colorConfig.rangeStart_STEP_SIZE },
+    rangeEnd: { name: 'Range End', type: 'slider', defaultValue: colorConfig.rangeEnd_DEFAULT, value: colorConfig.rangeEnd_DEFAULT, min: colorConfig.rangeEnd_MIN, max: colorConfig.rangeEnd_MAX, step: colorConfig.rangeEnd_STEP_SIZE },
     palette: { name: 'Palette', type: 'multiselect', defaultValue: [colorConfig.palette_DEFAULT], value: [colorConfig.palette_DEFAULT], min: 1, max: 1 },
     customStops: { name: 'Custom Colors', type: 'multiselect', defaultValue: [...colorConfig.customStops_DEFAULT], value: [...colorConfig.customStops_DEFAULT], min: colorConfig.customStops_MIN, max: colorConfig.customStops_MAX },
     paletteCycles: { name: 'Cycles', type: 'slider', defaultValue: colorConfig.paletteCycles_DEFAULT, value: colorConfig.paletteCycles_DEFAULT, min: colorConfig.paletteCycles_MIN, max: colorConfig.paletteCycles_MAX, step: colorConfig.paletteCycles_STEP_SIZE },

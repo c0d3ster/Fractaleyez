@@ -4,14 +4,19 @@
  * between far-apart colors stay clean instead of going muddy the way plain RGB blends do.
  */
 
+import { rangePosition } from './paletteRange'
+
 export const LUT_SIZE = 256
 
 export type Rgb = [number, number, number]
 
 export type PaletteShape = {
   reverse: boolean
-  /** Play the stops forward then back, so a palette that does not loop on its own has no seam where it wraps. */
+  /** Play the colors forward then back, so a palette that does not loop on its own has no seam where it wraps. */
   mirror: boolean
+  /** The palette range handles (0..1); an end before the start wraps through the seam. Whole palette when left out. */
+  start?: number
+  end?: number
 }
 
 const HEX_COLOR = /^#[0-9a-f]{6}$/i
@@ -59,34 +64,43 @@ const oklabToRgb = ([lightness, a, b]: Rgb): Rgb => {
   ]
 }
 
-/** The stops in play order: reversed if asked, then mirrored back to the first stop so the loop closes. */
-export const arrangeStops = <T>(stops: readonly T[], { reverse, mirror }: PaletteShape): T[] => {
+/** The colors in play order: reversed if asked, then mirrored back to the first one so the loop closes. */
+export const arrangeStops = <T>(stops: readonly T[], { reverse, mirror }: Pick<PaletteShape, 'reverse' | 'mirror'>): T[] => {
   const ordered = reverse ? [...stops].reverse() : [...stops]
   return mirror ? [...ordered, ...ordered.slice(0, -1).reverse()] : ordered
 }
 
+/** How finely the cropped range is cut before it is reversed, mirrored and baked. */
+const RANGE_STEPS = 256
+
+/** Blends along a list of OKLab colors, `position` running from 0 (first) to 1 (last). */
+const blendAlong = (colors: readonly Rgb[], position: number): Rgb => {
+  const last = colors.length - 1
+  if (last < 1) return colors[0] ?? [0, 0, 0]
+  const scaled = Math.min(Math.max(position, 0), 1) * last
+  const index = Math.min(Math.floor(scaled), last - 1)
+  const from = colors[index] ?? [0, 0, 0]
+  const to = colors[index + 1] ?? from
+  const blend = scaled - index
+  return [from[0] + (to[0] - from[0]) * blend, from[1] + (to[1] - from[1]) * blend, from[2] + (to[2] - from[2]) * blend]
+}
+
 /**
- * Bakes stops into `size` RGBA bytes spanning one pass through the palette. The last entry stops one step short of
- * the final stop, so a palette that already ends where it starts wraps without a repeated color.
+ * Bakes stops into `size` RGBA bytes spanning one pass through the palette: the range is cut out of the stops, then
+ * reversed and mirrored. The last entry stops one step short of the end, so a palette that already ends where it
+ * starts wraps without a repeated color.
  */
 export const buildPaletteLut = (stops: readonly string[], shape: PaletteShape, size: number = LUT_SIZE): Uint8Array => {
-  const colors = arrangeStops(stops, shape).flatMap((hex): Rgb[] => {
+  const colors = stops.flatMap((hex): Rgb[] => {
     const rgb = parseHex(hex)
     return rgb ? [rgbToOklab(rgb)] : []
   })
+  const { start = 0, end = 1 } = shape
+  const range = Array.from({ length: RANGE_STEPS }, (_, i) => blendAlong(colors, rangePosition(start, end, i / (RANGE_STEPS - 1))))
+  const played = arrangeStops(range, shape)
   const lut = new Uint8Array(size * 4)
-  const last = colors.length - 1
   for (let i = 0; i < size; i++) {
-    const position = last > 0 ? (i / size) * last : 0
-    const index = Math.min(Math.floor(position), Math.max(last - 1, 0))
-    const from = colors[index] ?? [0, 0, 0]
-    const to = colors[Math.min(index + 1, last)] ?? from
-    const blend = position - index
-    const [red, green, blue] = oklabToRgb([
-      from[0] + (to[0] - from[0]) * blend,
-      from[1] + (to[1] - from[1]) * blend,
-      from[2] + (to[2] - from[2]) * blend,
-    ])
+    const [red, green, blue] = oklabToRgb(blendAlong(played, i / size))
     lut[i * 4] = Math.round(red * 255)
     lut[i * 4 + 1] = Math.round(green * 255)
     lut[i * 4 + 2] = Math.round(blue * 255)

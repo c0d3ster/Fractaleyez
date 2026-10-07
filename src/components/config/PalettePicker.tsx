@@ -20,11 +20,9 @@ type Choice = {
 
 const PALETTES_PER_PAGE = 8
 
-const RAINBOW_GRADIENT = 'linear-gradient(to right, hsl(0, 100%, 50%), hsl(60, 100%, 50%), hsl(120, 100%, 50%), hsl(180, 100%, 50%), hsl(240, 100%, 50%), hsl(300, 100%, 50%), hsl(360, 100%, 50%))'
-
 const stopsGradient = (stops: readonly string[]): string => `linear-gradient(to right, ${stops.join(', ')})`
 
-const PALETTE_IDS = [RAINBOW_PALETTE, ...PALETTES.map(({ id }) => id), CUSTOM_PALETTE]
+const PALETTE_IDS = [...PALETTES.map(({ id }) => id), CUSTOM_PALETTE]
 const PAGE_COUNT = Math.ceil(PALETTE_IDS.length / PALETTES_PER_PAGE)
 
 const PalettePickerInner = ({ config, updateConfigItem, updateColorList }: PalettePickerProps): React.ReactElement => {
@@ -36,7 +34,6 @@ const PalettePickerInner = ({ config, updateConfigItem, updateColorList }: Palet
   const [page, setPage] = useState(() => Math.floor(Math.max(0, PALETTE_IDS.indexOf(selected)) / PALETTES_PER_PAGE))
 
   const choices: Choice[] = [
-    { id: RAINBOW_PALETTE, label: 'Rainbow', gradient: RAINBOW_GRADIENT },
     ...PALETTES.map(({ id, label, stops: paletteStops }) => ({ id, label, gradient: stopsGradient(paletteStops) })),
     { id: CUSTOM_PALETTE, label: 'Custom', gradient: stopsGradient(stops.length > 1 ? stops : [...stops, ...stops, '#000000']) },
   ]
