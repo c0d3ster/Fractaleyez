@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { arrangeStops, buildPaletteLut, isHexColor, LUT_SIZE, parseHex, sampleLut } from './paletteLut'
+import { arrangeStops, buildPaletteLut, isHexColor, LUT_SIZE, lutToCssGradient, parseHex, sampleLut } from './paletteLut'
 
 const pixel = (lut: Uint8Array, index: number): number[] => Array.from(lut.slice(index * 4, index * 4 + 4))
 
@@ -99,5 +99,14 @@ describe('buildPaletteLut range', () => {
     const lut = buildPaletteLut(ramp, { reverse: false, mirror: true, start: 0, end: 0.5 })
     expect(pixel(lut, LUT_SIZE / 2)[0]).toBeGreaterThan(90)
     expect(pixel(lut, LUT_SIZE - 1)[0]).toBeLessThan(10)
+  })
+})
+
+describe('lutToCssGradient', () => {
+  it('ends on the last color of a one-way palette instead of wrapping to the first', () => {
+    const lut = buildPaletteLut(['#000000', '#ffffff'], { reverse: false, mirror: false })
+    const stops = lutToCssGradient(lut).match(/rgb\((\d+), \d+, \d+\)/g) ?? []
+    expect(stops[0]).toBe('rgb(0, 0, 0)')
+    expect(Number(/rgb\((\d+)/.exec(stops[stops.length - 1] ?? '')?.[1])).toBeGreaterThan(245)
   })
 })

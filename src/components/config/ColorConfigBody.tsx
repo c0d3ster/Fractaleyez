@@ -15,14 +15,15 @@ type ColorConfigBodyProps = {
 }
 
 const ColorConfigBodyInner = ({ config, updateConfigItem }: ColorConfigBodyProps): React.ReactElement => {
-  const { lut, phase, cycles } = resolveColorState(config.color)
+  const { lut, phase, cycles, saturation } = resolveColorState(config.color)
 
   return (
     <>
       <PalettePicker />
       <PaletteRange />
-      <div className='color-palette-preview' style={{ background: lutToCssGradient(lut, phase, cycles) }} title='The palette as the fractal runs through it' />
-      <ConfigSectionItems name='color' only={['saturation', 'paletteCycles', 'palettePhase']} onChange={updateConfigItem} />
+      <div className='color-palette-preview' style={{ background: lutToCssGradient(lut, phase, cycles, saturation) }} title='The palette as the fractal runs through it' />
+      <ConfigSectionItems name='color' only={['paletteCycles', 'palettePhase']} onChange={updateConfigItem} />
+      <ConfigSectionItems name='color' only={['saturation']} onChange={updateConfigItem} />
       <ConfigSectionItems name='color' only={['paletteReverse', 'paletteMirror']} onChange={updateConfigItem} />
     </>
   )

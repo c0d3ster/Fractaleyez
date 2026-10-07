@@ -120,12 +120,20 @@ export const sampleLut = (lut: Uint8Array, position: number): Rgb => {
   return [channel(0), channel(1), channel(2)]
 }
 
-/** A CSS gradient of the palette starting `offset` of the way in and running through it `cycles` times, for previews. */
-export const lutToCssGradient = (lut: Uint8Array, offset: number = 0, cycles: number = 1): string => {
+/**
+ * A CSS gradient of the palette starting `offset` of the way in and running through it `cycles` times, for previews.
+ * `saturation` blends each color toward gray the way the renderers do.
+ */
+export const lutToCssGradient = (lut: Uint8Array, offset: number = 0, cycles: number = 1, saturation: number = 1): string => {
   const samples = Math.ceil(24 * Math.max(cycles, 1))
   const colors = Array.from({ length: samples + 1 }, (_, i) => {
-    const [red, green, blue] = sampleLut(lut, offset + (i / samples) * cycles)
-    return `rgb(${Math.round(red * 255)}, ${Math.round(green * 255)}, ${Math.round(blue * 255)}) ${((i / samples) * 100).toFixed(1)}%`
+    const position = offset + (i / samples) * cycles
+    // A palette that ends exactly where the strip ends must show its last color there, not wrap around to its first.
+    const endsOnWhole = i === samples && Math.abs(position - Math.round(position)) < 1e-9
+    const [red, green, blue] = sampleLut(lut, endsOnWhole ? Math.round(position) - 1 / (lut.length / 4) : position)
+    const luma = 0.299 * red + 0.587 * green + 0.114 * blue
+    const shown = [red, green, blue].map((channel) => Math.round((luma + (channel - luma) * saturation) * 255))
+    return `rgb(${shown.join(', ')}) ${((i / samples) * 100).toFixed(1)}%`
   })
   return `linear-gradient(to right, ${colors.join(', ')})`
 }
