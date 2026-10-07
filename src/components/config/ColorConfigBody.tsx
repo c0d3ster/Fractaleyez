@@ -13,12 +13,12 @@ const ColorConfigBodyInner = ({ updateConfigItem }: ColorConfigBodyProps): React
     <>
       <PalettePicker />
       <PaletteRange />
+      <ConfigSectionItems name='color' only={['paletteReverse', 'paletteHardEdge']} onChange={updateConfigItem} />
       <ConfigSectionItems name='color' only={['paletteCycles', 'palettePhase']} onChange={updateConfigItem} />
       <ConfigSectionItems name='color' only={['saturation']} onChange={updateConfigItem} />
-      <ConfigSectionItems name='color' only={['paletteReverse', 'paletteHardEdge']} onChange={updateConfigItem} />
     </>
   )
 }
 
-/** The Color config's layout: the palette choice, the range slider that crops it, the sliders that shape it, then the Reverse and Hard Edge buttons. */
+/** The Color config's layout: the palette choice, the range slider that crops it, the Reverse and Hard Edge buttons, then the sliders that shape it. */
 export const ColorConfigBody = connectConfig(ColorConfigBodyInner)
