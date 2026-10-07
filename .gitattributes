@@ -1,1 +1,16 @@
+# Every text file is stored and checked out with LF line endings, on every machine and OS.
+* text=auto eol=lf
+
 *.sh text eol=lf
+
+# Binary assets are never touched by line-ending conversion.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.mp4 binary
+*.webm binary
+*.mp3 binary
+*.woff binary
+*.woff2 binary
