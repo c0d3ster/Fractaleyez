@@ -1,7 +1,8 @@
 /**
  * Named palettes for the Color config. Each is an ordered list of hex stops that plays as a loop: the ones that do not
  * come back to their first color on their own are written out and back (`loop`), so none of them has a seam where the
- * fractal's color cycle wraps.
+ * fractal's color cycle wraps. Black reads as see-through under the mask blend mode, so only a few (Ice, Black Gold,
+ * Mono) start from it.
  */
 
 export type PaletteDefinition = {
@@ -24,14 +25,13 @@ export const PALETTES: readonly PaletteDefinition[] = [
   { id: 'neon', label: 'Neon', stops: ['#ff00c8', '#7a00ff', '#00e5ff', '#00ff9c', '#ff00c8'] },
   { id: 'pastel', label: 'Pastel', stops: ['#ffadad', '#ffd6a5', '#fdffb6', '#caffbf', '#9bf6ff', '#a0c4ff', '#bdb2ff', '#ffc6ff', '#ffadad'] },
   { id: 'viridis', label: 'Viridis', stops: loop(['#440154', '#482878', '#3e4989', '#31688e', '#26828e', '#1f9e89', '#35b779', '#6ece58', '#b5de2b', '#fde725']) },
-  { id: 'magma', label: 'Magma', stops: loop(['#000004', '#180f3e', '#451077', '#721f81', '#9f2f7f', '#cd4071', '#f1605d', '#fd9567', '#fec98d', '#fcfdbf']) },
-  { id: 'inferno', label: 'Inferno', stops: loop(['#000004', '#1b0c41', '#4a0c6b', '#781c6d', '#a52c60', '#cf4446', '#ed6925', '#fb9b06', '#f7d13d', '#fcffa4']) },
+  { id: 'inferno', label: 'Inferno', stops: loop(['#1b0c41', '#4a0c6b', '#781c6d', '#a52c60', '#cf4446', '#ed6925', '#fb9b06', '#f7d13d', '#fcffa4']) },
   { id: 'turbo', label: 'Turbo', stops: loop(['#30123b', '#4145ab', '#4675ed', '#39a2fc', '#1bcfd4', '#24eca6', '#61fc6c', '#a4fc3b', '#d1e834', '#f3c63a', '#fe9b2d', '#f36315', '#d93806', '#b11901', '#7a0403']) },
   { id: 'ocean', label: 'Ocean', stops: loop(['#03045e', '#0077b6', '#00b4d8', '#90e0ef', '#caf0f8']) },
-  { id: 'ember', label: 'Ember', stops: loop(['#000000', '#3b0a0a', '#9b1c0a', '#e8590c', '#ffb703', '#fff3b0']) },
+  { id: 'ember', label: 'Ember', stops: loop(['#4a0d0d', '#9b1c0a', '#e8590c', '#ffb703', '#fff3b0']) },
   { id: 'ice', label: 'Ice', stops: loop(['#0b132b', '#1c2541', '#3a6ea5', '#5bc0eb', '#e8f7ff']) },
   { id: 'sunset', label: 'Sunset', stops: loop(['#1a0b3b', '#5b2a86', '#c13584', '#fd5949', '#feda75', '#fff6d5']) },
-  { id: 'forest', label: 'Forest', stops: loop(['#0b2b1a', '#1b5e20', '#4c9a2a', '#a3c853', '#f4e8a0']) },
+  { id: 'forest', label: 'Forest', stops: loop(['#0f3d1e', '#1b5e20', '#4c9a2a', '#a3c853', '#f1f8e9']) },
   { id: 'gold', label: 'Black Gold', stops: loop(['#000000', '#3d2c00', '#a67c00', '#ffd700', '#fff8dc']) },
   { id: 'mono', label: 'Mono', stops: loop(['#000000', '#ffffff']) },
 ]

@@ -30,7 +30,6 @@ const HUE_PRECISION = 1000
 const fract = (value: number): number => value - Math.floor(value)
 /** Shortest signed distance between two wheel positions, in turns. */
 const wrapDelta = (delta: number): number => delta - Math.round(delta)
-const clamp = (value: number, min: number, max: number): number => Math.min(max, Math.max(min, value))
 const tidy = (value: number): number => Math.round(value * HUE_PRECISION) / HUE_PRECISION
 const degrees = (turns: number): number => Math.round(turns * 360) % 360
 
@@ -87,13 +86,22 @@ const HueRangeRingInner = ({ config, updateConfigItem, resetConfigItem }: HueRan
       commit(angle - drag.grabOffset, current.span)
       return
     }
+    const fixedEnd = current.start + current.span
+    // Handles can pass through each other: the lit arc always runs clockwise from the start to the end, so crossing
+    // flips the lit side to the other half of the wheel. Right on top of each other they stay a sliver or the whole
+    // wheel, whichever the range was closer to.
+    const together = current.span > 0.5 ? maxSpan : minSpan
     if (drag.kind === 'end') {
-      commit(current.start, clamp(current.span + wrapDelta(angle - (current.start + current.span)), minSpan, maxSpan))
+      const nextSpan = Math.abs(wrapDelta(angle - current.start)) < minSpan ? together : fract(angle - current.start)
+      commit(current.start, nextSpan)
       return
     }
     // Dragging the start keeps the end where it is.
-    const nextSpan = clamp(current.span - wrapDelta(angle - current.start), minSpan, maxSpan)
-    commit(current.start + current.span - nextSpan, nextSpan)
+    if (Math.abs(wrapDelta(angle - fixedEnd)) < minSpan) {
+      commit(fixedEnd - together, together)
+      return
+    }
+    commit(angle, fract(fixedEnd - angle))
   }, [commit])
 
   const handlePointerUp = useCallback((): void => {

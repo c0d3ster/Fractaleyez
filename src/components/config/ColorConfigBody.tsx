@@ -2,7 +2,6 @@ import React from 'react'
 import './ColorConfigBody.css'
 
 import { ConfigSectionItems } from './ConfigSectionItems'
-import { ConfigSubAccordion } from './ConfigSubAccordion'
 import { HueRangeRing } from './HueRangeRing'
 import { PalettePicker } from './PalettePicker'
 import { connectConfig, ConfigContextValue } from './context/ConfigProvider'
@@ -15,28 +14,27 @@ type ColorConfigBodyProps = {
   updateConfigItem: ConfigContextValue['updateConfigItem']
 }
 
-const PALETTE_ITEMS = ['paletteCycles', 'palettePhase', 'paletteReverse', 'paletteMirror'] as const
-
 const ColorConfigBodyInner = ({ config, updateConfigItem }: ColorConfigBodyProps): React.ReactElement => {
   const { lut, phase } = resolveColorState(config.color)
 
   return (
     <>
-      <ConfigSectionItems name='color' only={['saturation']} onChange={updateConfigItem} />
-      <ConfigSubAccordion title='palette'>
-        <PalettePicker />
-      </ConfigSubAccordion>
+      <PalettePicker />
       {lut ? (
         <>
           <div className='color-palette-preview' style={{ background: lutToCssGradient(lut, phase) }} title='One pass through the palette' />
-          <ConfigSectionItems name='color' only={PALETTE_ITEMS} onChange={updateConfigItem} />
+          <div className='color-palette-toggles'>
+            <ConfigSectionItems name='color' only={['paletteReverse', 'paletteMirror']} onChange={updateConfigItem} />
+          </div>
+          <ConfigSectionItems name='color' only={['paletteCycles', 'palettePhase']} onChange={updateConfigItem} />
         </>
       ) : (
         <HueRangeRing />
       )}
+      <ConfigSectionItems name='color' only={['saturation']} onChange={updateConfigItem} />
     </>
   )
 }
 
-/** The Color config's layout: saturation, the palette choices, then the hue range ring (rainbow) or the palette's controls. */
+/** The Color config's layout: the palette choice, what shapes it (hue range ring for the rainbow, otherwise a preview and its controls), then saturation. */
 export const ColorConfigBody = connectConfig(ColorConfigBodyInner)
