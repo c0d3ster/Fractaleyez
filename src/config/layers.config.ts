@@ -9,5 +9,5 @@ export const layerConfig = {
 
   // Luminance-key edge for the `mask` blend: a lower layer is fully hidden once the layers in front reach this
   // brightness.
-  MASK_EDGE: 0.2,
+  MASK_EDGE: 0.22,
 } as const
