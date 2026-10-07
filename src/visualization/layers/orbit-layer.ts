@@ -24,6 +24,7 @@ export class OrbitLayer implements Layer {
   private crossfades: ParticleCrossfade[] = []
   /** Current (newest) visualizer's own fade-in progress. */
   private incomingElapsedMs = getParticleCrossfadeDurationMs()
+  private mouseTracking = false
 
   constructor(private readonly renderer: THREE.WebGLRenderer) {
     this.cameraManager.init()
@@ -32,7 +33,8 @@ export class OrbitLayer implements Layer {
     window.getVirtualCameraPosition = () => ({ x: this.cameraManager.mouseX, y: this.cameraManager.mouseY })
     // Which bands can set off a beat; the Frequency HUD changes it (and a saved selection replaces it).
     window.enabledFreqBands = [...DEFAULT_ENABLED_BANDS]
-    document.addEventListener('mousemove', this.onDocumentMouseMove)
+    window.setCameraMouseTracking = this.setMouseTracking
+    this.setMouseTracking(true)
     document.addEventListener('keydown', this.onKeyDown)
   }
 
@@ -46,6 +48,13 @@ export class OrbitLayer implements Layer {
     this.renderer.clear()
     this.renderer.render(this.visualizer.getScene(), this.cameraManager.getCamera())
     this.renderer.setRenderTarget(null)
+  }
+
+  /**
+   * Moves the camera toward the pointer. The pipeline calls this every frame, not only while Orbit draws: the camera
+   * position also steers the Logo's tilt and the Julia dive, so it has to keep following the pointer with Orbit off.
+   */
+  stepCamera = (deltaTime: number): void => {
     this.cameraManager.manageCameraPosition(deltaTime)
   }
 
@@ -54,8 +63,9 @@ export class OrbitLayer implements Layer {
   }
 
   dispose = (): void => {
-    document.removeEventListener('mousemove', this.onDocumentMouseMove)
+    this.setMouseTracking(false)
     document.removeEventListener('keydown', this.onKeyDown)
+    delete window.setCameraMouseTracking
     delete window.setVirtualCameraPosition
     delete window.getVirtualCameraPosition
     this.crossfades.forEach(this.finalizeOutgoing)
@@ -67,6 +77,18 @@ export class OrbitLayer implements Layer {
   getCameraTrailPosition = (): { x: number; y: number } => {
     const { position } = this.cameraManager.getCamera()
     return { x: position.x, y: -position.y }
+  }
+
+  /**
+   * Whether the pointer steers the camera. Off while the expanded config window is open: the mouse steering is a
+   * first-look toy, and with the config up the cursor is a crosshair on the stream, so it should not move the view
+   * (the camera pad still can). Removes the listener, so it costs nothing while off.
+   */
+  private setMouseTracking = (enabled: boolean): void => {
+    if (enabled === this.mouseTracking) return
+    this.mouseTracking = enabled
+    if (enabled) document.addEventListener('mousemove', this.onDocumentMouseMove)
+    else document.removeEventListener('mousemove', this.onDocumentMouseMove)
   }
 
   private particleConfigChanged = (): boolean => {
