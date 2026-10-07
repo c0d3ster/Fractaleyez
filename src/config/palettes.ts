@@ -13,12 +13,26 @@ export type PaletteDefinition = {
   cyclic: boolean
 }
 
-/** The unrestricted rainbow, drawn from the hue range ring. Not a stop list: Orbit and Fractal compute it directly. */
+/** The default palette, the full color wheel. */
 export const RAINBOW_PALETTE = 'rainbow'
 /** The user's own stops, edited in the Color config. */
 export const CUSTOM_PALETTE = 'custom'
 
+/** A fully saturated, half-light color of the wheel (hue in degrees) as #rrggbb: HSL (hue, 100%, 50%). */
+const wheelColor = (hue: number): string => {
+  const channel = (offset: number): string => {
+    const k = (offset + hue / 30) % 12
+    const value = 0.5 - 0.5 * Math.max(-1, Math.min(k - 3, 9 - k, 1))
+    return Math.round(value * 255).toString(16).padStart(2, '0')
+  }
+  return `#${channel(0)}${channel(8)}${channel(4)}`
+}
+
+// Runs the wheel the way the fractal's original palette did (hue falling as the color position rises), ending back at red.
+const RAINBOW_STOPS = Array.from({ length: 13 }, (_, i) => wheelColor((360 - i * 30) % 360))
+
 export const PALETTES: readonly PaletteDefinition[] = [
+  { id: RAINBOW_PALETTE, label: 'Rainbow', stops: RAINBOW_STOPS, cyclic: true },
   { id: 'twilight', label: 'Twilight', stops: ['#2f1437', '#701f57', '#b43e55', '#d9805f', '#dcae9e', '#e2d9e2', '#a9c2d0', '#6f95b8', '#5f68ad', '#5a3b8c', '#2f1437'], cyclic: true },
   { id: 'rosewood', label: 'Rosewood', stops: ['#3b1561', '#5a4fa8', '#8fa6d9', '#e9e2dc', '#e0a38f', '#c0607a', '#3b1561'], cyclic: true },
   { id: 'neon', label: 'Neon', stops: ['#ff00c8', '#7a00ff', '#00e5ff', '#00ff9c', '#ff00c8'], cyclic: true },

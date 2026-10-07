@@ -4,19 +4,18 @@ export const colorConfig = {
   saturation_MAX: 1,
   saturation_STEP_SIZE: 0.1,
 
-  // The hue window (see hueWindow.ts): where on the wheel it starts and how much of the wheel it covers.
-  // The defaults (whole wheel from red) are the unrestricted look. The ring in the Color config edits both together.
-  hueStart_DEFAULT: 0,
-  hueStart_MIN: 0,
-  hueStart_MAX: 1,
-  hueStart_STEP_SIZE: 0.01,
+  // The palette range (see paletteRange.ts): the two handles on the palette strip. The defaults use the whole palette.
+  rangeStart_DEFAULT: 0,
+  rangeStart_MIN: 0,
+  rangeStart_MAX: 1,
+  rangeStart_STEP_SIZE: 0.01,
 
-  hueSpan_DEFAULT: 1,
-  hueSpan_MIN: 0.01,
-  hueSpan_MAX: 1,
-  hueSpan_STEP_SIZE: 0.01,
+  rangeEnd_DEFAULT: 1,
+  rangeEnd_MIN: 0,
+  rangeEnd_MAX: 1,
+  rangeEnd_STEP_SIZE: 0.01,
 
-  // Palettes (see palettes.ts). The default is the rainbow, so none of these show until another palette is picked.
+  // Palettes (see palettes.ts). The default is the rainbow.
   palette_DEFAULT: 'rainbow',
   customStops_DEFAULT: ['#ff2d95', '#ffd23f', '#2de2e6'],
   customStops_MIN: 2,

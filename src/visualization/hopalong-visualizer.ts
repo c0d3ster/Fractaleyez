@@ -6,7 +6,6 @@ import { acquireSpriteTexture, releaseSpriteTexture } from '../utils/textureCach
 import { getParticleCrossfadeDurationMs, MAX_CROSSFADE_GENERATIONS } from '../config/visualizer.config'
 import { userConfig } from '../config/user.config'
 import { ColorState, resolveColorState } from '../config/colorState'
-import { windowHue } from '../config/hueWindow'
 import { sampleLut } from '../config/paletteLut'
 import { getMusicSpeedMultiplier } from './music-speed'
 
@@ -14,7 +13,6 @@ import { getMusicSpeedMultiplier } from './music-speed'
  * ORIGINAL AUTHOR: Iacopo Sassarini
  * Modifications made by Cody Douglass and Conor O'Neill
  */
-const DEF_BRIGHTNESS = .5
 
 // Orbit parameters
 let a = 0; let b = 0; let c = 0; let d = 0; let e = 0
@@ -229,16 +227,11 @@ export class HopalongVisualizer {
     })
   }
 
-  // hueValues holds each subset's raw 0..1 position; the Color config decides what color that is. The rainbow maps it
-  // into the hue window; a palette reads the color at that spot (turned by its phase) and desaturates it toward gray.
+  // hueValues holds each subset's raw 0..1 position; the Color config's palette decides what color that is. The color at
+  // that spot (turned by the palette's phase) is desaturated toward gray by the Saturation setting.
   private colorize = (obj: ParticleSystem, subset: number): void => {
-    const { lut, hueStart, hueSpan, phase, saturation } = this.colorState
-    const raw = this.hueValues[subset]!
-    if (!lut) {
-      obj.myMaterial.color.setHSL(windowHue(raw, hueStart, hueSpan), saturation, DEF_BRIGHTNESS)
-      return
-    }
-    const [red, green, blue] = sampleLut(lut, raw + phase)
+    const { lut, phase, saturation } = this.colorState
+    const [red, green, blue] = sampleLut(lut, this.hueValues[subset]! + phase)
     const luma = 0.299 * red + 0.587 * green + 0.114 * blue
     obj.myMaterial.color.setRGB(luma + (red - luma) * saturation, luma + (green - luma) * saturation, luma + (blue - luma) * saturation)
   }

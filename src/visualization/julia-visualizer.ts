@@ -357,9 +357,6 @@ export class JuliaVisualizer {
         uWStart: { value: W_START },
         uAspect: { value: window.innerWidth / window.innerHeight },
         uHuePhase: { value: 0 },
-        uHueStart: { value: 0 },
-        uHueSpan: { value: 1 },
-        uPaletteOn: { value: 0 },
         uPaletteCycles: { value: 1 },
         uPalettePhase: { value: 0 },
         uPalette: { value: this.paletteTexture },
@@ -729,12 +726,9 @@ export class JuliaVisualizer {
     uniforms.uGlow!.value = glow
     uniforms.uSaturation!.value = window.config.color.saturation.value
     const color = resolveColorState(window.config.color)
-    uniforms.uHueStart!.value = color.hueStart
-    uniforms.uHueSpan!.value = color.hueSpan
-    uniforms.uPaletteOn!.value = color.lut ? 1 : 0
     uniforms.uPaletteCycles!.value = color.cycles
     uniforms.uPalettePhase!.value = color.phase
-    if (color.lut && color.key !== this.paletteKey) {
+    if (color.key !== this.paletteKey) {
       this.paletteKey = color.key
       this.paletteTexture.image.data.set(color.lut)
       this.paletteTexture.needsUpdate = true

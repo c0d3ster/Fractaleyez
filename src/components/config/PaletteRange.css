@@ -1,0 +1,57 @@
+.palette-range {
+  padding: 8px 1rem 4px;
+  user-select: none;
+}
+
+.palette-range__label {
+  display: flex;
+  justify-content: space-between;
+  padding-bottom: 6px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #444;
+}
+
+.palette-range__strip {
+  position: relative;
+  height: 26px;
+  margin-bottom: 14px;
+  border-radius: 6px;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35);
+  touch-action: none;
+  cursor: pointer;
+}
+
+.palette-range__dim {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: rgba(20, 20, 20, 0.72);
+  pointer-events: none;
+}
+
+/* A bar across the strip with a small pointer under it: the |^| thumb. */
+.palette-range__handle {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 4px;
+  margin-left: -2px;
+  border-radius: 2px;
+  background: #fff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+}
+
+.palette-range__handle::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin: 1px 0 0 -5px;
+  border: 5px solid transparent;
+  border-top: 0;
+  border-bottom: 7px solid #fff;
+  filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.8));
+}

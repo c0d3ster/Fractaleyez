@@ -2,7 +2,7 @@ import React from 'react'
 import './ColorConfigBody.css'
 
 import { ConfigSectionItems } from './ConfigSectionItems'
-import { HueRangeRing } from './HueRangeRing'
+import { PaletteRange } from './PaletteRange'
 import { PalettePicker } from './PalettePicker'
 import { connectConfig, ConfigContextValue } from './context/ConfigProvider'
 import { AppConfig } from '../../config/configDefaults'
@@ -20,21 +20,13 @@ const ColorConfigBodyInner = ({ config, updateConfigItem }: ColorConfigBodyProps
   return (
     <>
       <PalettePicker />
-      {lut ? (
-        <>
-          <div className='color-palette-preview' style={{ background: lutToCssGradient(lut, phase, cycles) }} title='The palette as the fractal runs through it' />
-          <div className='color-palette-toggles'>
-            <ConfigSectionItems name='color' only={['paletteReverse', 'paletteMirror']} onChange={updateConfigItem} />
-          </div>
-          <ConfigSectionItems name='color' only={['paletteCycles', 'palettePhase']} onChange={updateConfigItem} />
-        </>
-      ) : (
-        <HueRangeRing />
-      )}
-      <ConfigSectionItems name='color' only={['saturation']} onChange={updateConfigItem} />
+      <PaletteRange />
+      <div className='color-palette-preview' style={{ background: lutToCssGradient(lut, phase, cycles) }} title='The palette as the fractal runs through it' />
+      <ConfigSectionItems name='color' only={['saturation', 'paletteCycles', 'palettePhase']} onChange={updateConfigItem} />
+      <ConfigSectionItems name='color' only={['paletteReverse', 'paletteMirror']} onChange={updateConfigItem} />
     </>
   )
 }
 
-/** The Color config's layout: the palette choice, what shapes it (hue range ring for the rainbow, otherwise a preview and its controls), then saturation. */
+/** The Color config's layout: the palette choice, the range handles that crop it, a preview, the sliders that shape it, then the Reverse and Mirror buttons. */
 export const ColorConfigBody = connectConfig(ColorConfigBodyInner)
