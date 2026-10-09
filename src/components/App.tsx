@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import '../styles/App.css'
-import 'bootstrap/dist/css/bootstrap.min.css'
+import '../styles/base.css'
+import '../styles/tailwind.css'
 
 import { initWithMicrophone } from '../main'
 import { connectConfig } from './config/context/ConfigProvider'

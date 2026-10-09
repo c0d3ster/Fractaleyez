@@ -84,7 +84,7 @@ body {
   --config-column-count: 8;
 }
 
-.config-window-root .container-fluid {
+.config-window-root .config-window-grid {
   box-sizing: border-box;
   width: calc(var(--config-column-width) * var(--config-column-count) + 30px);
   margin: 0 auto;
