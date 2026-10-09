@@ -1,7 +1,7 @@
 // Uploads the built-in particle sprite PNGs referenced by src/config/presets.ts (plus
 // BUILTIN_PARTICLE_SPRITES) from public/ up to R2, under the `builtins/` prefix.
 // Idempotent: skips any key that's already present in the bucket.
-require('dotenv').config()
+require('dotenv').config({ quiet: true })
 require('@babel/register')({
   extensions: ['.ts'],
   presets: [

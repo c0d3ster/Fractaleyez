@@ -5,7 +5,7 @@
 //   node scripts/slim-presets.js --apply   writes the slim configs
 //
 // Targets whichever database MONGO_URI points at (dev or prod), so check .env first.
-require('dotenv').config()
+require('dotenv').config({ quiet: true })
 require('@babel/register')({
   extensions: ['.ts'],
   presets: [
