@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
-import { Grid } from 'react-bootstrap'
 
 import { Presets, PresetSelection } from '../presets/Presets'
 import { SavePreset } from '../presets/SavePreset'
@@ -139,7 +138,7 @@ const ExternalWindowBridge = ({
         updateUserSettings,
       }}
     >
-      <Grid fluid>
+      <div className='config-window-grid flow-root px-[15px]'>
         <Presets
           expanded
           onSelect={setPrefill}
@@ -180,7 +179,7 @@ const ExternalWindowBridge = ({
             </div>
           ))}
         </div>
-      </Grid>
+      </div>
     </ConfigContext.Provider>
   )
 }

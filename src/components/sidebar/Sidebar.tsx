@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import classNames from 'classnames'
-import { Grid, Row } from 'react-bootstrap'
 import './Sidebar.css'
 
 import { Presets, PresetSelection } from '../presets/Presets'
@@ -75,34 +74,34 @@ const SidebarInner = ({ config: _config, setConfigWindow, configWindowVisible }:
       className='sidebar-container'
       onMouseEnter={showTab}
       onMouseLeave={hideTabDelayed}>
-      <Grid bsClass={sidebarContentClasses}>
+      <div className={sidebarContentClasses}>
         <button
           className={tabClasses}
           onClick={toggleSidebar}>
           Menu
         </button>
         <div className='sidebar-scroll'>
-          <Row>
+          <div className='flow-root'>
             <div className='sidebar-title-row'>
               <h2 className='sidebar-title'>Presets</h2>
               <SavePreset prefill={prefill} onSaved={() => setPrefill(null)} />
             </div>
-          </Row>
+          </div>
           <Presets
             onSelect={setPrefill}
             onPackSelect={(pack: string) => setPrefill(prev => prev ? { ...prev, pack } : { name: '', label: '', pack, isOwn: false })}
           />
-          <Row>
+          <div className='sidebar-config-row flow-root'>
             <h2 className='sidebar-title'>Configuration</h2>
             <button
               className={expandConfigClasses}
               onClick={handleSetConfigWindow}>
               ⤢
             </button>
-          </Row>
+          </div>
           <ConfigAccordion canOpenMultiple={false} />
         </div>
-      </Grid>
+      </div>
     </div>
   )
 }

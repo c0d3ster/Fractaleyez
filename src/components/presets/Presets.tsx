@@ -1,5 +1,4 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react'
-import { Row, Col } from 'react-bootstrap'
 import './Presets.css'
 
 import { connectConfig } from '../config/context/ConfigProvider'
@@ -100,8 +99,8 @@ const PresetsInner = ({ retrieveConfigPreset, revertConfig, config, presets, pac
 
   return (
     <>
-      <Row>
-        <Col className={`presets-container${expanded ? ' presets-container--expanded' : ''}`}>
+      <div className={`flow-root${expanded ? ' -mx-[15px]' : ''}`}>
+        <div className={`presets-container${expanded ? ' presets-container--expanded' : ''}`}>
           <div ref={containerRef} className='pack-tabs-row'>
             <div className='pack-tabs'>
               {packNames.map(pack => {
@@ -178,8 +177,8 @@ const PresetsInner = ({ retrieveConfigPreset, revertConfig, config, presets, pac
               &#8594;
             </button>
           </div>
-        </Col>
-      </Row>
+        </div>
+      </div>
       {modalVisible && (
         <PremiumTrialModal packName={trialPackName} onDismiss={dismissTrial} />
       )}

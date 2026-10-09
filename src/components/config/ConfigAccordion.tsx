@@ -1,5 +1,4 @@
 import React, { useState, useCallback } from 'react'
-import { Row, Col } from 'react-bootstrap'
 
 import { ConfigCategory } from '../config/ConfigCategory'
 import { ConfigSectionItems } from './ConfigSectionItems'
@@ -71,11 +70,11 @@ const ConfigAccordionInner = ({ updateConfigItem, canOpenMultiple }: ConfigAccor
   return (
     <>
       {DISPLAY_ORDER.map((entry) => (
-        <Row key={entry}>
-          <Col>
+        <div key={entry} className='flow-root'>
+          <div>
             <Entry entry={entry} onChange={updateConfigItem} isOpen={openCategories.includes(entry)} toggleOpen={toggleOpen} />
-          </Col>
-        </Row>
+          </div>
+        </div>
       ))}
     </>
   )
