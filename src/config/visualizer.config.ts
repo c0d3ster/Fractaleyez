@@ -5,6 +5,12 @@ export const visualizerConfig = {
   colorShift: true,
   glow: true,
   shockwave: true,
+
+  kaleidoscope: false,
+  kaleidoscopeCount_MIN: 2,
+  kaleidoscopeCount_MAX: 32,
+  kaleidoscopeCount_DEFAULT: 2, // wedges around the center; 2 mirrors the left half onto the right
+  kaleidoscopeCount_STEP_SIZE: 2, // even only: odd counts leave a seam where the last reflection meets the first wedge
 } as const
 
 /** Default crossfade duration (ms) used when Particle Config or Orbit Config changes force a particle-system rebuild. */

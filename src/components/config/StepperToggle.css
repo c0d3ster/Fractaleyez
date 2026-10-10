@@ -1,0 +1,66 @@
+.stepper-toggle {
+  margin: 1rem;
+  border-radius: .5rem;
+  overflow: hidden;
+  background: #EEE;
+  color: #555;
+  border: 1px solid transparent;
+  text-align: center;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.stepper-toggle--on {
+  background: #005500;
+  color: white;
+}
+
+.stepper-toggle button {
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.stepper-toggle .stepper-toggle-label {
+  display: block;
+  width: 100%;
+  padding: .5rem 1rem;
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.stepper-toggle .stepper-toggle-label:hover {
+  background: #004400;
+  color: #ccc;
+}
+
+.stepper-toggle-amount {
+  display: flex;
+  align-items: stretch;
+  border-top: 1px solid rgba(0, 0, 0, 0.15);
+}
+
+.stepper-toggle .stepper-toggle-amount button {
+  flex: 1;
+  padding: 0;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.stepper-toggle-amount button:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.stepper-toggle-amount button:disabled {
+  opacity: .35;
+  cursor: default;
+}
+
+.stepper-toggle-value {
+  flex: 1;
+  align-self: center;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  user-select: none;
+}

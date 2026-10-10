@@ -4,6 +4,7 @@ import { ConfirmModal } from '../common/ConfirmModal'
 
 import { ConfigSlider } from './ConfigSlider'
 import { ConfigCheckbox } from './ConfigCheckbox'
+import { ConfigStepperToggle } from './ConfigStepperToggle'
 import { connectConfig, ConfigContextValue, ConfigSectionKey } from './context/ConfigProvider'
 import { AppConfig, ConfigItem, SliderItem } from '../../config/configDefaults'
 import { SCALE_ZONES, SliderZone } from '../../config/juliaScale.config'
@@ -29,6 +30,12 @@ const SLIDER_DISPLAY_FORMATTERS: Partial<Record<string, (value: number) => strin
 const SLIDER_ZONES: Partial<Record<string, readonly SliderZone[]>> = {
   scaleFactor: SCALE_ZONES,
 }
+
+// Checkboxes drawn as a stepper tile, mapped to the slider item that holds their amount (the slider gets no row of its own).
+const STEPPER_AMOUNTS: Partial<Record<string, string>> = {
+  kaleidoscope: 'kaleidoscopeCount',
+}
+const STEPPER_AMOUNT_ITEMS: readonly string[] = Object.values(STEPPER_AMOUNTS).filter((item): item is string => item !== undefined)
 
 // Sections whose items live in the preset and can be reset to its loaded values (video is reset by ConfigVideo, since
 // its clip list is not a plain section).
@@ -134,9 +141,29 @@ const ConfigSectionItemsInner = ({ name, only, config, onChange, resetConfigItem
         </ConfirmModal>
       )}
       {Object.keys(categoryConfig).filter((configItem) => !only || only.includes(configItem)).map((configItem) => {
+        if (STEPPER_AMOUNT_ITEMS.includes(configItem)) return null
         const item = categoryConfig[configItem]!
         const { type, name: label, value } = item
 
+        const amountKey = STEPPER_AMOUNTS[configItem]
+        const amountItem = amountKey ? categoryConfig[amountKey] : undefined
+        if (type === 'checkbox' && amountKey && amountItem?.type === 'slider') {
+          return (
+            <ConfigStepperToggle
+              name={configItem}
+              label={label}
+              key={configItem}
+              checked={value as boolean}
+              amount={amountItem.value}
+              min={amountItem.min}
+              max={amountItem.max}
+              step={amountItem.step}
+              onToggle={(checked) => onChange(name, configItem, checked)}
+              onAmountChange={(amount) => onChange(name, amountKey, String(amount))}
+              onAmountReset={() => { if (isResettableSection(name)) resetConfigItem(name, amountKey) }}
+            />
+          )
+        }
         if (type === 'checkbox') {
           return (
             <ConfigCheckbox

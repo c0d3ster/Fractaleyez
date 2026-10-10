@@ -60,6 +60,8 @@ export type EffectsConfigSection = {
   colorShift: CheckboxItem
   glow: CheckboxItem
   shockwave: CheckboxItem
+  kaleidoscope: CheckboxItem
+  kaleidoscopeCount: SliderItem // wedges around the screen center when kaleidoscope is on; shown as its tile's stepper, not a slider
 }
 
 export type OrbitConfigSection = {
@@ -221,6 +223,8 @@ export const configDefaults: AppConfig = {
     colorShift: { name: 'Color Shift', type: 'checkbox', defaultValue: visualizerConfig.colorShift, value: visualizerConfig.colorShift },
     glow: { name: 'Glow', type: 'checkbox', defaultValue: visualizerConfig.glow, value: visualizerConfig.glow },
     shockwave: { name: 'Shockwave', type: 'checkbox', defaultValue: visualizerConfig.shockwave, value: visualizerConfig.shockwave },
+    kaleidoscope: { name: 'Kaleidoscope', type: 'checkbox', defaultValue: visualizerConfig.kaleidoscope, value: visualizerConfig.kaleidoscope },
+    kaleidoscopeCount: { name: 'Kaleidoscope Count', type: 'slider', defaultValue: visualizerConfig.kaleidoscopeCount_DEFAULT, value: visualizerConfig.kaleidoscopeCount_DEFAULT, min: visualizerConfig.kaleidoscopeCount_MIN, max: visualizerConfig.kaleidoscopeCount_MAX, step: visualizerConfig.kaleidoscopeCount_STEP_SIZE },
   },
   color: {
     saturation: { name: 'Saturation', type: 'slider', defaultValue: colorConfig.saturation_DEFAULT, value: colorConfig.saturation_DEFAULT, min: colorConfig.saturation_MIN, max: colorConfig.saturation_MAX, step: colorConfig.saturation_STEP_SIZE },
