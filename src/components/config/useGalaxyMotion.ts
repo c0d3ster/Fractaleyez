@@ -27,9 +27,16 @@ export type MotionEffects = {
   glow: boolean
 }
 
+export type EffectKey = keyof MotionEffects
+
+/** The effects in the order the Effects section lists them. */
+export const EFFECT_KEYS: readonly EffectKey[] = ['cyclone', 'wobWob', 'switcheroo', 'colorShift', 'glow', 'shockwave']
+
 type MotionSettings = {
   rotationSpeed: number
   effects: MotionEffects
+  /** Called on every beat, for things outside the galaxy that want to react (it does no rendering of its own). */
+  onBeat?: () => void
 }
 
 export type GalaxyMotion = {
@@ -87,7 +94,7 @@ export const useGalaxyMotion = (settings: MotionSettings): GalaxyMotion => {
     const tick = (now: number): void => {
       const seconds = (now - previous) / 1000
       previous = now
-      const { rotationSpeed, effects } = latest.current
+      const { rotationSpeed, effects, onBeat } = latest.current
 
       const beatTime = latestBeatTime()
       // Beats from before the dial started listening do not count.
@@ -96,6 +103,7 @@ export const useGalaxyMotion = (settings: MotionSettings): GalaxyMotion => {
         lastBeat.current = beatTime
         pulse = 1
         ringAge = 0
+        onBeat?.()
         if (effects.colorShift || effects.switcheroo) setBeats((count) => count + 1)
       }
       pulse *= Math.exp(-seconds / PULSE_DECAY_SECONDS)

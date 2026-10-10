@@ -1,0 +1,39 @@
+.effect-chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: .4rem;
+  margin: 0 1rem 1rem;
+}
+
+.effect-chip {
+  font: inherit;
+  font-size: 13px;
+  white-space: nowrap;
+  padding: .3rem .75rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: #EEE;
+  color: #555;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.effect-chip--on {
+  background: #005500;
+  color: white;
+}
+
+/* Same hover as the other toggles in this section. */
+.effect-chip:hover,
+.effect-chip--on:hover {
+  background: #004400;
+  border-color: #004400;
+  color: #ccc;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .effect-chip {
+    transition: none;
+  }
+}
