@@ -5,6 +5,7 @@ import './ConfigCategory.css'
 import { ConfigSectionItems, isResettableSection } from './ConfigSectionItems'
 import { LayerHeader } from './LayerHeader'
 import { ResetIcon } from './ResetIcon'
+import { trackInputType } from './inputType'
 import { connectConfig, ConfigContextValue } from './context/ConfigProvider'
 import { AppConfig, LayerKey } from '../../config/configDefaults'
 import { LAYER_REGISTRY } from '../../config/layers'
@@ -84,7 +85,7 @@ const ConfigCategoryInner = React.memo(({ name, config, isOpen, expanded = false
   )
 
   return (
-    <div className={classNames('category-container', { 'category-container--effects': name === 'effects', 'category-container--video': name === 'video', 'config-inactive': dimmed })}>
+    <div className={classNames('category-container', { 'category-container--effects': name === 'effects', 'category-container--video': name === 'video', 'config-inactive': dimmed })} onPointerDown={trackInputType} onPointerOver={trackInputType}>
       {headerLayer
         ? (
           <LayerHeader
