@@ -51,7 +51,7 @@
 }
 
 @media (hover: hover) {
-  .confirm-modal-cancel:hover {
+  :where(html:not(.touch-input)) .confirm-modal-cancel:hover {
     opacity: 0.85;
   }
 }
@@ -67,7 +67,7 @@
 }
 
 @media (hover: hover) {
-  .confirm-modal-confirm:hover {
+  :where(html:not(.touch-input)) .confirm-modal-confirm:hover {
     color: #d66;
   }
 }

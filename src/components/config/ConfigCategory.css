@@ -21,7 +21,7 @@
 }
 
 .category-title:active,
-.category-title:focus {
+.category-title:focus-visible {
   outline: none;
   color: white;
   background: #555;
@@ -29,7 +29,7 @@
 }
 
 @media (hover: hover) {
-  .category-title:hover {
+  :where(html:not(.touch-input)) .category-title:hover {
     outline: none;
     color: white;
     background: #555;
@@ -74,7 +74,7 @@
 }
 
 @media (hover: hover) {
-  .category-reset:hover {
+  :where(html:not(.touch-input)) .category-reset:hover {
     color: white;
   }
 }

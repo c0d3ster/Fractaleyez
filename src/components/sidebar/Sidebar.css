@@ -8,7 +8,7 @@
 }
 
 @media (hover: hover) {
-  .tab:hover {
+  :where(html:not(.touch-input)) .tab:hover {
     background: #222;
   }
 }
@@ -60,7 +60,7 @@
 }
 
 @media (hover: hover) {
-  .sidebar-scroll::-webkit-scrollbar-thumb:hover {
+  :where(html:not(.touch-input)) .sidebar-scroll::-webkit-scrollbar-thumb:hover {
     background-color: rgba(150, 150, 150, 0.55);
   }
 }
@@ -302,7 +302,7 @@
 }
 
 @media (hover: hover) {
-  .save-preset-btn--confirm:hover {
+  :where(html:not(.touch-input)) .save-preset-btn--confirm:hover {
     background:
       linear-gradient(180deg, rgba(0, 68, 0, 0.14) 0%, rgba(0, 68, 0, 0.22) 100%),
       rgba(255, 255, 255, 0.06);
@@ -346,7 +346,7 @@
 }
 
 @media (hover: hover) {
-  .expand-config:hover {
+  :where(html:not(.touch-input)) .expand-config:hover {
     background: green;
     color: #ccc;
   }
@@ -393,7 +393,7 @@
 }
 
 @media (hover: hover) {
-  .tab:hover {
+  :where(html:not(.touch-input)) .tab:hover {
     border-color: rgba(60, 60, 60, .9);
     color: white;
   }

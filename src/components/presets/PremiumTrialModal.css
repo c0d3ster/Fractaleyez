@@ -100,7 +100,7 @@
 }
 
 @media (hover: hover) {
-  .premium-trial-subscribe:hover {
+  :where(html:not(.touch-input)) .premium-trial-subscribe:hover {
     opacity: 0.85;
   }
 }
@@ -116,7 +116,7 @@
 }
 
 @media (hover: hover) {
-  .premium-trial-dismiss:hover {
+  :where(html:not(.touch-input)) .premium-trial-dismiss:hover {
     color: #888;
   }
 }

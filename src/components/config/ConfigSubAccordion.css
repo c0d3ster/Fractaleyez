@@ -21,14 +21,14 @@
   text-transform: uppercase;
 }
 
-.config-sub-accordion__title:focus {
+.config-sub-accordion__title:focus-visible {
   outline: none;
   color: white;
   background: #555;
 }
 
 @media (hover: hover) {
-  .config-sub-accordion__title:hover {
+  :where(html:not(.touch-input)) .config-sub-accordion__title:hover {
     outline: none;
     color: white;
     background: #555;

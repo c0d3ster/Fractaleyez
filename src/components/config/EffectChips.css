@@ -68,8 +68,8 @@
 /* Same hover as the other toggles in this section. */
 
 @media (hover: hover) {
-  .effect-chip:hover,
-.effect-chip--on:hover {
+  :where(html:not(.touch-input)) .effect-chip:hover,
+  :where(html:not(.touch-input)) .effect-chip--on:hover {
     background: #004400;
     border-color: #004400;
     color: #ccc;

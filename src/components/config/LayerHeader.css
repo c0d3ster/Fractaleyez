@@ -58,7 +58,7 @@
 }
 
 @media (hover: hover) {
-  .layer-header__reset:hover {
+  :where(html:not(.touch-input)) .layer-header__reset:hover {
     opacity: 1;
   }
 }

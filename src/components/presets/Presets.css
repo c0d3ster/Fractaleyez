@@ -40,7 +40,7 @@
 }
 
 @media (hover: hover) {
-  .pack-tab:hover {
+  :where(html:not(.touch-input)) .pack-tab:hover {
     border-color: #777;
     color: #999;
   }
@@ -104,8 +104,8 @@
 }
 
 @media (hover: hover) {
-  .pack-tab--premium:hover .premium-ring::before,
-.preset-item--premium:hover .premium-ring::before {
+  :where(html:not(.touch-input)) .pack-tab--premium:hover .premium-ring::before,
+  :where(html:not(.touch-input)) .preset-item--premium:hover .premium-ring::before {
     animation-play-state: running;
   }
 }
@@ -123,7 +123,7 @@
 }
 
 @media (hover: hover) {
-  .pack-tab--premium:hover {
+  :where(html:not(.touch-input)) .pack-tab--premium:hover {
     color: #eee;
   }
 }
@@ -174,7 +174,7 @@
 }
 
 @media (hover: hover) {
-  .pack-premium-overlay-btn:hover {
+  :where(html:not(.touch-input)) .pack-premium-overlay-btn:hover {
     color: #fff;
   }
 }
@@ -213,13 +213,13 @@
 }
 
 @media (hover: hover) {
-  .preset-item:hover {
+  :where(html:not(.touch-input)) .preset-item:hover {
     border-color: #999;
   }
 }
 
 @media (hover: hover) {
-  .preset-item--premium:hover {
+  :where(html:not(.touch-input)) .preset-item--premium:hover {
     color: #eee;
   }
 }
@@ -295,7 +295,7 @@
 }
 
 @media (hover: hover) {
-  .pagination-arrow:hover:not(:disabled) {
+  :where(html:not(.touch-input)) .pagination-arrow:hover:not(:disabled) {
     border-color: #999;
     color: #ccc;
   }

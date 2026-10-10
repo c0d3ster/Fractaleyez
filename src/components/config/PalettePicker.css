@@ -17,7 +17,7 @@
 }
 
 @media (hover: hover) {
-  .palette-picker__current:hover {
+  :where(html:not(.touch-input)) .palette-picker__current:hover {
     background: rgba(0, 0, 0, 0.16);
   }
 }
@@ -55,7 +55,7 @@
 }
 
 @media (hover: hover) {
-  .palette-picker__choice:hover {
+  :where(html:not(.touch-input)) .palette-picker__choice:hover {
     background: rgba(0, 0, 0, 0.16);
   }
 }

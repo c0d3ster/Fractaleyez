@@ -57,7 +57,7 @@
 }
 
 @media (hover: hover) {
-  .topbar-signin-btn:hover {
+  :where(html:not(.touch-input)) .topbar-signin-btn:hover {
     border-color: white;
     color: white;
   }

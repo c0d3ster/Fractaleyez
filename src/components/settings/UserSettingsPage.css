@@ -53,7 +53,7 @@
 }
 
 @media (hover: hover) {
-  .user-settings-page__upload-label:hover {
+  :where(html:not(.touch-input)) .user-settings-page__upload-label:hover {
     border-color: #666;
     color: #ccc;
   }
