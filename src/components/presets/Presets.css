@@ -39,9 +39,11 @@
   cursor: pointer;
 }
 
-.pack-tab:hover {
-  border-color: #777;
-  color: #999;
+@media (hover: hover) {
+  :where(html:not([data-input='touch'])) .pack-tab:hover {
+    border-color: #777;
+    color: #999;
+  }
 }
 
 .pack-tab.active {
@@ -101,9 +103,11 @@
   animation-play-state: paused;
 }
 
-.pack-tab--premium:hover .premium-ring::before,
-.preset-item--premium:hover .premium-ring::before {
-  animation-play-state: running;
+@media (hover: hover) {
+  :where(html:not([data-input='touch'])) .pack-tab--premium:hover .premium-ring::before,
+  :where(html:not([data-input='touch'])) .preset-item--premium:hover .premium-ring::before {
+    animation-play-state: running;
+  }
 }
 
 .premium-ring::after {
@@ -114,9 +118,14 @@
   border-radius: var(--premium-radius);
 }
 
-.pack-tab--premium:hover,
 .pack-tab--premium.active {
   color: #eee;
+}
+
+@media (hover: hover) {
+  :where(html:not([data-input='touch'])) .pack-tab--premium:hover {
+    color: #eee;
+  }
 }
 
 /* Premium pack overlay */
@@ -164,8 +173,10 @@
   transition: color 0.2s;
 }
 
-.pack-premium-overlay-btn:hover {
-  color: #fff;
+@media (hover: hover) {
+  :where(html:not([data-input='touch'])) .pack-premium-overlay-btn:hover {
+    color: #fff;
+  }
 }
 
 /* Preset grid */
@@ -201,12 +212,16 @@
   font-size: 1.1rem;
 }
 
-.preset-item:hover {
-  border-color: #999;
+@media (hover: hover) {
+  :where(html:not([data-input='touch'])) .preset-item:hover {
+    border-color: #999;
+  }
 }
 
-.preset-item--premium:hover {
-  color: #eee;
+@media (hover: hover) {
+  :where(html:not([data-input='touch'])) .preset-item--premium:hover {
+    color: #eee;
+  }
 }
 
 .preset-trial-countdown {
@@ -279,9 +294,11 @@
   font-size: 1.2rem;
 }
 
-.pagination-arrow:hover:not(:disabled) {
-  border-color: #999;
-  color: #ccc;
+@media (hover: hover) {
+  :where(html:not([data-input='touch'])) .pagination-arrow:hover:not(:disabled) {
+    border-color: #999;
+    color: #ccc;
+  }
 }
 
 .pagination-arrow:disabled {

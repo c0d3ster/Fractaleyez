@@ -5,6 +5,7 @@ import { Analytics } from '@vercel/analytics/react'
 
 import { ConfigProvider } from './components/config/context/ConfigProvider'
 import { App } from './components/App'
+import { watchInputType } from './components/config/inputType'
 
 const publishableKey = process.env.CLERK_PUBLISHABLE_KEY?.trim()
 if (!publishableKey || !/^pk_(test|live)_/.test(publishableKey)) {
@@ -12,6 +13,8 @@ if (!publishableKey || !/^pk_(test|live)_/.test(publishableKey)) {
     'CLERK_PUBLISHABLE_KEY must be set to a valid Clerk publishable key (pk_test_... or pk_live_...).'
   )
 }
+
+watchInputType()
 
 window.onload = () => {
   const rootEl = document.getElementById('root')

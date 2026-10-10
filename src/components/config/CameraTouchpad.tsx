@@ -6,8 +6,9 @@ const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.m
 /** Main app window when config runs in a popup; otherwise `window`. */
 const mainWindow = (): Window => window.opener ?? window
 
-// The pad has the main screen's shape, so a spot on it matches a spot on the visualizer.
-const padAspectRatio = (): number => mainWindow().innerWidth / mainWindow().innerHeight
+// The pad has the main screen's shape, so a spot on it matches a spot on the visualizer. Never taller than square: a
+// portrait window (a phone) would otherwise stretch the pad far down the sidebar.
+const padAspectRatio = (): number => Math.max(1, mainWindow().innerWidth / mainWindow().innerHeight)
 const getRange = (): number => mainWindow().config?.user?.cameraBound?.value ?? 100
 // Spot on the pad as a percentage of its width/height, so the pad can fill whatever width it is given.
 const valToPercent = (v: number, range: number): string => `${((v / range) + 1) * 50}%`
