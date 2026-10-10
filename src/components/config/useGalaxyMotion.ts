@@ -64,7 +64,7 @@ export type GalaxyMotion = {
  * The config window shares a thread with the visualizer, so this keeps its cost down: motion is written straight onto
  * the elements (no re-renders) and only when a value has changed, turning and pulling back are plain transforms on
  * layers the browser can move without repainting, and the loop stops altogether while the dial is off screen, the
- * panel is collapsed or the tab is hidden. It holds still if the user has asked for less motion.
+ * panel is collapsed or the tab is hidden. It holds still if the user has asked for less motion, and follows that preference if it changes while the dial is open.
  */
 export const useGalaxyMotion = (settings: MotionSettings): GalaxyMotion => {
   const root = useRef<HTMLDivElement>(null)
@@ -88,7 +88,7 @@ export const useGalaxyMotion = (settings: MotionSettings): GalaxyMotion => {
     if (!rootElement) return undefined
     const doc = rootElement.ownerDocument
     const view = doc.defaultView ?? window
-    if (view.matchMedia('(prefers-reduced-motion: reduce)').matches) return undefined
+    const motionQuery = view.matchMedia('(prefers-reduced-motion: reduce)')
 
     let previous = performance.now()
     let pulse = 0
@@ -149,7 +149,24 @@ export const useGalaxyMotion = (settings: MotionSettings): GalaxyMotion => {
       cancelAnimationFrame(frame)
       frame = 0
     }
-    const sync = (): void => (onScreen && !doc.hidden ? start() : stop())
+    // Back to rest, as when the hook unmounts; the galaxy keeps the angle it has turned to.
+    const reset = (): void => {
+      pulse = 0
+      ringAge = Infinity
+      if (wob.current) wob.current.style.transform = 'scale(1)'
+      core.current?.setAttribute('transform', 'scale(1)')
+      ring.current?.setAttribute('stroke-opacity', '0')
+    }
+    // Follows the preference live: a change to reduced motion stops the loop and settles the effects, and a change back resumes it.
+    const sync = (): void => {
+      if (motionQuery.matches) {
+        stop()
+        reset()
+        return
+      }
+      if (onScreen && !doc.hidden) start()
+      else stop()
+    }
 
     const observer = new view.IntersectionObserver((entries) => {
       onScreen = entries[entries.length - 1]?.isIntersecting ?? false
@@ -157,15 +174,14 @@ export const useGalaxyMotion = (settings: MotionSettings): GalaxyMotion => {
     })
     observer.observe(rootElement)
     doc.addEventListener('visibilitychange', sync)
+    motionQuery.addEventListener('change', sync)
 
     return () => {
       observer.disconnect()
       doc.removeEventListener('visibilitychange', sync)
+      motionQuery.removeEventListener('change', sync)
       stop()
-      // Settle the beat effects back to rest; the galaxy keeps the angle it has turned to.
-      if (wob.current) wob.current.style.transform = 'scale(1)'
-      core.current?.setAttribute('transform', 'scale(1)')
-      ring.current?.setAttribute('stroke-opacity', '0')
+      reset()
     }
   }, [])
 
