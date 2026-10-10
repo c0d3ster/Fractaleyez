@@ -69,7 +69,7 @@
    after you let go; `hover: hover` keeps the look off phones and tablets, and [data-input='touch'] (see inputType.ts)
    keeps it off a touch screen on a desktop, where the mouse still says it can hover. */
 @media (hover: hover) {
-  .category-container:not([data-input='touch']) .effect-chip:hover {
+  :where(html:not([data-input='touch'])) .effect-chip:hover {
     background: #004400;
     border-color: #004400;
     color: #ccc;

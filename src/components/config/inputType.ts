@@ -16,3 +16,10 @@ export const trackInputType = ({ pointerType, currentTarget }: PointerLike): voi
   const next = pointerType === 'touch' ? 'touch' : 'pointer'
   if (currentTarget.dataset.input !== next) currentTarget.dataset.input = next
 }
+
+/** Tracks the last pointer type on <html>, so every hover look in the app can sit behind html[data-input='touch']. */
+export const watchInputType = (): void => {
+  const track = ({ pointerType }: PointerEvent): void => trackInputType({ pointerType, currentTarget: document.documentElement })
+  document.addEventListener('pointerdown', track, { capture: true, passive: true })
+  document.addEventListener('pointerover', track, { capture: true, passive: true })
+}

@@ -5,7 +5,6 @@ import { LayerHeader } from './LayerHeader'
 import { ConfigVideoBody } from './ConfigVideoBody'
 import { PerfHud } from '../huds'
 import { ResetIcon } from './ResetIcon'
-import { trackInputType } from './inputType'
 import { connectConfig, ConfigContextValue } from './context/ConfigProvider'
 
 type ConfigVideoProps = {
@@ -17,7 +16,7 @@ type ConfigVideoProps = {
 }
 
 const ConfigVideoInner = ({ isOpen, toggleOpen, popup = false, resetVideoClips }: ConfigVideoProps): React.ReactElement => (
-  <div className='category-container category-container--video' onPointerDown={trackInputType} onPointerOver={trackInputType}>
+  <div className='category-container category-container--video'>
     <LayerHeader
       layerKey='video'
       title='video'

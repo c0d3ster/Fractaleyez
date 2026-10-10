@@ -185,11 +185,13 @@ const FrequencyHudInner = ({ userSettings, updateUserSettings }: FrequencyHudPro
     return band >= 0 && band < VISIBLE_BANDS ? band : null
   }, [])
 
-  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+  const handlePointerMove = useCallback((e: React.PointerEvent<HTMLCanvasElement>) => {
+    // Touch has no hover; tracking it would leave the band highlighted after a tap.
+    if (e.pointerType !== 'mouse') return
     hoveredBandRef.current = bandAt(e)
   }, [bandAt])
 
-  const handleMouseLeave = useCallback(() => {
+  const handlePointerLeave = useCallback(() => {
     hoveredBandRef.current = null
   }, [])
 
@@ -210,8 +212,8 @@ const FrequencyHudInner = ({ userSettings, updateUserSettings }: FrequencyHudPro
           height={H}
           className='frequency-hud-canvas'
           onClick={handleClick}
-          onMouseMove={handleMouseMove}
-          onMouseLeave={handleMouseLeave}
+          onPointerMove={handlePointerMove}
+          onPointerLeave={handlePointerLeave}
         />
       </div>
       <span className='frequency-hud-hint'>click bands to choose what triggers</span>
