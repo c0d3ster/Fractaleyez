@@ -17,7 +17,7 @@ const SWEEP = TAU * (330 / 360)
 
 const HAZE_OPACITY_WITHOUT_GLOW = 0.45
 // With the kaleidoscope off, the mirrored galaxy it would make is drawn over the plain one this faintly.
-const GHOST_OPACITY = 0.2
+const GHOST_OPACITY = 0.25
 // The plain galaxy is what the app shows with no mirroring, so it does not depend on the mirror count: a classic two-armed spiral.
 const PLAIN_ARM_COUNT = 2
 
@@ -154,7 +154,7 @@ export const KaleidoscopeDial = React.memo(({ count, min, max, step, kaleidoscop
   return (
     <div className='effects-hub'>
       <svg
-        className='kaleidoscope-dial'
+        className={`kaleidoscope-dial${kaleidoscope ? ' kaleidoscope-dial--on' : ''}`}
         viewBox={`${-VIEW_HALF} ${-VIEW_HALF} ${VIEW_HALF * 2} ${VIEW_HALF * 2}`}
         role='slider'
         aria-label='Kaleidoscope mirrors'
