@@ -1,13 +1,16 @@
 import * as THREE from 'three'
 import { Effect } from 'postprocessing'
 
+import { getParticleCrossfadeDurationMs } from '../../config/visualizer.config'
+
 // A radial (kaleidoscope) mirror around the screen center: the circle is cut into `count` equal wedges, the first
 // one starting straight up and running counterclockwise through the left, and every wedge after it is the
 // previous one's reflection. At 2 that is the left half mirrored onto the right. 1 is off. Odd counts would leave one
 // seam where the last reflection meets the first wedge, since the reflections only close up evenly on even counts.
 // Works in the UV stage, so it folds whatever the effects before it produced. `aspect` keeps the wedges true
 // angles on a wide screen.
-// Changing the count morphs between the two folds: both are computed for the same pixel and their sample positions
+// Changing the count morphs between the two folds, over the same crossfade duration as the other layers use (the user's
+// Crossfade setting; 0 is a plain cut): both are computed for the same pixel and their sample positions
 // are blended, so the wedges swirl into place instead of snapping.
 const fragmentShader = `
   uniform float countFrom;
@@ -37,8 +40,6 @@ const fragmentShader = `
     uv = mix(fold(uv, countFrom), fold(uv, countTo), blend);
   }
 `
-
-const TWEEN_SECONDS = 0.6
 
 const easeInOut = (t: number): number => t * t * (3 - 2 * t)
 
@@ -72,7 +73,9 @@ export class KaleidoscopeEffect extends Effect {
 
   override update(_renderer: THREE.WebGLRenderer, _inputBuffer: THREE.WebGLRenderTarget, deltaTime: number): void {
     if (this.progress >= 1) return
-    this.progress = Math.min(1, this.progress + deltaTime / TWEEN_SECONDS)
+    // Read each frame so a change to the setting applies to the next morph, and to one already under way.
+    const durationSeconds = getParticleCrossfadeDurationMs() / 1000
+    this.progress = durationSeconds > 0 ? Math.min(1, this.progress + deltaTime / durationSeconds) : 1
     this.blendUniform.value = easeInOut(this.progress)
     if (this.progress >= 1) this.fromUniform.value = this.target
   }
