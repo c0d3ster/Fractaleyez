@@ -45,7 +45,12 @@ type KaleidoscopeDialProps = {
   /** What each effect is called, for its switch under the galaxy. */
   effectLabels: Readonly<Record<EffectKey, string>>
   onToggleEffect: (key: EffectKey, enabled: boolean) => void
+  /** The kaleidoscope's own switch, which leads the row of chips. */
+  kaleidoscopeLabel: string
+  onToggleKaleidoscope: (enabled: boolean) => void
   onChange: (count: number) => void
+  /** Double-clicking the dial puts the mirror count back to its default. */
+  onReset: () => void
 }
 
 /** Drag position to a count: a knob, so the pointer's angle maps evenly across the range and the handle stays under it. */
@@ -97,7 +102,7 @@ const ZONES: readonly Zone[] = [
  * It is built as a stack of separate layers (the sky, the inside of the galaxy, the outside, and the ring, core and
  * handle) so that turning and pulling back are transforms the browser can do without repainting the blurred galaxy.
  */
-export const KaleidoscopeDial = React.memo(({ count, min, max, step, kaleidoscope, palette, scale, particleSize, rotationSpeed, effects, effectLabels, onToggleEffect, onChange }: KaleidoscopeDialProps): React.ReactElement => {
+export const KaleidoscopeDial = React.memo(({ count, min, max, step, kaleidoscope, palette, scale, particleSize, rotationSpeed, effects, effectLabels, onToggleEffect, kaleidoscopeLabel, onToggleKaleidoscope, onChange, onReset }: KaleidoscopeDialProps): React.ReactElement => {
   // Unique per dial, since the filter, clip and gradient are referenced by id.
   const uid = useId().replace(/:/g, '')
   const wedge = TAU / count
@@ -166,6 +171,8 @@ export const KaleidoscopeDial = React.memo(({ count, min, max, step, kaleidoscop
         aria-valuemax={max}
         aria-valuenow={count}
         tabIndex={0}
+        title='Drag to set how many mirrors. Double-click to reset.'
+        onDoubleClick={onReset}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onKeyDown={handleKeyDown}
@@ -222,7 +229,16 @@ export const KaleidoscopeDial = React.memo(({ count, min, max, step, kaleidoscop
           <circle className='kaleidoscope-dial-handle' cx={handle.x} cy={handle.y} r={HANDLE_RADIUS} />
         </svg>
       </div>
-      <EffectChips ref={chips} effects={effects} labels={effectLabels} onToggle={onToggleEffect} />
+      <EffectChips
+        ref={chips}
+        effects={effects}
+        labels={effectLabels}
+        onToggle={onToggleEffect}
+        kaleidoscope={kaleidoscope}
+        kaleidoscopeLabel={kaleidoscopeLabel}
+        kaleidoscopeCount={count}
+        onToggleKaleidoscope={onToggleKaleidoscope}
+      />
     </div>
   )
 })
