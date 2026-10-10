@@ -117,6 +117,7 @@ const init = (): void => {
   // Owned here (not by a visualizer) so the frequency HUD keeps working in every layer combination.
   window.getAudioData = audioFeed.getLatest
   window.getBeatTimeline = beatMonitor.getTimeline
+  window.getLastBeatTime = beatMonitor.getLastBeatTime
   window.getPerfData = () => {
     const { fps, frameMs } = medianFpsFromDeltas(frameDeltaMs)
     return {
