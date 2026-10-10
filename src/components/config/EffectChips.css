@@ -65,12 +65,15 @@
   color: white;
 }
 
-/* Hover looks only for a mouse: a touch leaves what was tapped stuck in :hover, so a chip would stay lit after you let
-   go. [data-input='touch'] (see inputType.ts) switches the look off after a touch. */
-:where(html:not([data-input='touch'])) .effect-chip:hover {
-  background: #004400;
-  border-color: #004400;
-  color: #ccc;
+/* Hover looks only where hovering is real. A touch leaves what was tapped stuck in :hover, so a chip would stay lit
+   after you let go; `hover: hover` keeps the look off phones and tablets, and [data-input='touch'] (see inputType.ts)
+   keeps it off a touch screen on a desktop, where the mouse still says it can hover. */
+@media (hover: hover) {
+  :where(html:not([data-input='touch'])) .effect-chip:hover {
+    background: #004400;
+    border-color: #004400;
+    color: #ccc;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

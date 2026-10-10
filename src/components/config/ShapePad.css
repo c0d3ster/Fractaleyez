@@ -72,9 +72,11 @@
   cursor: pointer;
 }
 
-:where(html:not([data-input='touch'])) .shape-pad-chip:hover {
-  border-color: #0a8f78;
-  color: #0a8f78;
+@media (hover: hover) {
+  :where(html:not([data-input='touch'])) .shape-pad-chip:hover {
+    border-color: #0a8f78;
+    color: #0a8f78;
+  }
 }
 
 .shape-pad-hint {

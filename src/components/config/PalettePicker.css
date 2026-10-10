@@ -16,8 +16,10 @@
   cursor: pointer;
 }
 
-:where(html:not([data-input='touch'])) .palette-picker__current:hover {
-  background: rgba(0, 0, 0, 0.16);
+@media (hover: hover) {
+  :where(html:not([data-input='touch'])) .palette-picker__current:hover {
+    background: rgba(0, 0, 0, 0.16);
+  }
 }
 
 .palette-picker__swatch--current {
@@ -52,8 +54,10 @@
   cursor: pointer;
 }
 
-:where(html:not([data-input='touch'])) .palette-picker__choice:hover {
-  background: rgba(0, 0, 0, 0.16);
+@media (hover: hover) {
+  :where(html:not([data-input='touch'])) .palette-picker__choice:hover {
+    background: rgba(0, 0, 0, 0.16);
+  }
 }
 
 .palette-picker__choice--selected {

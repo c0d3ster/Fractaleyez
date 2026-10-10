@@ -28,11 +28,13 @@
   border: none !important;
 }
 
-:where(html:not([data-input='touch'])) .category-title:hover {
-  outline: none;
-  color: white;
-  background: #555;
-  border: none !important;
+@media (hover: hover) {
+  :where(html:not([data-input='touch'])) .category-title:hover {
+    outline: none;
+    color: white;
+    background: #555;
+    border: none !important;
+  }
 }
 
 .category-content {
@@ -71,8 +73,10 @@
   cursor: pointer;
 }
 
-:where(html:not([data-input='touch'])) .category-reset:hover {
-  color: white;
+@media (hover: hover) {
+  :where(html:not([data-input='touch'])) .category-reset:hover {
+    color: white;
+  }
 }
 
 /* Sidebar: the icon sits inside the header bar, vertically centered at its right edge. */

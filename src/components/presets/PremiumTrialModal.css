@@ -99,8 +99,10 @@
   transition: opacity 0.2s;
 }
 
-:where(html:not([data-input='touch'])) .premium-trial-subscribe:hover {
-  opacity: 0.85;
+@media (hover: hover) {
+  :where(html:not([data-input='touch'])) .premium-trial-subscribe:hover {
+    opacity: 0.85;
+  }
 }
 
 .premium-trial-dismiss {
@@ -113,6 +115,8 @@
   transition: color 0.2s;
 }
 
-:where(html:not([data-input='touch'])) .premium-trial-dismiss:hover {
-  color: #888;
+@media (hover: hover) {
+  :where(html:not([data-input='touch'])) .premium-trial-dismiss:hover {
+    color: #888;
+  }
 }
