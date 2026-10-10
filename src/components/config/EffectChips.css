@@ -66,11 +66,14 @@
 }
 
 /* Same hover as the other toggles in this section. */
-.effect-chip:hover,
+
+@media (hover: hover) {
+  .effect-chip:hover,
 .effect-chip--on:hover {
-  background: #004400;
-  border-color: #004400;
-  color: #ccc;
+    background: #004400;
+    border-color: #004400;
+    color: #ccc;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

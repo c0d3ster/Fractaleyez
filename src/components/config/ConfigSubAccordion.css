@@ -21,11 +21,18 @@
   text-transform: uppercase;
 }
 
-.config-sub-accordion__title:hover,
 .config-sub-accordion__title:focus {
   outline: none;
   color: white;
   background: #555;
+}
+
+@media (hover: hover) {
+  .config-sub-accordion__title:hover {
+    outline: none;
+    color: white;
+    background: #555;
+  }
 }
 
 .config-sub-accordion__body {

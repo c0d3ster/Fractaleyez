@@ -24,18 +24,23 @@
 }
 
 /* Save-button green hover only for effects + video clip toggles (see category-container--effects / --video) */
-.category-container--effects .config-checkbox-container label:hover,
+
+@media (hover: hover) {
+  .category-container--effects .config-checkbox-container label:hover,
 .category-container--video .config-checkbox-container label:hover {
-  background: #004400;
-  border-color: #004400;
-  color: #ccc;
+    background: #004400;
+    border-color: #004400;
+    color: #ccc;
+  }
 }
 
-.category-container--effects .config-checkbox-container input:checked + label:hover,
+@media (hover: hover) {
+  .category-container--effects .config-checkbox-container input:checked + label:hover,
 .category-container--video .config-checkbox-container input:checked + label:hover {
-  background: #004400;
-  border-color: #004400;
-  color: #ccc;
+    background: #004400;
+    border-color: #004400;
+    color: #ccc;
+  }
 }
 
 .config-checkbox-container input {

@@ -57,8 +57,10 @@
   opacity: .7;
 }
 
-.layer-header__reset:hover {
-  opacity: 1;
+@media (hover: hover) {
+  .layer-header__reset:hover {
+    opacity: 1;
+  }
 }
 
 .layer-header__power--on {

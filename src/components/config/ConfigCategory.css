@@ -21,12 +21,20 @@
 }
 
 .category-title:active,
-.category-title:focus,
-.category-title:hover {
+.category-title:focus {
   outline: none;
   color: white;
   background: #555;
   border: none !important;
+}
+
+@media (hover: hover) {
+  .category-title:hover {
+    outline: none;
+    color: white;
+    background: #555;
+    border: none !important;
+  }
 }
 
 .category-content {
@@ -65,8 +73,10 @@
   cursor: pointer;
 }
 
-.category-reset:hover {
-  color: white;
+@media (hover: hover) {
+  .category-reset:hover {
+    color: white;
+  }
 }
 
 /* Sidebar: the icon sits inside the header bar, vertically centered at its right edge. */

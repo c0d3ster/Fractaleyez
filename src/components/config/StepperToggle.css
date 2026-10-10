@@ -30,9 +30,11 @@
   font-weight: bold;
 }
 
-.stepper-toggle .stepper-toggle-label:hover {
-  background: #004400;
-  color: #ccc;
+@media (hover: hover) {
+  .stepper-toggle .stepper-toggle-label:hover {
+    background: #004400;
+    color: #ccc;
+  }
 }
 
 .stepper-toggle-amount {
@@ -48,8 +50,10 @@
   line-height: 1.4;
 }
 
-.stepper-toggle-amount button:hover:not(:disabled) {
-  background: rgba(0, 0, 0, 0.2);
+@media (hover: hover) {
+  .stepper-toggle-amount button:hover:not(:disabled) {
+    background: rgba(0, 0, 0, 0.2);
+  }
 }
 
 .stepper-toggle-amount button:disabled {

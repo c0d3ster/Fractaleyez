@@ -56,9 +56,11 @@
   transition: border-color 0.2s ease, color 0.2s ease;
 }
 
-.topbar-signin-btn:hover {
-  border-color: white;
-  color: white;
+@media (hover: hover) {
+  .topbar-signin-btn:hover {
+    border-color: white;
+    color: white;
+  }
 }
 
 .topbar-signin-btn:focus-visible {

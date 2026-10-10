@@ -50,8 +50,10 @@
   transition: opacity 0.2s;
 }
 
-.confirm-modal-cancel:hover {
-  opacity: 0.85;
+@media (hover: hover) {
+  .confirm-modal-cancel:hover {
+    opacity: 0.85;
+  }
 }
 
 .confirm-modal-confirm {
@@ -64,8 +66,10 @@
   transition: color 0.2s;
 }
 
-.confirm-modal-confirm:hover {
-  color: #d66;
+@media (hover: hover) {
+  .confirm-modal-confirm:hover {
+    color: #d66;
+  }
 }
 
 .confirm-modal-option {
