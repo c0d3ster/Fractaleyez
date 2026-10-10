@@ -38,6 +38,7 @@ declare global {
       multibandPeak?: Array<{ value: number }>
     } | null
     getBeatTimeline?: () => BeatTimeline
+    getLastBeatTime?: () => number | null
     enabledFreqBands?: boolean[]
     getPerfData?: () => {
       fps: number

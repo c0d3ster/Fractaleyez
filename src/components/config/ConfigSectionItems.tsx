@@ -6,7 +6,7 @@ import { ConfigSlider } from './ConfigSlider'
 import { ConfigCheckbox } from './ConfigCheckbox'
 import { ConfigStepperToggle } from './ConfigStepperToggle'
 import { KaleidoscopeDial } from './KaleidoscopeDial'
-import { EFFECT_KEYS } from './useGalaxyMotion'
+import { EFFECT_KEYS, EffectKey, MotionEffects } from './useGalaxyMotion'
 import { connectConfig, ConfigContextValue, ConfigSectionKey } from './context/ConfigProvider'
 import { resolveColorState } from '../../config/colorState'
 import { AppConfig, ConfigItem, SliderItem } from '../../config/configDefaults'
@@ -128,6 +128,20 @@ const ConfigSectionItemsInner = ({ name, only, config, onChange, resetConfigItem
 
   const categoryConfig = (config as unknown as Record<string, Record<string, ConfigItem>>)[name] ?? {}
 
+  // The dial is expensive to redraw, and this re-renders on every config change, so what it is given is kept stable:
+  // it only re-renders when something it shows has actually changed.
+  const { cyclone, wobWob, switcheroo, colorShift, shockwave, glow } = config.effects
+  const dialEffects = useMemo<MotionEffects>(
+    () => ({ cyclone: cyclone.value, wobWob: wobWob.value, switcheroo: switcheroo.value, colorShift: colorShift.value, shockwave: shockwave.value, glow: glow.value }),
+    [cyclone.value, wobWob.value, switcheroo.value, colorShift.value, shockwave.value, glow.value],
+  )
+  const dialEffectLabels = useMemo<Readonly<Record<EffectKey, string>>>(
+    () => ({ cyclone: cyclone.name, wobWob: wobWob.name, switcheroo: switcheroo.name, colorShift: colorShift.name, shockwave: shockwave.name, glow: glow.name }),
+    [cyclone.name, wobWob.name, switcheroo.name, colorShift.name, shockwave.name, glow.name],
+  )
+  const handleToggleEffect = useCallback((key: EffectKey, enabled: boolean) => onChange('effects', key, enabled), [onChange])
+  const handleKaleidoscopeCount = useCallback((count: number) => onChange('effects', 'kaleidoscopeCount', String(count)), [onChange])
+
   return (
     <>
       {pendingRed && (
@@ -154,24 +168,10 @@ const ConfigSectionItemsInner = ({ name, only, config, onChange, resetConfigItem
           scale={config.user.scaleFactor.value}
           particleSize={config.particle.particleSize.value}
           rotationSpeed={config.user.rotationSpeed.value}
-          effects={{
-            cyclone: config.effects.cyclone.value,
-            wobWob: config.effects.wobWob.value,
-            switcheroo: config.effects.switcheroo.value,
-            colorShift: config.effects.colorShift.value,
-            shockwave: config.effects.shockwave.value,
-            glow: config.effects.glow.value,
-          }}
-          effectLabels={{
-            cyclone: config.effects.cyclone.name,
-            wobWob: config.effects.wobWob.name,
-            switcheroo: config.effects.switcheroo.name,
-            colorShift: config.effects.colorShift.name,
-            glow: config.effects.glow.name,
-            shockwave: config.effects.shockwave.name,
-          }}
-          onToggleEffect={(key, enabled) => onChange(name, key, enabled)}
-          onChange={(count) => onChange(name, 'kaleidoscopeCount', String(count))}
+          effects={dialEffects}
+          effectLabels={dialEffectLabels}
+          onToggleEffect={handleToggleEffect}
+          onChange={handleKaleidoscopeCount}
         />
       )}
       {Object.keys(categoryConfig).filter((configItem) => !only || only.includes(configItem)).map((configItem) => {

@@ -40,13 +40,18 @@ const HISTORY_MS = 5000
 /** Rolling record of what the detector saw and when it fired, for the audio HUDs. */
 export class BeatMonitor {
   private samples: BeatSample[] = []
+  private lastBeatTime: number | null = null
 
   record = (sample: BeatSample): void => {
+    if (sample.beatBand !== null) this.lastBeatTime = sample.t
     this.samples.push(sample)
     this.trim(this.samples, sample.t)
   }
 
   getTimeline = (): BeatTimeline => ({ samples: this.samples.slice() })
+
+  /** When the detector last fired, or null if it has not. A cheap read for anything that only needs to know a beat just landed; the timeline copies every sample. */
+  getLastBeatTime = (): number | null => this.lastBeatTime
 
   // Trim in batches so a per-frame push is not a per-frame array shift.
   private trim = (items: Array<{ t: number }>, now: number): void => {

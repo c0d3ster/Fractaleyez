@@ -8,6 +8,7 @@ import './KaleidoscopeDial.css'
 const HANDLE_RADIUS = 7
 // Room around the rim so the handle and its halo are not clipped.
 const VIEW_HALF = RADIUS + HANDLE_RADIUS + 2
+const VIEW_BOX = `${-VIEW_HALF} ${-VIEW_HALF} ${VIEW_HALF * 2} ${VIEW_HALF * 2}`
 // Pointer closer to the center than this has no meaningful angle.
 const DEAD_ZONE = 6
 
@@ -48,7 +49,7 @@ type KaleidoscopeDialProps = {
 }
 
 /** Drag position to a count: a knob, so the pointer's angle maps evenly across the range and the handle stays under it. */
-const countAtPointer = (event: React.PointerEvent<SVGSVGElement>, { min, max, step }: Pick<KaleidoscopeDialProps, 'min' | 'max' | 'step'>): number | null => {
+const countAtPointer = (event: React.PointerEvent<HTMLDivElement>, { min, max, step }: Pick<KaleidoscopeDialProps, 'min' | 'max' | 'step'>): number | null => {
   const rect = event.currentTarget.getBoundingClientRect()
   const scale = rect.width / (VIEW_HALF * 2)
   const dx = event.clientX - (rect.left + rect.width / 2)
@@ -87,11 +88,14 @@ const ZONES: readonly Zone[] = [
 
 /**
  * The Effects at a glance, drawn as a small galaxy with a switch for each effect under it, and a knob that sets the
- * kaleidoscope's mirror count. With the
- * kaleidoscope on it is one spiral arm per wedge, curling opposite ways on alternate wedges; off, it is a plain galaxy
- * with the mirrored one faintly over it. Whatever the kaleidoscope is doing, Cyclone turns the inside and outside opposite ways, Wob Wob pulls it back on a
- * beat, Glow swells the core, Shockwave sends a ring out, Color Shift moves the colors around and
- * Switcheroo swaps the whole galaxy between two shapes, all on real beats.
+ * kaleidoscope's mirror count. With the kaleidoscope on it is one spiral arm per wedge, curling opposite ways on
+ * alternate wedges; off, it is a plain galaxy with the mirrored one faintly over it. Whatever the kaleidoscope is
+ * doing, Cyclone turns the inside and outside opposite ways, Wob Wob pulls it back on a beat, Glow swells the core,
+ * Shockwave sends a ring out, Color Shift moves the colors around and Switcheroo swaps the whole galaxy between two
+ * shapes, all on real beats.
+ *
+ * It is built as a stack of separate layers (the sky, the inside of the galaxy, the outside, and the ring, core and
+ * handle) so that turning and pulling back are transforms the browser can do without repainting the blurred galaxy.
  */
 export const KaleidoscopeDial = React.memo(({ count, min, max, step, kaleidoscope, palette, scale, particleSize, rotationSpeed, effects, effectLabels, onToggleEffect, onChange }: KaleidoscopeDialProps): React.ReactElement => {
   // Unique per dial, since the filter, clip and gradient are referenced by id.
@@ -130,21 +134,21 @@ export const KaleidoscopeDial = React.memo(({ count, min, max, step, kaleidoscop
   const core = paletteRgb(palette, 0)
   const handle = coords(-SWEEP * (count - min) / (max - min), RADIUS)
 
-  const apply = useCallback((event: React.PointerEvent<SVGSVGElement>): void => {
+  const apply = useCallback((event: React.PointerEvent<HTMLDivElement>): void => {
     const next = countAtPointer(event, { min, max, step })
     if (next !== null && next !== count) onChange(next)
   }, [min, max, step, count, onChange])
 
-  const handlePointerDown = useCallback((event: React.PointerEvent<SVGSVGElement>): void => {
+  const handlePointerDown = useCallback((event: React.PointerEvent<HTMLDivElement>): void => {
     event.currentTarget.setPointerCapture(event.pointerId)
     apply(event)
   }, [apply])
 
-  const handlePointerMove = useCallback((event: React.PointerEvent<SVGSVGElement>): void => {
+  const handlePointerMove = useCallback((event: React.PointerEvent<HTMLDivElement>): void => {
     if (event.currentTarget.hasPointerCapture(event.pointerId)) apply(event)
   }, [apply])
 
-  const handleKeyDown = useCallback((event: React.KeyboardEvent<SVGSVGElement>): void => {
+  const handleKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>): void => {
     if (event.key === 'ArrowRight' || event.key === 'ArrowUp') onChange(Math.min(max, count + step))
     else if (event.key === 'ArrowLeft' || event.key === 'ArrowDown') onChange(Math.max(min, count - step))
     else return
@@ -153,9 +157,9 @@ export const KaleidoscopeDial = React.memo(({ count, min, max, step, kaleidoscop
 
   return (
     <div className='effects-hub'>
-      <svg
+      <div
+        ref={motion.root}
         className={`kaleidoscope-dial${kaleidoscope ? ' kaleidoscope-dial--on' : ''}`}
-        viewBox={`${-VIEW_HALF} ${-VIEW_HALF} ${VIEW_HALF * 2} ${VIEW_HALF * 2}`}
         role='slider'
         aria-label='Kaleidoscope mirrors'
         aria-valuemin={min}
@@ -166,52 +170,58 @@ export const KaleidoscopeDial = React.memo(({ count, min, max, step, kaleidoscop
         onPointerMove={handlePointerMove}
         onKeyDown={handleKeyDown}
       >
-        <defs>
-          <filter id={`${uid}-haze`} x='-20%' y='-20%' width='140%' height='140%'>
-            <feGaussianBlur stdDeviation='2.4' />
-          </filter>
-          <clipPath id={`${uid}-disc`}>
-            <circle r={RADIUS} />
-          </clipPath>
-          <radialGradient id={`${uid}-core`}>
-            <stop offset='0' stopColor={toCss(lighten(core, 0.7))} stopOpacity='1' />
-            <stop offset='0.35' stopColor={toCss(lighten(core, 0.25))} stopOpacity='0.75' />
-            <stop offset='1' stopColor={toCss(core)} stopOpacity='0' />
-          </radialGradient>
-        </defs>
-        <circle className='kaleidoscope-dial-sky' r={RADIUS} />
-        {FIELD_STARS.map(({ angle, radius }) => {
-          const { x, y } = coords(angle, radius)
-          return <circle key={angle} className='kaleidoscope-dial-field-star' cx={x} cy={y} r={0.7} />
-        })}
-        <g ref={motion.wob}>
+        <svg className='kaleidoscope-dial-pane' viewBox={VIEW_BOX}>
+          <circle className='kaleidoscope-dial-sky' r={RADIUS} />
+          {FIELD_STARS.map(({ angle, radius }) => {
+            const { x, y } = coords(angle, radius)
+            return <circle key={angle} className='kaleidoscope-dial-field-star' cx={x} cy={y} r={0.7} />
+          })}
+        </svg>
+        <div ref={motion.wob} className='kaleidoscope-dial-pane kaleidoscope-dial-moving'>
           {ZONES.map(({ key, glowAlong, includes }) => (
-            <g key={key} ref={motion[key]}>
+            <svg key={key} ref={motion[key]} className='kaleidoscope-dial-pane kaleidoscope-dial-moving' viewBox={VIEW_BOX}>
+              <defs>
+                <filter id={`${uid}-${key}-haze`} x='-20%' y='-20%' width='140%' height='140%'>
+                  <feGaussianBlur stdDeviation='2.4' />
+                </filter>
+                <clipPath id={`${uid}-${key}-disc`}>
+                  <circle r={RADIUS} />
+                </clipPath>
+              </defs>
               {layers.map(({ key: layerKey, arms, opacity: layerOpacity, glowWidth }) => (
                 <g key={layerKey} className='kaleidoscope-dial-layer' style={{ opacity: layerOpacity }}>
-                  <g clipPath={`url(#${uid}-disc)`} opacity={effects.glow ? 1 : HAZE_OPACITY_WITHOUT_GLOW}>
-                    <g filter={`url(#${uid}-haze)`}>
+                  <g clipPath={`url(#${uid}-${key}-disc)`} opacity={effects.glow ? 1 : HAZE_OPACITY_WITHOUT_GLOW}>
+                    <g filter={`url(#${uid}-${key}-haze)`}>
                       {arms.map((arm, i) => (
-                        <path key={i} className='kaleidoscope-dial-arm' d={key === 'inner' ? arm.glowInner : arm.glowOuter} style={{ stroke: colorOf(glowAlong, i) }} strokeWidth={glowWidth} />
+                        <path key={i} className='kaleidoscope-dial-arm' d={key === 'inner' ? arm.glowInner : arm.glowOuter} stroke={colorOf(glowAlong, i)} strokeWidth={glowWidth} />
                       ))}
                       {arms.map((arm, i) => arm.clouds.map(({ x, y, radius, opacity, along }, s) => (
-                        includes(along) ? <circle key={`${i}-${s}`} className='kaleidoscope-dial-dot' cx={x} cy={y} r={radius} fillOpacity={opacity} style={{ fill: colorOf(along, i) }} /> : null
+                        includes(along) ? <circle key={`${i}-${s}`} cx={x} cy={y} r={radius} fill={colorOf(along, i)} fillOpacity={opacity} /> : null
                       )))}
                     </g>
                   </g>
                   {arms.map((arm, i) => arm.stars.map(({ x, y, radius, opacity, along }, s) => (
-                    includes(along) ? <circle key={`${i}-${s}`} className='kaleidoscope-dial-dot' cx={x} cy={y} r={radius} fillOpacity={opacity} style={{ fill: colorOf(along, i) }} /> : null
+                    includes(along) ? <circle key={`${i}-${s}`} cx={x} cy={y} r={radius} fill={colorOf(along, i)} fillOpacity={opacity} /> : null
                   )))}
                 </g>
               ))}
-            </g>
+            </svg>
           ))}
-        </g>
-        <circle ref={motion.ring} className='kaleidoscope-dial-ring' r={RADIUS} strokeOpacity={0} />
-        <circle ref={motion.core} className='kaleidoscope-dial-core-glow' fill={`url(#${uid}-core)`} r={(effects.glow ? 10 : 6) + (effects.glow ? 4 : 2) * dotScale} />
-        <circle className='kaleidoscope-dial-handle-halo' cx={handle.x} cy={handle.y} r={HANDLE_RADIUS + 2} />
-        <circle className='kaleidoscope-dial-handle' cx={handle.x} cy={handle.y} r={HANDLE_RADIUS} />
-      </svg>
+        </div>
+        <svg className='kaleidoscope-dial-pane' viewBox={VIEW_BOX}>
+          <defs>
+            <radialGradient id={`${uid}-core`}>
+              <stop offset='0' stopColor={toCss(lighten(core, 0.7))} stopOpacity='1' />
+              <stop offset='0.35' stopColor={toCss(lighten(core, 0.25))} stopOpacity='0.75' />
+              <stop offset='1' stopColor={toCss(core)} stopOpacity='0' />
+            </radialGradient>
+          </defs>
+          <circle ref={motion.ring} className='kaleidoscope-dial-ring' r={RADIUS} strokeOpacity={0} />
+          <circle ref={motion.core} className='kaleidoscope-dial-core-glow' fill={`url(#${uid}-core)`} r={(effects.glow ? 10 : 6) + (effects.glow ? 4 : 2) * dotScale} />
+          <circle className='kaleidoscope-dial-handle-halo' cx={handle.x} cy={handle.y} r={HANDLE_RADIUS + 2} />
+          <circle className='kaleidoscope-dial-handle' cx={handle.x} cy={handle.y} r={HANDLE_RADIUS} />
+        </svg>
+      </div>
       <EffectChips ref={chips} effects={effects} labels={effectLabels} onToggle={onToggleEffect} />
     </div>
   )
