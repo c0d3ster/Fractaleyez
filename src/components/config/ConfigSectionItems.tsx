@@ -6,6 +6,7 @@ import { ConfigSlider } from './ConfigSlider'
 import { ConfigCheckbox } from './ConfigCheckbox'
 import { ConfigStepperToggle } from './ConfigStepperToggle'
 import { KaleidoscopeDial } from './KaleidoscopeDial'
+import { EFFECT_KEYS } from './useGalaxyMotion'
 import { connectConfig, ConfigContextValue, ConfigSectionKey } from './context/ConfigProvider'
 import { resolveColorState } from '../../config/colorState'
 import { AppConfig, ConfigItem, SliderItem } from '../../config/configDefaults'
@@ -161,11 +162,22 @@ const ConfigSectionItemsInner = ({ name, only, config, onChange, resetConfigItem
             shockwave: config.effects.shockwave.value,
             glow: config.effects.glow.value,
           }}
+          effectLabels={{
+            cyclone: config.effects.cyclone.name,
+            wobWob: config.effects.wobWob.name,
+            switcheroo: config.effects.switcheroo.name,
+            colorShift: config.effects.colorShift.name,
+            glow: config.effects.glow.name,
+            shockwave: config.effects.shockwave.name,
+          }}
+          onToggleEffect={(key, enabled) => onChange(name, key, enabled)}
           onChange={(count) => onChange(name, 'kaleidoscopeCount', String(count))}
         />
       )}
       {Object.keys(categoryConfig).filter((configItem) => !only || only.includes(configItem)).map((configItem) => {
         if (STEPPER_AMOUNT_ITEMS.includes(configItem)) return null
+        // The effect switches live under the dial as chips, so they get no checkbox of their own.
+        if (name === 'effects' && !only && EFFECT_KEYS.some((key) => key === configItem)) return null
         const item = categoryConfig[configItem]!
         const { type, name: label, value } = item
 
