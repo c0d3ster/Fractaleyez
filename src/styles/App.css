@@ -162,8 +162,7 @@ button:focus {
   outline: none;
 }
 
-.selected,
-button:active {
+.selected {
   background: #004400;
   color: #ccc;
 }
