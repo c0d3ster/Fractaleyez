@@ -8,7 +8,9 @@
   margin: 0;
   width: 100%;
   padding: .5rem 1rem;
-  border-radius: .5rem;
+  /* Pills, like the effect chips and the slider tracks: on/off controls are pills, and the rounded boxes are left to
+     containers (the section cards, the HUDs). */
+  border-radius: 999px;
   background: #EEE;
   color: #555;
   cursor: pointer;
@@ -23,19 +25,17 @@
   color: white;
 }
 
-/* Save-button green hover only for effects + video clip toggles (see category-container--effects / --video) */
-.category-container--effects .config-checkbox-container label:hover,
-.category-container--video .config-checkbox-container label:hover {
-  background: #004400;
-  border-color: #004400;
-  color: #ccc;
-}
-
-.category-container--effects .config-checkbox-container input:checked + label:hover,
-.category-container--video .config-checkbox-container input:checked + label:hover {
-  background: #004400;
-  border-color: #004400;
-  color: #ccc;
+/* Save-button green hover only for effects + video clip toggles (see category-container--effects / --video), and only
+   where hovering is real: a touch leaves a label stuck in :hover (see inputType.ts and EffectChips.css). */
+@media (hover: hover) {
+  .category-container--effects:not([data-input='touch']) .config-checkbox-container label:hover,
+  .category-container--video:not([data-input='touch']) .config-checkbox-container label:hover,
+  .category-container--effects:not([data-input='touch']) .config-checkbox-container input:checked + label:hover,
+  .category-container--video:not([data-input='touch']) .config-checkbox-container input:checked + label:hover {
+    background: #004400;
+    border-color: #004400;
+    color: #ccc;
+  }
 }
 
 .config-checkbox-container input {

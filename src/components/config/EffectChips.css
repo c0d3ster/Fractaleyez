@@ -18,16 +18,16 @@
   gap: 1rem;
 }
 
-/* Two columns need about 138px for the longest names (64px each in the app's font at 13px, plus the gap, and 2px to
+/* Two columns need about 140px for the longest names (65px each in the app's font at 13px, plus the gap, and 2px to
    spare); below that they would be cut short, so each gets a row. */
-@container (max-width: 14rem) {
+@container (max-width: 14.2rem) {
   .effect-chips {
     grid-template-columns: minmax(0, 1fr);
   }
 }
 
-/* Three columns need about 207px (the same 64px each, two gaps, and 3px to spare). */
-@container (min-width: 21rem) {
+/* Three columns need about 210px (the same 65px each, two gaps, and 2px to spare). */
+@container (min-width: 21.2rem) {
   .effect-chips {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: .75rem;
@@ -44,7 +44,7 @@
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  padding: .3em .15em;
+  padding: .4em .2em;
   border: 1px solid transparent;
   border-radius: 999px;
   background: #EEE;
@@ -65,12 +65,15 @@
   color: white;
 }
 
-/* Same hover as the other toggles in this section. */
-.effect-chip:hover,
-.effect-chip--on:hover {
-  background: #004400;
-  border-color: #004400;
-  color: #ccc;
+/* Hover looks only where hovering is real. A touch leaves what was tapped stuck in :hover, so a chip would stay lit
+   after you let go; `hover: hover` keeps the look off phones and tablets, and [data-input='touch'] (see inputType.ts)
+   keeps it off a touch screen on a desktop, where the mouse still says it can hover. */
+@media (hover: hover) {
+  .category-container:not([data-input='touch']) .effect-chip:hover {
+    background: #004400;
+    border-color: #004400;
+    color: #ccc;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
