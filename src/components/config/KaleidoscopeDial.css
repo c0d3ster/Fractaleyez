@@ -1,0 +1,82 @@
+.kaleidoscope-dial {
+  display: block;
+  width: 7.5rem;
+  height: 7.5rem;
+  margin: .5rem auto;
+  cursor: pointer;
+  touch-action: none;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  opacity: .55;
+  transition: opacity 0.15s ease;
+}
+
+.kaleidoscope-dial--on {
+  opacity: 1;
+}
+
+.kaleidoscope-dial:focus-visible .kaleidoscope-dial-handle {
+  stroke-width: 2.5;
+}
+
+.kaleidoscope-dial-sky {
+  fill: #080a22;
+  stroke: currentColor;
+  stroke-opacity: .3;
+  stroke-width: .6;
+}
+
+.kaleidoscope-dial-field-star {
+  fill: #fff;
+  fill-opacity: .5;
+}
+
+.kaleidoscope-dial-arm {
+  fill: none;
+  stroke-opacity: .3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.kaleidoscope-dial-handle-halo {
+  fill: currentColor;
+  fill-opacity: .25;
+}
+
+.kaleidoscope-dial-handle {
+  stroke-width: 2.5;
+}
+
+.kaleidoscope-dial-wedge {
+  fill: currentColor;
+  stroke: currentColor;
+  stroke-opacity: .35;
+  stroke-width: .6;
+}
+
+.kaleidoscope-dial-wedge--even {
+  fill-opacity: .22;
+}
+
+.kaleidoscope-dial-wedge--odd {
+  fill-opacity: .08;
+}
+
+.kaleidoscope-dial-glyph {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: .2;
+  stroke-linejoin: round;
+}
+
+.kaleidoscope-dial-handle {
+  fill: currentColor;
+  stroke: #EEE;
+  stroke-width: 1.5;
+  cursor: grab;
+}
+
+.stepper-toggle--on .kaleidoscope-dial-handle {
+  stroke: #005500;
+}
