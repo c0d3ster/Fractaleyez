@@ -39,11 +39,9 @@
   cursor: pointer;
 }
 
-@media (hover: hover) {
-  :where(html:not([data-input='touch'])) .pack-tab:hover {
-    border-color: #777;
-    color: #999;
-  }
+:where(html:not([data-input='touch'])) .pack-tab:hover {
+  border-color: #777;
+  color: #999;
 }
 
 .pack-tab.active {
@@ -103,11 +101,9 @@
   animation-play-state: paused;
 }
 
-@media (hover: hover) {
-  :where(html:not([data-input='touch'])) .pack-tab--premium:hover .premium-ring::before,
-  :where(html:not([data-input='touch'])) .preset-item--premium:hover .premium-ring::before {
-    animation-play-state: running;
-  }
+:where(html:not([data-input='touch'])) .pack-tab--premium:hover .premium-ring::before,
+:where(html:not([data-input='touch'])) .preset-item--premium:hover .premium-ring::before {
+  animation-play-state: running;
 }
 
 .premium-ring::after {
@@ -122,10 +118,8 @@
   color: #eee;
 }
 
-@media (hover: hover) {
-  :where(html:not([data-input='touch'])) .pack-tab--premium:hover {
-    color: #eee;
-  }
+:where(html:not([data-input='touch'])) .pack-tab--premium:hover {
+  color: #eee;
 }
 
 /* Premium pack overlay */
@@ -173,10 +167,8 @@
   transition: color 0.2s;
 }
 
-@media (hover: hover) {
-  :where(html:not([data-input='touch'])) .pack-premium-overlay-btn:hover {
-    color: #fff;
-  }
+:where(html:not([data-input='touch'])) .pack-premium-overlay-btn:hover {
+  color: #fff;
 }
 
 /* Preset grid */
@@ -212,16 +204,12 @@
   font-size: 1.1rem;
 }
 
-@media (hover: hover) {
-  :where(html:not([data-input='touch'])) .preset-item:hover {
-    border-color: #999;
-  }
+:where(html:not([data-input='touch'])) .preset-item:hover {
+  border-color: #999;
 }
 
-@media (hover: hover) {
-  :where(html:not([data-input='touch'])) .preset-item--premium:hover {
-    color: #eee;
-  }
+:where(html:not([data-input='touch'])) .preset-item--premium:hover {
+  color: #eee;
 }
 
 .preset-trial-countdown {
@@ -294,11 +282,9 @@
   font-size: 1.2rem;
 }
 
-@media (hover: hover) {
-  :where(html:not([data-input='touch'])) .pagination-arrow:hover:not(:disabled) {
-    border-color: #999;
-    color: #ccc;
-  }
+:where(html:not([data-input='touch'])) .pagination-arrow:hover:not(:disabled) {
+  border-color: #999;
+  color: #ccc;
 }
 
 .pagination-arrow:disabled {

@@ -105,11 +105,9 @@
 
 /* Match App.css button:hover (Save) */
 
-@media (hover: hover) {
-  :where(html:not([data-input='touch'])) .particle-sprite-hud__lib-btn:hover {
-    opacity: 0.85;
-    border-color: #004400;
-  }
+:where(html:not([data-input='touch'])) .particle-sprite-hud__lib-btn:hover {
+  opacity: 0.85;
+  border-color: #004400;
 }
 
 .particle-sprite-hud__lib-btn--selected {
@@ -142,11 +140,9 @@
   transition: border-color 0.15s ease, color 0.15s ease;
 }
 
-@media (hover: hover) {
-  :where(html:not([data-input='touch'])) .particle-sprite-hud__upload-label:hover:not(.particle-sprite-hud__upload-label--disabled) {
-    border-color: #004400;
-    color: #ccc;
-  }
+:where(html:not([data-input='touch'])) .particle-sprite-hud__upload-label:hover:not(.particle-sprite-hud__upload-label--disabled) {
+  border-color: #004400;
+  color: #ccc;
 }
 
 .particle-sprite-hud__upload-label--disabled {

@@ -50,10 +50,8 @@
   transition: opacity 0.2s;
 }
 
-@media (hover: hover) {
-  :where(html:not([data-input='touch'])) .confirm-modal-cancel:hover {
-    opacity: 0.85;
-  }
+:where(html:not([data-input='touch'])) .confirm-modal-cancel:hover {
+  opacity: 0.85;
 }
 
 .confirm-modal-confirm {
@@ -66,10 +64,8 @@
   transition: color 0.2s;
 }
 
-@media (hover: hover) {
-  :where(html:not([data-input='touch'])) .confirm-modal-confirm:hover {
-    color: #d66;
-  }
+:where(html:not([data-input='touch'])) .confirm-modal-confirm:hover {
+  color: #d66;
 }
 
 .confirm-modal-option {
