@@ -212,6 +212,12 @@
   font-size: 1.1rem;
 }
 
+/* Press feedback for a touch, where hover is switched off. A mouse already shows this green on hover, so it looks the same. */
+.preset-item:active {
+  background: #004400;
+  color: #ccc;
+}
+
 @media (hover: hover) {
   :where(html:not([data-input='touch'])) .preset-item:hover {
     border-color: #999;
