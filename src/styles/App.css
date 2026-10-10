@@ -65,21 +65,18 @@ html {
 }
 
 body {
-  background-color: rgba(14, 21, 31, 1) !important;
-  font-family: 'Acme', sans-serif !important;
+  background-color: rgba(14, 21, 31, 1);
+  font-family: 'Acme', sans-serif;
 }
 
 /* The pop-out is the only scroll container (body is overflow hidden): it scrolls both ways when the window is
-   narrower or shorter than the columns need. */
+   narrower or shorter than the columns need. The content has a fixed width (columns plus the grid's side
+   padding) and centers itself in wider windows; the presets row inherits it, so presets and columns line up.
+   Narrower windows scroll instead. */
 .config-window-root {
   font-size: 1.2rem;
   height: 100vh;
   overflow: auto;
-}
-
-/* The content has a fixed width (columns plus the grid's side padding) and centers itself in wider windows;
-   the presets row inherits it, so presets and columns line up. Narrower windows scroll instead. */
-.config-window-root {
   --config-column-width: 205px;
   --config-column-count: 8;
 }
@@ -152,10 +149,6 @@ canvas {
   background-color: #000;
   user-select: none;
   cursor: none;
-}
-
-.hidden {
-  opacity: 0;
 }
 
 button {

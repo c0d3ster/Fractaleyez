@@ -377,11 +377,6 @@
   color: white;
 }
 
-.tab-new:hover {
-  border-color: rgba(60, 60, 60, .9);
-  color: white;
-}
-
 .tab-fade-in {
   animation: tab-fade-in .3s;
 }
