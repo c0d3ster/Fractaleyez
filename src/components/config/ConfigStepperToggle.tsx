@@ -12,10 +12,12 @@ type ConfigStepperToggleProps = {
   onToggle: (checked: boolean) => void
   onAmountChange: (amount: number) => void
   onAmountReset: () => void
+  /** Drawn between the name and the stepper, e.g. a dial that shows the amount. */
+  visual?: React.ReactNode
 }
 
 /** An effect switch with an amount: the name on top toggles it, a - / + stepper below sets how much. */
-export const ConfigStepperToggle = React.memo(({ name, label, checked, amount, min, max, step, onToggle, onAmountChange, onAmountReset }: ConfigStepperToggleProps): React.ReactElement => {
+export const ConfigStepperToggle = React.memo(({ name, label, checked, amount, min, max, step, onToggle, onAmountChange, onAmountReset, visual }: ConfigStepperToggleProps): React.ReactElement => {
   const handleToggle = useCallback((): void => onToggle(!checked), [onToggle, checked])
   const handleDecrease = useCallback((): void => onAmountChange(Math.max(min, amount - step)), [onAmountChange, min, step, amount])
   const handleIncrease = useCallback((): void => onAmountChange(Math.min(max, amount + step)), [onAmountChange, max, step, amount])
@@ -25,6 +27,7 @@ export const ConfigStepperToggle = React.memo(({ name, label, checked, amount, m
       <button type='button' className='stepper-toggle-label' id={name} aria-pressed={checked} onClick={handleToggle}>
         {label}
       </button>
+      {visual}
       <div className='stepper-toggle-amount'>
         <button type='button' aria-label={`Decrease ${label}`} disabled={amount <= min} onClick={handleDecrease}>−</button>
         <span className='stepper-toggle-value' title='Double-click to reset' onDoubleClick={onAmountReset}>{amount}</span>

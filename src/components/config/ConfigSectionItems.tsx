@@ -5,7 +5,9 @@ import { ConfirmModal } from '../common/ConfirmModal'
 import { ConfigSlider } from './ConfigSlider'
 import { ConfigCheckbox } from './ConfigCheckbox'
 import { ConfigStepperToggle } from './ConfigStepperToggle'
+import { KaleidoscopeDial } from './KaleidoscopeDial'
 import { connectConfig, ConfigContextValue, ConfigSectionKey } from './context/ConfigProvider'
+import { resolveColorState } from '../../config/colorState'
 import { AppConfig, ConfigItem, SliderItem } from '../../config/configDefaults'
 import { SCALE_ZONES, SliderZone } from '../../config/juliaScale.config'
 import {
@@ -161,6 +163,21 @@ const ConfigSectionItemsInner = ({ name, only, config, onChange, resetConfigItem
               onToggle={(checked) => onChange(name, configItem, checked)}
               onAmountChange={(amount) => onChange(name, amountKey, String(amount))}
               onAmountReset={() => { if (isResettableSection(name)) resetConfigItem(name, amountKey) }}
+              visual={configItem === 'kaleidoscope' ? (
+                <KaleidoscopeDial
+                  count={amountItem.value}
+                  min={amountItem.min}
+                  max={amountItem.max}
+                  step={amountItem.step}
+                  on={value as boolean}
+                  palette={resolveColorState(config.color)}
+                  scale={config.user.scaleFactor.value}
+                  particleSize={config.particle.particleSize.value}
+                  glow={config.effects.glow.value}
+                  rotationSpeed={config.user.rotationSpeed.value}
+                  onChange={(count) => onChange(name, amountKey, String(count))}
+                />
+              ) : undefined}
             />
           )
         }
