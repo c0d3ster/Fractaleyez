@@ -74,8 +74,10 @@
   cursor: grab;
 }
 
-.stepper-toggle--on .kaleidoscope-dial-handle {
-  stroke: #005500;
+/* Green when the kaleidoscope is on, like the other switches in this section. */
+.kaleidoscope-dial--on .kaleidoscope-dial-handle,
+.kaleidoscope-dial--on .kaleidoscope-dial-handle-halo {
+  fill: #005500;
 }
 
 /* Keyboard focus shows on the handle, not as a box around the whole dial. */
