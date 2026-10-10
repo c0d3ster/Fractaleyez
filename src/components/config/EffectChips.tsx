@@ -11,6 +11,11 @@ type EffectChipsProps = {
   effects: MotionEffects
   labels: Readonly<Record<EffectKey, string>>
   onToggle: (key: EffectKey, enabled: boolean) => void
+  /** The kaleidoscope leads the row: it changes the whole picture and is the one effect with an amount (the dial's knob). */
+  kaleidoscope: boolean
+  kaleidoscopeLabel: string
+  kaleidoscopeCount: number
+  onToggleKaleidoscope: (enabled: boolean) => void
 }
 
 // Cyclone just turns, so it only lights up; the rest act on a beat, so they flash with it.
@@ -26,6 +31,8 @@ const DESCRIPTIONS: Readonly<Record<EffectKey, string>> = {
   shockwave: 'A ring bursts out from the center on a loud beat.',
 }
 
+const KALEIDOSCOPE_DESCRIPTION = 'Mirrors the picture around the center. Drag the dial to choose how many mirrors.'
+
 const PULSE_MS = 280
 const PULSE_KEYFRAMES: Keyframe[] = [
   { transform: 'scale(1)', filter: 'brightness(1)' },
@@ -34,10 +41,11 @@ const PULSE_KEYFRAMES: Keyframe[] = [
 ]
 
 /**
- * The Effects as a row of switches: each lights up when its effect is on, and flashes on a beat when it is acting.
+ * The Effects as a set of switches, the kaleidoscope first on a row of its own: each lights up when its effect is on,
+ * and flashes on a beat when it is acting.
  * Together with the galaxy above them they show what the effects are doing and let you turn them on and off.
  */
-export const EffectChips = React.memo(forwardRef<EffectChipsHandle, EffectChipsProps>(({ effects, labels, onToggle }, ref): React.ReactElement => {
+export const EffectChips = React.memo(forwardRef<EffectChipsHandle, EffectChipsProps>(({ effects, labels, onToggle, kaleidoscope, kaleidoscopeLabel, kaleidoscopeCount, onToggleKaleidoscope }, ref): React.ReactElement => {
   const chips = useRef<Partial<Record<EffectKey, HTMLButtonElement | null>>>({})
   // The flash reads the latest settings from here, so a beat never has to wait for a re-render.
   const latest = useRef(effects)
@@ -58,6 +66,16 @@ export const EffectChips = React.memo(forwardRef<EffectChipsHandle, EffectChipsP
   return (
     <div className='effect-chips-box'>
       <div className='effect-chips' role='group' aria-label='Effects'>
+        <button
+          type='button'
+          id='kaleidoscope'
+          className={`effect-chip effect-chip--lead${kaleidoscope ? ' effect-chip--on' : ''}`}
+          title={`${kaleidoscopeLabel}: ${KALEIDOSCOPE_DESCRIPTION}`}
+          aria-pressed={kaleidoscope}
+          onClick={() => onToggleKaleidoscope(!kaleidoscope)}
+        >
+          {kaleidoscopeLabel} · {kaleidoscopeCount}
+        </button>
         {EFFECT_KEYS.map((key) => (
           <button
             key={key}

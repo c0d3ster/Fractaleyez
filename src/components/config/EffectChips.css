@@ -1,68 +1,63 @@
-/* The box is what the layout measures, so it must keep its width whatever is inside it. Its own margin matches the
-   other rows in the column. */
+/* The box is what the layout measures, so it must keep its width whatever is inside it. The side margin is small: the
+   Effects section is only the dial and these chips, so there is nothing to line up with, and in the pop-out column every
+   pixel of width goes to the names. */
 .effect-chips-box {
   container-type: inline-size;
-  margin: 0 1rem;
+  margin: 0 .5rem;
 }
 
 /* How the six chips lay out, by the room they have:
    - narrow (the pop-out column): two equal columns, three rows;
    - too narrow even for that, in a sidebar on a small screen: one chip per row;
-   - some room: three equal columns, two even rows;
-   - plenty (the regular sidebar on a wide screen): a single row;
+   - room for it (anything wider): three equal columns, two even rows;
    - a phone: one chip per row (see the end of this file).
-   Equal columns keep the gaps lined up from row to row. The gap is a little tighter in the narrow case, where every
-   pixel goes to the names. */
+   Equal columns keep the gaps lined up from row to row. */
 .effect-chips {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: .5rem;
+  gap: 1rem;
 }
 
-/* Two columns need about 122px for the longest names (measured in the app's font, 12px, plus 4px to spare); below that
-   they would be cut short, so each gets a row. */
-@container (max-width: 12.6rem) {
+/* Two columns need about 138px for the longest names (64px each in the app's font at 13px, plus the gap, and 2px to
+   spare); below that they would be cut short, so each gets a row. */
+@container (max-width: 14rem) {
   .effect-chips {
     grid-template-columns: minmax(0, 1fr);
   }
 }
 
-/* Three columns need about 190px. */
-@container (min-width: 19.5rem) {
+/* Three columns need about 207px (the same 64px each, two gaps, and 3px to spare). */
+@container (min-width: 21rem) {
   .effect-chips {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: .75rem;
   }
 }
 
-/* Room for all six side by side: each chip is as wide as its name plus an equal share of what is left over. The six
-   names come to about 295px, and with five 4px gaps and a few pixels to spare that is 320px. */
-@container (min-width: 32rem) {
-  .effect-chips {
-    display: flex;
-    gap: .4rem;
-  }
-
-  .effect-chip {
-    flex: 1 1 auto;
-  }
-}
-
 .effect-chip {
   font: inherit;
-  font-size: 12px;
+  /* 13px where space is tight (the pop-out column), growing with the width of the chips' own box up to 17px, so the
+     chips fill out a wide sidebar instead of sitting small in it. */
+  font-size: clamp(13px, 5cqw, 17px);
   white-space: nowrap;
   /* A name that still does not fit is cut short; its tooltip has the full name. */
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  padding: .3rem .15rem;
+  padding: .3em .15em;
   border: 1px solid transparent;
   border-radius: 999px;
   background: #EEE;
   color: #555;
   cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+/* The kaleidoscope's chip takes a whole row above the rest, whichever layout they are in. */
+.effect-chip--lead {
+  grid-column: 1 / -1;
+  font-size: clamp(14px, 5.5cqw, 18px);
+  font-weight: bold;
 }
 
 .effect-chip--on {
@@ -95,6 +90,11 @@
   }
 
   .sidebar-content .effect-chip {
+    font-size: 15px;
     padding: .7rem .5rem;
+  }
+
+  .sidebar-content .effect-chip--lead {
+    font-size: 16px;
   }
 }

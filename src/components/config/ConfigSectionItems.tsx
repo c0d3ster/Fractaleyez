@@ -141,6 +141,8 @@ const ConfigSectionItemsInner = ({ name, only, config, onChange, resetConfigItem
   )
   const handleToggleEffect = useCallback((key: EffectKey, enabled: boolean) => onChange('effects', key, enabled), [onChange])
   const handleKaleidoscopeCount = useCallback((count: number) => onChange('effects', 'kaleidoscopeCount', String(count)), [onChange])
+  const handleToggleKaleidoscope = useCallback((enabled: boolean) => onChange('effects', 'kaleidoscope', enabled), [onChange])
+  const handleResetKaleidoscopeCount = useCallback(() => resetConfigItem('effects', 'kaleidoscopeCount'), [resetConfigItem])
 
   return (
     <>
@@ -171,13 +173,16 @@ const ConfigSectionItemsInner = ({ name, only, config, onChange, resetConfigItem
           effects={dialEffects}
           effectLabels={dialEffectLabels}
           onToggleEffect={handleToggleEffect}
+          kaleidoscopeLabel={config.effects.kaleidoscope.name}
+          onToggleKaleidoscope={handleToggleKaleidoscope}
           onChange={handleKaleidoscopeCount}
+          onReset={handleResetKaleidoscopeCount}
         />
       )}
       {Object.keys(categoryConfig).filter((configItem) => !only || only.includes(configItem)).map((configItem) => {
         if (STEPPER_AMOUNT_ITEMS.includes(configItem)) return null
-        // The effect switches live under the dial as chips, so they get no checkbox of their own.
-        if (name === 'effects' && !only && EFFECT_KEYS.some((key) => key === configItem)) return null
+        // The effect switches, the kaleidoscope's included, live under the dial as chips, so they get no row of their own.
+        if (name === 'effects' && !only && (configItem === 'kaleidoscope' || EFFECT_KEYS.some((key) => key === configItem))) return null
         const item = categoryConfig[configItem]!
         const { type, name: label, value } = item
 
