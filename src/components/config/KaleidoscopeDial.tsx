@@ -1,6 +1,6 @@
 import React, { useCallback, useId, useMemo, useRef } from 'react'
 import { ColorState } from '../../config/colorState'
-import { armOf, colorShiftOffset, coords, CYCLONE_SPLIT, dotScaleOf, lighten, paletteRgb, RADIUS, ShapeVariant, starScaleOf, starsPerArm, TAU, toCss } from './kaleidoscopeGalaxy'
+import { Arm, armOf, colorShiftOffset, coords, CYCLONE_SPLIT, dotScaleOf, lighten, paletteRgb, RADIUS, ShapeVariant, starScaleOf, starsPerArm, TAU, toCss } from './kaleidoscopeGalaxy'
 import { MotionEffects, useGalaxyMotion } from './useGalaxyMotion'
 import './KaleidoscopeDial.css'
 
@@ -15,6 +15,10 @@ const DEAD_ZONE = 6
 const SWEEP = TAU * (330 / 360)
 
 const HAZE_OPACITY_WITHOUT_GLOW = 0.45
+// With the kaleidoscope off, the mirrored galaxy it would make is drawn over the plain one this faintly.
+const GHOST_OPACITY = 0.2
+// The plain galaxy is what the app shows with no mirroring, so it does not depend on the mirror count: a classic two-armed spiral.
+const PLAIN_ARM_COUNT = 2
 
 // A fixed scatter of background stars, so the disc reads as a patch of sky.
 const FIELD_STARS = Array.from({ length: 18 }, (_, i) => ({ angle: i * 2.39996, radius: 8 + ((i * 29) % 34) }))
@@ -24,7 +28,8 @@ type KaleidoscopeDialProps = {
   min: number
   max: number
   step: number
-  on: boolean
+  /** Whether the kaleidoscope effect is on. Off, the dial shows the plain galaxy with the mirrored one faded over it. */
+  kaleidoscope: boolean
   /** The live Color config: the galaxy is painted with the palette, so changing it changes the dial. */
   palette: ColorState
   /** The Scale setting: bigger scale, bigger stars and clouds. */
@@ -53,6 +58,16 @@ const countAtPointer = (event: React.PointerEvent<SVGSVGElement>, { min, max, st
   return Math.max(min, Math.min(max, snapped))
 }
 
+type Layer = {
+  key: 'plain' | 'mirrored'
+  arms: Arm[]
+  opacity: number
+  glowWidth: number
+}
+
+/** The faint glow under each arm is wider when there are fewer arms to share the space. */
+const glowWidthFor = (armCount: number, dotScale: number): number => Math.max(1.5, Math.min(6, (TAU / armCount) * 14)) * dotScale
+
 type Zone = {
   key: 'inner' | 'outer'
   /** Where along an arm the zone's glow is colored from, and whether a star at `along` belongs to it. */
@@ -67,24 +82,37 @@ const ZONES: readonly Zone[] = [
 ]
 
 /**
- * The kaleidoscope's mirrors as a small galaxy: one spiral arm per wedge, curling opposite ways on alternate wedges.
- * It stands in for the Effects too. Cyclone turns the inside and outside opposite ways, Wob Wob pulls it back on a
+ * The Effects at a glance, drawn as a small galaxy, with a knob that sets the kaleidoscope's mirror count. With the
+ * kaleidoscope on it is one spiral arm per wedge, curling opposite ways on alternate wedges; off, it is a plain galaxy
+ * with the mirrored one faintly over it. Whatever the kaleidoscope is doing, Cyclone turns the inside and outside opposite ways, Wob Wob pulls it back on a
  * beat, Glow swells the core, Shockwave sends a ring out, Color Shift moves the colors around and
  * Switcheroo swaps the whole galaxy between two shapes, all on real beats.
  */
-export const KaleidoscopeDial = React.memo(({ count, min, max, step, on, palette, scale, particleSize, rotationSpeed, effects, onChange }: KaleidoscopeDialProps): React.ReactElement => {
+export const KaleidoscopeDial = React.memo(({ count, min, max, step, kaleidoscope, palette, scale, particleSize, rotationSpeed, effects, onChange }: KaleidoscopeDialProps): React.ReactElement => {
   // Unique per dial, since the filter, clip and gradient are referenced by id.
   const uid = useId().replace(/:/g, '')
   const wedge = TAU / count
   const dotScale = dotScaleOf(scale)
   const starScale = starScaleOf(particleSize)
-  const motion = useGalaxyMotion({ on, rotationSpeed, effects })
+  const motion = useGalaxyMotion({ rotationSpeed, effects })
   const swapped = motion.beats % 2 === 1
   const variant: ShapeVariant = effects.switcheroo && swapped ? 1 : 0
-  const arms = useMemo(() => {
+  const mirroredArms = useMemo(() => {
     const starCount = starsPerArm(count)
-    return Array.from({ length: count }, (_, i) => armOf(i, wedge, starCount, { dotScale, starScale }, variant))
+    return Array.from({ length: count }, (_, i) => armOf(i, wedge, starCount, { dotScale, starScale }, variant, true))
   }, [count, wedge, dotScale, starScale, variant])
+  // Only built while the kaleidoscope is off, when it is the picture and the mirrored galaxy is the ghost.
+  const plainArms = useMemo(() => {
+    if (kaleidoscope) return []
+    const plainWedge = TAU / PLAIN_ARM_COUNT
+    return Array.from({ length: PLAIN_ARM_COUNT }, (_, i) => armOf(i, plainWedge, starsPerArm(PLAIN_ARM_COUNT), { dotScale, starScale }, variant, false))
+  }, [kaleidoscope, dotScale, starScale, variant])
+  const layers: readonly Layer[] = kaleidoscope
+    ? [{ key: 'mirrored', arms: mirroredArms, opacity: 1, glowWidth: glowWidthFor(count, dotScale) }]
+    : [
+      { key: 'plain', arms: plainArms, opacity: 1, glowWidth: glowWidthFor(PLAIN_ARM_COUNT, dotScale) },
+      { key: 'mirrored', arms: mirroredArms, opacity: GHOST_OPACITY, glowWidth: glowWidthFor(count, dotScale) },
+    ]
 
   // Color Shift only counts beats from the moment it was switched on, so turning it on does not change the look by itself.
   const shiftStart = useRef<number | null>(null)
@@ -94,7 +122,6 @@ export const KaleidoscopeDial = React.memo(({ count, min, max, step, on, palette
   const colorOf = (along: number, armIndex: number): string => toCss(paletteRgb(palette, along + colorShiftOffset(armIndex, shiftBeats)))
 
   const core = paletteRgb(palette, 0)
-  const glowWidth = Math.max(1.5, Math.min(6, wedge * 14)) * dotScale
   const handle = coords(-SWEEP * (count - min) / (max - min), RADIUS)
 
   const apply = useCallback((event: React.PointerEvent<SVGSVGElement>): void => {
@@ -120,7 +147,7 @@ export const KaleidoscopeDial = React.memo(({ count, min, max, step, on, palette
 
   return (
     <svg
-      className={`kaleidoscope-dial${on ? ' kaleidoscope-dial--on' : ''}`}
+      className='kaleidoscope-dial'
       viewBox={`${-VIEW_HALF} ${-VIEW_HALF} ${VIEW_HALF * 2} ${VIEW_HALF * 2}`}
       role='slider'
       aria-label='Kaleidoscope mirrors'
@@ -153,19 +180,23 @@ export const KaleidoscopeDial = React.memo(({ count, min, max, step, on, palette
       <g ref={motion.wob}>
         {ZONES.map(({ key, glowAlong, includes }) => (
           <g key={key} ref={motion[key]}>
-            <g clipPath={`url(#${uid}-disc)`} opacity={effects.glow ? 1 : HAZE_OPACITY_WITHOUT_GLOW}>
-              <g filter={`url(#${uid}-haze)`}>
-                {arms.map((arm, i) => (
-                  <path key={i} className='kaleidoscope-dial-arm' d={key === 'inner' ? arm.glowInner : arm.glowOuter} style={{ stroke: colorOf(glowAlong, i) }} strokeWidth={glowWidth} />
-                ))}
-                {arms.map((arm, i) => arm.clouds.map(({ x, y, radius, opacity, along }, s) => (
+            {layers.map(({ key: layerKey, arms, opacity: layerOpacity, glowWidth }) => (
+              <g key={layerKey} className='kaleidoscope-dial-layer' style={{ opacity: layerOpacity }}>
+                <g clipPath={`url(#${uid}-disc)`} opacity={effects.glow ? 1 : HAZE_OPACITY_WITHOUT_GLOW}>
+                  <g filter={`url(#${uid}-haze)`}>
+                    {arms.map((arm, i) => (
+                      <path key={i} className='kaleidoscope-dial-arm' d={key === 'inner' ? arm.glowInner : arm.glowOuter} style={{ stroke: colorOf(glowAlong, i) }} strokeWidth={glowWidth} />
+                    ))}
+                    {arms.map((arm, i) => arm.clouds.map(({ x, y, radius, opacity, along }, s) => (
+                      includes(along) ? <circle key={`${i}-${s}`} className='kaleidoscope-dial-dot' cx={x} cy={y} r={radius} fillOpacity={opacity} style={{ fill: colorOf(along, i) }} /> : null
+                    )))}
+                  </g>
+                </g>
+                {arms.map((arm, i) => arm.stars.map(({ x, y, radius, opacity, along }, s) => (
                   includes(along) ? <circle key={`${i}-${s}`} className='kaleidoscope-dial-dot' cx={x} cy={y} r={radius} fillOpacity={opacity} style={{ fill: colorOf(along, i) }} /> : null
                 )))}
               </g>
-            </g>
-            {arms.map((arm, i) => arm.stars.map(({ x, y, radius, opacity, along }, s) => (
-              includes(along) ? <circle key={`${i}-${s}`} className='kaleidoscope-dial-dot' cx={x} cy={y} r={radius} fillOpacity={opacity} style={{ fill: colorOf(along, i) }} /> : null
-            )))}
+            ))}
           </g>
         ))}
       </g>

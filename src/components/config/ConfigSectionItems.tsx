@@ -142,6 +142,28 @@ const ConfigSectionItemsInner = ({ name, only, config, onChange, resetConfigItem
           That can freeze or crash your browser, and swapping presets will stutter.
         </ConfirmModal>
       )}
+      {name === 'effects' && !only && (
+        <KaleidoscopeDial
+          count={config.effects.kaleidoscopeCount.value}
+          min={config.effects.kaleidoscopeCount.min}
+          max={config.effects.kaleidoscopeCount.max}
+          step={config.effects.kaleidoscopeCount.step}
+          kaleidoscope={config.effects.kaleidoscope.value}
+          palette={resolveColorState(config.color)}
+          scale={config.user.scaleFactor.value}
+          particleSize={config.particle.particleSize.value}
+          rotationSpeed={config.user.rotationSpeed.value}
+          effects={{
+            cyclone: config.effects.cyclone.value,
+            wobWob: config.effects.wobWob.value,
+            switcheroo: config.effects.switcheroo.value,
+            colorShift: config.effects.colorShift.value,
+            shockwave: config.effects.shockwave.value,
+            glow: config.effects.glow.value,
+          }}
+          onChange={(count) => onChange(name, 'kaleidoscopeCount', String(count))}
+        />
+      )}
       {Object.keys(categoryConfig).filter((configItem) => !only || only.includes(configItem)).map((configItem) => {
         if (STEPPER_AMOUNT_ITEMS.includes(configItem)) return null
         const item = categoryConfig[configItem]!
@@ -163,28 +185,6 @@ const ConfigSectionItemsInner = ({ name, only, config, onChange, resetConfigItem
               onToggle={(checked) => onChange(name, configItem, checked)}
               onAmountChange={(amount) => onChange(name, amountKey, String(amount))}
               onAmountReset={() => { if (isResettableSection(name)) resetConfigItem(name, amountKey) }}
-              visual={configItem === 'kaleidoscope' ? (
-                <KaleidoscopeDial
-                  count={amountItem.value}
-                  min={amountItem.min}
-                  max={amountItem.max}
-                  step={amountItem.step}
-                  on={value as boolean}
-                  palette={resolveColorState(config.color)}
-                  scale={config.user.scaleFactor.value}
-                  particleSize={config.particle.particleSize.value}
-                  rotationSpeed={config.user.rotationSpeed.value}
-                  effects={{
-                    cyclone: config.effects.cyclone.value,
-                    wobWob: config.effects.wobWob.value,
-                    switcheroo: config.effects.switcheroo.value,
-                    colorShift: config.effects.colorShift.value,
-                    shockwave: config.effects.shockwave.value,
-                    glow: config.effects.glow.value,
-                  }}
-                  onChange={(count) => onChange(name, amountKey, String(count))}
-                />
-              ) : undefined}
             />
           )
         }

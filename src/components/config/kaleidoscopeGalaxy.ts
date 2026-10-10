@@ -11,6 +11,8 @@ const ARM_INNER_RADIUS = 5
 const ARM_OUTER_RADIUS = RADIUS - 3
 const ARM_MAX_CURL = TAU * (50 / 360)
 const ARM_SAMPLES = 14
+// Moves each plain arm's scatter to its own place; any step that keeps the seeds of neighboring arms apart will do.
+const PLAIN_ARM_SEED_STEP = 131
 // Cyclone turns the inside and the outside of the galaxy opposite ways; this is the distance along an arm where they part.
 export const CYCLONE_SPLIT = 0.5
 // Each arm is a cloud of stars along its curve. The total stays roughly level as arms are added.
@@ -123,12 +125,15 @@ const point = (t: number, radius: number): string => {
 /**
  * The spiral arm of wedge `index`: it leaves the core along the wedge's middle and curls to one side. Wedge 1 is wedge
  * 0 reflected, so odd arms curl the other way, which is how the mirroring shows without needing a lopsided symbol.
+ * With `mirrored` off (the kaleidoscope is off) every arm curls the same way and gets its own scatter, so the galaxy
+ * is an ordinary, uneven spiral instead of a repeated pattern.
  */
-export const armOf = (index: number, wedge: number, starCount: number, { dotScale, starScale }: Look, variant: ShapeVariant): Arm => {
+export const armOf = (index: number, wedge: number, starCount: number, { dotScale, starScale }: Look, variant: ShapeVariant, mirrored: boolean = true): Arm => {
   const shape = SHAPES[variant]
-  const seed = (offset: number): number => noise(offset + shape.seed)
+  // Mirrored arms share one scatter so each is the exact reflection of the one before; plain arms each get their own.
+  const seed = (offset: number): number => noise(offset + shape.seed + (mirrored ? 0 : index * PLAIN_ARM_SEED_STEP))
   const middle = (index + 0.5) * wedge
-  const side = index % 2 === 0 ? 1 : -1
+  const side = mirrored && index % 2 !== 0 ? -1 : 1
   const curl = Math.min(ARM_MAX_CURL, wedge * 0.8) * shape.curl * side
   const spread = Math.min(wedge * 0.6, 0.5) * shape.spread
   const starSize = Math.max(0.5, Math.min(1.6, wedge * 5)) * dotScale * starScale

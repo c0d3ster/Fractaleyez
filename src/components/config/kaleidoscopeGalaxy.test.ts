@@ -33,6 +33,22 @@ describe('armOf', () => {
     })
   })
 
+  it('curls every plain arm the same way, each with its own scatter', () => {
+    const count = 8
+    const wedge = TAU / count
+    // Which way an arm leans away from the middle of its wedge, read from its outer stars (positive is counterclockwise).
+    const lean = (arm: ReturnType<typeof armOf>, index: number): number => {
+      const outer = arm.stars.filter(({ along }) => along > 0.7)
+      const total = outer.reduce((sum, star) => sum + Math.atan2(Math.sin(angleOf(star) - (index + 0.5) * wedge), Math.cos(angleOf(star) - (index + 0.5) * wedge)), 0)
+      return total / outer.length
+    }
+    const plain = Array.from({ length: 4 }, (_, i) => armOf(i, wedge, starsPerArm(count), LOOK, 0, false))
+    const mirrored = Array.from({ length: 4 }, (_, i) => armOf(i, wedge, starsPerArm(count), LOOK, 0, true))
+    plain.forEach((arm, i) => expect(lean(arm, i)).toBeGreaterThan(0))
+    mirrored.forEach((arm, i) => expect(lean(arm, i) > 0).toBe(i % 2 === 0))
+    expect(plain[1]!.stars[0]).not.toEqual(plain[0]!.stars[0])
+  })
+
   it('gives Switcheroo a second shape with the same stars in different places', () => {
     const wedge = TAU / 8
     const first = armOf(0, wedge, 20, LOOK, 0)

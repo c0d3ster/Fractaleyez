@@ -1,19 +1,32 @@
 .kaleidoscope-dial {
   display: block;
-  width: 7.5rem;
-  height: 7.5rem;
+  width: 10rem;
+  height: 10rem;
   margin: .5rem auto;
   cursor: pointer;
   touch-action: none;
   outline: none;
   -webkit-tap-highlight-color: transparent;
   user-select: none;
-  opacity: .55;
-  transition: opacity 0.15s ease;
 }
 
-.kaleidoscope-dial--on {
-  opacity: 1;
+/* The plain galaxy and the mirrored one fade in and out as the kaleidoscope is switched. */
+.kaleidoscope-dial-layer {
+  transition: opacity 0.35s ease;
+  animation: kaleidoscope-dial-layer-in 0.35s ease;
+}
+
+@keyframes kaleidoscope-dial-layer-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kaleidoscope-dial-layer {
+    transition: none;
+    animation: none;
+  }
 }
 
 .kaleidoscope-dial-sky {
