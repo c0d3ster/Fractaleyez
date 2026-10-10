@@ -56,21 +56,23 @@ export const EffectChips = React.memo(forwardRef<EffectChipsHandle, EffectChipsP
   }), [])
 
   return (
-    <div className='effect-chips' role='group' aria-label='Effects'>
-      {EFFECT_KEYS.map((key) => (
-        <button
-          key={key}
-          ref={(element) => { chips.current[key] = element }}
-          type='button'
-          id={key}
-          className={`effect-chip${effects[key] ? ' effect-chip--on' : ''}`}
-          title={`${labels[key]}: ${DESCRIPTIONS[key]}`}
-          aria-pressed={effects[key]}
-          onClick={() => onToggle(key, !effects[key])}
-        >
-          {labels[key]}
-        </button>
-      ))}
+    <div className='effect-chips-box'>
+      <div className='effect-chips' role='group' aria-label='Effects'>
+        {EFFECT_KEYS.map((key) => (
+          <button
+            key={key}
+            ref={(element) => { chips.current[key] = element }}
+            type='button'
+            id={key}
+            className={`effect-chip${effects[key] ? ' effect-chip--on' : ''}`}
+            title={`${labels[key]}: ${DESCRIPTIONS[key]}`}
+            aria-pressed={effects[key]}
+            onClick={() => onToggle(key, !effects[key])}
+          >
+            {labels[key]}
+          </button>
+        ))}
+      </div>
     </div>
   )
 }))

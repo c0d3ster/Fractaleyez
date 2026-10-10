@@ -1,16 +1,62 @@
+/* The box is what the layout measures, so it must keep its width whatever is inside it. Its own margin matches the
+   other rows in the column. */
+.effect-chips-box {
+  container-type: inline-size;
+  margin: 0 1rem;
+}
+
+/* How the six chips lay out, by the room they have:
+   - narrow (the pop-out column): two equal columns, three rows;
+   - too narrow even for that, in a sidebar on a small screen: one chip per row;
+   - some room: three equal columns, two even rows;
+   - plenty (the regular sidebar on a wide screen): a single row;
+   - a phone: one chip per row (see the end of this file).
+   Equal columns keep the gaps lined up from row to row. The gap is a little tighter in the narrow case, where every
+   pixel goes to the names. */
 .effect-chips {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: .4rem;
-  margin: 0 1rem 1rem;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .5rem;
+}
+
+/* Two columns need about 122px for the longest names (measured in the app's font, 12px, plus 4px to spare); below that
+   they would be cut short, so each gets a row. */
+@container (max-width: 12.6rem) {
+  .effect-chips {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Three columns need about 190px. */
+@container (min-width: 19.5rem) {
+  .effect-chips {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: .75rem;
+  }
+}
+
+/* Room for all six side by side: each chip is as wide as its name plus an equal share of what is left over. The six
+   names come to about 295px, and with five 4px gaps and a few pixels to spare that is 320px. */
+@container (min-width: 32rem) {
+  .effect-chips {
+    display: flex;
+    gap: .4rem;
+  }
+
+  .effect-chip {
+    flex: 1 1 auto;
+  }
 }
 
 .effect-chip {
   font: inherit;
-  font-size: 13px;
+  font-size: 12px;
   white-space: nowrap;
-  padding: .3rem .75rem;
+  /* A name that still does not fit is cut short; its tooltip has the full name. */
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: .3rem .15rem;
   border: 1px solid transparent;
   border-radius: 999px;
   background: #EEE;
@@ -35,5 +81,20 @@
 @media (prefers-reduced-motion: reduce) {
   .effect-chip {
     transition: none;
+  }
+}
+
+/* A phone, by the sidebar's own breakpoint (it goes 60vw wide here, which leaves no more room than a narrow desktop
+   sidebar): one chip per row, and taller, so each is an easy touch target. Scoped to the sidebar so the pop-out, which
+   has its own fixed column width, is not caught by the size of its window. */
+@media only screen and (max-width: 600px) {
+  .sidebar-content .effect-chips {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: .75rem;
+  }
+
+  .sidebar-content .effect-chip {
+    padding: .7rem .5rem;
   }
 }
