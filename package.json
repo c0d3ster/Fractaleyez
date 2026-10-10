@@ -24,7 +24,7 @@
     "@clerk/backend": "^3.2.14",
     "@clerk/clerk-react": "^5.61.3",
     "@vercel/analytics": "^2.0.1",
-    "axios": "^1.18.0",
+    "axios": "^1.20.0",
     "classnames": "^2.2.6",
     "dotenv": "^17.4.0",
     "image-size": "^2.0.3",
