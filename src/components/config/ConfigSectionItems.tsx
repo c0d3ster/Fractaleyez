@@ -173,8 +173,15 @@ const ConfigSectionItemsInner = ({ name, only, config, onChange, resetConfigItem
                   palette={resolveColorState(config.color)}
                   scale={config.user.scaleFactor.value}
                   particleSize={config.particle.particleSize.value}
-                  glow={config.effects.glow.value}
                   rotationSpeed={config.user.rotationSpeed.value}
+                  effects={{
+                    cyclone: config.effects.cyclone.value,
+                    wobWob: config.effects.wobWob.value,
+                    switcheroo: config.effects.switcheroo.value,
+                    colorShift: config.effects.colorShift.value,
+                    shockwave: config.effects.shockwave.value,
+                    glow: config.effects.glow.value,
+                  }}
                   onChange={(count) => onChange(name, amountKey, String(count))}
                 />
               ) : undefined}

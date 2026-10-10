@@ -16,10 +16,6 @@
   opacity: 1;
 }
 
-.kaleidoscope-dial:focus-visible .kaleidoscope-dial-handle {
-  stroke-width: 2.5;
-}
-
 .kaleidoscope-dial-sky {
   fill: #080a22;
   stroke: currentColor;
@@ -37,37 +33,25 @@
   stroke-opacity: .3;
   stroke-linecap: round;
   stroke-linejoin: round;
+  transition: stroke 0.3s ease;
+}
+
+/* Colors are set inline, so a Color Shift beat fades the swap instead of snapping. */
+.kaleidoscope-dial-dot {
+  transition: fill 0.3s ease;
+}
+
+/* The Shockwave ring; its size and opacity are set from the motion hook, so they must not be set here (CSS would win). */
+.kaleidoscope-dial-ring {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 2;
+  pointer-events: none;
 }
 
 .kaleidoscope-dial-handle-halo {
   fill: currentColor;
   fill-opacity: .25;
-}
-
-.kaleidoscope-dial-handle {
-  stroke-width: 2.5;
-}
-
-.kaleidoscope-dial-wedge {
-  fill: currentColor;
-  stroke: currentColor;
-  stroke-opacity: .35;
-  stroke-width: .6;
-}
-
-.kaleidoscope-dial-wedge--even {
-  fill-opacity: .22;
-}
-
-.kaleidoscope-dial-wedge--odd {
-  fill-opacity: .08;
-}
-
-.kaleidoscope-dial-glyph {
-  fill: none;
-  stroke: currentColor;
-  stroke-width: .2;
-  stroke-linejoin: round;
 }
 
 .kaleidoscope-dial-handle {
@@ -79,4 +63,9 @@
 
 .stepper-toggle--on .kaleidoscope-dial-handle {
   stroke: #005500;
+}
+
+/* Keyboard focus shows on the handle, not as a box around the whole dial. */
+.kaleidoscope-dial:focus-visible .kaleidoscope-dial-handle {
+  stroke-width: 2.5;
 }
