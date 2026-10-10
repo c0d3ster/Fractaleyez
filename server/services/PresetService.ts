@@ -1,5 +1,5 @@
 import { Types } from 'mongoose'
-import { presetRepository } from '../repositories/PresetRepository'
+import { presetRepository, PresetMeta } from '../repositories/PresetRepository'
 import { IPreset } from '../models/Preset'
 
 type SavePresetParams = {
@@ -43,9 +43,17 @@ const firstSprite = (config: Record<string, unknown>): string => {
   return typeof first === 'string' ? first : 'fractaleye.png'
 }
 
+const isGlobalDefault = ({ name, userId }: PresetMeta): boolean => name === 'default' && !userId
+
+// The repository returns rows in MongoDB natural order, which differs per database, so the global default is pinned first.
+export const defaultFirst = (rows: PresetMeta[]): PresetMeta[] => [
+  ...rows.filter(isGlobalDefault),
+  ...rows.filter((p) => !isGlobalDefault(p)),
+]
+
 export class PresetService {
   async listPresetsForViewer(viewerId: string | null): Promise<PublicPresetMeta[]> {
-    const rows = await presetRepository.findAll()
+    const rows = defaultFirst(await presetRepository.findAll())
     return rows.map((p) => ({
       id: String(p._id),
       name: p.name,
