@@ -3,6 +3,7 @@ import { BloomEffect, EffectComposer, EffectPass, RenderPass, ShockWaveEffect } 
 
 import { AudioAnalysedDataForVisualization } from '../../audioanalysis/audio-analysed-data'
 import { CAMERA_STEER_SCREEN_FRACTION_PER_PAD_UNIT } from '../../config/visualizer.config'
+import { KaleidoscopeEffect } from './kaleidoscope-effect'
 
 // The shockwave effect projects its position through a fixed camera at this distance and field of view,
 // onto a plane at this depth (the camera's focus point depth).
@@ -16,6 +17,7 @@ const SHOCKWAVE_BASE_SPEED = 0.05
 export class PostEffects {
   private readonly composer: EffectComposer
   private readonly bloomEffect = new BloomEffect()
+  private readonly kaleidoscopeEffect = new KaleidoscopeEffect()
   private readonly shockwaveEffect: ShockWaveEffect
   // The shockwave's own world position (not the camera's focus point, which the camera looks at and so
   // always projects to screen center). Moved to the camera pointer before each explosion.
@@ -38,7 +40,8 @@ export class PostEffects {
     const options = { waveSize: .15, speed: .5, amplitude: .2, maxRadius: 2 }
     this.shockwaveEffect = new ShockWaveEffect(fakeCamera, this.shockwavePosition, options)
 
-    const effectPass = new EffectPass(camera, this.shockwaveEffect, this.bloomEffect)
+    // Kaleidoscope goes first so the shockwave and bloom act on the folded image and repeat symmetrically.
+    const effectPass = new EffectPass(camera, this.kaleidoscopeEffect, this.shockwaveEffect, this.bloomEffect)
     effectPass.renderToScreen = true
     this.composer.addPass(effectPass)
   }
@@ -71,7 +74,9 @@ export class PostEffects {
 
   /** Beat-driven effect state, then renders the composite scene through the effects to the screen. */
   render = (audio: AudioAnalysedDataForVisualization): void => {
-    this.shockwaveEffect.speed = SHOCKWAVE_BASE_SPEED + (window.config.user.speed.value / 15) + audio.beat.value * 1.25
+    const { kaleidoscope, kaleidoscopeCount } = window.config.effects
+    this.kaleidoscopeEffect.setCount(kaleidoscope.value ? Math.round(kaleidoscopeCount.value) : 1)
+    this.shockwaveEffect.speed =SHOCKWAVE_BASE_SPEED + (window.config.user.speed.value / 15) + audio.beat.value * 1.25
     if (window.config.effects.glow.value) {
       this.bloomEffect.blendMode.opacity.value = audio.beat.value * audio.beat.energy
     }
