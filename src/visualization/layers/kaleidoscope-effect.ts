@@ -7,11 +7,15 @@ import { Effect } from 'postprocessing'
 // seam where the last reflection meets the first wedge, since the reflections only close up evenly on even counts.
 // Works in the UV stage, so it folds whatever the effects before it produced. `aspect` keeps the wedges true
 // angles on a wide screen.
+// Changing the count morphs between the two folds: both are computed for the same pixel and their sample positions
+// are blended, so the wedges swirl into place instead of snapping.
 const fragmentShader = `
-  uniform float count;
+  uniform float countFrom;
+  uniform float countTo;
+  uniform float blend;
 
-  void mainUv(inout vec2 uv) {
-    if (count < 1.5) return;
+  vec2 fold(vec2 uv, float count) {
+    if (count < 1.5) return uv;
     vec2 p = (uv - 0.5) * vec2(aspect, 1.0);
     float radius = length(p);
     float wedge = PI2 / count;
@@ -25,20 +29,51 @@ const fragmentShader = `
     // Folding keeps the radius, so on a wide screen a point can land past the top or bottom; bounce it back in
     // instead of letting the edge pixel smear.
     vec2 foldedUv = q / vec2(aspect, 1.0) + 0.5;
-    uv = 1.0 - abs(1.0 - mod(foldedUv, 2.0));
+    return 1.0 - abs(1.0 - mod(foldedUv, 2.0));
+  }
+
+  void mainUv(inout vec2 uv) {
+    if (countFrom < 1.5 && countTo < 1.5) return;
+    uv = mix(fold(uv, countFrom), fold(uv, countTo), blend);
   }
 `
 
+const TWEEN_SECONDS = 0.6
+
+const easeInOut = (t: number): number => t * t * (3 - 2 * t)
+
 export class KaleidoscopeEffect extends Effect {
-  private readonly countUniform: THREE.Uniform
+  private readonly fromUniform: THREE.Uniform
+  private readonly toUniform: THREE.Uniform
+  private readonly blendUniform: THREE.Uniform
+  private target = 1
+  private progress = 1
 
   constructor() {
-    const countUniform = new THREE.Uniform(1)
-    super('KaleidoscopeEffect', fragmentShader, { uniforms: new Map([['count', countUniform]]) })
-    this.countUniform = countUniform
+    const fromUniform = new THREE.Uniform(1)
+    const toUniform = new THREE.Uniform(1)
+    const blendUniform = new THREE.Uniform(1)
+    super('KaleidoscopeEffect', fragmentShader, {
+      uniforms: new Map([['countFrom', fromUniform], ['countTo', toUniform], ['blend', blendUniform]]),
+    })
+    this.fromUniform = fromUniform
+    this.toUniform = toUniform
+    this.blendUniform = blendUniform
   }
 
+  /** Safe to call every frame: only a change of target starts a morph (from whichever fold is closer if one is mid-way). */
   setCount = (count: number): void => {
-    this.countUniform.value = count
+    if (count === this.target) return
+    if (this.progress > 0.5) this.fromUniform.value = this.target
+    this.target = count
+    this.toUniform.value = count
+    this.progress = 0
+  }
+
+  override update(_renderer: THREE.WebGLRenderer, _inputBuffer: THREE.WebGLRenderTarget, deltaTime: number): void {
+    if (this.progress >= 1) return
+    this.progress = Math.min(1, this.progress + deltaTime / TWEEN_SECONDS)
+    this.blendUniform.value = easeInOut(this.progress)
+    if (this.progress >= 1) this.fromUniform.value = this.target
   }
 }
