@@ -1,4 +1,4 @@
-import React, { useCallback, useId, useMemo, useRef } from 'react'
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { ColorState } from '../../config/colorState'
 import { Arm, armOf, colorShiftOffset, coords, CYCLONE_SPLIT, dotScaleOf, lighten, paletteRgb, RADIUS, ShapeVariant, starScaleOf, starsPerArm, TAU, toCss } from './kaleidoscopeGalaxy'
 import { EffectChips, EffectChipsHandle } from './EffectChips'
@@ -130,10 +130,12 @@ export const KaleidoscopeDial = React.memo(({ count, min, max, step, kaleidoscop
     ]
 
   // Color Shift only counts beats from the moment it was switched on, so turning it on does not change the look by itself.
-  const shiftStart = useRef<number | null>(null)
-  if (!effects.colorShift) shiftStart.current = null
-  else if (shiftStart.current === null) shiftStart.current = motion.beats
-  const shiftBeats = effects.colorShift ? motion.beats - (shiftStart.current ?? motion.beats) : 0
+  // The baseline is taken in an effect, not during render, so a render React throws away cannot leave one behind.
+  const [shiftStart, setShiftStart] = useState<number | null>(null)
+  useEffect(() => {
+    setShiftStart(effects.colorShift ? motion.beats : null)
+  }, [effects.colorShift])
+  const shiftBeats = effects.colorShift ? motion.beats - (shiftStart ?? motion.beats) : 0
   const colorOf = (along: number, armIndex: number): string => toCss(paletteRgb(palette, along + colorShiftOffset(armIndex, shiftBeats)))
 
   const core = paletteRgb(palette, 0)
