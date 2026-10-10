@@ -42,7 +42,7 @@ module.exports = {
           !/node_modules[\\/]@vercel[\\/]analytics/.test(modulePath)
       },
       {
-        test: /\.(css|less)$/,
+        test: /\.css$/,
         use: [{
           loader: 'style-loader'
         },
