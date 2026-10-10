@@ -57,10 +57,8 @@
   opacity: .7;
 }
 
-@media (hover: hover) {
-  :where(html:not([data-input='touch'])) .layer-header__reset:hover {
-    opacity: 1;
-  }
+:where(html:not([data-input='touch'])) .layer-header__reset:hover {
+  opacity: 1;
 }
 
 .layer-header__power--on {

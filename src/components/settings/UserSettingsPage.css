@@ -52,11 +52,9 @@
   transition: border-color 0.15s ease, color 0.15s ease;
 }
 
-@media (hover: hover) {
-  :where(html:not([data-input='touch'])) .user-settings-page__upload-label:hover {
-    border-color: #666;
-    color: #ccc;
-  }
+:where(html:not([data-input='touch'])) .user-settings-page__upload-label:hover {
+  border-color: #666;
+  color: #ccc;
 }
 
 .user-settings-page__logo-hint {

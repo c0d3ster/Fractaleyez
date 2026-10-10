@@ -27,12 +27,10 @@
   background: #555;
 }
 
-@media (hover: hover) {
-  :where(html:not([data-input='touch'])) .config-sub-accordion__title:hover {
-    outline: none;
-    color: white;
-    background: #555;
-  }
+:where(html:not([data-input='touch'])) .config-sub-accordion__title:hover {
+  outline: none;
+  color: white;
+  background: #555;
 }
 
 .config-sub-accordion__body {

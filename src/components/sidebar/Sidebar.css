@@ -7,10 +7,8 @@
   z-index: 2;
 }
 
-@media (hover: hover) {
-  :where(html:not([data-input='touch'])) .tab:hover {
-    background: #222;
-  }
+:where(html:not([data-input='touch'])) .tab:hover {
+  background: #222;
 }
 
 .sidebar-content {
@@ -59,10 +57,8 @@
   border-radius: 3px;
 }
 
-@media (hover: hover) {
-  :where(html:not([data-input='touch'])) .sidebar-scroll::-webkit-scrollbar-thumb:hover {
-    background-color: rgba(150, 150, 150, 0.55);
-  }
+:where(html:not([data-input='touch'])) .sidebar-scroll::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(150, 150, 150, 0.55);
 }
 
 .sidebar-scroll::-webkit-scrollbar-button {
@@ -293,22 +289,13 @@
 }
 
 /* Save green (#004400) text; green-tinted panel; orange border */
+:where(html:not([data-input='touch'])) .save-preset-btn--confirm:hover,
 .save-preset-btn--confirm:active {
   background:
     linear-gradient(180deg, rgba(0, 68, 0, 0.14) 0%, rgba(0, 68, 0, 0.22) 100%),
     rgba(255, 255, 255, 0.06);
   border-color: rgba(255, 160, 50, 0.95);
   color: #004400;
-}
-
-@media (hover: hover) {
-  :where(html:not([data-input='touch'])) .save-preset-btn--confirm:hover {
-    background:
-    linear-gradient(180deg, rgba(0, 68, 0, 0.14) 0%, rgba(0, 68, 0, 0.22) 100%),
-    rgba(255, 255, 255, 0.06);
-    border-color: rgba(255, 160, 50, 0.95);
-    color: #004400;
-  }
 }
 
 .sidebar-title {
@@ -345,11 +332,9 @@
   color: #ccc;
 }
 
-@media (hover: hover) {
-  :where(html:not([data-input='touch'])) .expand-config:hover {
-    background: green;
-    color: #ccc;
-  }
+:where(html:not([data-input='touch'])) .expand-config:hover {
+  background: green;
+  color: #ccc;
 }
 
 .slide-in {
@@ -392,11 +377,9 @@
   outline: none;
 }
 
-@media (hover: hover) {
-  :where(html:not([data-input='touch'])) .tab:hover {
-    border-color: rgba(60, 60, 60, .9);
-    color: white;
-  }
+:where(html:not([data-input='touch'])) .tab:hover {
+  border-color: rgba(60, 60, 60, .9);
+  color: white;
 }
 
 .tab-fade-in {

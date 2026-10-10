@@ -30,11 +30,9 @@
   font-weight: bold;
 }
 
-@media (hover: hover) {
-  :where(html:not([data-input='touch'])) .stepper-toggle .stepper-toggle-label:hover {
-    background: #004400;
-    color: #ccc;
-  }
+:where(html:not([data-input='touch'])) .stepper-toggle .stepper-toggle-label:hover {
+  background: #004400;
+  color: #ccc;
 }
 
 .stepper-toggle-amount {
@@ -50,10 +48,8 @@
   line-height: 1.4;
 }
 
-@media (hover: hover) {
-  :where(html:not([data-input='touch'])) .stepper-toggle-amount button:hover:not(:disabled) {
-    background: rgba(0, 0, 0, 0.2);
-  }
+:where(html:not([data-input='touch'])) .stepper-toggle-amount button:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.2);
 }
 
 .stepper-toggle-amount button:disabled {

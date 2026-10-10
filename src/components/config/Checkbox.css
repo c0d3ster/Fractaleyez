@@ -27,15 +27,13 @@
 
 /* Save-button green hover only for effects + video clip toggles (see category-container--effects / --video), and only
    where hovering is real: a touch leaves a label stuck in :hover (see inputType.ts and EffectChips.css). */
-@media (hover: hover) {
-  :where(html:not([data-input='touch'])) .category-container--effects .config-checkbox-container label:hover,
-  :where(html:not([data-input='touch'])) .category-container--video .config-checkbox-container label:hover,
-  :where(html:not([data-input='touch'])) .category-container--effects .config-checkbox-container input:checked + label:hover,
-  :where(html:not([data-input='touch'])) .category-container--video .config-checkbox-container input:checked + label:hover {
-    background: #004400;
-    border-color: #004400;
-    color: #ccc;
-  }
+:where(html:not([data-input='touch'])) .category-container--effects .config-checkbox-container label:hover,
+:where(html:not([data-input='touch'])) .category-container--video .config-checkbox-container label:hover,
+:where(html:not([data-input='touch'])) .category-container--effects .config-checkbox-container input:checked + label:hover,
+:where(html:not([data-input='touch'])) .category-container--video .config-checkbox-container input:checked + label:hover {
+  background: #004400;
+  border-color: #004400;
+  color: #ccc;
 }
 
 .config-checkbox-container input {

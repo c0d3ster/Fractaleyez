@@ -8,9 +8,8 @@ type PointerLike = {
  * Marks an element with the kind of pointer that last reached it: data-input="touch" or "pointer".
  *
  * A touch leaves what was tapped stuck in :hover until something else is touched, so on a touch screen a button reads
- * as still lit after you let go. `@media (hover: hover)` already keeps hover looks off phones and tablets, which say
- * they cannot hover. A touch screen on a desktop still says it can (the mouse is its main input), so styles also leave
- * hover looks out under [data-input='touch']; the next mouse move marks it "pointer" again and they come back.
+ * as still lit after you let go. Hover styles sit behind html:not([data-input='touch']) (watchInputType marks <html>),
+ * so a touch turns them off and the next mouse move brings them back. Press feedback uses :active, which clears on release.
  */
 export const trackInputType = ({ pointerType, currentTarget }: PointerLike): void => {
   const next = pointerType === 'touch' ? 'touch' : 'pointer'
