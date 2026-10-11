@@ -11,6 +11,8 @@ export interface IUser extends Document {
   clerkId: string
   displayName: string
   settings: UserSettings
+  /** Top-level on purpose: `settings` is user-writable via PATCH /api/me. Only ever set directly in Mongo. */
+  isAdmin: boolean
   createdAt: Date
   updatedAt: Date
 }
@@ -26,6 +28,7 @@ const userSchema = new Schema<IUser>({
   clerkId: { type: String, required: true },
   displayName: { type: String, default: '' },
   settings: { type: userSettingsSchema, default: () => ({}) },
+  isAdmin: { type: Boolean, default: false },
 }, { timestamps: true })
 
 // Enforced at the DB level so concurrent lazy-creates can't race into duplicate documents.

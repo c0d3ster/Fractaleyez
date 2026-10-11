@@ -1,6 +1,10 @@
 import { Types } from 'mongoose'
 import { presetRepository, PresetMeta } from '../repositories/PresetRepository'
 import { IPreset } from '../models/Preset'
+import { userService } from './UserService'
+
+// Mirrors USER_REFERENCE in src/utils/userReference.ts.
+const USER_REFERENCE = '@user'
 
 type SavePresetParams = {
   name: string
@@ -34,12 +38,16 @@ export type PublicPresetMeta = {
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 
-/** First particle sprite of a preset config, in either stored shape: a bare array, or the older `{ value: [...] }` item. */
-const firstSprite = (config: Record<string, unknown>): string => {
+/** Sprite list of a preset config, in either stored shape: a bare array, or the older `{ value: [...] }` item. */
+const spriteList = (config: Record<string, unknown>): unknown[] => {
   const { particle } = config
   const sprites = isRecord(particle) ? particle.sprites : undefined
   const list = isRecord(sprites) ? sprites.value : sprites
-  const first = Array.isArray(list) ? list[0] : undefined
+  return Array.isArray(list) ? list : []
+}
+
+const firstSprite = (config: Record<string, unknown>): string => {
+  const first = spriteList(config)[0]
   return typeof first === 'string' ? first : 'fractaleye.png'
 }
 
@@ -70,6 +78,10 @@ export class PresetService {
   }
 
   async savePreset({ name, pack, packId, config, userId, force }: SavePresetParams): Promise<IPreset> {
+    if (spriteList(config).includes(USER_REFERENCE) && !(await userService.isAdmin(userId))) {
+      throw serviceError('Only admins can create presets that use @user', 403)
+    }
+
     const payload = { name, pack, packId, sprite: firstSprite(config), config, userId }
 
     if (!force) {

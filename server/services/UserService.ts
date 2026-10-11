@@ -64,6 +64,12 @@ export class UserService {
     return userRepository.upsertByClerkId(user.id, { displayName: resolveDisplayName(user) })
   }
 
+  /** Missing user doc counts as non-admin; never lazy-creates one. */
+  async isAdmin(clerkId: string): Promise<boolean> {
+    const user = await userRepository.findByClerkId(clerkId)
+    return user?.isAdmin === true
+  }
+
   async updateSettings(clerkId: string, patch: Partial<UserSettings>): Promise<IUser> {
     return userRepository.updateSettings(clerkId, patch)
   }

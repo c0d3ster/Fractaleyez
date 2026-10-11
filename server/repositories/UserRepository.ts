@@ -9,6 +9,11 @@ const isDuplicateKeyError = (err: unknown): boolean =>
   typeof err === 'object' && err !== null && 'code' in err && (err as { code: unknown }).code === 11000
 
 export class UserRepository {
+  async findByClerkId(clerkId: string): Promise<IUser | null> {
+    await connectDB()
+    return User.findOne({ clerkId })
+  }
+
   /**
    * Single atomic upsert keyed on clerkId -- a plain find-then-create would let two
    * concurrent first-requests (or a redelivered webhook racing a live request) both see
