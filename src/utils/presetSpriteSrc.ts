@@ -1,3 +1,5 @@
+import { USER_REFERENCE } from './userReference'
+
 /**
  * Resolves a stored `sprite` value to something an <img>/TextureLoader can load directly.
  * Priority: an R2 URL (absolute `https://<R2_PUBLIC_URL>/...`, stored verbatim on preset save —
@@ -5,7 +7,8 @@
  * any other already-absolute `data:`/`blob:`/`http(s):` reference, passed through unchanged.
  */
 export const presetSpriteSrc = (sprite: string): string => {
-  if (!sprite) return '/fractaleye.png'
+  // An unresolved `@user` reference (e.g. a saved preset's thumbnail) has no per-user logo outside the visualizer.
+  if (!sprite || sprite === USER_REFERENCE) return '/fractaleye.png'
   if (
     sprite.startsWith('http://') ||
     sprite.startsWith('https://') ||
