@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react'
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import axios from 'axios'
 import { useAuth, useUser } from '@clerk/clerk-react'
 
@@ -224,6 +224,8 @@ export type ConfigContextValue = {
   presets: PresetMeta[]
   packs: PackMeta[]
   userSettings: UserSettings | null
+  /** The viewer's resolved `@user` sprite (logo, else display name, else app default), for preset list thumbnails. */
+  userSprite: string
   updateUserSettings: (patch: Partial<UserSettings>) => void
 }
 
@@ -255,6 +257,11 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
   const [userSettings, setUserSettings] = useState<UserSettings | null>(null)
   const [displayName, setDisplayName] = useState<string | null>(null)
   const userContext: UserReferenceContext = { logoParticle: userSettings?.logoParticle, displayName }
+  // What `@user` looks like for this viewer with no preset fallback; preset list thumbnails use it.
+  const userSprite = useMemo(
+    () => resolveUserParticle({ logoParticle: userSettings?.logoParticle, displayName }, undefined),
+    [userSettings?.logoParticle, displayName],
+  )
   const userContextRef = useRef(userContext)
   userContextRef.current = userContext
   const activeUserReferenceRef = useRef<ActiveUserReference | null>(null)
@@ -724,7 +731,7 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
   }, [config, getToken, withUserReference])
 
   return (
-    <ConfigContext.Provider value={{ config, updateConfigItem, updateVideoClips, updateParticleSprites, updateLogoSprite, updateColorList, setLayerEnabled, setLayerOpacity, moveLayer, retrieveConfigPreset, revertConfig, resetConfig, resetConfigItem, resetConfigSection, resetVideoClips, savePreset, isSignedIn: isSignedIn ?? false, currentUserId: user?.id ?? null, getToken, presets: presetList, packs: packList, userSettings, updateUserSettings }}>
+    <ConfigContext.Provider value={{ config, updateConfigItem, updateVideoClips, updateParticleSprites, updateLogoSprite, updateColorList, setLayerEnabled, setLayerOpacity, moveLayer, retrieveConfigPreset, revertConfig, resetConfig, resetConfigItem, resetConfigSection, resetVideoClips, savePreset, isSignedIn: isSignedIn ?? false, currentUserId: user?.id ?? null, getToken, presets: presetList, packs: packList, userSettings, userSprite, updateUserSettings }}>
       {children}
     </ConfigContext.Provider>
   )
