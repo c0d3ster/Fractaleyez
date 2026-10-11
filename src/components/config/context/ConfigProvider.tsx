@@ -180,22 +180,39 @@ const normalizeLoadedPreset = (cfg: Record<string, unknown>): AppConfig => {
   }
 }
 
-/** The live `@user` stand-in for the active preset, kept so it can be re-resolved when user data arrives and un-resolved on save. */
+/** The live `@user` stand-in for one sprite list, kept so it can be re-resolved when user data arrives and un-resolved on save. */
 type ActiveUserReference = UserReferenceState & { presetFallback: string | undefined }
 
-/** Resolves a normalized preset's `@user` particle reference against the current user (load time, never save time). */
+/** The sprite lists that can hold `@user`: the particle list and the logo layer's single-item list. */
+type UserReferenceSlot = 'particle' | 'logo'
+type ActiveUserReferences = Partial<Record<UserReferenceSlot, ActiveUserReference>>
+
+const USER_REFERENCE_SLOTS: UserReferenceSlot[] = ['particle', 'logo']
+
+const slotSprites = (cfg: AppConfig, slot: UserReferenceSlot): string[] =>
+  slot === 'particle' ? cfg.particle.sprites.value : cfg.logo.sprite.value
+
+const withSlotSprites = (cfg: AppConfig, slot: UserReferenceSlot, value: string[]): AppConfig =>
+  slot === 'particle'
+    ? { ...cfg, particle: { ...cfg.particle, sprites: { ...cfg.particle.sprites, value } } }
+    : { ...cfg, logo: { ...cfg.logo, sprite: { ...cfg.logo.sprite, value } } }
+
+/** Resolves a normalized preset's `@user` references (particle and logo lists) against the current user (load time, never save time). */
 const resolveUserReferenceIn = (
   cfg: AppConfig,
   context: UserReferenceContext,
-): { config: AppConfig; active: ActiveUserReference | null } => {
-  const { sprites, reference } = resolveUserSprites(cfg.particle.sprites.value, context)
-  if (!reference) return { config: cfg, active: null }
-  const config: AppConfig = {
-    ...cfg,
-    particle: { ...cfg.particle, sprites: { ...cfg.particle.sprites, value: normalizeParticleSpritesValue(sprites) } },
+): { config: AppConfig; active: ActiveUserReferences } => {
+  let config = cfg
+  const active: ActiveUserReferences = {}
+  for (const slot of USER_REFERENCE_SLOTS) {
+    const list = slotSprites(cfg, slot)
+    const { sprites, reference } = resolveUserSprites(list, context)
+    if (!reference) continue
+    // The logo list holds one sprite with no sibling to fall back to, so its fallback is undefined and the chain ends at the app default.
+    config = withSlotSprites(config, slot, slot === 'particle' ? normalizeParticleSpritesValue(sprites) : sprites)
+    active[slot] = { ...reference, presetFallback: list.find(s => s !== USER_REFERENCE) }
   }
-  const presetFallback = cfg.particle.sprites.value.find(s => s !== USER_REFERENCE)
-  return { config, active: { ...reference, presetFallback } }
+  return { config, active }
 }
 
 export type ConfigContextValue = {
@@ -268,7 +285,7 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
   )
   const userContextRef = useRef(userContext)
   userContextRef.current = userContext
-  const activeUserReferenceRef = useRef<ActiveUserReference | null>(null)
+  const activeUserReferenceRef = useRef<ActiveUserReferences>({})
   const clerkPhotoAttemptedForRef = useRef<string | null>(null)
   const pendingSettingsPatchRef = useRef<Partial<UserSettings>>({})
   const settingsSaveTimerRef = useRef<number | null>(null)
@@ -639,7 +656,7 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
     baselineRef.current = next
     // Same reasoning as updateParticleSprites: warm the cache before the config write triggers
     // a rebuild, so a preset's not-yet-cached sprites don't race a cold cross-origin load.
-    await warmSpriteCache(next.particle.sprites.value)
+    await warmSpriteCache([...next.particle.sprites.value, ...next.logo.sprite.value])
     setConfig(next)
     window.config = next
     const nextClips = next.layers.meta.video.enabled.value ? next.video.clips : []
@@ -685,27 +702,37 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
   // Swaps the active preset's resolved `@user` stand-in back to the sentinel, so a saved preset never stores one user's logo.
   const withUserReference = useCallback((cfg: AppConfig): AppConfig => {
     const active = activeUserReferenceRef.current
-    if (!active) return cfg
-    const sprites = restoreUserReference(cfg.particle.sprites.value, active)
-    return { ...cfg, particle: { ...cfg.particle, sprites: { ...cfg.particle.sprites, value: sprites } } }
+    return USER_REFERENCE_SLOTS.reduce((acc, slot) => {
+      const reference = active[slot]
+      return reference ? withSlotSprites(acc, slot, restoreUserReference(slotSprites(acc, slot), reference)) : acc
+    }, cfg)
   }, [])
 
   // User data (logo / display name) can land after a preset with `@user` is already active: re-resolve it in place.
   useEffect(() => {
     const active = activeUserReferenceRef.current
-    if (!active) return
-    const next = resolveUserParticle(userContext, active.presetFallback)
-    if (next === active.resolved) return
-    const swap = (cfg: AppConfig): AppConfig => ({
-      ...cfg,
-      particle: {
-        ...cfg.particle,
-        sprites: { ...cfg.particle.sprites, value: swapUserReference(cfg.particle.sprites.value, active, next).sprites },
-      },
-    })
-    activeUserReferenceRef.current = { ...active, ...swapUserReference(baselineRef.current.particle.sprites.value, active, next).reference }
+    const changed: { slot: UserReferenceSlot; reference: ActiveUserReference; next: string }[] = []
+    const updated: ActiveUserReferences = {}
+    for (const slot of USER_REFERENCE_SLOTS) {
+      const reference = active[slot]
+      if (!reference) continue
+      const next = resolveUserParticle(userContext, reference.presetFallback)
+      if (next === reference.resolved) {
+        updated[slot] = reference
+        continue
+      }
+      updated[slot] = { ...reference, ...swapUserReference(slotSprites(baselineRef.current, slot), reference, next).reference }
+      changed.push({ slot, reference, next })
+    }
+    if (changed.length === 0) return
+    const swap = (cfg: AppConfig): AppConfig =>
+      changed.reduce(
+        (acc, { slot, reference, next }) => withSlotSprites(acc, slot, swapUserReference(slotSprites(acc, slot), reference, next).sprites),
+        cfg,
+      )
+    activeUserReferenceRef.current = updated
     baselineRef.current = swap(baselineRef.current)
-    void warmSpriteCache([next]).then(() => {
+    void warmSpriteCache(changed.map(c => c.next)).then(() => {
       setConfig(prev => {
         const n = swap(prev)
         window.config = n
