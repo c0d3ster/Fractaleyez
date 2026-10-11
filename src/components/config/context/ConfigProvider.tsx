@@ -10,7 +10,15 @@ import { particleConfig } from '../../../config/particle.config'
 import { presets } from '../../../config/presets'
 import { warmSpriteCache } from '../../../utils/spriteCache'
 import { persistClerkPhotoAsLogo } from '../../../utils/clerkPhotoLogo'
-import { resolveUserParticle, resolveUserSprites, restoreUserReference, UserReferenceContext } from '../../../utils/userReference'
+import {
+  resolveUserParticle,
+  resolveUserSprites,
+  restoreUserReference,
+  swapUserReference,
+  USER_REFERENCE,
+  UserReferenceContext,
+  UserReferenceState,
+} from '../../../utils/userReference'
 import { setParticleCrossfadeDurationMs } from '../../../config/visualizer.config'
 import { UserSettings, USER_SETTINGS_SAVE_DEBOUNCE_MS } from '../../../config/userSettings.config'
 import { isValidBandSelection } from '../../../audioanalysis/onset-bands'
@@ -172,21 +180,21 @@ const normalizeLoadedPreset = (cfg: Record<string, unknown>): AppConfig => {
 }
 
 /** The live `@user` stand-in for the active preset, kept so it can be re-resolved when user data arrives and un-resolved on save. */
-type ActiveUserReference = { resolved: string; presetFallback: string | undefined }
+type ActiveUserReference = UserReferenceState & { presetFallback: string | undefined }
 
 /** Resolves a normalized preset's `@user` particle reference against the current user (load time, never save time). */
 const resolveUserReferenceIn = (
   cfg: AppConfig,
   context: UserReferenceContext,
 ): { config: AppConfig; active: ActiveUserReference | null } => {
-  const { sprites, resolved } = resolveUserSprites(cfg.particle.sprites.value, context)
-  if (sprites === cfg.particle.sprites.value) return { config: cfg, active: null }
+  const { sprites, reference } = resolveUserSprites(cfg.particle.sprites.value, context)
+  if (!reference) return { config: cfg, active: null }
   const config: AppConfig = {
     ...cfg,
     particle: { ...cfg.particle, sprites: { ...cfg.particle.sprites, value: normalizeParticleSpritesValue(sprites) } },
   }
-  const presetFallback = sprites.find(s => s !== resolved)
-  return { config, active: resolved ? { resolved, presetFallback } : null }
+  const presetFallback = cfg.particle.sprites.value.find(s => s !== USER_REFERENCE)
+  return { config, active: { ...reference, presetFallback } }
 }
 
 export type ConfigContextValue = {
@@ -250,7 +258,7 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
   const userContextRef = useRef(userContext)
   userContextRef.current = userContext
   const activeUserReferenceRef = useRef<ActiveUserReference | null>(null)
-  const clerkPhotoAttemptedRef = useRef(false)
+  const clerkPhotoAttemptedForRef = useRef<string | null>(null)
   const pendingSettingsPatchRef = useRef<Partial<UserSettings>>({})
   const settingsSaveTimerRef = useRef<number | null>(null)
 
@@ -329,8 +337,8 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
 
         // Only when no logo is set yet: persist a sprite-processed copy of the Clerk social photo as the
         // user's logoParticle, so the `@user` resolver's per-user-settings rung already covers it.
-        if (data.settings.logoParticle || clerkPhotoAttemptedRef.current || !user?.hasImage) return
-        clerkPhotoAttemptedRef.current = true
+        if (data.settings.logoParticle || clerkPhotoAttemptedForRef.current === user?.id || !user?.hasImage) return
+        clerkPhotoAttemptedForRef.current = user.id
         const url = await persistClerkPhotoAsLogo(user.imageUrl, token)
         if (cancelled || !url || userContextRef.current.logoParticle) return
         updateUserSettings({ logoParticle: url })
@@ -340,7 +348,7 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
     }
     void load()
     return () => { cancelled = true }
-  }, [isSignedIn, getToken])
+  }, [isSignedIn, getToken, user?.id])
 
   useEffect(() => {
     return () => {
@@ -664,9 +672,9 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
 
   // Swaps the active preset's resolved `@user` stand-in back to the sentinel, so a saved preset never stores one user's logo.
   const withUserReference = useCallback((cfg: AppConfig): AppConfig => {
-    const resolved = activeUserReferenceRef.current?.resolved ?? null
-    if (!resolved) return cfg
-    const sprites = restoreUserReference(cfg.particle.sprites.value, resolved)
+    const active = activeUserReferenceRef.current
+    if (!active) return cfg
+    const sprites = restoreUserReference(cfg.particle.sprites.value, active)
     return { ...cfg, particle: { ...cfg.particle, sprites: { ...cfg.particle.sprites, value: sprites } } }
   }, [])
 
@@ -680,10 +688,10 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
       ...cfg,
       particle: {
         ...cfg.particle,
-        sprites: { ...cfg.particle.sprites, value: cfg.particle.sprites.value.map(s => (s === active.resolved ? next : s)) },
+        sprites: { ...cfg.particle.sprites, value: swapUserReference(cfg.particle.sprites.value, active, next).sprites },
       },
     })
-    activeUserReferenceRef.current = { ...active, resolved: next }
+    activeUserReferenceRef.current = { ...active, ...swapUserReference(baselineRef.current.particle.sprites.value, active, next).reference }
     baselineRef.current = swap(baselineRef.current)
     void warmSpriteCache([next]).then(() => {
       setConfig(prev => {

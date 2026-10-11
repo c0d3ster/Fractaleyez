@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { resolveUserParticle, resolveUserSprites, restoreUserReference } from './userReference'
+import { resolveUserParticle, resolveUserSprites, restoreUserReference, swapUserReference } from './userReference'
 
 const renderText = (text: string): string => `data:text,${text}`
 
@@ -26,18 +26,37 @@ describe('resolveUserParticle', () => {
 describe('resolveUserSprites / restoreUserReference', () => {
   it('leaves lists without the sentinel untouched', () => {
     const sprites = ['a.png', 'b.png']
-    expect(resolveUserSprites(sprites, { logoParticle: 'x' })).toEqual({ sprites, resolved: null })
+    expect(resolveUserSprites(sprites, { logoParticle: 'x' })).toEqual({ sprites, reference: null })
   })
 
-  it('resolves the sentinel, collapsing into the preset fallback (another sprite in the list) without a mappable value', () => {
+  it('keeps the reference, flagged collapsed, when it resolves into the preset fallback', () => {
     expect(resolveUserSprites(['@user', 'b.png'], {}, { renderText }))
-      .toEqual({ sprites: ['b.png'], resolved: null })
+      .toEqual({ sprites: ['b.png'], reference: { resolved: 'b.png', collapsed: true } })
   })
 
   it('round-trips back to the sentinel on save', () => {
-    const { sprites, resolved } = resolveUserSprites(['@user', 'b.png'], { logoParticle: 'https://r2/logo.png' })
+    const { sprites, reference } = resolveUserSprites(['@user', 'b.png'], { logoParticle: 'https://r2/logo.png' })
     expect(sprites).toEqual(['https://r2/logo.png', 'b.png'])
-    expect(restoreUserReference(sprites, resolved)).toEqual(['@user', 'b.png'])
+    expect(restoreUserReference(sprites, reference)).toEqual(['@user', 'b.png'])
+  })
+
+  it('restores the sentinel from a collapsed list on save', () => {
+    const { sprites, reference } = resolveUserSprites(['@user', 'b.png'], {})
+    expect(restoreUserReference(sprites, reference)).toEqual(['@user', 'b.png'])
+  })
+
+  it('swaps a collapsed reference to a late-arriving logo by inserting it, keeping the fallback', () => {
+    const { sprites, reference } = resolveUserSprites(['@user', 'b.png'], {})
+    if (!reference) throw new Error('expected a reference')
+    const swapped = swapUserReference(sprites, reference, 'https://r2/logo.png')
+    expect(swapped.sprites).toEqual(['https://r2/logo.png', 'b.png'])
+    expect(swapped.reference).toEqual({ resolved: 'https://r2/logo.png', collapsed: false })
+    expect(restoreUserReference(swapped.sprites, swapped.reference)).toEqual(['@user', 'b.png'])
+  })
+
+  it('swaps an uncollapsed reference back onto the fallback and collapses it', () => {
+    const swapped = swapUserReference(['https://r2/logo.png', 'b.png'], { resolved: 'https://r2/logo.png', collapsed: false }, 'b.png')
+    expect(swapped).toEqual({ sprites: ['b.png'], reference: { resolved: 'b.png', collapsed: true } })
   })
 
   it('does not rewrite anything when the preset had no reference', () => {
