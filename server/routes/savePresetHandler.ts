@@ -48,7 +48,9 @@ export const savePresetHandler = async (req: Request, res: Response): Promise<vo
   } catch (err: unknown) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const e = err as any
-    if (e.status === 409) {
+    if (e.status === 403) {
+      res.status(403).json({ error: e.message })
+    } else if (e.status === 409) {
       res.status(409).json({ error: 'Preset already exists', name: e.presetName })
     } else {
       console.error('Failed to save preset', err)

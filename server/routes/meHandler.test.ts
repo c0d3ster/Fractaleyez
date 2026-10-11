@@ -122,6 +122,20 @@ describe('updateMeHandler', () => {
     expect(res.statusCode).toBe(200)
   })
 
+  it('ignores isAdmin alongside valid fields so it can never be self-granted', async () => {
+    vi.mocked(userService.updateSettings).mockResolvedValue({ clerkId: 'user_123', displayName: '', settings: {} } as unknown as IUser)
+    const res = makeRes()
+    await updateMeHandler(makeReq(undefined, { crossfadeDurationMs: 500, isAdmin: true }), res)
+    expect(userService.updateSettings).toHaveBeenCalledWith('user_123', { crossfadeDurationMs: 500 })
+  })
+
+  it('rejects a body that only carries isAdmin', async () => {
+    const res = makeRes()
+    await updateMeHandler(makeReq(undefined, { isAdmin: true }), res)
+    expect(res.statusCode).toBe(400)
+    expect(userService.updateSettings).not.toHaveBeenCalled()
+  })
+
   it('rejects a non-boolean skipRedZoneWarning', async () => {
     const res = makeRes()
     await updateMeHandler(makeReq(undefined, { skipRedZoneWarning: 'yes' }), res)

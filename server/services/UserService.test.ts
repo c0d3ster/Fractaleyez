@@ -13,7 +13,7 @@ vi.mock('@clerk/backend', async importOriginal => {
   }
 })
 vi.mock('../repositories/UserRepository', () => ({
-  userRepository: { upsertByClerkId: vi.fn() },
+  userRepository: { upsertByClerkId: vi.fn(), findByClerkId: vi.fn() },
 }))
 vi.mock('../env', () => ({
   requireEnv: { CLERK_SECRET_KEY: () => 'sk_test' },
@@ -128,5 +128,30 @@ describe('UserService#getOrCreateUser', () => {
     const user = await userService.getOrCreateUser('user_1')
 
     expect(user).toBe(fallback)
+  })
+})
+
+describe('UserService#isAdmin', () => {
+  const userService = new UserService()
+
+  beforeEach(() => {
+    vi.mocked(userRepository.findByClerkId).mockReset()
+    vi.mocked(userRepository.upsertByClerkId).mockReset()
+  })
+
+  it('is true only when the user doc has isAdmin set', async () => {
+    vi.mocked(userRepository.findByClerkId).mockResolvedValue({ isAdmin: true } as unknown as IUser)
+    expect(await userService.isAdmin('user_1')).toBe(true)
+  })
+
+  it('is false for a user without the flag (existing docs, no migration)', async () => {
+    vi.mocked(userRepository.findByClerkId).mockResolvedValue({} as unknown as IUser)
+    expect(await userService.isAdmin('user_1')).toBe(false)
+  })
+
+  it('is false for a missing user doc and does not lazy-create one', async () => {
+    vi.mocked(userRepository.findByClerkId).mockResolvedValue(null)
+    expect(await userService.isAdmin('user_1')).toBe(false)
+    expect(userRepository.upsertByClerkId).not.toHaveBeenCalled()
   })
 })
