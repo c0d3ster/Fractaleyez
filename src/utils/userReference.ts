@@ -60,22 +60,43 @@ export const resolveUserParticle = (
 }
 
 /**
- * Replaces `@user` in a sprite list. `resolved` is the value that stands in for the sentinel (null when the list has
- * no reference, or when it collapsed into a sprite the list already holds, so it can't be mapped back on save).
+ * What stands in for `@user` in a resolved sprite list. `collapsed` means the stand-in equals a sprite the preset
+ * already lists (e.g. the preset fallback), so the list holds it once and it can't be told apart from the real one.
  */
+export type UserReferenceState = { resolved: string; collapsed: boolean }
+
+/** Replaces `@user` in a sprite list. `reference` is null when the list has no sentinel. */
 export const resolveUserSprites = (
   sprites: string[],
   context: UserReferenceContext,
   options?: ResolveOptions,
-): { sprites: string[]; resolved: string | null } => {
-  if (!sprites.includes(USER_REFERENCE)) return { sprites, resolved: null }
+): { sprites: string[]; reference: UserReferenceState | null } => {
+  if (!sprites.includes(USER_REFERENCE)) return { sprites, reference: null }
   const presetFallback = sprites.find(s => s !== USER_REFERENCE)
   const resolved = resolveUserParticle(context, presetFallback, options)
   const others = sprites.filter(s => s !== USER_REFERENCE)
   const mapped = [...new Set(sprites.map(s => (s === USER_REFERENCE ? resolved : s)))]
-  return { sprites: mapped, resolved: others.includes(resolved) ? null : resolved }
+  return { sprites: mapped, reference: { resolved, collapsed: others.includes(resolved) } }
+}
+
+/** Moves a resolved list from its current stand-in to `next` (user data arrived after the preset loaded). */
+export const swapUserReference = (
+  sprites: string[],
+  { resolved, collapsed }: UserReferenceState,
+  next: string,
+): { sprites: string[]; reference: UserReferenceState } => {
+  if (collapsed) {
+    const nextCollapsed = sprites.includes(next)
+    return { sprites: nextCollapsed ? sprites : [next, ...sprites], reference: { resolved: next, collapsed: nextCollapsed } }
+  }
+  const others = sprites.filter(s => s !== resolved)
+  const mapped = [...new Set(sprites.map(s => (s === resolved ? next : s)))]
+  return { sprites: mapped, reference: { resolved: next, collapsed: others.includes(next) } }
 }
 
 /** Inverse of resolveUserSprites for saving: puts the sentinel back so a preset never stores one user's logo. */
-export const restoreUserReference = (sprites: string[], resolved: string | null): string[] =>
-  resolved ? sprites.map(s => (s === resolved ? USER_REFERENCE : s)) : sprites
+export const restoreUserReference = (sprites: string[], reference: UserReferenceState | null): string[] => {
+  if (!reference) return sprites
+  if (reference.collapsed) return sprites.includes(USER_REFERENCE) ? sprites : [USER_REFERENCE, ...sprites]
+  return sprites.map(s => (s === reference.resolved ? USER_REFERENCE : s))
+}
