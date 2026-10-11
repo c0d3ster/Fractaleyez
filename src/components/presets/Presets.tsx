@@ -16,13 +16,14 @@ type PresetsProps = {
   config: AppConfig
   presets: PresetMeta[]
   packs?: PackMeta[]
+  userSprite?: string
   expanded?: boolean
   onSelect?: (preset: PresetSelection) => void
   onPackSelect?: (pack: string) => void
   headerActions?: React.ReactNode
 }
 
-const PresetsInner = ({ retrieveConfigPreset, revertConfig, config, presets, packs = [], expanded = false, onSelect, onPackSelect, headerActions }: PresetsProps): React.ReactElement => {
+const PresetsInner = ({ retrieveConfigPreset, revertConfig, config, presets, packs = [], userSprite, expanded = false, onSelect, onPackSelect, headerActions }: PresetsProps): React.ReactElement => {
   const [activePack, setActivePack] = useState('All')
   const [page, setPage] = useState(0)
   const [paging, setPaging] = useState(false)
@@ -154,7 +155,7 @@ const PresetsInner = ({ retrieveConfigPreset, revertConfig, config, presets, pac
                         <span className='preset-hotkey-badge-num'>{hotkey}</span>
                       </span>
                     )}
-                    <img src={presetSpriteSrc(sprite)} alt='' className='preset-sprite' />
+                    <img src={presetSpriteSrc(sprite, userSprite)} alt='' className='preset-sprite' />
                     <span>{label}</span>
                     {isTrialing && <span className='preset-trial-countdown'>{secondsLeft}</span>}
                   </button>
