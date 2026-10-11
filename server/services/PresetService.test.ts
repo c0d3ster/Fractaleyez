@@ -82,6 +82,32 @@ describe('PresetService#savePreset @user gate', () => {
     expect(userService.isAdmin).toHaveBeenCalledWith('user_1')
   })
 
+  describe('logo.sprite', () => {
+    const saveLogo = (sprite: unknown, force = false): Promise<IPreset> =>
+      service.savePreset({ name: 'x', pack: '', config: { particle: { sprites: ['a.png'] }, logo: { sprite } }, userId: 'user_1', force })
+
+    it('rejects a non-admin saving @user in the logo list, on both paths', async () => {
+      await expect(saveLogo(['@user'])).rejects.toMatchObject({ status: 403 })
+      await expect(saveLogo(['@user'], true)).rejects.toMatchObject({ status: 403 })
+      expect(presetRepository.create).not.toHaveBeenCalled()
+      expect(presetRepository.upsert).not.toHaveBeenCalled()
+    })
+
+    it('rejects @user in the older { value: [...] } logo shape too', async () => {
+      await expect(saveLogo({ value: ['@user'] })).rejects.toMatchObject({ status: 403 })
+    })
+
+    it('lets an admin save @user in the logo list', async () => {
+      vi.mocked(userService.isAdmin).mockResolvedValue(true)
+      await expect(saveLogo(['@user'])).resolves.toBe(saved)
+    })
+
+    it('leaves a plain logo sprite alone and skips the admin lookup', async () => {
+      await expect(saveLogo(['logo.png'])).resolves.toBe(saved)
+      expect(userService.isAdmin).not.toHaveBeenCalled()
+    })
+  })
+
   it('leaves presets without @user alone and skips the admin lookup', async () => {
     await expect(save(['a.png'])).resolves.toBe(saved)
     await expect(save(['a.png'], true)).resolves.toBe(saved)

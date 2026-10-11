@@ -38,13 +38,16 @@ export type PublicPresetMeta = {
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 
-/** Sprite list of a preset config, in either stored shape: a bare array, or the older `{ value: [...] }` item. */
-const spriteList = (config: Record<string, unknown>): unknown[] => {
-  const { particle } = config
-  const sprites = isRecord(particle) ? particle.sprites : undefined
+/** Sprite list of a preset config (`particle.sprites` or `logo.sprite`), in either stored shape: a bare array, or the older `{ value: [...] }` item. */
+const spriteList = (config: Record<string, unknown>, section: 'particle' | 'logo' = 'particle'): unknown[] => {
+  const layer = config[section]
+  const sprites = isRecord(layer) ? layer[section === 'particle' ? 'sprites' : 'sprite'] : undefined
   const list = isRecord(sprites) ? sprites.value : sprites
   return Array.isArray(list) ? list : []
 }
+
+const usesUserReference = (config: Record<string, unknown>): boolean =>
+  spriteList(config).includes(USER_REFERENCE) || spriteList(config, 'logo').includes(USER_REFERENCE)
 
 const firstSprite = (config: Record<string, unknown>): string => {
   const first = spriteList(config)[0]
@@ -78,7 +81,7 @@ export class PresetService {
   }
 
   async savePreset({ name, pack, packId, config, userId, force }: SavePresetParams): Promise<IPreset> {
-    if (spriteList(config).includes(USER_REFERENCE) && !(await userService.isAdmin(userId))) {
+    if (usesUserReference(config) &&!(await userService.isAdmin(userId))) {
       throw serviceError('Only admins can create presets that use @user', 403)
     }
 
