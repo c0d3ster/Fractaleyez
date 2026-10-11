@@ -9,6 +9,8 @@ import { mergeLayers } from '../../../config/mergeLayers'
 import { particleConfig } from '../../../config/particle.config'
 import { presets } from '../../../config/presets'
 import { warmSpriteCache } from '../../../utils/spriteCache'
+import { persistClerkPhotoAsLogo } from '../../../utils/clerkPhotoLogo'
+import { resolveUserParticle, resolveUserSprites, restoreUserReference, UserReferenceContext } from '../../../utils/userReference'
 import { setParticleCrossfadeDurationMs } from '../../../config/visualizer.config'
 import { UserSettings, USER_SETTINGS_SAVE_DEBOUNCE_MS } from '../../../config/userSettings.config'
 import { isValidBandSelection } from '../../../audioanalysis/onset-bands'
@@ -169,6 +171,24 @@ const normalizeLoadedPreset = (cfg: Record<string, unknown>): AppConfig => {
   }
 }
 
+/** The live `@user` stand-in for the active preset, kept so it can be re-resolved when user data arrives and un-resolved on save. */
+type ActiveUserReference = { resolved: string; presetFallback: string | undefined }
+
+/** Resolves a normalized preset's `@user` particle reference against the current user (load time, never save time). */
+const resolveUserReferenceIn = (
+  cfg: AppConfig,
+  context: UserReferenceContext,
+): { config: AppConfig; active: ActiveUserReference | null } => {
+  const { sprites, resolved } = resolveUserSprites(cfg.particle.sprites.value, context)
+  if (sprites === cfg.particle.sprites.value) return { config: cfg, active: null }
+  const config: AppConfig = {
+    ...cfg,
+    particle: { ...cfg.particle, sprites: { ...cfg.particle.sprites, value: normalizeParticleSpritesValue(sprites) } },
+  }
+  const presetFallback = sprites.find(s => s !== resolved)
+  return { config, active: resolved ? { resolved, presetFallback } : null }
+}
+
 export type ConfigContextValue = {
   config: AppConfig
   updateConfigItem: (category: string, item: string, value: string | boolean | number) => void
@@ -225,6 +245,12 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
   const [presetList, setPresetList] = useState<PresetMeta[]>([])
   const [packList, setPackList] = useState<PackMeta[]>([])
   const [userSettings, setUserSettings] = useState<UserSettings | null>(null)
+  const [displayName, setDisplayName] = useState<string | null>(null)
+  const userContext: UserReferenceContext = { logoParticle: userSettings?.logoParticle, displayName }
+  const userContextRef = useRef(userContext)
+  userContextRef.current = userContext
+  const activeUserReferenceRef = useRef<ActiveUserReference | null>(null)
+  const clerkPhotoAttemptedRef = useRef(false)
   const pendingSettingsPatchRef = useRef<Partial<UserSettings>>({})
   const settingsSaveTimerRef = useRef<number | null>(null)
 
@@ -298,7 +324,16 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
         const { data } = await axios.get<ApiMeResponse>('/api/me', { headers: { Authorization: `Bearer ${token}` } })
         if (cancelled) return
         setUserSettings(data.settings)
+        setDisplayName(data.displayName || null)
         applyUserSettingsSideEffects(data.settings)
+
+        // Only when no logo is set yet: persist a sprite-processed copy of the Clerk social photo as the
+        // user's logoParticle, so the `@user` resolver's per-user-settings rung already covers it.
+        if (data.settings.logoParticle || clerkPhotoAttemptedRef.current || !user?.hasImage) return
+        clerkPhotoAttemptedRef.current = true
+        const url = await persistClerkPhotoAsLogo(user.imageUrl, token)
+        if (cancelled || !url || userContextRef.current.logoParticle) return
+        updateUserSettings({ logoParticle: url })
       } catch (err) {
         console.error('Failed to load /api/me', err)
       }
@@ -579,7 +614,8 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
 
     // Effective clips: a disabled video layer has no plane, same as an empty clip list.
     const prevClips = window.config.layers.meta.video.enabled.value ? window.config.video.clips : []
-    const next = normalizeLoadedPreset(cfg)
+    const { config: next, active } = resolveUserReferenceIn(normalizeLoadedPreset(cfg), userContextRef.current)
+    activeUserReferenceRef.current = active
     baselineRef.current = next
     // Same reasoning as updateParticleSprites: warm the cache before the config write triggers
     // a rebuild, so a preset's not-yet-cached sprites don't race a cold cross-origin load.
@@ -626,13 +662,45 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
     updateVideoClips(baselineRef.current.video.clips)
   }, [updateVideoClips])
 
+  // Swaps the active preset's resolved `@user` stand-in back to the sentinel, so a saved preset never stores one user's logo.
+  const withUserReference = useCallback((cfg: AppConfig): AppConfig => {
+    const resolved = activeUserReferenceRef.current?.resolved ?? null
+    if (!resolved) return cfg
+    const sprites = restoreUserReference(cfg.particle.sprites.value, resolved)
+    return { ...cfg, particle: { ...cfg.particle, sprites: { ...cfg.particle.sprites, value: sprites } } }
+  }, [])
+
+  // User data (logo / display name) can land after a preset with `@user` is already active: re-resolve it in place.
+  useEffect(() => {
+    const active = activeUserReferenceRef.current
+    if (!active) return
+    const next = resolveUserParticle(userContext, active.presetFallback)
+    if (next === active.resolved) return
+    const swap = (cfg: AppConfig): AppConfig => ({
+      ...cfg,
+      particle: {
+        ...cfg.particle,
+        sprites: { ...cfg.particle.sprites, value: cfg.particle.sprites.value.map(s => (s === active.resolved ? next : s)) },
+      },
+    })
+    activeUserReferenceRef.current = { ...active, resolved: next }
+    baselineRef.current = swap(baselineRef.current)
+    void warmSpriteCache([next]).then(() => {
+      setConfig(prev => {
+        const n = swap(prev)
+        window.config = n
+        return n
+      })
+    })
+  }, [userContext.logoParticle, userContext.displayName])
+
   const savePreset = useCallback(async (name: string, pack: string, force?: boolean) => {
     const token = await getToken()
     if (!token) throw Object.assign(new Error('Not authenticated'), { response: { status: 401, data: { error: 'Not authenticated — try signing out and back in' } } })
     const { data } = await axios.post<{ id: string; name: string }>('/api/savePreset', {
       name,
       pack,
-      config: toStoredConfig(config),
+      config: toStoredConfig(withUserReference(config)),
       force: force ?? false,
     }, {
       headers: { Authorization: `Bearer ${token}` },
@@ -645,7 +713,7 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
       const exists = prev.some(matches)
       return exists ? prev.map(p => (matches(p) ? newPreset : p)) : [...prev, newPreset]
     })
-  }, [config, getToken])
+  }, [config, getToken, withUserReference])
 
   return (
     <ConfigContext.Provider value={{ config, updateConfigItem, updateVideoClips, updateParticleSprites, updateLogoSprite, updateColorList, setLayerEnabled, setLayerOpacity, moveLayer, retrieveConfigPreset, revertConfig, resetConfig, resetConfigItem, resetConfigSection, resetVideoClips, savePreset, isSignedIn: isSignedIn ?? false, currentUserId: user?.id ?? null, getToken, presets: presetList, packs: packList, userSettings, updateUserSettings }}>

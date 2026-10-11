@@ -420,3 +420,18 @@ value, HUD persistence, the `updateUserSettings` debounce/local-first flow) ship
 unchanged from what's documented above -- only the settings-panel host component and the
 crossfade range changed. `overnight/2026-09-20/04-config-gear-user-settings` (this branch) has
 no content that isn't now on `main` via #169 + #172; it's safe to delete.
+
+## #7 `@user` particle reference
+
+Branch: overnight/2026-10-11/r1-01-t07-user-particle-resolver
+
+Re-rooted on `main`: the previous `Branch:` line above (`overnight/2026-09-20/04-config-gear-user-settings`) already landed via #169 + #172. `#6` (blocked) was not a predecessor of this work.
+
+- `src/utils/userReference.ts`: `USER_REFERENCE = '@user'`, `resolveUserParticle` (persisted `logoParticle` -> display name rendered as a `data:` PNG via canvas -> the list's other sprite as the preset fallback -> `fractaleye.png`), `resolveUserSprites`, `restoreUserReference`. Pure and unit-tested (`userReference.test.ts`, text renderer injected).
+- `ConfigProvider.tsx`: `retrieveConfigPreset` resolves `@user` after `normalizeLoadedPreset` (load time). The stand-in is tracked in `activeUserReferenceRef`, so `savePreset` swaps it back to `@user` (a saved preset never stores one user's logo) and an effect re-resolves in place if `/api/me` lands after the preset. `/api/me` now also keeps `displayName` in state.
+- `presetSpriteSrc` maps a bare `@user` to the default sprite (preset list thumbnails of saved `@user` presets).
+- Deviation from sub-task 3: the Clerk photo is processed on the **client**, not the server. `prepareSprite` (sprite-strip) is browser-Canvas only, and a server port would need a new native image dependency. `src/utils/clerkPhotoLogo.ts` fetches `user.imageUrl` (only when `hasImage`), runs `prepareSprite`, uploads via the existing `/api/uploadParticle`, then `updateUserSettings({ logoParticle })`, once per session and only if no logo is set. Failure is silent and the chain falls to the display-name rung.
+- Known limits: if the resolved stand-in equals another sprite already in the list, it cannot be mapped back on save. Clerk's image host may not send CORS headers for `fetch`; unverified, see NEEDS HUMAN.
+- No pre-existing preset contains `@user`, so existing presets render unchanged. `#8` extends `userReference.ts` with name templating.
+- Checks: `yarn typecheck`, `yarn lint`, `yarn build` clean; vitest 127 passed. `server/repositories/UserRepository.test.ts` fails here with or without this change (mongodb-memory-server cannot download its binary in the sandbox).
+- NEEDS HUMAN: in a browser, confirm (1) a Spotify/Google photo is fetchable and persisted (Clerk image CORS), (2) an `@user` preset renders the logo, the photo, and the name text. No preset using `@user` exists until `#6`.
