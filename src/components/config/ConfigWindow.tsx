@@ -91,6 +91,8 @@ const ExternalWindowBridge = ({
   updateParticleSprites,
   updateLogoSprite,
   applyUserReference,
+  releaseUserReference,
+  userReferenceStandIn,
   updateColorList,
   setLayerEnabled,
   setLayerOpacity,
@@ -122,6 +124,8 @@ const ExternalWindowBridge = ({
         updateParticleSprites,
         updateLogoSprite,
         applyUserReference,
+        releaseUserReference,
+        userReferenceStandIn,
         updateColorList,
         setLayerEnabled,
         setLayerOpacity,
@@ -201,6 +205,8 @@ const ConfigWindowInner = ({
   updateParticleSprites,
   updateLogoSprite,
   applyUserReference,
+  releaseUserReference,
+  userReferenceStandIn,
   updateColorList,
   setLayerEnabled,
   setLayerOpacity,
@@ -304,6 +310,8 @@ const ConfigWindowInner = ({
         updateParticleSprites={updateParticleSprites}
         updateLogoSprite={updateLogoSprite}
         applyUserReference={applyUserReference}
+        releaseUserReference={releaseUserReference}
+        userReferenceStandIn={userReferenceStandIn}
         updateColorList={updateColorList}
         setLayerEnabled={setLayerEnabled}
         setLayerOpacity={setLayerOpacity}
@@ -334,6 +342,8 @@ const ConfigWindowInner = ({
     updateParticleSprites,
     updateLogoSprite,
     applyUserReference,
+    releaseUserReference,
+    userReferenceStandIn,
     updateColorList,
     setLayerEnabled,
     setLayerOpacity,

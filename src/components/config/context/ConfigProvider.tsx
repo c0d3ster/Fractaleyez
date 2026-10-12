@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react'
+import React, { useState, useCallback, useEffect, useMemo, useReducer, useRef } from 'react'
 import axios from 'axios'
 import { useAuth, useUser } from '@clerk/clerk-react'
 
@@ -197,6 +197,11 @@ const withSlotSprites = (cfg: AppConfig, slot: UserReferenceSlot, value: string[
     ? { ...cfg, particle: { ...cfg.particle, sprites: { ...cfg.particle.sprites, value } } }
     : { ...cfg, logo: { ...cfg.logo, sprite: { ...cfg.logo.sprite, value } } }
 
+const userReferenceStandInOf = (cfg: AppConfig, active: ActiveUserReferences, slot: UserReferenceSlot): string | null => {
+  const resolved = active[slot]?.resolved
+  return resolved !== undefined && slotSprites(cfg, slot).includes(resolved) ? resolved : null
+}
+
 /** Resolves a normalized preset's `@user` references (particle and logo lists) against the current user (load time, never save time). */
 const resolveUserReferenceIn = (
   cfg: AppConfig,
@@ -223,6 +228,10 @@ export type ConfigContextValue = {
   updateLogoSprite: (sprite: string) => Promise<void>
   /** Admin tool: puts `@user` in a sprite list. It renders as the viewer's own logo and is restored to the sentinel on save. */
   applyUserReference: (slot: UserReferenceSlot) => Promise<void>
+  /** Drops the live `@user` reference so the stand-in saves as a plain sprite; with `remove`, also takes the stand-in out of the particle list. */
+  releaseUserReference: (slot: UserReferenceSlot, options?: { remove?: boolean }) => Promise<void>
+  /** Per slot: the live `@user` stand-in URL while it is still in the list, else null. The pickers draw it as a literal "@user" square. */
+  userReferenceStandIn: Record<UserReferenceSlot, string | null>
   /** Sets one of the Color section's list items: the chosen palette (one id) or the custom palette's colors. */
   updateColorList: (item: 'palette' | 'customStops', values: string[]) => void
   setLayerEnabled: (key: LayerKey, enabled: boolean) => boolean
@@ -288,6 +297,8 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
   const userContextRef = useRef(userContext)
   userContextRef.current = userContext
   const activeUserReferenceRef = useRef<ActiveUserReferences>({})
+  // The reference lives in a ref; releasing one changes no config, so this nudges the selected state to re-read it.
+  const [, rerender] = useReducer((n: number) => n + 1, 0)
   const clerkPhotoAttemptedForRef = useRef<string | null>(null)
   const pendingSettingsPatchRef = useRef<Partial<UserSettings>>({})
   const settingsSaveTimerRef = useRef<number | null>(null)
@@ -532,6 +543,18 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
     else await updateLogoSprite(sprites[0] ?? '')
   }, [updateParticleSprites, updateLogoSprite])
 
+  const releaseUserReference = useCallback(async (slot: UserReferenceSlot, { remove = false }: { remove?: boolean } = {}): Promise<void> => {
+    const reference = activeUserReferenceRef.current[slot]
+    if (!reference) return
+    activeUserReferenceRef.current = { ...activeUserReferenceRef.current, [slot]: undefined }
+    const current = slotSprites(window.config, slot)
+    if (remove && slot === 'particle' && current.length > particleConfig.sprites_MIN) {
+      await updateParticleSprites(current.filter(s => s !== reference.resolved))
+      return
+    }
+    rerender()
+  }, [updateParticleSprites])
+
   // Reads window.config (kept in sync with state) so the cap result can be returned synchronously.
   const setLayerEnabled = useCallback((key: LayerKey, enabled: boolean): boolean => {
     const prev = window.config
@@ -715,6 +738,11 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
   }, [updateVideoClips])
 
   // Swaps the active preset's resolved `@user` stand-in back to the sentinel, so a saved preset never stores one user's logo.
+  const userReferenceStandIn: Record<UserReferenceSlot, string | null> = {
+    particle: userReferenceStandInOf(config, activeUserReferenceRef.current, 'particle'),
+    logo: userReferenceStandInOf(config, activeUserReferenceRef.current, 'logo'),
+  }
+
   const withUserReference = useCallback((cfg: AppConfig): AppConfig => {
     const active = activeUserReferenceRef.current
     return USER_REFERENCE_SLOTS.reduce((acc, slot) => {
@@ -778,7 +806,7 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
   }, [config, getToken, withUserReference])
 
   return (
-    <ConfigContext.Provider value={{ config, updateConfigItem, updateVideoClips, updateParticleSprites, updateLogoSprite, applyUserReference, updateColorList, setLayerEnabled, setLayerOpacity, moveLayer, retrieveConfigPreset, revertConfig, resetConfig, resetConfigItem, resetConfigSection, resetVideoClips, savePreset, isSignedIn: isSignedIn ?? false, currentUserId: user?.id ?? null, getToken, presets: presetList, packs: packList, userSettings, isAdmin: isSignedIn === true && isAdmin, userSprite, updateUserSettings }}>
+    <ConfigContext.Provider value={{ config, updateConfigItem, updateVideoClips, updateParticleSprites, updateLogoSprite, applyUserReference, releaseUserReference, userReferenceStandIn, updateColorList, setLayerEnabled, setLayerOpacity, moveLayer, retrieveConfigPreset, revertConfig, resetConfig, resetConfigItem, resetConfigSection, resetVideoClips, savePreset, isSignedIn: isSignedIn ?? false, currentUserId: user?.id ?? null, getToken, presets: presetList, packs: packList, userSettings, isAdmin: isSignedIn === true && isAdmin, userSprite, updateUserSettings }}>
       {children}
     </ConfigContext.Provider>
   )

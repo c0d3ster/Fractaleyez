@@ -10,12 +10,13 @@ type UserSpriteTilesProps = {
   onPickLogo: (url: string) => void
   /** Admins only: adds the `@user` reference instead of the concrete URL. */
   isAdmin: boolean
+  referenceSelected: boolean
   onPickReference: () => void
   disabled?: boolean
 }
 
 /** "Yours" row shared by the particle and logo pickers: the viewer's current logo, plus `@user` for admins. */
-export const UserSpriteTiles = ({ logoUrl, logoSelected, onPickLogo, isAdmin, onPickReference, disabled = false }: UserSpriteTilesProps): React.ReactElement | null => {
+export const UserSpriteTiles = ({ logoUrl, logoSelected, onPickLogo, isAdmin, referenceSelected, onPickReference, disabled = false }: UserSpriteTilesProps): React.ReactElement | null => {
   if (!logoUrl && !isAdmin) return null
   return (
     <div>
@@ -36,10 +37,11 @@ export const UserSpriteTiles = ({ logoUrl, logoSelected, onPickLogo, isAdmin, on
         {isAdmin ? (
           <button
             type='button'
-            className='particle-sprite-hud__lib-btn particle-sprite-hud__lib-btn--text'
+            className={`particle-sprite-hud__lib-btn particle-sprite-hud__lib-btn--text${referenceSelected ? ' particle-sprite-hud__lib-btn--selected' : ''}`}
             title='Adds the @user reference: each viewer sees their own logo'
             onClick={onPickReference}
-            disabled={disabled}
+            disabled={disabled && !referenceSelected}
+            aria-pressed={referenceSelected}
           >
             @user
           </button>
