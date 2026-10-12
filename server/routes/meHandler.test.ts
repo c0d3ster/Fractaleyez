@@ -58,7 +58,19 @@ describe('meHandler', () => {
     await meHandler(makeReq(), res)
     expect(userService.getOrCreateUser).toHaveBeenCalledWith('user_123')
     expect(res.statusCode).toBe(200)
-    expect(res.body).toEqual({ clerkId: 'user_123', displayName: 'Ada Lovelace', settings: {} })
+    expect(res.body).toEqual({ clerkId: 'user_123', displayName: 'Ada Lovelace', settings: {}, isAdmin: false })
+  })
+
+  it('reports isAdmin true only when the user doc has it set', async () => {
+    vi.mocked(userService.getOrCreateUser).mockResolvedValueOnce({
+      clerkId: 'user_123',
+      displayName: 'Ada Lovelace',
+      settings: {},
+      isAdmin: true,
+    } as unknown as IUser)
+    const res = makeRes()
+    await meHandler(makeReq(), res)
+    expect(res.body).toMatchObject({ isAdmin: true })
   })
 
   it('returns 500 without leaking internals when the upsert fails', async () => {

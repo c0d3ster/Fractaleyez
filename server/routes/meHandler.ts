@@ -45,6 +45,8 @@ export const meHandler = async (req: Request, res: Response): Promise<void> => {
       clerkId: user.clerkId,
       displayName: user.displayName,
       settings: user.settings,
+      // Read-only here: the flag is only ever set directly in Mongo. The client uses it to hide admin-only UI; the server still enforces it on write.
+      isAdmin: user.isAdmin === true,
     })
   } catch (err) {
     console.error('Failed to get or create user', err)
