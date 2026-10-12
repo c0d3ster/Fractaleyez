@@ -64,6 +64,7 @@ type ApiMeResponse = {
   clerkId: string
   displayName: string
   settings: UserSettings
+  isAdmin?: boolean
 }
 
 /** Applies a loaded/patched settings value to the systems that poll it live outside React (crossfade duration, frequency-band HUD). */
@@ -224,6 +225,8 @@ export type ConfigContextValue = {
   presets: PresetMeta[]
   packs: PackMeta[]
   userSettings: UserSettings | null
+  /** From `/api/me`. Only hides admin-only UI; the server enforces it on save. False until the load lands or when signed out. */
+  isAdmin: boolean
   /** The viewer's resolved `@user` sprite (logo, else display name, else app default), for preset list thumbnails. */
   userSprite: string
   updateUserSettings: (patch: Partial<UserSettings>) => void
@@ -256,6 +259,7 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
   const [packList, setPackList] = useState<PackMeta[]>([])
   const [userSettings, setUserSettings] = useState<UserSettings | null>(null)
   const [displayName, setDisplayName] = useState<string | null>(null)
+  const [isAdmin, setIsAdmin] = useState(false)
   const userContext: UserReferenceContext = { logoParticle: userSettings?.logoParticle, displayName }
   // What `@user` looks like for this viewer with no preset fallback; preset list thumbnails use it.
   const userSprite = useMemo(
@@ -340,6 +344,7 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
         if (cancelled) return
         setUserSettings(data.settings)
         setDisplayName(data.displayName || null)
+        setIsAdmin(data.isAdmin === true)
         applyUserSettingsSideEffects(data.settings)
 
         // Only when no logo is set yet: persist a sprite-processed copy of the Clerk social photo as the
@@ -731,7 +736,7 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
   }, [config, getToken, withUserReference])
 
   return (
-    <ConfigContext.Provider value={{ config, updateConfigItem, updateVideoClips, updateParticleSprites, updateLogoSprite, updateColorList, setLayerEnabled, setLayerOpacity, moveLayer, retrieveConfigPreset, revertConfig, resetConfig, resetConfigItem, resetConfigSection, resetVideoClips, savePreset, isSignedIn: isSignedIn ?? false, currentUserId: user?.id ?? null, getToken, presets: presetList, packs: packList, userSettings, userSprite, updateUserSettings }}>
+    <ConfigContext.Provider value={{ config, updateConfigItem, updateVideoClips, updateParticleSprites, updateLogoSprite, updateColorList, setLayerEnabled, setLayerOpacity, moveLayer, retrieveConfigPreset, revertConfig, resetConfig, resetConfigItem, resetConfigSection, resetVideoClips, savePreset, isSignedIn: isSignedIn ?? false, currentUserId: user?.id ?? null, getToken, presets: presetList, packs: packList, userSettings, isAdmin: isSignedIn === true && isAdmin, userSprite, updateUserSettings }}>
       {children}
     </ConfigContext.Provider>
   )

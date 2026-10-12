@@ -107,6 +107,7 @@ const ExternalWindowBridge = ({
   presets,
   packs,
   userSettings,
+  isAdmin,
   userSprite,
   updateUserSettings,
 }: ExternalWindowBridgeProps): React.ReactElement => {
@@ -136,6 +137,7 @@ const ExternalWindowBridge = ({
         presets,
         packs,
         userSettings,
+        isAdmin,
         userSprite,
         updateUserSettings,
       }}
@@ -213,6 +215,7 @@ const ConfigWindowInner = ({
   presets,
   packs,
   userSettings,
+  isAdmin,
   userSprite,
   updateUserSettings,
   onClose,
@@ -314,6 +317,7 @@ const ConfigWindowInner = ({
         presets={presets}
         packs={packs}
         userSettings={userSettings}
+        isAdmin={isAdmin}
         userSprite={userSprite}
         updateUserSettings={updateUserSettings}
       />
@@ -340,6 +344,7 @@ const ConfigWindowInner = ({
     getToken,
     presets,
     userSettings,
+    isAdmin,
     userSprite,
     updateUserSettings,
   ])
