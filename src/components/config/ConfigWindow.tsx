@@ -90,6 +90,7 @@ const ExternalWindowBridge = ({
   updateVideoClips,
   updateParticleSprites,
   updateLogoSprite,
+  applyUserReference,
   updateColorList,
   setLayerEnabled,
   setLayerOpacity,
@@ -120,6 +121,7 @@ const ExternalWindowBridge = ({
         updateVideoClips,
         updateParticleSprites,
         updateLogoSprite,
+        applyUserReference,
         updateColorList,
         setLayerEnabled,
         setLayerOpacity,
@@ -198,6 +200,7 @@ const ConfigWindowInner = ({
   updateVideoClips,
   updateParticleSprites,
   updateLogoSprite,
+  applyUserReference,
   updateColorList,
   setLayerEnabled,
   setLayerOpacity,
@@ -300,6 +303,7 @@ const ConfigWindowInner = ({
         updateVideoClips={updateVideoClips}
         updateParticleSprites={updateParticleSprites}
         updateLogoSprite={updateLogoSprite}
+        applyUserReference={applyUserReference}
         updateColorList={updateColorList}
         setLayerEnabled={setLayerEnabled}
         setLayerOpacity={setLayerOpacity}
@@ -329,6 +333,7 @@ const ConfigWindowInner = ({
     updateVideoClips,
     updateParticleSprites,
     updateLogoSprite,
+    applyUserReference,
     updateColorList,
     setLayerEnabled,
     setLayerOpacity,

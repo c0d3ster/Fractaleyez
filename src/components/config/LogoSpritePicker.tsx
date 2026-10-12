@@ -1,20 +1,24 @@
 import React, { useCallback } from 'react'
 import '../huds/ParticleSpriteHud.css'
 
-import { connectConfig } from './context/ConfigProvider'
+import { connectConfig, ConfigContextValue } from './context/ConfigProvider'
 import { AppConfig } from '../../config/configDefaults'
 import { BUILTIN_PARTICLE_SPRITES } from '../../config/particle.config'
 import { presetSpriteSrc } from '../../utils/presetSpriteSrc'
 import { useSpriteUpload } from '../huds/useSpriteUpload'
+import { UserSpriteTiles } from '../huds/UserSpriteTiles'
 
 type LogoSpritePickerProps = {
   config: AppConfig
   updateLogoSprite: (sprite: string) => Promise<void>
+  applyUserReference: ConfigContextValue['applyUserReference']
+  userSettings: ConfigContextValue['userSettings']
+  isAdmin: boolean
   isSignedIn: boolean
   getToken: () => Promise<string | null>
 }
 
-const LogoSpritePickerInner = ({ config, updateLogoSprite, isSignedIn, getToken }: LogoSpritePickerProps): React.ReactElement => {
+const LogoSpritePickerInner = ({ config, updateLogoSprite, applyUserReference, userSettings, isAdmin, isSignedIn, getToken }: LogoSpritePickerProps): React.ReactElement => {
   const selected = config.logo.sprite.value[0]
 
   const choose = useCallback((src: string): void => {
@@ -42,6 +46,13 @@ const LogoSpritePickerInner = ({ config, updateLogoSprite, isSignedIn, getToken 
           </button>
         ))}
       </div>
+      <UserSpriteTiles
+        logoUrl={userSettings?.logoParticle}
+        logoSelected={selected === userSettings?.logoParticle}
+        onPickLogo={choose}
+        isAdmin={isAdmin}
+        onPickReference={() => void applyUserReference('logo')}
+      />
       <div className='particle-sprite-hud__upload'>
         <label
           className={`particle-sprite-hud__upload-label${isSignedIn ? '' : ' particle-sprite-hud__upload-label--disabled'}`}
