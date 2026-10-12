@@ -184,7 +184,7 @@ const normalizeLoadedPreset = (cfg: Record<string, unknown>): AppConfig => {
 type ActiveUserReference = UserReferenceState & { presetFallback: string | undefined }
 
 /** The sprite lists that can hold `@user`: the particle list and the logo layer's single-item list. */
-type UserReferenceSlot = 'particle' | 'logo'
+export type UserReferenceSlot = 'particle' | 'logo'
 type ActiveUserReferences = Partial<Record<UserReferenceSlot, ActiveUserReference>>
 
 const USER_REFERENCE_SLOTS: UserReferenceSlot[] = ['particle', 'logo']
@@ -221,6 +221,8 @@ export type ConfigContextValue = {
   updateVideoClips: (clips: string[]) => void
   updateParticleSprites: (sprites: string[]) => Promise<void>
   updateLogoSprite: (sprite: string) => Promise<void>
+  /** Admin tool: puts `@user` in a sprite list. It renders as the viewer's own logo and is restored to the sentinel on save. */
+  applyUserReference: (slot: UserReferenceSlot) => Promise<void>
   /** Sets one of the Color section's list items: the chosen palette (one id) or the custom palette's colors. */
   updateColorList: (item: 'palette' | 'customStops', values: string[]) => void
   setLayerEnabled: (key: LayerKey, enabled: boolean) => boolean
@@ -517,6 +519,19 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
     })
   }, [])
 
+  const applyUserReference = useCallback(async (slot: UserReferenceSlot): Promise<void> => {
+    const current = slotSprites(window.config, slot)
+    const others = current.filter(s => s !== USER_REFERENCE)
+    const { sprites, reference } = resolveUserSprites(slot === 'particle' ? [...others, USER_REFERENCE] : [USER_REFERENCE], userContextRef.current)
+    if (!reference) return
+    activeUserReferenceRef.current = {
+      ...activeUserReferenceRef.current,
+      [slot]: { ...reference, presetFallback: slot === 'particle' ? others[0] : undefined },
+    }
+    if (slot === 'particle') await updateParticleSprites(sprites)
+    else await updateLogoSprite(sprites[0] ?? '')
+  }, [updateParticleSprites, updateLogoSprite])
+
   // Reads window.config (kept in sync with state) so the cap result can be returned synchronously.
   const setLayerEnabled = useCallback((key: LayerKey, enabled: boolean): boolean => {
     const prev = window.config
@@ -763,7 +778,7 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
   }, [config, getToken, withUserReference])
 
   return (
-    <ConfigContext.Provider value={{ config, updateConfigItem, updateVideoClips, updateParticleSprites, updateLogoSprite, updateColorList, setLayerEnabled, setLayerOpacity, moveLayer, retrieveConfigPreset, revertConfig, resetConfig, resetConfigItem, resetConfigSection, resetVideoClips, savePreset, isSignedIn: isSignedIn ?? false, currentUserId: user?.id ?? null, getToken, presets: presetList, packs: packList, userSettings, isAdmin: isSignedIn === true && isAdmin, userSprite, updateUserSettings }}>
+    <ConfigContext.Provider value={{ config, updateConfigItem, updateVideoClips, updateParticleSprites, updateLogoSprite, applyUserReference, updateColorList, setLayerEnabled, setLayerOpacity, moveLayer, retrieveConfigPreset, revertConfig, resetConfig, resetConfigItem, resetConfigSection, resetVideoClips, savePreset, isSignedIn: isSignedIn ?? false, currentUserId: user?.id ?? null, getToken, presets: presetList, packs: packList, userSettings, isAdmin: isSignedIn === true && isAdmin, userSprite, updateUserSettings }}>
       {children}
     </ConfigContext.Provider>
   )

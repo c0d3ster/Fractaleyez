@@ -124,6 +124,17 @@
   display: block;
 }
 
+.particle-sprite-hud__lib-btn--text {
+  color: #ddd;
+  font-size: 9px;
+  opacity: 0.8;
+}
+
+.particle-sprite-hud__lib-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.25;
+}
+
 .particle-sprite-hud__upload {
   display: flex;
   flex-direction: column;

@@ -1,11 +1,12 @@
 import React, { useCallback, useRef } from 'react'
 import './ParticleSpriteHud.css'
 
-import { connectConfig } from '../config/context/ConfigProvider'
+import { connectConfig, ConfigContextValue } from '../config/context/ConfigProvider'
 import { AppConfig } from '../../config/configDefaults'
 import { BUILTIN_PARTICLE_SPRITES, particleConfig } from '../../config/particle.config'
 import { presetSpriteSrc } from '../../utils/presetSpriteSrc'
 import { useSpriteUpload } from './useSpriteUpload'
+import { UserSpriteTiles } from './UserSpriteTiles'
 
 const spriteLabel = (src: string): string => {
   if (src.startsWith('data:')) return 'Custom'
@@ -16,11 +17,14 @@ const spriteLabel = (src: string): string => {
 type ParticleSpriteHudProps = {
   config: AppConfig
   updateParticleSprites: (sprites: string[]) => Promise<void>
+  applyUserReference: ConfigContextValue['applyUserReference']
+  userSettings: ConfigContextValue['userSettings']
+  isAdmin: boolean
   isSignedIn: boolean
   getToken: () => Promise<string | null>
 }
 
-const ParticleSpriteHudInner = ({ config, updateParticleSprites, isSignedIn, getToken }: ParticleSpriteHudProps): React.ReactElement => {
+const ParticleSpriteHudInner = ({ config, updateParticleSprites, applyUserReference, userSettings, isAdmin, isSignedIn, getToken }: ParticleSpriteHudProps): React.ReactElement => {
   const sprites = config.particle.sprites.value
   const spritesRef = useRef(sprites)
   spritesRef.current = sprites
@@ -117,6 +121,14 @@ const ParticleSpriteHudInner = ({ config, updateParticleSprites, isSignedIn, get
             })}
           </div>
         </div>
+        <UserSpriteTiles
+          logoUrl={userSettings?.logoParticle}
+          logoSelected={userSettings?.logoParticle !== undefined && sprites.includes(userSettings.logoParticle)}
+          onPickLogo={toggleBuiltin}
+          isAdmin={isAdmin}
+          onPickReference={() => void applyUserReference('particle')}
+          disabled={atCapacity && !sprites.includes(userSettings?.logoParticle ?? '')}
+        />
         <div className='particle-sprite-hud__upload'>
           <label
             className={`particle-sprite-hud__upload-label${uploadDisabled ? ' particle-sprite-hud__upload-label--disabled' : ''}`}

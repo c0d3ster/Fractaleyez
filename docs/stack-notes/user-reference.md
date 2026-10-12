@@ -22,3 +22,10 @@ Branch: overnight/2026-10-11/r1-02-t46-user-reference-logo-sprite
 - Server: `PresetService.spriteList(config, section = 'particle')` also reads `logo.sprite` (bare array or `{ value }`); new `usesUserReference(config)` feeds the existing `#45` 403 gate on both create and `force` paths.
 - Tests: logo-list gate cases added to `PresetService.test.ts`. `userReference.test.ts` unchanged (shared helpers unchanged). No provider-level client tests (none exist for it).
 - No deviations from acceptance criteria.
+
+## Follow-up: "Yours" tiles in the sprite pickers
+
+- `GET /api/me` now returns `isAdmin` (read-only) and `ConfigContext` exposes it (false when signed out or before the load lands). It only hides UI; the server gate still decides.
+- New `UserSpriteTiles` (`src/components/huds/`) renders a "Yours" row in `ParticleSpriteHud` and `LogoSpritePicker`. Everyone with a persisted `logoParticle` gets a tile that saves the concrete URL (no sentinel, so no gate). If the logo changes later, saved presets keep the old URL until the tile is picked again; accepted.
+- Admins also get an `@user` button. It calls `applyUserReference(slot)` in `ConfigProvider`, which resolves the sentinel, registers it in `activeUserReferenceRef` and writes the stand-in, so save restores `@user` exactly like a loaded preset.
+- The `@user` button has no selected state (the stand-in equals the logo URL, so the plain logo tile highlights instead). Particle list: the logo tile is disabled at capacity unless already selected.
