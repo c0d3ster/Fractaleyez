@@ -12,13 +12,15 @@ type LogoSpritePickerProps = {
   config: AppConfig
   updateLogoSprite: (sprite: string) => Promise<void>
   applyUserReference: ConfigContextValue['applyUserReference']
+  releaseUserReference: ConfigContextValue['releaseUserReference']
+  userReferenceStandIn: ConfigContextValue['userReferenceStandIn']
   userSettings: ConfigContextValue['userSettings']
   isAdmin: boolean
   isSignedIn: boolean
   getToken: () => Promise<string | null>
 }
 
-const LogoSpritePickerInner = ({ config, updateLogoSprite, applyUserReference, userSettings, isAdmin, isSignedIn, getToken }: LogoSpritePickerProps): React.ReactElement => {
+const LogoSpritePickerInner = ({ config, updateLogoSprite, applyUserReference, releaseUserReference, userReferenceStandIn, userSettings, isAdmin, isSignedIn, getToken }: LogoSpritePickerProps): React.ReactElement => {
   const selected = config.logo.sprite.value[0]
 
   const choose = useCallback((src: string): void => {
@@ -28,7 +30,8 @@ const LogoSpritePickerInner = ({ config, updateLogoSprite, applyUserReference, u
   const { onFiles, uploadError } = useSpriteUpload({ isSignedIn, getToken, atCapacity: false, onUploaded: choose })
 
   // A custom upload is not in the built-in list, so it gets its own selected tile.
-  const custom = selected && !(BUILTIN_PARTICLE_SPRITES as readonly string[]).includes(selected) ? selected : null
+  // The viewer's own logo (plain or as @user) is drawn by the "Yours" row, so it never gets a duplicate tile here.
+  const custom = selected && selected !== userSettings?.logoParticle && !(BUILTIN_PARTICLE_SPRITES as readonly string[]).includes(selected) ? selected : null
   const tiles = custom ? [...BUILTIN_PARTICLE_SPRITES, custom] : BUILTIN_PARTICLE_SPRITES
 
   return (
@@ -48,9 +51,10 @@ const LogoSpritePickerInner = ({ config, updateLogoSprite, applyUserReference, u
       </div>
       <UserSpriteTiles
         logoUrl={userSettings?.logoParticle}
-        logoSelected={selected === userSettings?.logoParticle}
-        onPickLogo={choose}
+        logoSelected={selected === userSettings?.logoParticle && userReferenceStandIn.logo === null}
+        onPickLogo={(url) => void releaseUserReference('logo').then(() => choose(url))}
         isAdmin={isAdmin}
+        referenceSelected={userReferenceStandIn.logo !== null}
         onPickReference={() => void applyUserReference('logo')}
       />
       <div className='particle-sprite-hud__upload'>

@@ -5,6 +5,7 @@ import { connectConfig, ConfigContextValue } from '../config/context/ConfigProvi
 import { AppConfig } from '../../config/configDefaults'
 import { BUILTIN_PARTICLE_SPRITES, particleConfig } from '../../config/particle.config'
 import { presetSpriteSrc } from '../../utils/presetSpriteSrc'
+import { USER_REFERENCE } from '../../utils/userReference'
 import { useSpriteUpload } from './useSpriteUpload'
 import { UserSpriteTiles } from './UserSpriteTiles'
 
@@ -18,13 +19,15 @@ type ParticleSpriteHudProps = {
   config: AppConfig
   updateParticleSprites: (sprites: string[]) => Promise<void>
   applyUserReference: ConfigContextValue['applyUserReference']
+  releaseUserReference: ConfigContextValue['releaseUserReference']
+  userReferenceStandIn: ConfigContextValue['userReferenceStandIn']
   userSettings: ConfigContextValue['userSettings']
   isAdmin: boolean
   isSignedIn: boolean
   getToken: () => Promise<string | null>
 }
 
-const ParticleSpriteHudInner = ({ config, updateParticleSprites, applyUserReference, userSettings, isAdmin, isSignedIn, getToken }: ParticleSpriteHudProps): React.ReactElement => {
+const ParticleSpriteHudInner = ({ config, updateParticleSprites, applyUserReference, releaseUserReference, userReferenceStandIn, userSettings, isAdmin, isSignedIn, getToken }: ParticleSpriteHudProps): React.ReactElement => {
   const sprites = config.particle.sprites.value
   const spritesRef = useRef(sprites)
   spritesRef.current = sprites
@@ -84,14 +87,18 @@ const ParticleSpriteHudInner = ({ config, updateParticleSprites, applyUserRefere
               <div
                 key={`${src.slice(0, 48)}-${index}`}
                 className='particle-sprite-hud__chip particle-sprite-hud__chip--on'
-                title={spriteLabel(src)}
+                title={src === userReferenceStandIn.particle ? USER_REFERENCE : spriteLabel(src)}
               >
-                <img src={presetSpriteSrc(src)} alt='' />
+                {src === userReferenceStandIn.particle ? (
+                  <span className='particle-sprite-hud__chip-text'>{USER_REFERENCE}</span>
+                ) : (
+                  <img src={presetSpriteSrc(src)} alt='' />
+                )}
                 {sprites.length > minN ? (
                   <button
                     type='button'
                     className='ui-dismiss-bubble'
-                    aria-label={`Remove ${spriteLabel(src)}`}
+                    aria-label={`Remove ${src === userReferenceStandIn.particle ? USER_REFERENCE : spriteLabel(src)}`}
                     onClick={() => removeAt(index)}
                   >
                     ×
@@ -123,10 +130,12 @@ const ParticleSpriteHudInner = ({ config, updateParticleSprites, applyUserRefere
         </div>
         <UserSpriteTiles
           logoUrl={userSettings?.logoParticle}
-          logoSelected={userSettings?.logoParticle !== undefined && sprites.includes(userSettings.logoParticle)}
-          onPickLogo={toggleBuiltin}
+          logoSelected={userSettings?.logoParticle !== undefined && sprites.includes(userSettings.logoParticle) && userReferenceStandIn.particle === null}
+          // With @user active the logo is already in the list, so picking the plain tile turns that into a concrete sprite instead of removing it.
+          onPickLogo={(url) => void (userReferenceStandIn.particle !== null ? releaseUserReference('particle') : Promise.resolve(toggleBuiltin(url)))}
           isAdmin={isAdmin}
-          onPickReference={() => void applyUserReference('particle')}
+          referenceSelected={userReferenceStandIn.particle !== null}
+          onPickReference={() => void (userReferenceStandIn.particle !== null ? releaseUserReference('particle', { remove: true }) : applyUserReference('particle'))}
           disabled={atCapacity && !sprites.includes(userSettings?.logoParticle ?? '')}
         />
         <div className='particle-sprite-hud__upload'>
