@@ -6,9 +6,9 @@
   "scripts": {
     "build-dev": "webpack --mode development --watch",
     "client-dev": "webpack serve --mode development --static public/",
-    "server-dev": "node server-dev.js",
+    "server-dev": "tsx watch --env-file=.env server/dev.ts",
     "build": "webpack --mode production",
-    "dev": "concurrently --kill-others \"yarn server-dev\" \"yarn client-dev\"",
+    "dev": "concurrently --kill-others \"pnpm server-dev\" \"pnpm client-dev\"",
     "lint": "eslint src --ext .ts,.tsx --fix",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
@@ -82,6 +82,7 @@
     "style-loader": "^4.0.0",
     "supertest": "^7.2.2",
     "tailwindcss": "^4.3.3",
+    "tsx": "^4.23.15",
     "typescript": "^6.0.2",
     "vitest": "^4.1.11",
     "webpack": "^5.0.0",
@@ -98,5 +99,6 @@
   "homepage": "https://github.com/c0d3ster/Fractaleyez#readme",
   "resolutions": {
     "@types/minimatch": "5.1.2"
-  }
+  },
+  "packageManager": "pnpm@10.14.0"
 }

@@ -5,19 +5,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```sh
-yarn dev            # run client + server together (webpack-dev-server on :3000, express API on :8080, proxied)
-yarn client-dev      # webpack-dev-server only
-yarn server-dev       # express API only (via babel-register, no build step)
-yarn build            # production webpack build -> public/app.js
-yarn lint             # eslint src --fix
-yarn typecheck        # tsc --noEmit (src/** only, see tsconfig.json)
-yarn seed             # seed src/config/presets.ts into MongoDB
-yarn seed-packs       # seed pack documents into MongoDB
+pnpm dev            # run client + server together (webpack-dev-server on :3000, express API on :8080, proxied)
+pnpm client-dev      # webpack-dev-server only
+pnpm server-dev       # express API only (tsx watch: restarts on save, no build step)
+pnpm build            # production webpack build -> public/app.js
+pnpm lint             # eslint src --fix
+pnpm typecheck        # tsc --noEmit (src/** only, see tsconfig.json)
+pnpm seed             # seed src/config/presets.ts into MongoDB
+pnpm seed-packs       # seed pack documents into MongoDB
 ```
 
 There is no `test` script yet — vitest, supertest, and mongodb-memory-server are present as devDependencies but no test files or vitest config exist in the repo currently.
 
-`yarn dev` requires `MONGO_URI` and `CLERK_SECRET_KEY` (server) and `CLERK_PUBLISHABLE_KEY` (client, injected via webpack `EnvironmentPlugin`) in `.env`.
+`pnpm dev` requires `MONGO_URI` and `CLERK_SECRET_KEY` (server) and `CLERK_PUBLISHABLE_KEY` (client, injected via webpack `EnvironmentPlugin`) in `.env`.
 
 ## Architecture
 
@@ -25,8 +25,8 @@ There is no `test` script yet — vitest, supertest, and mongodb-memory-server a
 
 API logic lives once in `server/routes/*Handler.ts` (plain Express `(req, res)` handlers) and is consumed by two different entrypoints:
 
-- **Local dev**: `server-dev.js` → `server/dev.ts` boots an Express app, mounts the handlers directly, and serves `public/` as static files. Runs on `:8080`; webpack-dev-server proxies `/api` to it.
-- **Production (Vercel)**: each file under `api/*.ts` is a serverless function that imports the same handler from `server/routes` and adapts `VercelRequest`/`VercelResponse` to it (see `api/presets.ts`). `vercel.json` builds with `yarn build` and serves `public/` as `outputDirectory`.
+- **Local dev**: `server/dev.ts` (run by `tsx watch`) boots an Express app, mounts the handlers directly, and serves `public/` as static files. Runs on `:8080`; webpack-dev-server proxies `/api` to it.
+- **Production (Vercel)**: each file under `api/*.ts` is a serverless function that imports the same handler from `server/routes` and adapts `VercelRequest`/`VercelResponse` to it (see `api/presets.ts`). `vercel.json` builds with `pnpm build` and serves `public/` as `outputDirectory`.
 
 When adding an API endpoint: write the handler once in `server/routes/`, wire it into `server/dev.ts`, and add a matching thin adapter file in `api/`.
 
@@ -38,7 +38,7 @@ Clerk is the identity provider. Client: `ClerkProvider` wraps the app in `src/in
 
 ### Presets and packs
 
-- Bundled presets ship with the client as plain data in `src/config/presets.ts` (`BundledPreset` records: `pack`, `sprite`, `config`). A preset's `config` is a `StoredConfig` (`src/config/storedConfig.ts`): bare values only, no labels, ranges, or `defaultValue`. Those come from `configDefaults` at load time, and the loader also accepts the older full-item shape. Out-of-range values are kept on purpose (no clamping). `toStoredConfig` produces the slim shape for `savePreset`. This file is also the seed source for MongoDB (`yarn seed`) and the client's offline/fallback source if the `/api/presets` fetch fails — see `ConfigProvider.tsx`'s "falling back to bundled" path.
+- Bundled presets ship with the client as plain data in `src/config/presets.ts` (`BundledPreset` records: `pack`, `sprite`, `config`). A preset's `config` is a `StoredConfig` (`src/config/storedConfig.ts`): bare values only, no labels, ranges, or `defaultValue`. Those come from `configDefaults` at load time, and the loader also accepts the older full-item shape. Out-of-range values are kept on purpose (no clamping). `toStoredConfig` produces the slim shape for `savePreset`. This file is also the seed source for MongoDB (`pnpm seed`) and the client's offline/fallback source if the `/api/presets` fetch fails — see `ConfigProvider.tsx`'s "falling back to bundled" path.
 - Live presets/packs are Mongoose documents (`server/models/Preset.ts`, `server/models/Pack.ts`). A `Preset` has an optional `packId` ref plus a legacy `pack` string field. `Preset` is unique on `(name, userId)`; seeded/global presets have no `userId`.
 - `src/components/config/context/ConfigProvider.tsx` is the client-side source of truth for the active config: it fetches the preset list from the API, merges any loaded preset config against `configDefaults` (`mergeConfigSection`/`mergeVideo`) so older or partial shapes stay valid, and falls back to `presets` from `src/config/presets.ts` when the API is unreachable.
 - `ConfigProvider` keeps a baseline (the active preset's values at load or last save) that `resetConfigItem` (double-click a slider) and `resetConfigSection` (section header button) restore from.
@@ -65,6 +65,6 @@ Config is organized into five categories mirrored across `src/config/*.config.ts
 
 ## Code style
 
-`.eslintrc` already enforces the global arrow-functions/single-quotes/no-semicolons/2-space style for this repo (`prefer-arrow`, `semi: never`, `quotes: single`, `indent: 2`, `no-var`) — run `yarn lint` after changes. TypeScript is strict (`strict`, `noUncheckedIndexedAccess`, `noUnusedLocals`, `noImplicitOverride`, etc. — see `tsconfig.json`); run `yarn typecheck` before considering `src/**` changes done. Note `tsconfig.json`'s `include` is `src/**/*` only — `yarn typecheck` does not type-check `server/` or `api/`, which have no dedicated type-check script; rely on your editor's TS server or `tsc --noEmit` against `api/tsconfig.json` for those.
+`.eslintrc` already enforces the global arrow-functions/single-quotes/no-semicolons/2-space style for this repo (`prefer-arrow`, `semi: never`, `quotes: single`, `indent: 2`, `no-var`) — run `pnpm lint` after changes. TypeScript is strict (`strict`, `noUncheckedIndexedAccess`, `noUnusedLocals`, `noImplicitOverride`, etc. — see `tsconfig.json`); run `pnpm typecheck` before considering `src/**` changes done. Note `tsconfig.json`'s `include` is `src/**/*` only — `pnpm typecheck` does not type-check `server/` or `api/`, which have no dedicated type-check script; rely on your editor's TS server or `tsc --noEmit` against `api/tsconfig.json` for those.
 
 One repo-specific exception to the global named-exports-only rule: files under `api/*.ts` use `export default` because Vercel serverless functions require it (same shape as the Next.js `page.tsx`/`layout.tsx` exception — default export on its own, everything else in the file stays a named export).
