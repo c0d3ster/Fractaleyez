@@ -1,7 +1,7 @@
 const path = require('path')
 const webpack = require('webpack')
 
-// Load .env before EnvironmentPlugin reads process.env (client bundle is separate from server-dev.js).
+// Load .env before EnvironmentPlugin reads process.env (client bundle is separate from the server (server/dev.ts)).
 require('dotenv').config({ path: path.join(__dirname, '.env'), quiet: true })
 
 const BUILD_DIR = path.join( __dirname, 'public' )

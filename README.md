@@ -112,12 +112,12 @@ Presets store bare values only, so older presets keep working as new options are
 ## Development
 
 ```sh
-yarn dev            # client (:3000) and API (:8080) together
-yarn build          # production build to public/app.js
-yarn lint
-yarn typecheck
-yarn seed           # seed presets into MongoDB
-yarn seed-packs     # seed packs into MongoDB
+pnpm dev            # client (:3000) and API (:8080) together
+pnpm build          # production build to public/app.js
+pnpm lint
+pnpm typecheck
+pnpm seed           # seed presets into MongoDB
+pnpm seed-packs     # seed packs into MongoDB
 ```
 
 You need `MONGO_URI`, `CLERK_SECRET_KEY` and `CLERK_PUBLISHABLE_KEY` in `.env`. See `CLAUDE.md` for the architecture and `docs/` for design notes.

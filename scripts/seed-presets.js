@@ -16,7 +16,7 @@ const seed = async () => {
   await mongoose.connect(requireEnv.MONGO_URI())
   console.info('Connected to MongoDB')
 
-  // Optional preset names as args (yarn seed galaxySpiral) limit the run to those; none seeds everything.
+  // Optional preset names as args (pnpm seed galaxySpiral) limit the run to those; none seeds everything.
   const only = process.argv.slice(2)
   const unknown = only.filter(name => !(name in presets))
   if (unknown.length) throw new Error(`Unknown preset(s): ${unknown.join(', ')}`)
