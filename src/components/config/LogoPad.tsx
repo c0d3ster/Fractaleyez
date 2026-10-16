@@ -37,6 +37,7 @@ const sizeOf = ({ width, height }: PadPoint): PadSize => ({ width, height })
 const LogoPadInner = ({ config, updateConfigItem, resetConfigItem }: LogoPadProps): React.ReactElement => {
   const grab = useRef<Grab>({ target: 'empty', offset: { x: 0, y: 0 } })
   const state = stateOf(config)
+  const aspectRatio = screenAspectRatio()
   const drosteOn = config.logo.zoom.value
 
   const setValues = useCallback((values: Record<string, number>): void => {
@@ -80,7 +81,7 @@ const LogoPadInner = ({ config, updateConfigItem, resetConfigItem }: LogoPadProp
   return (
     <Pad
       label='Logo Position'
-      aspectRatio={screenAspectRatio()}
+      aspectRatio={aspectRatio}
       onPick={handlePick}
       onReset={handleReset}
       readouts={readouts}
@@ -88,7 +89,7 @@ const LogoPadInner = ({ config, updateConfigItem, resetConfigItem }: LogoPadProp
     >
       <div className='logo-pad-crosshair logo-pad-crosshair--h' />
       <div className='logo-pad-crosshair logo-pad-crosshair--v' />
-      <div className='logo-pad-logo' style={{ left: toPercent(state.x), top: toPercent(state.y), height: toPercent(state.size) }}>
+      <div className='logo-pad-logo' style={{ left: toPercent(state.x), top: toPercent(state.y), width: toPercent(state.size / aspectRatio), height: toPercent(state.size) }}>
         {drosteOn ? <div className='logo-pad-focus' style={{ left: toPercent(state.focusX), top: toPercent(state.focusY) }} /> : null}
       </div>
     </Pad>

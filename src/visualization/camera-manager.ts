@@ -54,13 +54,15 @@ export class CameraManager {
     this.camera!.lookAt(this.focusPoint)
     const ease = 1 - Math.pow(0.5, deltaTimeMs / 1000 / CAMERA_EASE_HALF_LIFE_SECONDS)
 
+    // The camera moves opposite the pointer, so with the pointer (or the pad) at the top left the particles come in from
+    // the bottom right, like the other effects that lean toward it.
     if (this.camera!.position.x >= -this.cameraBound && this.camera!.position.x <= this.cameraBound) {
-      this.camera!.position.x += (this.mouseX - this.camera!.position.x) * ease
+      this.camera!.position.x += (-this.mouseX - this.camera!.position.x) * ease
       if (this.camera!.position.x < -this.cameraBound) this.camera!.position.x = -this.cameraBound
       if (this.camera!.position.x > this.cameraBound) this.camera!.position.x = this.cameraBound
     }
     if (this.camera!.position.y >= -this.cameraBound && this.camera!.position.y <= this.cameraBound) {
-      this.camera!.position.y += (-this.mouseY - this.camera!.position.y) * ease
+      this.camera!.position.y += (this.mouseY - this.camera!.position.y) * ease
       if (this.camera!.position.y < -this.cameraBound) this.camera!.position.y = -this.cameraBound
       if (this.camera!.position.y > this.cameraBound) this.camera!.position.y = this.cameraBound
     }
