@@ -18,14 +18,24 @@
   width: 1px;
 }
 
-/* The logo as it looks on screen: the visible part of its image at its Size, in percent of the pad. */
-.logo-pad-box {
+/*
+ * The logo's silhouette at its size on screen: the sprite's own shape (it masks a white fill), laid out in percent of
+ * the pad. The wrapper carries the outline, since a filter on the masked element itself would run before the mask.
+ */
+.logo-pad-shape {
   position: absolute;
-  box-sizing: border-box;
-  border: 2px solid rgba(255, 255, 255, 0.85);
-  border-radius: 4px;
-  background: rgba(255, 255, 255, 0.14);
   pointer-events: none;
+  filter: drop-shadow(0 0 1.5px rgba(255, 255, 255, 0.95));
+}
+
+.logo-pad-shape-fill {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.4);
+  mask-size: 100% 100%;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
 }
 
 .logo-pad-focus {

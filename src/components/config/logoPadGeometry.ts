@@ -4,10 +4,10 @@ import { Bounds } from '../../utils/opaqueBounds'
 /**
  * What the logo pad draws and edits. `x`/`y` are the center of the logo's image frame across the screen and
  * `focusX`/`focusY` the zoom point across the image, all 0..1 with y down. `size` is the frame's height as a fraction of
- * the screen's. `bounds` is the visible part of the image inside the frame: the box the pad draws, and the only part the
+ * the screen's and `aspect` the image's width over its height. `bounds` is the visible part of the image inside the frame: the box the pad draws, and the only part the
  * zoom point can be aimed at.
  */
-export type LogoPadState = { x: number, y: number, focusX: number, focusY: number, size: number, bounds: Bounds }
+export type LogoPadState = { x: number, y: number, focusX: number, focusY: number, size: number, aspect: number, bounds: Bounds }
 
 /** The pad's size in pixels, which turns fractions of its height into fractions of its width. */
 export type PadSize = { width: number, height: number }
@@ -20,9 +20,9 @@ const FOCUS_HIT_RADIUS_PX = 12
 
 const clamp = (value: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, value))
 
-/** The logo's footprint on the pad as fractions of the pad's width and height. It is square, like the image's frame. */
-const footprint = ({ size }: LogoPadState, pad: PadSize): { width: number, height: number } => ({
-  width: size * pad.height / pad.width,
+/** The logo's footprint on the pad as fractions of the pad's width and height: the image's whole frame at its size on screen. */
+const footprint = ({ size, aspect }: LogoPadState, pad: PadSize): { width: number, height: number } => ({
+  width: size * aspect * pad.height / pad.width,
   height: size,
 })
 
@@ -30,6 +30,12 @@ const footprint = ({ size }: LogoPadState, pad: PadSize): { width: number, heigh
 export const focusSpot = (state: LogoPadState, pad: PadSize): PadSpot => {
   const { width, height } = footprint(state, pad)
   return { x: state.x + (state.focusX - 0.5) * width, y: state.y + (state.focusY - 0.5) * height }
+}
+
+/** The image's whole frame on the pad, centered on the logo. */
+export const frameRect = (state: LogoPadState, pad: PadSize): { left: number, top: number, width: number, height: number } => {
+  const { width, height } = footprint(state, pad)
+  return { left: state.x - width / 2, top: state.y - height / 2, width, height }
 }
 
 /** The box on the pad that matches what is seen on screen: the visible part of the image, as fractions of the pad. */

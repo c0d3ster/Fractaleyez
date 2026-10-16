@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
 import { FULL_BOUNDS } from '../../utils/opaqueBounds'
-import { focusSpot, hitTest, LogoPadState, moveFocus, moveLogo, PadSize, visibleRect } from './logoPadGeometry'
+import { focusSpot, frameRect, hitTest, LogoPadState, moveFocus, moveLogo, PadSize, visibleRect } from './logoPadGeometry'
 
 const pad: PadSize = { width: 300, height: 200 }
-const state: LogoPadState = { x: 0.5, y: 0.5, focusX: 0.5, focusY: 0.5, size: 0.5, bounds: FULL_BOUNDS } // 100px square, centered
+const state: LogoPadState = { x: 0.5, y: 0.5, focusX: 0.5, focusY: 0.5, size: 0.5, aspect: 1, bounds: FULL_BOUNDS } // 100px square, centered
 
 describe('focusSpot', () => {
   it('is the logo center at the middle of the image', () => {
@@ -15,6 +15,15 @@ describe('focusSpot', () => {
     const spot = focusSpot({ ...state, x: 0.2, y: 0.3, focusX: 1, focusY: 0 }, pad)
     expect(spot.x).toBeCloseTo(0.2 + 0.5 * (100 / 300))
     expect(spot.y).toBeCloseTo(0.3 - 0.5 * 0.5)
+  })
+})
+
+describe('frameRect', () => {
+  it('takes the image shape: a 2:1 image is twice as wide as it is tall', () => {
+    const rect = frameRect({ ...state, aspect: 2 }, pad)
+    expect(rect.width).toBeCloseTo(200 / 300)
+    expect(rect.height).toBeCloseTo(0.5)
+    expect(rect.left).toBeCloseTo(0.5 - 100 / 300)
   })
 })
 
