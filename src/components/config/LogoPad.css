@@ -18,14 +18,13 @@
   width: 1px;
 }
 
-/* The logo's image frame at its Size: a square as tall as the logo, centered on its spot. The pad sets both sizes in percent (the square's width is its height over the pad's aspect ratio) instead of leaning on aspect-ratio, which some browsers drop for absolutely positioned boxes. The zoom point is laid out inside it. */
-.logo-pad-logo {
+/* The logo as it looks on screen: the visible part of its image at its Size, in percent of the pad. */
+.logo-pad-box {
   position: absolute;
-  transform: translate(-50%, -50%);
   box-sizing: border-box;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 14%;
-  background: transparent;
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.14);
   pointer-events: none;
 }
 
@@ -37,15 +36,5 @@
   border-radius: 50%;
   background: #ff5db1;
   box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.6);
-  pointer-events: none;
-}
-
-/* The visible part of the image inside its frame (the frame can have see-through margins), laid out in percent of the frame. */
-.logo-pad-visible {
-  position: absolute;
-  box-sizing: border-box;
-  border: 2px solid rgba(255, 255, 255, 0.85);
-  border-radius: 4px;
-  background: rgba(255, 255, 255, 0.14);
   pointer-events: none;
 }
