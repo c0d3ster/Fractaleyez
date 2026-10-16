@@ -4,6 +4,7 @@ import { AudioAnalysedDataForVisualization } from '../../audioanalysis/audio-ana
 import { getResolvedSpriteUrl } from '../../utils/spriteCache'
 import { acquireSpriteTexture, releaseSpriteTexture } from '../../utils/textureCache'
 import { logoConfig } from '../../config/logo.config'
+import { findFocusPoint, FocusPoint } from '../../utils/focusPoint'
 import { userConfig } from '../../config/user.config'
 import { CameraManager } from '../camera-manager'
 import { getMusicSpeedMultiplier } from '../music-speed'
@@ -34,7 +35,20 @@ const FACE_FADE_END = 0.05
 // fifth as far as 500); lower lifts the small Sways, so at 0.5 Sway 100 leans about 45% as far and Sway 20 about 20%.
 const SWAY_LEAN_EXPONENT = 0.5
 
+// Endless zoom (Droste effect): a chain of copies of the image, each `ZOOM_RATIO` times smaller than the one before and
+// placed so the focus point of every copy lands on the focus point of the one it sits in. Zooming scales the whole chain
+// up; when a copy has grown to the size of the one before it, the chain starts over, which is invisible because the
+// chain looks the same one level in. Copy `j` sits `phase - j` levels from full size; the biggest fade out as they leave
+// and the smallest fade in, so nothing pops.
+const ZOOM_COPIES = 12
+const ZOOM_RATIO = 2
+const ZOOM_FADE_OUT_START = 0.3 // levels above full size where a copy starts to fade out
+const ZOOM_FADE_OUT_END = 1.3
+const ZOOM_FIRST_COPY = -1 // the first copy starts one level above full size, so the chain is complete at every phase
+
 const clamp = (value: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, value))
+
+const wrap01 = (value: number): number => value - Math.floor(value)
 
 const isFace = (slice: number): boolean => slice === 0 || slice === SLICE_COUNT - 1
 
@@ -70,6 +84,19 @@ export class LogoLayer implements Layer {
     this.logo.add(mesh)
     return material
   })
+  // The chain of copies for the endless zoom, biggest first so each draws over the one it sits in.
+  private readonly zoomCopies: THREE.Mesh[] = []
+  private readonly zoomMaterials: THREE.MeshBasicMaterial[] = Array.from({ length: ZOOM_COPIES }, (_, i): THREE.MeshBasicMaterial => {
+    const material = new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide })
+    const mesh = new THREE.Mesh(this.geometry, material)
+    mesh.renderOrder = i
+    mesh.visible = false
+    this.logo.add(mesh)
+    this.zoomCopies.push(mesh)
+    return material
+  })
+  private zoomPhase = 0
+  private focus: FocusPoint | null = null
   private readonly faces: THREE.MeshBasicMaterial[] = this.slices.filter((_, i) => isFace(i))
   private readonly sides: THREE.MeshBasicMaterial[] = this.slices.filter((_, i) => !isFace(i))
   private spriteUrl = ''
@@ -109,6 +136,7 @@ export class LogoLayer implements Layer {
   dispose = (): void => {
     this.releaseTexture()
     this.slices.forEach((material) => material.dispose())
+    this.zoomMaterials.forEach((material) => material.dispose())
     this.geometry.dispose()
   }
 
@@ -128,14 +156,40 @@ export class LogoLayer implements Layer {
     this.texture = null
     this.sideTexture?.dispose()
     this.sideTexture = null
+    this.focus = null
     this.setMap(null)
     this.logo.visible = false
   }
 
   private setMap = (map: THREE.Texture | null): void => {
-    this.slices.forEach((material) => {
+    const materials = [...this.slices, ...this.zoomMaterials]
+    materials.forEach((material) => {
       material.map = map
       material.needsUpdate = true
+    })
+  }
+
+  /** The point the zoom dives into: the sliders, or with Auto Focus the most detailed spot of the image (found once per image). */
+  private getFocus = (image: object): FocusPoint => {
+    const { logo } = window.config
+    if (!logo.autoFocus.value) return { x: logo.focusX.value, y: logo.focusY.value }
+    this.focus ??= findFocusPoint(image as CanvasImageSource)
+    return this.focus
+  }
+
+  /** Lays out the chain of copies at the current zoom phase; the unit plane spans [-0.5, 0.5], so the focus is an offset from the middle. */
+  private updateZoom = (focus: FocusPoint, faceOpacity: number): void => {
+    const px = focus.x - 0.5
+    const py = 0.5 - focus.y // image y runs down, the plane's runs up
+    this.zoomCopies.forEach((mesh, i) => {
+      const level = this.zoomPhase - (i + ZOOM_FIRST_COPY)
+      const scale = Math.pow(ZOOM_RATIO, level)
+      mesh.scale.set(scale, scale, 1)
+      mesh.position.set(px * (1 - scale), py * (1 - scale), 0)
+      const fadeOut = 1 - THREE.MathUtils.smoothstep(level, ZOOM_FADE_OUT_START, ZOOM_FADE_OUT_END)
+      const fadeIn = THREE.MathUtils.smoothstep(level, 2 - ZOOM_COPIES, 4 - ZOOM_COPIES)
+      const material = this.zoomMaterials[i]
+      if (material) material.opacity = fadeOut * fadeIn * faceOpacity
     })
   }
 
@@ -173,8 +227,11 @@ export class LogoLayer implements Layer {
     const is3D = logo.threeD.value
     // Flat: only the near face draws and the image rolls in the screen plane (positive is clockwise, like Rotation).
     // 3D: turns around the vertical axis through the logo's center, like a planet on its axis.
-    this.sides.forEach((material) => { material.visible = is3D })
-    this.faces.forEach((material, i) => { material.visible = is3D || i === this.faces.length - 1 })
+    // Zoom swaps the thick stack for the chain of flat copies (they still spin and lean with the rest).
+    const isZooming = logo.zoom.value
+    this.sides.forEach((material) => { material.visible = is3D && !isZooming })
+    this.faces.forEach((material, i) => { material.visible = !isZooming && (is3D || i === this.faces.length - 1) })
+    this.zoomCopies.forEach((mesh) => { mesh.visible = isZooming })
     this.logo.rotation.y = is3D ? (this.logo.rotation.y + spin) % (2 * Math.PI) : 0
     this.logo.rotation.z = is3D ? 0 : (this.logo.rotation.z - spin) % (2 * Math.PI)
     // Turns toward where the camera has got to: its direction sets the way the logo leans (pad units, y down) and how
@@ -195,8 +252,15 @@ export class LogoLayer implements Layer {
       ? THREE.MathUtils.smoothstep(Math.abs(this.faceNormal.z), FACE_FADE_END, FACE_FADE_START)
       : 1
     this.faces.forEach((material) => { material.opacity = faceOpacity })
+    if (isZooming) {
+      // The music speeds the zoom up like it does the spin and Orbit.
+      const zoomStep = logo.zoomSpeed.value * getMusicSpeedMultiplier(audio) * (deltaTime / 1000)
+      this.zoomPhase = wrap01(this.zoomPhase + zoomStep)
+      this.updateZoom(this.getFocus(image), faceOpacity)
+    }
     // The Effects glow switch drives the logo too, with the same formula as the global bloom.
     const glow = window.config.effects.glow.value ? Math.min(1, beat.value * beat.energy) : 0
     this.slices.forEach((material) => material.color.setScalar(1 + glow))
+    this.zoomMaterials.forEach((material) => material.color.setScalar(1 + glow))
   }
 }
