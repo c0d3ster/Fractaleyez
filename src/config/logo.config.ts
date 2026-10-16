@@ -5,10 +5,10 @@ export const logoConfig = {
   tilt_DEFAULT: true, // leans toward the camera position
   tilt_MAX_RADIANS: 0.55, // the lean with the camera at the edge of the largest Sway (about 31 degrees)
 
-  baseHeightFraction: 0.3, // the fraction of the view height the logo fills at Size 1 and no beat
+  baseHeightFraction: 0.6, // the fraction of the view height the logo fills at Size 1 and no beat
 
-  size_MIN: 0.25,
-  size_MAX: 4,
+  size_MIN: 0.1,
+  size_MAX: 2,
   size_DEFAULT: 1, // 1 fills baseHeightFraction of the view
   size_STEP_SIZE: 0.01,
 
