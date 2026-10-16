@@ -40,7 +40,7 @@ const STEPPER_AMOUNTS: Partial<Record<string, string>> = {
 }
 const STEPPER_AMOUNT_ITEMS: readonly string[] = Object.values(STEPPER_AMOUNTS).filter((item): item is string => item !== undefined)
 
-// Items a pad edits (the logo's position and Droste focus): stored like any slider, but they get no row of their own.
+// Items a pad edits (the logo's position and zoom focus): stored like any slider, but they get no row of their own.
 const PAD_ITEMS: Partial<Record<string, readonly string[]>> = {
   logo: ['positionX', 'positionY', 'focusX', 'focusY'],
 }

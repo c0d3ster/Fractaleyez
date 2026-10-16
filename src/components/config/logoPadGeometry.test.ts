@@ -18,11 +18,11 @@ describe('focusSpot', () => {
 })
 
 describe('hitTest', () => {
-  it('grabs the zoom point first when Droste is on', () => {
+  it('grabs the zoom point first when Zoom is on', () => {
     expect(hitTest({ x: 0.5, y: 0.5 }, state, pad, true)).toBe('focus')
   })
 
-  it('grabs the logo body when Droste is off, even over the zoom point', () => {
+  it('grabs the logo body when Zoom is off, even over the zoom point', () => {
     expect(hitTest({ x: 0.5, y: 0.5 }, state, pad, false)).toBe('logo')
   })
 

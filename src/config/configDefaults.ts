@@ -119,15 +119,15 @@ export type LogoConfigSection = {
   sprite: MultiselectItem // single-select via min:1,max:1
   threeD: CheckboxItem // off is flat: one plane that spins in the screen plane
   tilt: CheckboxItem // leans toward the camera position
+  zoom: CheckboxItem // endless zoom into the image, the user Speed sets its rate
   size: SliderItem // multiplier on the logo's base size
   spinSpeed: SliderItem
   beatScale: SliderItem
   shake: SliderItem
   positionX: SliderItem // set by the logo pad, no row of its own
   positionY: SliderItem
-  focusX: SliderItem // where the Droste zoom dives in, set by the logo pad
+  focusX: SliderItem // where the zoom dives in, set by the logo pad
   focusY: SliderItem
-  zoom: CheckboxItem // Droste: endless zoom into the image, the user Speed sets its rate
 }
 
 export type AppConfig = {
@@ -274,6 +274,7 @@ export const configDefaults: AppConfig = {
     sprite: { name: 'Sprite', type: 'multiselect', defaultValue: [logoConfig.sprite_DEFAULT], value: [logoConfig.sprite_DEFAULT], min: 1, max: 1 },
     threeD: { name: '3D', type: 'checkbox', defaultValue: logoConfig.threeD_DEFAULT, value: logoConfig.threeD_DEFAULT },
     tilt: { name: 'Tilt', type: 'checkbox', defaultValue: logoConfig.tilt_DEFAULT, value: logoConfig.tilt_DEFAULT },
+    zoom: { name: 'Zoom', type: 'checkbox', defaultValue: logoConfig.zoom_DEFAULT, value: logoConfig.zoom_DEFAULT },
     size: { name: 'Size', type: 'slider', defaultValue: logoConfig.size_DEFAULT, value: logoConfig.size_DEFAULT, min: logoConfig.size_MIN, max: logoConfig.size_MAX, step: logoConfig.size_STEP_SIZE },
     spinSpeed: { name: 'Spin Speed', type: 'slider', defaultValue: logoConfig.spinSpeed_DEFAULT, value: logoConfig.spinSpeed_DEFAULT, min: logoConfig.spinSpeed_MIN, max: logoConfig.spinSpeed_MAX, step: logoConfig.spinSpeed_STEP_SIZE },
     beatScale: { name: 'Beat Scale', type: 'slider', defaultValue: logoConfig.beatScale_DEFAULT, value: logoConfig.beatScale_DEFAULT, min: logoConfig.beatScale_MIN, max: logoConfig.beatScale_MAX, step: logoConfig.beatScale_STEP_SIZE },
@@ -282,6 +283,5 @@ export const configDefaults: AppConfig = {
     positionY: { name: 'Position Y', type: 'slider', defaultValue: logoConfig.positionY_DEFAULT, value: logoConfig.positionY_DEFAULT, min: logoConfig.positionY_MIN, max: logoConfig.positionY_MAX, step: logoConfig.positionY_STEP_SIZE },
     focusX: { name: 'Focus X', type: 'slider', defaultValue: logoConfig.focusX_DEFAULT, value: logoConfig.focusX_DEFAULT, min: logoConfig.focusX_MIN, max: logoConfig.focusX_MAX, step: logoConfig.focusX_STEP_SIZE },
     focusY: { name: 'Focus Y', type: 'slider', defaultValue: logoConfig.focusY_DEFAULT, value: logoConfig.focusY_DEFAULT, min: logoConfig.focusY_MIN, max: logoConfig.focusY_MAX, step: logoConfig.focusY_STEP_SIZE },
-    zoom: { name: 'Droste', type: 'checkbox', defaultValue: logoConfig.zoom_DEFAULT, value: logoConfig.zoom_DEFAULT },
   },
 }
