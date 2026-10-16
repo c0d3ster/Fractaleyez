@@ -50,7 +50,8 @@ const usesUserReference = (config: Record<string, unknown>): boolean =>
   spriteList(config).includes(USER_REFERENCE) || spriteList(config, 'logo').includes(USER_REFERENCE)
 
 const firstSprite = (config: Record<string, unknown>): string => {
-  const first = spriteList(config)[0]
+  // A preset with Orbit off has no particle section, so its logo sprite stands in for the thumbnail.
+  const first = spriteList(config)[0] ?? spriteList(config, 'logo')[0]
   return typeof first === 'string' ? first : 'fractaleye.png'
 }
 
