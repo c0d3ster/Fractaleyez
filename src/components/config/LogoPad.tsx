@@ -1,9 +1,11 @@
-import React, { useCallback, useRef } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import './LogoPad.css'
 
 import { connectConfig, ConfigContextValue } from './context/ConfigProvider'
 import { AppConfig } from '../../config/configDefaults'
 import { logoConfig } from '../../config/logo.config'
+import { Bounds, FULL_BOUNDS, loadOpaqueBounds } from '../../utils/opaqueBounds'
+import { getResolvedSpriteUrl } from '../../utils/spriteCache'
 import { focusSpot, hitTest, LogoPadState, LogoPadTarget, moveFocus, moveLogo, PadSize } from './logoPadGeometry'
 import { Pad, PadPoint, screenAspectRatio } from './Pad'
 
@@ -45,6 +47,15 @@ const LogoPadInner = ({ config, updateConfigItem, resetConfigItem }: LogoPadProp
   const firstPress = useRef<{ at: number, target: LogoPadTarget }>({ at: 0, target: 'empty' })
   const state = stateOf(config)
   const aspectRatio = screenAspectRatio()
+  // The image frame includes any see-through margin; the bright box is the part you actually see on screen.
+  const [visible, setVisible] = useState<Bounds>(FULL_BOUNDS)
+  const [sprite = ''] = config.logo.sprite.value
+  useEffect(() => {
+    let current = true
+    setVisible(FULL_BOUNDS)
+    if (sprite) void loadOpaqueBounds(getResolvedSpriteUrl(sprite)).then((bounds) => { if (current) setVisible(bounds) })
+    return () => { current = false }
+  }, [sprite])
   const zoomOn = config.logo.zoom.value
 
   const setValues = useCallback((values: Record<string, number>): void => {
@@ -99,6 +110,10 @@ const LogoPadInner = ({ config, updateConfigItem, resetConfigItem }: LogoPadProp
       <div className='logo-pad-crosshair logo-pad-crosshair--h' />
       <div className='logo-pad-crosshair logo-pad-crosshair--v' />
       <div className='logo-pad-logo' style={{ left: toPercent(state.x), top: toPercent(state.y), width: toPercent(state.size / aspectRatio), height: toPercent(state.size) }}>
+        <div
+          className='logo-pad-visible'
+          style={{ left: toPercent(visible.left), top: toPercent(visible.top), width: toPercent(visible.right - visible.left), height: toPercent(visible.bottom - visible.top) }}
+        />
         {zoomOn ? <div className='logo-pad-focus' style={{ left: toPercent(state.focusX), top: toPercent(state.focusY) }} /> : null}
       </div>
     </Pad>
