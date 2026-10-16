@@ -10,7 +10,7 @@ export const LogConfigButton = (): React.ReactElement | null => {
   const { config } = context
 
   const logConfig = (): void => {
-    const json = JSON.stringify(toStoredConfig(config))
+    const json = JSON.stringify(toStoredConfig(config, window.getVirtualCameraPosition?.()))
     console.info(json)
     navigator.clipboard?.writeText(json).catch(() => undefined)
   }

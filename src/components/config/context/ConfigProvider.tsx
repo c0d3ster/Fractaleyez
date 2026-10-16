@@ -2,7 +2,7 @@ import React, { useState, useCallback, useEffect, useMemo, useReducer, useRef } 
 import axios from 'axios'
 import { useAuth, useUser } from '@clerk/clerk-react'
 
-import { toStoredConfig } from '../../../config/storedConfig'
+import { cameraStart, keepDisabledLayerSections, toStoredConfig } from '../../../config/storedConfig'
 import { AppConfig, ConfigItem, LayerKey, ParticleConfigSection, configDefaults } from '../../../config/configDefaults'
 import { LAYER_CAP } from '../../../config/layers'
 import { mergeLayers } from '../../../config/mergeLayers'
@@ -705,7 +705,8 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
 
     // Effective clips: a disabled video layer has no plane, same as an empty clip list.
     const prevClips = window.config.layers.meta.video.enabled.value ? window.config.video.clips : []
-    const { config: next, active } = resolveUserReferenceIn(normalizeLoadedPreset(cfg), userContextRef.current)
+    const loaded = keepDisabledLayerSections(normalizeLoadedPreset(cfg), cfg, window.config)
+    const { config: next, active } = resolveUserReferenceIn(loaded, userContextRef.current)
     activeUserReferenceRef.current = active
     baselineRef.current = next
     // Same reasoning as updateParticleSprites: warm the cache before the config write triggers
@@ -713,6 +714,9 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
     await warmSpriteCache([...next.particle.sprites.value, ...next.logo.sprite.value])
     setConfig(next)
     window.config = next
+    // A preset only stores a camera when it starts off center, so one without it puts the camera back in the middle.
+    const camera = cameraStart(cfg.user, next.user.cameraBound.value)
+    window.setVirtualCameraPosition?.(camera.x, camera.y)
     const nextClips = next.layers.meta.video.enabled.value ? next.video.clips : []
     const sameClips =
       prevClips.length === nextClips.length &&
@@ -806,7 +810,7 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
     const { data } = await axios.post<{ id: string; name: string }>('/api/savePreset', {
       name,
       pack,
-      config: toStoredConfig(withUserReference(config)),
+      config: toStoredConfig(withUserReference(config), window.getVirtualCameraPosition?.()),
       force: force ?? false,
     }, {
       headers: { Authorization: `Bearer ${token}` },

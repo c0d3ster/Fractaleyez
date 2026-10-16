@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react'
 import './CameraTouchpad.css'
 import { mainWindow, Pad, PadPoint, screenAspectRatio } from './Pad'
+import { snapToCenter } from './cameraPadGeometry'
 
 const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v))
 
@@ -57,7 +58,7 @@ export const CameraTouchpad = (): React.ReactElement => {
   const handlePick = useCallback((point: PadPoint) => {
     dragging.current = true
     const range = getRange()
-    applyPos(fractionToVal(point.x, range), fractionToVal(point.y, range))
+    applyPos(snapToCenter(fractionToVal(point.x, range), range), snapToCenter(fractionToVal(point.y, range), range))
   }, [applyPos])
 
   const handlePickEnd = useCallback(() => {

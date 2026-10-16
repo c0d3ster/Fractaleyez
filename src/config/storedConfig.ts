@@ -14,6 +14,9 @@ import {
   UserConfigSection,
 } from './configDefaults'
 
+/** Where the camera pad starts when a preset loads, in pad units (within +/- Sway). Absent means centered. */
+export type StoredCamera = { x: number; y: number }
+
 export type StoredLayersSection = {
   order?: LayerKey[]
   meta?: Partial<Record<LayerKey, { enabled?: boolean; opacity?: number }>>
@@ -27,7 +30,8 @@ type ItemValues<S> = { [K in keyof S]: S[K] extends { value: infer V } ? V : nev
  * the loader fills whatever a preset omits from `configDefaults`.
  */
 export type StoredConfig = {
-  user?: Partial<ItemValues<UserConfigSection>>
+  // The camera pad's starting spot rides along in user; it is not a slider, so the loader reads it separately.
+  user?: Partial<ItemValues<UserConfigSection>> & { cameraX?: number; cameraY?: number }
   fractal?: Partial<ItemValues<FractalConfigSection>>
   audio?: Partial<ItemValues<AudioConfigSection>>
   effects?: Partial<ItemValues<EffectsConfigSection>>
@@ -54,15 +58,62 @@ const toStoredLayers = ({ order, meta }: LayersConfigSection): StoredLayersSecti
   },
 })
 
-export const toStoredConfig = ({ user, fractal, audio, effects, color, particle, orbit, video, logo, layers }: AppConfig): StoredConfig => ({
-  user: valuesOf(user),
-  fractal: valuesOf(fractal),
-  audio: valuesOf(audio),
-  effects: valuesOf(effects),
-  color: valuesOf(color),
-  particle: valuesOf(particle),
-  orbit: valuesOf(orbit),
-  video: { clips: video.clips, index: video.index },
-  logo: valuesOf(logo),
-  layers: toStoredLayers(layers),
-})
+const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null
+
+const finiteNumber = (value: unknown): number => (typeof value === 'number' && Number.isFinite(value) ? value : 0)
+
+const clampToBound = (v: number, bound: number): number => Math.max(-bound, Math.min(bound, v))
+
+/** The camera a preset starts at: `cameraX`/`cameraY` from its stored user section kept inside Sway, 0 for whichever is missing. */
+export const cameraStart = (storedUser: unknown, bound: number): StoredCamera => {
+  const { cameraX, cameraY } = isRecord(storedUser) ? storedUser : {}
+  return { x: clampToBound(finiteNumber(cameraX), bound), y: clampToBound(finiteNumber(cameraY), bound) }
+}
+
+/** Only a camera that is off center, with room to be off center (Sway above 0), is worth storing. */
+export const toStoredCamera = (position: StoredCamera | undefined, bound: number): { cameraX: number; cameraY: number } | undefined => {
+  if (!position || bound <= 0) return undefined
+  const x = Math.round(clampToBound(position.x, bound)) || 0
+  const y = Math.round(clampToBound(position.y, bound)) || 0
+  return x === 0 && y === 0 ? undefined : { cameraX: x, cameraY: y }
+}
+
+/**
+ * Sections that belong to a layer that is switched off are left out: the loader keeps whatever the previous preset had
+ * for them (see keepDisabledLayerSections), and the layer's enabled flag is still stored in `layers`.
+ */
+export const toStoredConfig = (config: AppConfig, camera?: StoredCamera): StoredConfig => {
+  const { user, fractal, audio, effects, color, particle, orbit, video, logo, layers } = config
+  const on = (key: LayerKey): boolean => layers.meta[key].enabled.value
+  return {
+    user: { ...valuesOf(user), ...toStoredCamera(camera, user.cameraBound.value) },
+    ...(on('fractal') && { fractal: valuesOf(fractal) }),
+    audio: valuesOf(audio),
+    effects: valuesOf(effects),
+    color: valuesOf(color),
+    ...(on('orbit') && { particle: valuesOf(particle), orbit: valuesOf(orbit) }),
+    ...(on('video') && { video: { clips: video.clips, index: video.index } }),
+    ...(on('logo') && { logo: valuesOf(logo) }),
+    layers: toStoredLayers(layers),
+  }
+}
+
+const LAYER_SECTIONS: Record<LayerKey, readonly (keyof StoredConfig & keyof AppConfig)[]> = {
+  video: ['video'],
+  fractal: ['fractal'],
+  orbit: ['orbit', 'particle'],
+  logo: ['logo'],
+}
+
+/**
+ * A preset that leaves out a switched-off layer's sections keeps the current config's values for them, so switching
+ * presets does not wipe what was tuned for a layer and switching it back on finds it as it was.
+ */
+export const keepDisabledLayerSections = (next: AppConfig, stored: Record<string, unknown>, previous: AppConfig): AppConfig =>
+  (Object.keys(LAYER_SECTIONS) as LayerKey[]).reduce(
+    (acc, key) =>
+      next.layers.meta[key].enabled.value
+        ? acc
+        : LAYER_SECTIONS[key].reduce((a, section) => (stored[section] === undefined ? { ...a, [section]: previous[section] } : a), acc),
+    next,
+  )
