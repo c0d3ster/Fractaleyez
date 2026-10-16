@@ -35,8 +35,8 @@ const SWAY_LEAN_EXPONENT = 0.5
 
 // Endless zoom: flying into a point of the image. The image is drawn as a chain of copies, each `ZOOM_RATIO` times
 // smaller than the one before and placed so the focus point of every copy lands on the focus point of the one it sits
-// in (a Droste). The ratio is big, so the next copy starts as a pinpoint at the focus and the current one is the logo
-// itself, almost always at about its own size or magnified past it. Zooming scales the whole chain up around the
+// in (a Droste). The ratio is big, so the nested copies are small and the current one is the logo itself, almost always
+// at about its own size or magnified past it. Zooming scales the whole chain up around the
 // focus; when a copy has grown to the size of the one before it, the chain starts over, which is invisible because it
 // looks the same one level in. A copy is only faded out once it is a whole level past that handover (`ZOOM_RATIO`
 // times full size and more, as if behind the camera), and the next one is only faded in while it is still too small
@@ -45,12 +45,12 @@ const SWAY_LEAN_EXPONENT = 0.5
 type FocusPoint = { x: number, y: number }
 // How fast the zoom runs: doublings of the image's size per second at User Speed 1, whatever the ratio.
 const ZOOM_DOUBLINGS_PER_SPEED = 0.2
-const ZOOM_RATIO = 64
-const ZOOM_COPIES = 4 // enough to cover the levels from one above full size to one below (pinpoint) with the fade-in just past it
+const ZOOM_RATIO = 4
+const ZOOM_COPIES = 7 // enough to cover the levels from one above full size down to where a copy is a speck, with the fade-in just past it
 const ZOOM_FADE_OUT_START = 1 // levels above full size where a copy starts to fade out
 const ZOOM_FADE_OUT_END = 2
-const ZOOM_FADE_IN_START = -2 // levels below full size where the next copy starts to fade in; at -1 it is a pinpoint
-const ZOOM_FADE_IN_END = -1.5
+const ZOOM_FADE_IN_START = -5 // levels below full size where the next copy starts to fade in; down here it is a speck
+const ZOOM_FADE_IN_END = -4
 const ZOOM_FIRST_COPY = -1 // the first copy starts one level above full size, so the chain is complete at every phase
 
 const clamp = (value: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, value))
