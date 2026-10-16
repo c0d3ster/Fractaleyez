@@ -21,7 +21,8 @@ type Grab = { target: LogoPadTarget, offset: { x: number, y: number } }
 const DOUBLE_CLICK_MS = 500
 
 const toPercent = (fraction: number): string => `${fraction * 100}%`
-const format = (value: number): string => value.toFixed(2)
+// Without the leading zero (.50, not 0.50), so the X, Y and Zoom readouts fit on one line.
+const format = (value: number): string => value.toFixed(2).replace(/^0\./, '.')
 
 const stateOf = ({ logo }: AppConfig): LogoPadState => ({
   x: logo.positionX.value,
