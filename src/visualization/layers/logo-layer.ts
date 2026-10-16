@@ -210,7 +210,9 @@ export class LogoLayer implements Layer {
     if (!this.sideTexture) this.createSideTexture(this.texture)
     const camera = this.cameraManager.getCamera()
     const viewHeight = 2 * LOGO_DISTANCE * Math.tan((camera.fov / 2) * (Math.PI / 180))
-    const size = viewHeight * logoConfig.baseHeightFraction * logo.size.value * (1 + beat.value * logoConfig.beatScale)
+    // The beat only swells the logo while the Effects Wob Wob switch is on, like the particles' recoil.
+    const swell = window.config.effects.wobWob.value ? beat.value * logoConfig.beatScale : 0
+    const size = viewHeight * logoConfig.baseHeightFraction * logo.size.value * (1 + swell)
     this.logo.scale.set(size * (image.width / image.height), size, size * DEPTH_FRACTION)
     this.logo.visible = true
 

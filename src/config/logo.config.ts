@@ -17,7 +17,7 @@ export const logoConfig = {
   spinSpeed_DEFAULT: 0, // 0 is no spin
   spinSpeed_STEP_SIZE: 0.1,
 
-  beatScale: 1, // how far a full beat swells the logo: 1 grows it by its own size
+  beatScale: 1, // how far a full beat swells the logo (1 grows it by its own size), while Wob Wob is on
 
   shake_MIN: 0,
   shake_MAX: 1,
