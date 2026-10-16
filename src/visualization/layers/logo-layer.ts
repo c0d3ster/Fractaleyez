@@ -4,6 +4,7 @@ import { AudioAnalysedDataForVisualization } from '../../audioanalysis/audio-ana
 import { getResolvedSpriteUrl } from '../../utils/spriteCache'
 import { acquireSpriteTexture, releaseSpriteTexture } from '../../utils/textureCache'
 import { logoConfig } from '../../config/logo.config'
+import { getParticleCrossfadeDurationMs } from '../../config/visualizer.config'
 import { userConfig } from '../../config/user.config'
 import { CameraManager } from '../camera-manager'
 import { getMusicSpeedMultiplier } from '../music-speed'
@@ -35,24 +36,29 @@ const SWAY_LEAN_EXPONENT = 0.5
 
 // Endless zoom: flying into a point of the image. The image is drawn as a chain of copies, each `ZOOM_RATIO` times
 // smaller than the one before and placed so the focus point of every copy lands on the focus point of the one it sits
-// in (a Droste). Zooming scales the whole chain up around the focus. A copy starts at full opacity at the logo's own
-// size (what Size sets, the same as with Zoom off) and starts to fade out as it grows past that, gone once it is a
-// whole level (`ZOOM_RATIO` times) bigger, by which time the next copy inside it has grown to the logo's own size and
-// the chain starts over, which is invisible because it looks the same one level in. The copies inside are only faded
-// in while they are still too small to see, so nothing pops. Copy `j` sits `phase - j` levels from full size.
+// in (a Droste). Zooming scales the whole chain up around the focus. A copy is at full opacity at the logo's own size
+// (what Size sets, the same as with Zoom off) and starts to fade out as it grows past that. It fades over the user's
+// Crossfade Duration, so the zoom speed decides how far it grows meanwhile (`ZOOM_MIN_FADE_LEVELS` keeps a slow zoom
+// from snapping it away). By the time the copy is a whole level (`ZOOM_RATIO` times) bigger, the next copy inside it
+// has grown to the logo's own size and the chain starts over, which is invisible because it looks the same one level
+// in. The copies inside are only faded in while they are still too small to see, so nothing pops. Copy `j` sits
+// `phase - j` levels from full size.
 // Where the zoom dives in, as 0..1 across the image (y down); the pad sets it.
 type FocusPoint = { x: number, y: number }
 // How fast the zoom runs: doublings of the image's size per second at User Speed 1, whatever the ratio.
 const ZOOM_DOUBLINGS_PER_SPEED = 0.2
 const ZOOM_RATIO = 16
-const ZOOM_COPIES = 4 // the levels from full size down to a speck, with the fade-in just past it
-const ZOOM_FADE_OUT_START = 0 // levels above the logo's own size where a copy starts to fade out
-const ZOOM_FADE_OUT_END = 1
+const ZOOM_COPIES = 5 // the levels from above full size (a copy still fading out) down to a speck, with the fade-in just past it
+const ZOOM_MIN_FADE_LEVELS = 0.25 // the shortest the fade-out runs, in levels of growth (0.25 of a level is 2x the size)
+const ZOOM_MAX_FADE_LEVELS = 2 // the longest, so the chain never needs more copies above full size
 const ZOOM_FADE_IN_START = -3 // levels below the logo's own size where the next copy starts to fade in; down here it is a speck
 const ZOOM_FADE_IN_END = -2
-const ZOOM_FIRST_COPY = 0 // the biggest copy is the one at full size, since the one above it would already be gone
+const ZOOM_FIRST_COPY = -1 // the first copy starts a level above full size, so a slow fade still has its copy
 
 const clamp = (value: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, value))
+
+const moveToward = (value: number, target: number, step: number): number =>
+  value < target ? Math.min(target, value + step) : Math.max(target, value - step)
 
 const wrap01 = (value: number): number => value - Math.floor(value)
 
@@ -102,6 +108,8 @@ export class LogoLayer implements Layer {
     return material
   })
   private zoomPhase = 0
+  // 0 is the plain logo, 1 is the zoom chain; it follows the Zoom switch over the Crossfade Duration so toggling it fades.
+  private zoomMix = 0
   private readonly faces: THREE.MeshBasicMaterial[] = this.slices.filter((_, i) => isFace(i))
   private readonly sides: THREE.MeshBasicMaterial[] = this.slices.filter((_, i) => !isFace(i))
   private spriteUrl = ''
@@ -174,7 +182,7 @@ export class LogoLayer implements Layer {
   }
 
   /** Lays out the chain of copies at the current zoom phase; the unit plane spans [-0.5, 0.5], so the focus is an offset from the middle. */
-  private updateZoom = (focus: FocusPoint, faceOpacity: number): void => {
+  private updateZoom = (focus: FocusPoint, fadeLevels: number, opacity: number): void => {
     const px = focus.x - 0.5
     const py = 0.5 - focus.y // image y runs down, the plane's runs up
     this.zoomCopies.forEach((mesh, i) => {
@@ -182,10 +190,10 @@ export class LogoLayer implements Layer {
       const scale = Math.pow(ZOOM_RATIO, level)
       mesh.scale.set(scale, scale, 1)
       mesh.position.set(px * (1 - scale), py * (1 - scale), 0)
-      const fadeOut = 1 - THREE.MathUtils.smoothstep(level, ZOOM_FADE_OUT_START, ZOOM_FADE_OUT_END)
+      const fadeOut = 1 - THREE.MathUtils.smoothstep(level, 0, fadeLevels)
       const fadeIn = THREE.MathUtils.smoothstep(level, ZOOM_FADE_IN_START, ZOOM_FADE_IN_END)
       const material = this.zoomMaterials[i]
-      if (material) material.opacity = fadeOut * fadeIn * faceOpacity
+      if (material) material.opacity = fadeOut * fadeIn * opacity
     })
   }
 
@@ -231,10 +239,16 @@ export class LogoLayer implements Layer {
     const is3D = logo.threeD.value
     // Flat: only the near face draws and the image rolls in the screen plane (positive is clockwise, like Rotation).
     // 3D: turns around the vertical axis through the logo's center, like a planet on its axis.
-    // Zoom swaps the thick stack for the chain of flat copies (they spin and lean with the rest).
-    const isZooming = logo.zoom.value
+    // Zoom swaps the thick stack for the chain of flat copies (they spin and lean with the rest), crossfading over the
+    // Crossfade Duration. The chain starts at the logo's own size, so it takes over from the plain logo without a jump.
+    const crossfadeMs = getParticleCrossfadeDurationMs()
+    const zoomTarget = logo.zoom.value ? 1 : 0
+    this.zoomMix = crossfadeMs > 0 ? moveToward(this.zoomMix, zoomTarget, deltaTime / crossfadeMs) : zoomTarget
+    const isZooming = this.zoomMix > 0
+    if (!isZooming) this.zoomPhase = 0
+    // The thick sides cannot fade (they are cut out, not blended), so they give way as soon as the chain starts.
     this.sides.forEach((material) => { material.visible = is3D && !isZooming })
-    this.faces.forEach((material, i) => { material.visible = !isZooming && (is3D || i === this.faces.length - 1) })
+    this.faces.forEach((material, i) => { material.visible = this.zoomMix < 1 && (is3D || i === this.faces.length - 1) })
     this.zoomCopies.forEach((mesh) => { mesh.visible = isZooming })
     this.logo.rotation.y = is3D ? (this.logo.rotation.y + spin) % (2 * Math.PI) : 0
     this.logo.rotation.z = is3D ? 0 : (this.logo.rotation.z - spin) % (2 * Math.PI)
@@ -255,12 +269,13 @@ export class LogoLayer implements Layer {
     const faceOpacity = is3D
       ? THREE.MathUtils.smoothstep(Math.abs(this.faceNormal.z), FACE_FADE_END, FACE_FADE_START)
       : 1
-    this.faces.forEach((material) => { material.opacity = faceOpacity })
+    this.faces.forEach((material) => { material.opacity = faceOpacity * (1 - this.zoomMix) })
     if (isZooming) {
       // The user Speed sets the zoom rate, and the music speeds it up like it does Orbit.
-      const zoomStep = window.config.user.speed.value * ZOOM_DOUBLINGS_PER_SPEED / Math.log2(ZOOM_RATIO) * getMusicSpeedMultiplier(audio) * (deltaTime / 1000)
-      this.zoomPhase = wrap01(this.zoomPhase + zoomStep)
-      this.updateZoom({ x: logo.focusX.value, y: logo.focusY.value }, faceOpacity)
+      const levelsPerSecond = window.config.user.speed.value * ZOOM_DOUBLINGS_PER_SPEED / Math.log2(ZOOM_RATIO) * getMusicSpeedMultiplier(audio)
+      this.zoomPhase = wrap01(this.zoomPhase + levelsPerSecond * (deltaTime / 1000))
+      const fadeLevels = clamp(levelsPerSecond * (crossfadeMs / 1000), ZOOM_MIN_FADE_LEVELS, ZOOM_MAX_FADE_LEVELS)
+      this.updateZoom({ x: logo.focusX.value, y: logo.focusY.value }, fadeLevels, faceOpacity * this.zoomMix)
     }
     // The Effects glow switch drives the logo too, with the same formula as the global bloom.
     const glow = window.config.effects.glow.value ? Math.min(1, beat.value * beat.energy) : 0
