@@ -73,10 +73,10 @@ export class OrbitLayer implements Layer {
     this.visualizer.destroyVisualization()
   }
 
-  /** Where the camera has actually got to, in the camera pad's units (its y chases the pad's y inverted). */
+  /** Where the camera has actually got to, in the camera pad's units (the camera moves opposite the pad on both axes). */
   getCameraTrailPosition = (): { x: number; y: number } => {
     const { position } = this.cameraManager.getCamera()
-    return { x: position.x, y: -position.y }
+    return { x: -position.x, y: position.y }
   }
 
   /**
