@@ -6,7 +6,7 @@ import { AppConfig } from '../../config/configDefaults'
 import { logoConfig } from '../../config/logo.config'
 import { Bounds, FULL_BOUNDS, loadOpaqueBounds } from '../../utils/opaqueBounds'
 import { getResolvedSpriteUrl } from '../../utils/spriteCache'
-import { focusSpot, hitTest, LogoPadState, LogoPadTarget, moveFocus, moveLogo, PadSize } from './logoPadGeometry'
+import { focusSpot, hitTest, LogoPadState, LogoPadTarget, moveFocus, moveLogo, PadSize, visibleRect } from './logoPadGeometry'
 import { Pad, PadPoint, screenAspectRatio } from './Pad'
 
 type LogoPadProps = {
@@ -26,12 +26,13 @@ const toPercent = (fraction: number): string => `${fraction * 100}%`
 // Without the leading zero (.50, not 0.50), so the X, Y and Zoom readouts fit on one line.
 const format = (value: number): string => value.toFixed(2).replace(/^0\./, '.')
 
-const stateOf = ({ logo }: AppConfig): LogoPadState => ({
+const stateOf = ({ logo }: AppConfig, bounds: Bounds): LogoPadState => ({
   x: logo.positionX.value,
   y: logo.positionY.value,
   focusX: logo.focusX.value,
   focusY: logo.focusY.value,
   size: logoConfig.baseHeightFraction * logo.size.value,
+  bounds,
 })
 
 const sizeOf = ({ width, height }: PadPoint): PadSize => ({ width, height })
@@ -45,9 +46,8 @@ const sizeOf = ({ width, height }: PadPoint): PadSize => ({ width, height })
 const LogoPadInner = ({ config, updateConfigItem, resetConfigItem }: LogoPadProps): React.ReactElement => {
   const grab = useRef<Grab>({ target: 'empty', offset: { x: 0, y: 0 } })
   const firstPress = useRef<{ at: number, target: LogoPadTarget }>({ at: 0, target: 'empty' })
-  const state = stateOf(config)
   const aspectRatio = screenAspectRatio()
-  // The image frame includes any see-through margin; the bright box is the part you actually see on screen.
+  // The image frame can have see-through margins, so the box drawn is the part you actually see on screen.
   const [visible, setVisible] = useState<Bounds>(FULL_BOUNDS)
   const [sprite = ''] = config.logo.sprite.value
   useEffect(() => {
@@ -56,6 +56,7 @@ const LogoPadInner = ({ config, updateConfigItem, resetConfigItem }: LogoPadProp
     if (sprite) void loadOpaqueBounds(getResolvedSpriteUrl(sprite)).then((bounds) => { if (current) setVisible(bounds) })
     return () => { current = false }
   }, [sprite])
+  const state = stateOf(config, visible)
   const zoomOn = config.logo.zoom.value
 
   const setValues = useCallback((values: Record<string, number>): void => {
@@ -96,6 +97,9 @@ const LogoPadInner = ({ config, updateConfigItem, resetConfigItem }: LogoPadProp
     else resetItems(['positionX', 'positionY', 'focusX', 'focusY'])
   }, [resetItems])
 
+  const padSize: PadSize = { width: aspectRatio, height: 1 } // only the ratio matters for where things sit
+  const box = visibleRect(state, padSize)
+  const dot = focusSpot(state, padSize)
   const readouts = [`X ${format(state.x)}`, `Y ${format(state.y)}`, ...(zoomOn ? [`Zoom ${format(state.focusX)}, ${format(state.focusY)}`] : [])]
 
   return (
@@ -105,17 +109,12 @@ const LogoPadInner = ({ config, updateConfigItem, resetConfigItem }: LogoPadProp
       onPick={handlePick}
       onReset={handleReset}
       readouts={readouts}
-      hint={zoomOn ? 'drag the dot to aim the zoom, the square to move the logo, double-click to reset' : 'drag to move the logo, double-click to reset'}
+      hint={zoomOn ? 'drag the dot to aim the zoom, the box to move the logo, double-click to reset' : 'drag to move the logo, double-click to reset'}
     >
       <div className='logo-pad-crosshair logo-pad-crosshair--h' />
       <div className='logo-pad-crosshair logo-pad-crosshair--v' />
-      <div className='logo-pad-logo' style={{ left: toPercent(state.x), top: toPercent(state.y), width: toPercent(state.size / aspectRatio), height: toPercent(state.size) }}>
-        <div
-          className='logo-pad-visible'
-          style={{ left: toPercent(visible.left), top: toPercent(visible.top), width: toPercent(visible.right - visible.left), height: toPercent(visible.bottom - visible.top) }}
-        />
-        {zoomOn ? <div className='logo-pad-focus' style={{ left: toPercent(state.focusX), top: toPercent(state.focusY) }} /> : null}
-      </div>
+      <div className='logo-pad-box' style={{ left: toPercent(box.left), top: toPercent(box.top), width: toPercent(box.width), height: toPercent(box.height) }} />
+      {zoomOn ? <div className='logo-pad-focus' style={{ left: toPercent(dot.x), top: toPercent(dot.y) }} /> : null}
     </Pad>
   )
 }
