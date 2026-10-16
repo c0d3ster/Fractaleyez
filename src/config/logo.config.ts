@@ -8,7 +8,7 @@ export const logoConfig = {
   baseHeightFraction: 0.3, // the fraction of the view height the logo fills at Size 1 and no beat
 
   size_MIN: 0.25,
-  size_MAX: 3,
+  size_MAX: 4,
   size_DEFAULT: 1, // 1 fills baseHeightFraction of the view
   size_STEP_SIZE: 0.01,
 
