@@ -80,30 +80,31 @@ const LogoPadInner = ({ config, updateConfigItem, resetConfigItem }: LogoPadProp
     const { target, offset } = grab.current
     if (target === 'focus') {
       const focus = moveFocus(point, offset, state, pad)
+      updateConfigItem('logo', 'focusAuto', false)
       setValues({ focusX: focus.x, focusY: focus.y })
       return
     }
     const position = moveLogo(point, offset)
     setValues({ positionX: position.x, positionY: position.y })
-  }, [state, zoomOn, setValues])
+  }, [state, zoomOn, setValues, updateConfigItem])
 
   const resetItems = useCallback((items: readonly string[]): void => {
     items.forEach((item) => resetConfigItem('logo', item))
   }, [resetConfigItem])
 
+  // The zoom point goes back to what the image itself suggests (Auto Focus), not to the middle of the frame.
   const handleReset = useCallback((): void => {
     const { target } = firstPress.current
-    if (target === 'focus') resetItems(['focusX', 'focusY'])
-    else if (target === 'logo') resetItems(['positionX', 'positionY'])
-    else resetItems(['positionX', 'positionY', 'focusX', 'focusY'])
-  }, [resetItems])
+    if (target !== 'focus') resetItems(['positionX', 'positionY'])
+    if (target !== 'logo') updateConfigItem('logo', 'focusAuto', true)
+  }, [resetItems, updateConfigItem])
 
   const padSize: PadSize = { width: aspectRatio, height: 1 } // only the ratio matters for where things sit
   const frame = frameRect(state, padSize)
   const spriteUrl = sprite ? getResolvedSpriteUrl(sprite) : ''
   const silhouette = spriteUrl ? { maskImage: `url("${spriteUrl}")`, WebkitMaskImage: `url("${spriteUrl}")` } : undefined
   const dot = focusSpot(state, padSize)
-  const readouts = [`X ${format(state.x)}`, `Y ${format(state.y)}`, ...(zoomOn ? [`Zoom ${format(state.focusX)}, ${format(state.focusY)}`] : [])]
+  const readouts = [`X ${format(state.x)}`, `Y ${format(state.y)}`, ...(zoomOn ? [`Zoom ${format(state.focusX)}, ${format(state.focusY)}${config.logo.focusAuto.value ? ' auto' : ''}`] : [])]
 
   return (
     <Pad
@@ -112,7 +113,7 @@ const LogoPadInner = ({ config, updateConfigItem, resetConfigItem }: LogoPadProp
       onPick={handlePick}
       onReset={handleReset}
       readouts={readouts}
-      hint={zoomOn ? 'drag the dot to aim the zoom, the logo to move it, double-click to reset' : 'drag to move the logo, double-click to reset'}
+      hint={zoomOn ? 'drag the dot to aim the zoom, the logo to move it, double-click to reset (the dot goes back to auto)' : 'drag to move the logo, double-click to reset'}
     >
       <div className='logo-pad-crosshair logo-pad-crosshair--h' />
       <div className='logo-pad-crosshair logo-pad-crosshair--v' />
