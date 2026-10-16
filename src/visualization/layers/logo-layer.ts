@@ -35,23 +35,22 @@ const SWAY_LEAN_EXPONENT = 0.5
 
 // Endless zoom: flying into a point of the image. The image is drawn as a chain of copies, each `ZOOM_RATIO` times
 // smaller than the one before and placed so the focus point of every copy lands on the focus point of the one it sits
-// in (a Droste). The ratio is big, so the nested copies are small and the current one is the logo itself, almost always
-// at about its own size or magnified past it. Zooming scales the whole chain up around the
-// focus; when a copy has grown to the size of the one before it, the chain starts over, which is invisible because it
-// looks the same one level in. A copy is only faded out once it is a whole level past that handover (`ZOOM_RATIO`
-// times full size and more, as if behind the camera), and the next one is only faded in while it is still too small
-// to see, so nothing pops. Copy `j` sits `phase - j` levels from full size.
+// in (a Droste). Zooming scales the whole chain up around the focus. A copy starts at full opacity at the logo's own
+// size (what Size sets, the same as with Zoom off) and starts to fade out as it grows past that, gone once it is a
+// whole level (`ZOOM_RATIO` times) bigger, by which time the next copy inside it has grown to the logo's own size and
+// the chain starts over, which is invisible because it looks the same one level in. The copies inside are only faded
+// in while they are still too small to see, so nothing pops. Copy `j` sits `phase - j` levels from full size.
 // Where the zoom dives in, as 0..1 across the image (y down); the pad sets it.
 type FocusPoint = { x: number, y: number }
 // How fast the zoom runs: doublings of the image's size per second at User Speed 1, whatever the ratio.
 const ZOOM_DOUBLINGS_PER_SPEED = 0.2
-const ZOOM_RATIO = 4
-const ZOOM_COPIES = 7 // enough to cover the levels from one above full size down to where a copy is a speck, with the fade-in just past it
-const ZOOM_FADE_OUT_START = 1 // levels above full size where a copy starts to fade out
-const ZOOM_FADE_OUT_END = 2
-const ZOOM_FADE_IN_START = -5 // levels below full size where the next copy starts to fade in; down here it is a speck
-const ZOOM_FADE_IN_END = -4
-const ZOOM_FIRST_COPY = -1 // the first copy starts one level above full size, so the chain is complete at every phase
+const ZOOM_RATIO = 16
+const ZOOM_COPIES = 4 // the levels from full size down to a speck, with the fade-in just past it
+const ZOOM_FADE_OUT_START = 0 // levels above the logo's own size where a copy starts to fade out
+const ZOOM_FADE_OUT_END = 1
+const ZOOM_FADE_IN_START = -3 // levels below the logo's own size where the next copy starts to fade in; down here it is a speck
+const ZOOM_FADE_IN_END = -2
+const ZOOM_FIRST_COPY = 0 // the biggest copy is the one at full size, since the one above it would already be gone
 
 const clamp = (value: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, value))
 
