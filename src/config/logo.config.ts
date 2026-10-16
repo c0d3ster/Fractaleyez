@@ -9,7 +9,7 @@ export const logoConfig = {
 
   size_MIN: 0.25,
   size_MAX: 3,
-  size_DEFAULT: 1, // 1 fills LOGO_HEIGHT_FRACTION of the view
+  size_DEFAULT: 1, // 1 fills baseHeightFraction of the view
   size_STEP_SIZE: 0.01,
 
   spinSpeed_MIN: -5, // negative spins the other way
@@ -17,10 +17,7 @@ export const logoConfig = {
   spinSpeed_DEFAULT: 0, // 0 is no spin
   spinSpeed_STEP_SIZE: 0.1,
 
-  beatScale_MIN: 0,
-  beatScale_MAX: 2,
-  beatScale_DEFAULT: 0.5,
-  beatScale_STEP_SIZE: 0.01,
+  beatScale: 1, // how far a full beat swells the logo: 1 grows it by its own size
 
   shake_MIN: 0,
   shake_MAX: 1,
