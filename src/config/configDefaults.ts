@@ -123,11 +123,7 @@ export type LogoConfigSection = {
   spinSpeed: SliderItem
   beatScale: SliderItem
   shake: SliderItem
-  zoom: CheckboxItem // endless Droste-style zoom into the focus point
-  zoomSpeed: SliderItem
-  autoFocus: CheckboxItem // on picks the focus point from the image; off uses focusX / focusY
-  focusX: SliderItem
-  focusY: SliderItem
+  zoom: CheckboxItem // Droste: endless zoom into the image, Spin Speed sets its speed instead of the spin
 }
 
 export type AppConfig = {
@@ -278,10 +274,6 @@ export const configDefaults: AppConfig = {
     spinSpeed: { name: 'Spin Speed', type: 'slider', defaultValue: logoConfig.spinSpeed_DEFAULT, value: logoConfig.spinSpeed_DEFAULT, min: logoConfig.spinSpeed_MIN, max: logoConfig.spinSpeed_MAX, step: logoConfig.spinSpeed_STEP_SIZE },
     beatScale: { name: 'Beat Scale', type: 'slider', defaultValue: logoConfig.beatScale_DEFAULT, value: logoConfig.beatScale_DEFAULT, min: logoConfig.beatScale_MIN, max: logoConfig.beatScale_MAX, step: logoConfig.beatScale_STEP_SIZE },
     shake: { name: 'Shake', type: 'slider', defaultValue: logoConfig.shake_DEFAULT, value: logoConfig.shake_DEFAULT, min: logoConfig.shake_MIN, max: logoConfig.shake_MAX, step: logoConfig.shake_STEP_SIZE },
-    zoom: { name: 'Zoom', type: 'checkbox', defaultValue: logoConfig.zoom_DEFAULT, value: logoConfig.zoom_DEFAULT },
-    zoomSpeed: { name: 'Zoom Speed', type: 'slider', defaultValue: logoConfig.zoomSpeed_DEFAULT, value: logoConfig.zoomSpeed_DEFAULT, min: logoConfig.zoomSpeed_MIN, max: logoConfig.zoomSpeed_MAX, step: logoConfig.zoomSpeed_STEP_SIZE },
-    autoFocus: { name: 'Auto Focus', type: 'checkbox', defaultValue: logoConfig.autoFocus_DEFAULT, value: logoConfig.autoFocus_DEFAULT },
-    focusX: { name: 'Focus X', type: 'slider', defaultValue: logoConfig.focusX_DEFAULT, value: logoConfig.focusX_DEFAULT, min: logoConfig.focusX_MIN, max: logoConfig.focusX_MAX, step: logoConfig.focusX_STEP_SIZE },
-    focusY: { name: 'Focus Y', type: 'slider', defaultValue: logoConfig.focusY_DEFAULT, value: logoConfig.focusY_DEFAULT, min: logoConfig.focusY_MIN, max: logoConfig.focusY_MAX, step: logoConfig.focusY_STEP_SIZE },
+    zoom: { name: 'Droste', type: 'checkbox', defaultValue: logoConfig.zoom_DEFAULT, value: logoConfig.zoom_DEFAULT },
   },
 }
