@@ -29,7 +29,7 @@ const stateOf = ({ logo }: AppConfig): LogoPadState => ({
 const sizeOf = ({ width, height }: PadPoint): PadSize => ({ width, height })
 
 /**
- * Places the logo on the screen and, with Droste on, picks the point of the image the zoom dives into. The big square
+ * Places the logo on the screen and, with Zoom on, picks the point of the image the zoom dives into. The big square
  * is the logo at its Size, the small dot inside it is the zoom point; drag the dot to move the zoom point, drag the
  * square (or empty pad) to move the logo. Double-click the dot, the square, or empty pad to reset the zoom point, the
  * position, or both.
@@ -95,5 +95,5 @@ const LogoPadInner = ({ config, updateConfigItem, resetConfigItem }: LogoPadProp
   )
 }
 
-/** The pad for the logo's position on the screen and, with Droste on, the zoom point in the image. */
+/** The pad for the logo's position on the screen and, with Zoom on, the zoom point in the image. */
 export const LogoPad = connectConfig(LogoPadInner)

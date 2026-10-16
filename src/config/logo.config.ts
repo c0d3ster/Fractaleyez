@@ -27,7 +27,7 @@ export const logoConfig = {
   shake_DEFAULT: 0,
   shake_STEP_SIZE: 0.01,
 
-  zoom_DEFAULT: false, // Droste: endless zoom into the image, its rate follows the user Speed
+  zoom_DEFAULT: false, // endless zoom into the image, its rate follows the user Speed
 
   // Where the logo sits on the screen, as 0..1 across the view (y down), set by the pad. The range is the limit on the
   // logo's center: 0..1 keeps the center on screen while an edge can hang off; widen it to let the logo leave entirely.
@@ -40,7 +40,7 @@ export const logoConfig = {
   positionY_DEFAULT: 0.5,
   positionY_STEP_SIZE: 0.01,
 
-  // The point of the image the Droste zoom dives into, as 0..1 across the image (y down), set by the pad.
+  // The point of the image the zoom dives into, as 0..1 across the image (y down), set by the pad.
   focusX_MIN: 0,
   focusX_MAX: 1,
   focusX_DEFAULT: 0.5,

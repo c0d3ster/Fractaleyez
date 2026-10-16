@@ -173,8 +173,8 @@ const ExternalWindowBridge = ({
               {entry === 'logo' ? (
                 <ConfigCategory name='logo' onChange={updateConfigItem} isOpen={true} toggleOpen={() => null} expanded popup bare>
                   <LogoSpritePicker />
-                  <LogoPad />
                   <ConfigSectionItems name='logo' onChange={updateConfigItem} />
+                  <LogoPad />
                 </ConfigCategory>
               ) : null}
               {entry === 'fractal' ? (

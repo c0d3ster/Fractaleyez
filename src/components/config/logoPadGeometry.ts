@@ -26,7 +26,7 @@ export const focusSpot = (state: LogoPadState, pad: PadSize): PadSpot => {
   return { x: state.x + (state.focusX - 0.5) * width, y: state.y + (state.focusY - 0.5) * height }
 }
 
-/** What a press at `spot` grabs: the zoom point (only while Droste is on), the logo's body, or neither. */
+/** What a press at `spot` grabs: the zoom point (only while Zoom is on), the logo's body, or neither. */
 export const hitTest = (spot: PadSpot, state: LogoPadState, pad: PadSize, drosteOn: boolean): LogoPadTarget => {
   if (drosteOn) {
     const focus = focusSpot(state, pad)

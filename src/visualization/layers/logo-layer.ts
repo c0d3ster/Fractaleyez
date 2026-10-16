@@ -33,19 +33,24 @@ const FACE_FADE_END = 0.05
 // fifth as far as 500); lower lifts the small Sways, so at 0.5 Sway 100 leans about 45% as far and Sway 20 about 20%.
 const SWAY_LEAN_EXPONENT = 0.5
 
-// Endless zoom (Droste effect): a chain of copies of the image, each `ZOOM_RATIO` times smaller than the one before and
-// placed so the focus point of every copy lands on the focus point of the one it sits in. Zooming scales the whole chain
-// up; when a copy has grown to the size of the one before it, the chain starts over, which is invisible because the
-// chain looks the same one level in. Copy `j` sits `phase - j` levels from full size; the biggest fade out as they leave
-// and the smallest fade in, so nothing pops.
+// Endless zoom: flying into a point of the image. The image is drawn as a chain of copies, each `ZOOM_RATIO` times
+// smaller than the one before and placed so the focus point of every copy lands on the focus point of the one it sits
+// in (a Droste). The ratio is big, so the next copy starts as a pinpoint at the focus and the current one is the logo
+// itself, almost always at about its own size or magnified past it. Zooming scales the whole chain up around the
+// focus; when a copy has grown to the size of the one before it, the chain starts over, which is invisible because it
+// looks the same one level in. A copy is only faded out once it is a whole level past that handover (`ZOOM_RATIO`
+// times full size and more, as if behind the camera), and the next one is only faded in while it is still too small
+// to see, so nothing pops. Copy `j` sits `phase - j` levels from full size.
 // Where the zoom dives in, as 0..1 across the image (y down); the pad sets it.
 type FocusPoint = { x: number, y: number }
-// Levels per second at User Speed 1; the same Speed that flies the particles sets the zoom rate.
-const ZOOM_LEVELS_PER_SPEED = 0.1
-const ZOOM_COPIES = 12
-const ZOOM_RATIO = 2
-const ZOOM_FADE_OUT_START = 0.3 // levels above full size where a copy starts to fade out
-const ZOOM_FADE_OUT_END = 1.3
+// How fast the zoom runs: doublings of the image's size per second at User Speed 1, whatever the ratio.
+const ZOOM_DOUBLINGS_PER_SPEED = 0.2
+const ZOOM_RATIO = 64
+const ZOOM_COPIES = 4 // enough to cover the levels from one above full size to one below (pinpoint) with the fade-in just past it
+const ZOOM_FADE_OUT_START = 1 // levels above full size where a copy starts to fade out
+const ZOOM_FADE_OUT_END = 2
+const ZOOM_FADE_IN_START = -2 // levels below full size where the next copy starts to fade in; at -1 it is a pinpoint
+const ZOOM_FADE_IN_END = -1.5
 const ZOOM_FIRST_COPY = -1 // the first copy starts one level above full size, so the chain is complete at every phase
 
 const clamp = (value: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, value))
@@ -179,7 +184,7 @@ export class LogoLayer implements Layer {
       mesh.scale.set(scale, scale, 1)
       mesh.position.set(px * (1 - scale), py * (1 - scale), 0)
       const fadeOut = 1 - THREE.MathUtils.smoothstep(level, ZOOM_FADE_OUT_START, ZOOM_FADE_OUT_END)
-      const fadeIn = THREE.MathUtils.smoothstep(level, 2 - ZOOM_COPIES, 4 - ZOOM_COPIES)
+      const fadeIn = THREE.MathUtils.smoothstep(level, ZOOM_FADE_IN_START, ZOOM_FADE_IN_END)
       const material = this.zoomMaterials[i]
       if (material) material.opacity = fadeOut * fadeIn * faceOpacity
     })
@@ -252,7 +257,7 @@ export class LogoLayer implements Layer {
     this.faces.forEach((material) => { material.opacity = faceOpacity })
     if (isZooming) {
       // The user Speed sets the zoom rate, and the music speeds it up like it does Orbit.
-      const zoomStep = window.config.user.speed.value * ZOOM_LEVELS_PER_SPEED * getMusicSpeedMultiplier(audio) * (deltaTime / 1000)
+      const zoomStep = window.config.user.speed.value * ZOOM_DOUBLINGS_PER_SPEED / Math.log2(ZOOM_RATIO) * getMusicSpeedMultiplier(audio) * (deltaTime / 1000)
       this.zoomPhase = wrap01(this.zoomPhase + zoomStep)
       this.updateZoom({ x: logo.focusX.value, y: logo.focusY.value }, faceOpacity)
     }

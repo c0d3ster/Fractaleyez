@@ -46,7 +46,7 @@ const Entry = ({ entry, onChange, isOpen, toggleOpen }: EntryProps): React.React
       </ConfigCategory>
     )
   case 'logo':
-    return <ConfigCategory {...shared} bare><LogoSpritePicker /><LogoPad /><ConfigSectionItems name='logo' onChange={onChange} /></ConfigCategory>
+    return <ConfigCategory {...shared} bare><LogoSpritePicker /><ConfigSectionItems name='logo' onChange={onChange} /><LogoPad /></ConfigCategory>
   default:
     return <ConfigCategory {...shared} />
   }
