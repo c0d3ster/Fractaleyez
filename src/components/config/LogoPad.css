@@ -1,0 +1,42 @@
+.logo-pad-crosshair {
+  position: absolute;
+  background: #1e1e1e;
+  pointer-events: none;
+}
+
+.logo-pad-crosshair--h {
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+}
+
+.logo-pad-crosshair--v {
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+}
+
+/* The logo at its Size: a square as tall as the logo, centered on its spot. The zoom point is laid out inside it. */
+.logo-pad-logo {
+  position: absolute;
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  box-sizing: border-box;
+  border: 1.5px solid rgba(255, 255, 255, 0.55);
+  border-radius: 14%;
+  background: rgba(255, 255, 255, 0.08);
+  pointer-events: none;
+}
+
+.logo-pad-focus {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: #ff5db1;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+}

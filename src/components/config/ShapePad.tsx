@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { JULIA_FAMOUS_SHAPES, JULIA_MAP_VIEW, JULIA_TOUR } from '../../visualization/julia-tour'
 import './ShapePad.css'
+import { mainWindow, Pad, PadPoint } from './Pad'
 import { subscribeUiTick } from '../../utils/uiTicker'
 import { colorConfig } from '../../config/color.config'
 import { ColorState, resolveColorState } from '../../config/colorState'
@@ -14,9 +15,6 @@ const BACKING = 1
 // The map is only a coarse color picture, so it is drawn at a quarter of the overlay's pixels and CSS scales it up.
 const MAP_BACKING = 0.5
 const MAP_MAX_ITER = 120
-
-/** Main app window when config runs in a popup; otherwise `window`. */
-const mainWindow = (): Window => window.opener ?? window
 
 type ShapeReadout = { re: number; im: number; manual: boolean; hue: number; saturation: number; targetRe: number; targetIm: number }
 
@@ -177,7 +175,6 @@ const formatCoordinate = (value: number): string => `${value < 0 ? '−' : ''}${
 export const ShapePad = (): React.ReactElement => {
   const mandelbrotRef = useRef<HTMLCanvasElement>(null)
   const overlayRef = useRef<HTMLCanvasElement>(null)
-  const dragging = useRef(false)
   const lastDrawnKey = useRef('')
   const iterationsRef = useRef<Float32Array | null>(null)
   const drawnHueRef = useRef(Number.NaN)
@@ -226,70 +223,51 @@ export const ShapePad = (): React.ReactElement => {
     return subscribeUiTick(tick)
   }, [])
 
-  const applyPointer = useCallback((event: React.PointerEvent<HTMLCanvasElement>): void => {
-    const rect = event.currentTarget.getBoundingClientRect()
-    const fractionX = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width))
-    const fractionY = Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height))
+  const handlePick = useCallback((point: PadPoint): void => {
     mainWindow().setJuliaShape?.(
-      JULIA_MAP_VIEW.reMin + fractionX * VIEW_WIDTH,
-      JULIA_MAP_VIEW.imMax - fractionY * VIEW_HEIGHT,
+      JULIA_MAP_VIEW.reMin + point.x * VIEW_WIDTH,
+      JULIA_MAP_VIEW.imMax - point.y * VIEW_HEIGHT,
     )
   }, [])
 
-  const handlePointerDown = useCallback((event: React.PointerEvent<HTMLCanvasElement>): void => {
-    event.preventDefault()
-    dragging.current = true
-    event.currentTarget.setPointerCapture(event.pointerId)
-    applyPointer(event)
-  }, [applyPointer])
-
-  const handlePointerMove = useCallback((event: React.PointerEvent<HTMLCanvasElement>): void => {
-    if (dragging.current) applyPointer(event)
-  }, [applyPointer])
-
-  const handlePointerEnd = useCallback((): void => {
-    dragging.current = false
+  const handleReset = useCallback((): void => {
+    mainWindow().clearJuliaShape?.()
   }, [])
 
   return (
-    <div className='shape-pad-wrapper'>
-      <span className='shape-pad-label'>Shape {readout.manual ? '(manual)' : '(tour)'}</span>
-      <div className='shape-pad'>
-        <canvas
-          ref={mandelbrotRef}
-          className='shape-pad-canvas'
-          width={PAD_W * MAP_BACKING}
-          height={PAD_H * MAP_BACKING}
-        />
-        <canvas
-          ref={overlayRef}
-          className='shape-pad-canvas shape-pad-canvas--overlay'
-          width={PAD_W * BACKING}
-          height={PAD_H * BACKING}
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerEnd}
-          onPointerCancel={handlePointerEnd}
-          onDoubleClick={() => mainWindow().clearJuliaShape?.()}
-        />
-      </div>
-      <div className='shape-pad-values'>
-        <span>Re {formatCoordinate(readout.re)}</span>
-        <span>Im {formatCoordinate(readout.im)}</span>
-      </div>
-      <div className='shape-pad-chips'>
-        {JULIA_FAMOUS_SHAPES.map(({ name, re, im }) => (
-          <button
-            key={name}
-            type='button'
-            className='shape-pad-chip'
-            onClick={() => mainWindow().setJuliaShape?.(re, im)}
-          >
-            {name}
-          </button>
-        ))}
-      </div>
-      <span className='shape-pad-hint'>drag to pick a shape, double-click to return to the Tour slider</span>
-    </div>
+    <Pad
+      label={`Shape ${readout.manual ? '(manual)' : '(tour)'}`}
+      onPick={handlePick}
+      onReset={handleReset}
+      readouts={[`Re ${formatCoordinate(readout.re)}`, `Im ${formatCoordinate(readout.im)}`]}
+      hint='drag to pick a shape, double-click to return to the Tour slider'
+      footer={(
+        <div className='shape-pad-chips'>
+          {JULIA_FAMOUS_SHAPES.map(({ name, re, im }) => (
+            <button
+              key={name}
+              type='button'
+              className='shape-pad-chip'
+              onClick={() => mainWindow().setJuliaShape?.(re, im)}
+            >
+              {name}
+            </button>
+          ))}
+        </div>
+      )}
+    >
+      <canvas
+        ref={mandelbrotRef}
+        className='shape-pad-canvas'
+        width={PAD_W * MAP_BACKING}
+        height={PAD_H * MAP_BACKING}
+      />
+      <canvas
+        ref={overlayRef}
+        className='shape-pad-canvas shape-pad-canvas--overlay'
+        width={PAD_W * BACKING}
+        height={PAD_H * BACKING}
+      />
+    </Pad>
   )
 }

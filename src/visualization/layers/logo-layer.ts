@@ -9,9 +9,8 @@ import { CameraManager } from '../camera-manager'
 import { getMusicSpeedMultiplier } from '../music-speed'
 import { Layer } from './layer'
 
-// Local distance in front of the camera, and the fraction of the viewport height the logo fills at beatScale 0.
+// Local distance in front of the camera. The logo fills `logoConfig.baseHeightFraction` of the viewport height at Size 1.
 const LOGO_DISTANCE = 10
-const LOGO_HEIGHT_FRACTION = 0.3
 const SHAKE_VIEWPORT_FRACTION = 0.05
 
 // Fake thickness: the image is drawn as this many parallel slices spread over `DEPTH_FRACTION` of the logo's height.
@@ -39,9 +38,8 @@ const SWAY_LEAN_EXPONENT = 0.5
 // up; when a copy has grown to the size of the one before it, the chain starts over, which is invisible because the
 // chain looks the same one level in. Copy `j` sits `phase - j` levels from full size; the biggest fade out as they leave
 // and the smallest fade in, so nothing pops.
-// Where the zoom dives in, as 0..1 across the image (y down). The center until a pad sets it.
+// Where the zoom dives in, as 0..1 across the image (y down); the pad sets it.
 type FocusPoint = { x: number, y: number }
-const ZOOM_FOCUS: FocusPoint = { x: 0.5, y: 0.5 }
 // Levels per second at User Speed 1; the same Speed that flies the particles sets the zoom rate.
 const ZOOM_LEVELS_PER_SPEED = 0.1
 const ZOOM_COPIES = 12
@@ -208,9 +206,15 @@ export class LogoLayer implements Layer {
     if (!this.sideTexture) this.createSideTexture(this.texture)
     const camera = this.cameraManager.getCamera()
     const viewHeight = 2 * LOGO_DISTANCE * Math.tan((camera.fov / 2) * (Math.PI / 180))
-    const size = viewHeight * LOGO_HEIGHT_FRACTION * logo.size.value * (1 + beat.value * logo.beatScale.value)
+    const size = viewHeight * logoConfig.baseHeightFraction * logo.size.value * (1 + beat.value * logo.beatScale.value)
     this.logo.scale.set(size * (image.width / image.height), size, size * DEPTH_FRACTION)
     this.logo.visible = true
+
+    // The pad's spot on the screen, 0..1 across the view with y down. The pivot sits at LOGO_DISTANCE, so a fraction of
+    // the view there is a fraction of the screen.
+    const viewWidth = viewHeight * camera.aspect
+    this.pivot.position.x = (logo.positionX.value - 0.5) * viewWidth
+    this.pivot.position.y = (0.5 - logo.positionY.value) * viewHeight
 
     const shake = beat.value * logo.shake.value * viewHeight * SHAKE_VIEWPORT_FRACTION
     this.logo.position.x = shake ? (Math.random() - 0.5) * 2 * shake : 0
@@ -250,7 +254,7 @@ export class LogoLayer implements Layer {
       // The user Speed sets the zoom rate, and the music speeds it up like it does Orbit.
       const zoomStep = window.config.user.speed.value * ZOOM_LEVELS_PER_SPEED * getMusicSpeedMultiplier(audio) * (deltaTime / 1000)
       this.zoomPhase = wrap01(this.zoomPhase + zoomStep)
-      this.updateZoom(ZOOM_FOCUS, faceOpacity)
+      this.updateZoom({ x: logo.focusX.value, y: logo.focusY.value }, faceOpacity)
     }
     // The Effects glow switch drives the logo too, with the same formula as the global bloom.
     const glow = window.config.effects.glow.value ? Math.min(1, beat.value * beat.energy) : 0

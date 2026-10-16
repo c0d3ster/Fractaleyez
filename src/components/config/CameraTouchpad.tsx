@@ -1,18 +1,13 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react'
 import './CameraTouchpad.css'
+import { mainWindow, Pad, PadPoint, screenAspectRatio } from './Pad'
 
 const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v))
 
-/** Main app window when config runs in a popup; otherwise `window`. */
-const mainWindow = (): Window => window.opener ?? window
-
-// The pad has the main screen's shape, so a spot on it matches a spot on the visualizer. Never taller than square: a
-// portrait window (a phone) would otherwise stretch the pad far down the sidebar.
-const padAspectRatio = (): number => Math.max(1, mainWindow().innerWidth / mainWindow().innerHeight)
 const getRange = (): number => mainWindow().config?.user?.cameraBound?.value ?? 100
 // Spot on the pad as a percentage of its width/height, so the pad can fill whatever width it is given.
 const valToPercent = (v: number, range: number): string => `${((v / range) + 1) * 50}%`
-const pixelToVal = (px: number, size: number, range: number): number => ((px / size) * 2 - 1) * range
+const fractionToVal = (fraction: number, range: number): number => (fraction * 2 - 1) * range
 
 type Pos = { x: number; y: number }
 
@@ -20,7 +15,6 @@ export const CameraTouchpad = (): React.ReactElement => {
   const [pos, setPos] = useState<Pos>({ x: 0, y: 0 })
   // Where the on-screen visualizer's camera has actually got to; it trails the target dot, in every mode.
   const [current, setCurrent] = useState<Pos | null>(null)
-  const padRef = useRef<HTMLDivElement>(null)
   const dragging = useRef(false)
   const rafRef = useRef<number>(0)
 
@@ -60,69 +54,45 @@ export const CameraTouchpad = (): React.ReactElement => {
     mainWindow().setVirtualCameraPosition?.(next.x, next.y)
   }, [])
 
-  const handleMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    e.preventDefault()
+  const handlePick = useCallback((point: PadPoint) => {
     dragging.current = true
-
-    const pad = e.currentTarget
-    const rect = pad.getBoundingClientRect()
-    applyPos(
-      pixelToVal(clamp(e.clientX - rect.left, 0, rect.width), rect.width, getRange()),
-      pixelToVal(clamp(e.clientY - rect.top, 0, rect.height), rect.height, getRange()),
-    )
-
-    const doc = pad.ownerDocument
-    const onMove = (ev: MouseEvent): void => {
-      if (!dragging.current || !padRef.current) return
-      const r = padRef.current.getBoundingClientRect()
-      applyPos(
-        pixelToVal(clamp(ev.clientX - r.left, 0, r.width), r.width, getRange()),
-        pixelToVal(clamp(ev.clientY - r.top, 0, r.height), r.height, getRange()),
-      )
-    }
-    const onUp = (): void => {
-      dragging.current = false
-      doc.removeEventListener('mousemove', onMove)
-      doc.removeEventListener('mouseup', onUp)
-    }
-    doc.addEventListener('mousemove', onMove)
-    doc.addEventListener('mouseup', onUp)
+    const range = getRange()
+    applyPos(fractionToVal(point.x, range), fractionToVal(point.y, range))
   }, [applyPos])
 
-  const handleDoubleClick = useCallback(() => applyPos(0, 0), [applyPos])
+  const handlePickEnd = useCallback(() => {
+    dragging.current = false
+  }, [])
+
+  const handleReset = useCallback(() => applyPos(0, 0), [applyPos])
 
   const disabled = getRange() === 0
 
   return (
-    <div className='camera-touchpad-wrapper' style={{ opacity: disabled ? 0.25 : 1, pointerEvents: disabled ? 'none' : undefined }}>
-      <span className='camera-touchpad-label'>Camera Position</span>
-      <div
-        ref={padRef}
-        className='camera-touchpad'
-        style={{ aspectRatio: padAspectRatio() }}
-        onMouseDown={handleMouseDown}
-        onDoubleClick={handleDoubleClick}
-      >
-        <div className='camera-touchpad-crosshair camera-touchpad-crosshair--h' />
-        <div className='camera-touchpad-crosshair camera-touchpad-crosshair--v' />
-        {current && !disabled ? (
-          <div
-            className='camera-touchpad-current'
-            style={{ left: valToPercent(clamp(current.x, -getRange(), getRange()), getRange()), top: valToPercent(clamp(current.y, -getRange(), getRange()), getRange()) }}
-          />
-        ) : null}
-        <img
-          src='/crossheir.png'
-          alt=''
-          className='camera-touchpad-dot'
-          style={{ left: disabled ? '50%' : valToPercent(pos.x, getRange()), top: disabled ? '50%' : valToPercent(pos.y, getRange()) }}
+    <Pad
+      label='Camera Position'
+      aspectRatio={screenAspectRatio()}
+      onPick={handlePick}
+      onPickEnd={handlePickEnd}
+      onReset={handleReset}
+      readouts={[`X ${pos.x >= 0 ? '+' : ''}${Math.round(pos.x)}`, `Y ${pos.y >= 0 ? '+' : ''}${Math.round(pos.y)}`]}
+      hint='double-click to reset'
+      disabled={disabled}
+    >
+      <div className='camera-touchpad-crosshair camera-touchpad-crosshair--h' />
+      <div className='camera-touchpad-crosshair camera-touchpad-crosshair--v' />
+      {current && !disabled ? (
+        <div
+          className='camera-touchpad-current'
+          style={{ left: valToPercent(clamp(current.x, -getRange(), getRange()), getRange()), top: valToPercent(clamp(current.y, -getRange(), getRange()), getRange()) }}
         />
-      </div>
-      <div className='camera-touchpad-values'>
-        <span>X {pos.x >= 0 ? '+' : ''}{Math.round(pos.x)}</span>
-        <span>Y {pos.y >= 0 ? '+' : ''}{Math.round(pos.y)}</span>
-      </div>
-      <span className='camera-touchpad-hint'>double-click to reset</span>
-    </div>
+      ) : null}
+      <img
+        src='/crossheir.png'
+        alt=''
+        className='camera-touchpad-dot'
+        style={{ left: disabled ? '50%' : valToPercent(pos.x, getRange()), top: disabled ? '50%' : valToPercent(pos.y, getRange()) }}
+      />
+    </Pad>
   )
 }
