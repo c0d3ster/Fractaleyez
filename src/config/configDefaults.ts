@@ -123,7 +123,7 @@ export type LogoConfigSection = {
   spinSpeed: SliderItem
   beatScale: SliderItem
   shake: SliderItem
-  zoom: CheckboxItem // Droste: endless zoom into the image, Spin Speed sets its speed instead of the spin
+  zoom: CheckboxItem // Droste: endless zoom into the image, the user Speed sets its rate
 }
 
 export type AppConfig = {

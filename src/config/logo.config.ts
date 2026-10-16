@@ -25,5 +25,5 @@ export const logoConfig = {
   shake_DEFAULT: 0,
   shake_STEP_SIZE: 0.01,
 
-  zoom_DEFAULT: false, // Droste: endless zoom into the image, driven by Spin Speed
+  zoom_DEFAULT: false, // Droste: endless zoom into the image, its rate follows the user Speed
 } as const

@@ -42,7 +42,7 @@ const SWAY_LEAN_EXPONENT = 0.5
 // Where the zoom dives in, as 0..1 across the image (y down). The center until a pad sets it.
 type FocusPoint = { x: number, y: number }
 const ZOOM_FOCUS: FocusPoint = { x: 0.5, y: 0.5 }
-// Levels per second at Spin Speed 1; the same slider drives the zoom while Droste is on.
+// Levels per second at User Speed 1; the same Speed that flies the particles sets the zoom rate.
 const ZOOM_LEVELS_PER_SPEED = 0.1
 const ZOOM_COPIES = 12
 const ZOOM_RATIO = 2
@@ -221,13 +221,13 @@ export class LogoLayer implements Layer {
     const is3D = logo.threeD.value
     // Flat: only the near face draws and the image rolls in the screen plane (positive is clockwise, like Rotation).
     // 3D: turns around the vertical axis through the logo's center, like a planet on its axis.
-    // Zoom swaps the thick stack for the chain of flat copies (they lean with the rest, but Spin Speed drives the zoom instead of the spin).
+    // Zoom swaps the thick stack for the chain of flat copies (they spin and lean with the rest).
     const isZooming = logo.zoom.value
     this.sides.forEach((material) => { material.visible = is3D && !isZooming })
     this.faces.forEach((material, i) => { material.visible = !isZooming && (is3D || i === this.faces.length - 1) })
     this.zoomCopies.forEach((mesh) => { mesh.visible = isZooming })
-    this.logo.rotation.y = is3D && !isZooming ? (this.logo.rotation.y + spin) % (2 * Math.PI) : 0
-    this.logo.rotation.z = is3D || isZooming ? 0 : (this.logo.rotation.z - spin) % (2 * Math.PI)
+    this.logo.rotation.y = is3D ? (this.logo.rotation.y + spin) % (2 * Math.PI) : 0
+    this.logo.rotation.z = is3D ? 0 : (this.logo.rotation.z - spin) % (2 * Math.PI)
     // Turns toward where the camera has got to: its direction sets the way the logo leans (pad units, y down) and how
     // far it is through its swing sets how far. The angle at the edge of the swing also grows with Sway, but on a
     // curve (see SWAY_LEAN_EXPONENT), so a small Sway still leans clearly and none leans not at all.
@@ -247,8 +247,9 @@ export class LogoLayer implements Layer {
       : 1
     this.faces.forEach((material) => { material.opacity = faceOpacity })
     if (isZooming) {
-      // Spin Speed becomes zoom speed; the music speeds it up like it does the spin and Orbit.
-      this.zoomPhase = wrap01(this.zoomPhase + spin * ZOOM_LEVELS_PER_SPEED)
+      // The user Speed sets the zoom rate, and the music speeds it up like it does Orbit.
+      const zoomStep = window.config.user.speed.value * ZOOM_LEVELS_PER_SPEED * getMusicSpeedMultiplier(audio) * (deltaTime / 1000)
+      this.zoomPhase = wrap01(this.zoomPhase + zoomStep)
       this.updateZoom(ZOOM_FOCUS, faceOpacity)
     }
     // The Effects glow switch drives the logo too, with the same formula as the global bloom.
