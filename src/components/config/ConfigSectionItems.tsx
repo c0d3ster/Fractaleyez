@@ -40,6 +40,11 @@ const STEPPER_AMOUNTS: Partial<Record<string, string>> = {
 }
 const STEPPER_AMOUNT_ITEMS: readonly string[] = Object.values(STEPPER_AMOUNTS).filter((item): item is string => item !== undefined)
 
+// Items a pad edits (the logo's position and Droste focus): stored like any slider, but they get no row of their own.
+const PAD_ITEMS: Partial<Record<string, readonly string[]>> = {
+  logo: ['positionX', 'positionY', 'focusX', 'focusY'],
+}
+
 // Sections whose items live in the preset and can be reset to its loaded values (video is reset by ConfigVideo, since
 // its clip list is not a plain section).
 const RESETTABLE_SECTIONS: readonly ConfigSectionKey[] = ['user', 'fractal', 'audio', 'effects', 'color', 'particle', 'orbit', 'logo']
@@ -181,6 +186,7 @@ const ConfigSectionItemsInner = ({ name, only, config, onChange, resetConfigItem
       )}
       {Object.keys(categoryConfig).filter((configItem) => !only || only.includes(configItem)).map((configItem) => {
         if (STEPPER_AMOUNT_ITEMS.includes(configItem)) return null
+        if (PAD_ITEMS[name]?.includes(configItem)) return null
         // The effect switches, the kaleidoscope's included, live under the dial as chips, so they get no row of their own.
         if (name === 'effects' && !only && (configItem === 'kaleidoscope' || EFFECT_KEYS.some((key) => key === configItem))) return null
         const item = categoryConfig[configItem]!

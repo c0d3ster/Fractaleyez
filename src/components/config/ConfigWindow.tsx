@@ -14,6 +14,7 @@ import { CameraTouchpad } from './CameraTouchpad'
 import { ShapePad } from './ShapePad'
 import { LogConfigButton } from './LogConfigButton'
 import { ColorConfigBody } from './ColorConfigBody'
+import { LogoPad } from './LogoPad'
 import { LogoSpritePicker } from './LogoSpritePicker'
 import { BeatHud, FrequencyHud, ParticleSpriteHud } from '../huds'
 
@@ -172,6 +173,7 @@ const ExternalWindowBridge = ({
               {entry === 'logo' ? (
                 <ConfigCategory name='logo' onChange={updateConfigItem} isOpen={true} toggleOpen={() => null} expanded popup bare>
                   <LogoSpritePicker />
+                  <LogoPad />
                   <ConfigSectionItems name='logo' onChange={updateConfigItem} />
                 </ConfigCategory>
               ) : null}
