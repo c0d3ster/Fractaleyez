@@ -4,7 +4,6 @@ import { AudioAnalysedDataForVisualization } from '../../audioanalysis/audio-ana
 import { getResolvedSpriteUrl } from '../../utils/spriteCache'
 import { acquireSpriteTexture, releaseSpriteTexture } from '../../utils/textureCache'
 import { logoConfig } from '../../config/logo.config'
-import { findFocusPoint, FocusPoint } from '../../utils/focusPoint'
 import { userConfig } from '../../config/user.config'
 import { CameraManager } from '../camera-manager'
 import { getMusicSpeedMultiplier } from '../music-speed'
@@ -40,6 +39,11 @@ const SWAY_LEAN_EXPONENT = 0.5
 // up; when a copy has grown to the size of the one before it, the chain starts over, which is invisible because the
 // chain looks the same one level in. Copy `j` sits `phase - j` levels from full size; the biggest fade out as they leave
 // and the smallest fade in, so nothing pops.
+// Where the zoom dives in, as 0..1 across the image (y down). The center until a pad sets it.
+type FocusPoint = { x: number, y: number }
+const ZOOM_FOCUS: FocusPoint = { x: 0.5, y: 0.5 }
+// Levels per second at Spin Speed 1; the same slider drives the zoom while Droste is on.
+const ZOOM_LEVELS_PER_SPEED = 0.1
 const ZOOM_COPIES = 12
 const ZOOM_RATIO = 2
 const ZOOM_FADE_OUT_START = 0.3 // levels above full size where a copy starts to fade out
@@ -96,7 +100,6 @@ export class LogoLayer implements Layer {
     return material
   })
   private zoomPhase = 0
-  private focus: FocusPoint | null = null
   private readonly faces: THREE.MeshBasicMaterial[] = this.slices.filter((_, i) => isFace(i))
   private readonly sides: THREE.MeshBasicMaterial[] = this.slices.filter((_, i) => !isFace(i))
   private spriteUrl = ''
@@ -156,7 +159,6 @@ export class LogoLayer implements Layer {
     this.texture = null
     this.sideTexture?.dispose()
     this.sideTexture = null
-    this.focus = null
     this.setMap(null)
     this.logo.visible = false
   }
@@ -167,14 +169,6 @@ export class LogoLayer implements Layer {
       material.map = map
       material.needsUpdate = true
     })
-  }
-
-  /** The point the zoom dives into: the sliders, or with Auto Focus the most detailed spot of the image (found once per image). */
-  private getFocus = (image: object): FocusPoint => {
-    const { logo } = window.config
-    if (!logo.autoFocus.value) return { x: logo.focusX.value, y: logo.focusY.value }
-    this.focus ??= findFocusPoint(image as CanvasImageSource)
-    return this.focus
   }
 
   /** Lays out the chain of copies at the current zoom phase; the unit plane spans [-0.5, 0.5], so the focus is an offset from the middle. */
@@ -227,13 +221,13 @@ export class LogoLayer implements Layer {
     const is3D = logo.threeD.value
     // Flat: only the near face draws and the image rolls in the screen plane (positive is clockwise, like Rotation).
     // 3D: turns around the vertical axis through the logo's center, like a planet on its axis.
-    // Zoom swaps the thick stack for the chain of flat copies (they still spin and lean with the rest).
+    // Zoom swaps the thick stack for the chain of flat copies (they lean with the rest, but Spin Speed drives the zoom instead of the spin).
     const isZooming = logo.zoom.value
     this.sides.forEach((material) => { material.visible = is3D && !isZooming })
     this.faces.forEach((material, i) => { material.visible = !isZooming && (is3D || i === this.faces.length - 1) })
     this.zoomCopies.forEach((mesh) => { mesh.visible = isZooming })
-    this.logo.rotation.y = is3D ? (this.logo.rotation.y + spin) % (2 * Math.PI) : 0
-    this.logo.rotation.z = is3D ? 0 : (this.logo.rotation.z - spin) % (2 * Math.PI)
+    this.logo.rotation.y = is3D && !isZooming ? (this.logo.rotation.y + spin) % (2 * Math.PI) : 0
+    this.logo.rotation.z = is3D || isZooming ? 0 : (this.logo.rotation.z - spin) % (2 * Math.PI)
     // Turns toward where the camera has got to: its direction sets the way the logo leans (pad units, y down) and how
     // far it is through its swing sets how far. The angle at the edge of the swing also grows with Sway, but on a
     // curve (see SWAY_LEAN_EXPONENT), so a small Sway still leans clearly and none leans not at all.
@@ -253,10 +247,9 @@ export class LogoLayer implements Layer {
       : 1
     this.faces.forEach((material) => { material.opacity = faceOpacity })
     if (isZooming) {
-      // The music speeds the zoom up like it does the spin and Orbit.
-      const zoomStep = logo.zoomSpeed.value * getMusicSpeedMultiplier(audio) * (deltaTime / 1000)
-      this.zoomPhase = wrap01(this.zoomPhase + zoomStep)
-      this.updateZoom(this.getFocus(image), faceOpacity)
+      // Spin Speed becomes zoom speed; the music speeds it up like it does the spin and Orbit.
+      this.zoomPhase = wrap01(this.zoomPhase + spin * ZOOM_LEVELS_PER_SPEED)
+      this.updateZoom(ZOOM_FOCUS, faceOpacity)
     }
     // The Effects glow switch drives the logo too, with the same formula as the global bloom.
     const glow = window.config.effects.glow.value ? Math.min(1, beat.value * beat.energy) : 0

@@ -25,19 +25,5 @@ export const logoConfig = {
   shake_DEFAULT: 0,
   shake_STEP_SIZE: 0.01,
 
-  zoom_DEFAULT: false, // endless Droste-style zoom into a point of the image
-  zoomSpeed_MIN: -3, // negative zooms back out
-  zoomSpeed_MAX: 3,
-  zoomSpeed_DEFAULT: 0.4, // levels per second; one level is a factor of ZOOM_RATIO in the logo layer
-  zoomSpeed_STEP_SIZE: 0.05,
-
-  autoFocus_DEFAULT: true, // pick the most detailed spot of the image instead of focusX / focusY
-  focusX_MIN: 0, // 0 is the image's left edge
-  focusX_MAX: 1,
-  focusX_DEFAULT: 0.5,
-  focusX_STEP_SIZE: 0.01,
-  focusY_MIN: 0, // 0 is the image's top edge
-  focusY_MAX: 1,
-  focusY_DEFAULT: 0.5,
-  focusY_STEP_SIZE: 0.01,
+  zoom_DEFAULT: false, // Droste: endless zoom into the image, driven by Spin Speed
 } as const
