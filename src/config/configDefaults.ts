@@ -125,6 +125,7 @@ export type LogoConfigSection = {
   shake: SliderItem
   positionX: SliderItem // set by the logo pad, no row of its own
   positionY: SliderItem
+  focusAuto: CheckboxItem // the zoom point follows the image's own center until the pad's dot is dragged
   focusX: SliderItem // where the zoom dives in, set by the logo pad
   focusY: SliderItem
 }
@@ -279,6 +280,7 @@ export const configDefaults: AppConfig = {
     shake: { name: 'Shake', type: 'slider', defaultValue: logoConfig.shake_DEFAULT, value: logoConfig.shake_DEFAULT, min: logoConfig.shake_MIN, max: logoConfig.shake_MAX, step: logoConfig.shake_STEP_SIZE },
     positionX: { name: 'Position X', type: 'slider', defaultValue: logoConfig.positionX_DEFAULT, value: logoConfig.positionX_DEFAULT, min: logoConfig.positionX_MIN, max: logoConfig.positionX_MAX, step: logoConfig.positionX_STEP_SIZE },
     positionY: { name: 'Position Y', type: 'slider', defaultValue: logoConfig.positionY_DEFAULT, value: logoConfig.positionY_DEFAULT, min: logoConfig.positionY_MIN, max: logoConfig.positionY_MAX, step: logoConfig.positionY_STEP_SIZE },
+    focusAuto: { name: 'Auto Focus', type: 'checkbox', defaultValue: logoConfig.focusAuto_DEFAULT, value: logoConfig.focusAuto_DEFAULT },
     focusX: { name: 'Focus X', type: 'slider', defaultValue: logoConfig.focusX_DEFAULT, value: logoConfig.focusX_DEFAULT, min: logoConfig.focusX_MIN, max: logoConfig.focusX_MAX, step: logoConfig.focusX_STEP_SIZE },
     focusY: { name: 'Focus Y', type: 'slider', defaultValue: logoConfig.focusY_DEFAULT, value: logoConfig.focusY_DEFAULT, min: logoConfig.focusY_MIN, max: logoConfig.focusY_MAX, step: logoConfig.focusY_STEP_SIZE },
   },

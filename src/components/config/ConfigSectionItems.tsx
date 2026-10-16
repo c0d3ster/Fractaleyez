@@ -42,7 +42,7 @@ const STEPPER_AMOUNT_ITEMS: readonly string[] = Object.values(STEPPER_AMOUNTS).f
 
 // Items a pad edits (the logo's position and zoom focus): stored like any slider, but they get no row of their own.
 const PAD_ITEMS: Partial<Record<string, readonly string[]>> = {
-  logo: ['positionX', 'positionY', 'focusX', 'focusY'],
+  logo: ['positionX', 'positionY', 'focusAuto', 'focusX', 'focusY'],
 }
 
 // Sections whose items live in the preset and can be reset to its loaded values (video is reset by ConfigVideo, since

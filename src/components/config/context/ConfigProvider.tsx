@@ -8,7 +8,8 @@ import { LAYER_CAP } from '../../../config/layers'
 import { mergeLayers } from '../../../config/mergeLayers'
 import { particleConfig } from '../../../config/particle.config'
 import { presets } from '../../../config/presets'
-import { warmSpriteCache } from '../../../utils/spriteCache'
+import { getResolvedSpriteUrl, warmSpriteCache } from '../../../utils/spriteCache'
+import { loadZoomFocus } from '../../../utils/zoomFocus'
 import { persistClerkPhotoAsLogo } from '../../../utils/clerkPhotoLogo'
 import {
   resolveUserParticle,
@@ -589,6 +590,21 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
       delete window.updateConfigItem
     }
   }, [setLayerEnabled, updateConfigItem])
+
+  // While Auto Focus is on, the logo's zoom point follows the point the image itself suggests. It is read once per sprite
+  // and only once Zoom is switched on. It also re-applies after a reset, which puts the stored numbers back.
+  const logoSprite = config.logo.sprite.value[0] ?? ''
+  const { zoom, focusAuto, focusX, focusY } = config.logo
+  useEffect(() => {
+    if (!zoom.value || !focusAuto.value || !logoSprite) return undefined
+    let current = true
+    void loadZoomFocus(getResolvedSpriteUrl(logoSprite)).then((focus) => {
+      if (!current) return
+      if (Math.abs(focus.x - focusX.value) > 0.0005) updateConfigItem('logo', 'focusX', String(focus.x))
+      if (Math.abs(focus.y - focusY.value) > 0.0005) updateConfigItem('logo', 'focusY', String(focus.y))
+    })
+    return () => { current = false }
+  }, [zoom.value, focusAuto.value, logoSprite, focusX.value, focusY.value, updateConfigItem])
 
   const setLayerOpacity = useCallback((key: LayerKey, opacity: number) => {
     setConfig((prev) => {

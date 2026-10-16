@@ -37,7 +37,9 @@ export const logoConfig = {
   positionY_DEFAULT: 0.5,
   positionY_STEP_SIZE: 0.01,
 
-  // The point of the image the zoom dives into, as 0..1 across the image (y down), set by the pad.
+  // The point of the image the zoom dives into, as 0..1 across the image (y down), set by the pad. While Auto Focus is on
+  // it follows the point the image itself suggests (see utils/zoomFocus); dragging the pad's dot turns that off.
+  focusAuto_DEFAULT: true,
   focusX_MIN: 0,
   focusX_MAX: 1,
   focusX_DEFAULT: 0.5,
