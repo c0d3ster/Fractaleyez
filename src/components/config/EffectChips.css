@@ -65,6 +65,21 @@
   color: white;
 }
 
+/* The flash on a beat is this overlay's opacity (see EffectChips) plus a scale on the chip. Both run off the main thread, which a brightness filter does not. */
+.effect-chip {
+  position: relative;
+}
+
+.effect-chip::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: #fff;
+  opacity: 0;
+  pointer-events: none;
+}
+
 /* Hover looks only where hovering is real. A touch leaves what was tapped stuck in :hover, so a chip would stay lit
    after you let go; `hover: hover` keeps the look off phones and tablets, and [data-input='touch'] (see inputType.ts)
    keeps it off a touch screen on a desktop, where the mouse still says it can hover. */

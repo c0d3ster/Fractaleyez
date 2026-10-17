@@ -35,35 +35,37 @@ const mainWindow = (): Window => window.opener ?? window
 
 type Scale = { toX: (t: number) => number; toY: (v: number) => number }
 
-const traceBand = (ctx: CanvasRenderingContext2D, samples: BeatSample[], band: number, scale: Scale, pick: 'level' | 'trigger'): void => {
-  samples.forEach((sample, i) => {
+// The samples are the monitor's whole history, oldest first; `from` is where the visible stretch starts, so nothing is copied to draw it.
+const traceBand = (ctx: CanvasRenderingContext2D, samples: readonly BeatSample[], from: number, band: number, scale: Scale, pick: 'level' | 'trigger'): void => {
+  for (let i = from; i < samples.length; i++) {
+    const sample = samples[i]!
     const value = sample.bands[band]?.[pick] ?? 0
-    if (i === 0) ctx.moveTo(scale.toX(sample.t), scale.toY(value))
+    if (i === from) ctx.moveTo(scale.toX(sample.t), scale.toY(value))
     else ctx.lineTo(scale.toX(sample.t), scale.toY(value))
-  })
+  }
 }
 
-const drawBand = (ctx: CanvasRenderingContext2D, samples: BeatSample[], band: number, look: BandLook, scale: Scale): void => {
-  const first = samples[0]
+const drawBand = (ctx: CanvasRenderingContext2D, samples: readonly BeatSample[], from: number, band: number, look: BandLook, scale: Scale): void => {
+  const first = samples[from]
   const last = samples[samples.length - 1]
   if (!first || !last) return
 
   ctx.beginPath()
   ctx.moveTo(scale.toX(first.t), PLOT_H)
-  traceBand(ctx, samples, band, scale, 'level')
+  traceBand(ctx, samples, from, band, scale, 'level')
   ctx.lineTo(scale.toX(last.t), PLOT_H)
   ctx.closePath()
   ctx.fillStyle = look.fill
   ctx.fill()
 
   ctx.beginPath()
-  traceBand(ctx, samples, band, scale, 'level')
+  traceBand(ctx, samples, from, band, scale, 'level')
   ctx.strokeStyle = look.line
   ctx.lineWidth = 1.5
   ctx.stroke()
 
   ctx.beginPath()
-  traceBand(ctx, samples, band, scale, 'trigger')
+  traceBand(ctx, samples, from, band, scale, 'trigger')
   ctx.strokeStyle = look.trigger
   ctx.lineWidth = 1
   ctx.setLineDash([4, 3])
@@ -72,8 +74,12 @@ const drawBand = (ctx: CanvasRenderingContext2D, samples: BeatSample[], band: nu
 }
 
 // Each band is scaled to its own recent peak, since the bands sit at very different levels.
-const scaleFor = (samples: BeatSample[], band: number, now: number): Scale => {
-  const peak = Math.max(MIN_Y_MAX, ...samples.map(({ bands }) => Math.max(bands[band]?.level ?? 0, bands[band]?.trigger ?? 0)))
+const scaleFor = (samples: readonly BeatSample[], from: number, band: number, now: number): Scale => {
+  let peak = MIN_Y_MAX
+  for (let i = from; i < samples.length; i++) {
+    const sample = samples[i]!.bands[band]
+    peak = Math.max(peak, sample?.level ?? 0, sample?.trigger ?? 0)
+  }
   const yMax = peak * Y_HEADROOM
   return {
     toX: (t: number): number => W - ((now - t) / WINDOW_MS) * W,
@@ -97,16 +103,23 @@ export const BeatHud = (): React.ReactElement => {
       const timeline = source.getBeatTimeline?.()
       const latest = timeline?.samples[timeline.samples.length - 1]
       if (!timeline || !latest) return
+      const history = timeline.samples
 
       // The timeline's clock is the main window's, so read "now" from there: a popped-out config window has its own
       // clock, and the last sample's time would freeze the strip and the lamp if sampling ever stopped.
       const now = source.performance.now()
-      const samples = timeline.samples.filter(({ t }) => now - t <= WINDOW_MS)
+      // Samples come in time order, so the visible stretch starts where walking back from the newest leaves the window.
+      let from = history.length
+      while (from > 0 && now - history[from - 1]!.t <= WINDOW_MS) from--
       const toX = (t: number): number => W - ((now - t) / WINDOW_MS) * W
 
       // Ignore Time after each beat: the detector is blind in this stretch, so a hit that lands in it is dropped.
       const ignoreMs = source.config.audio.ignoreTime.value
-      const beats = samples.filter(({ beatBand }) => beatBand !== null)
+      const beats: BeatSample[] = []
+      for (let i = from; i < history.length; i++) {
+        const sample = history[i]!
+        if (sample.beatBand !== null) beats.push(sample)
+      }
       ctx.fillStyle = COLORS.ignore
       beats.forEach(({ t }) => {
         const x = toX(t)
@@ -116,7 +129,7 @@ export const BeatHud = (): React.ReactElement => {
       // Only the bands that can trigger a beat are drawn, so the strip shows what the effects are listening to.
       const enabled = source.enabledFreqBands ?? DEFAULT_ENABLED_BANDS
       BAND_LOOKS.forEach((look, band) => {
-        if (enabled[band]) drawBand(ctx, samples, band, look, scaleFor(samples, band, now))
+        if (enabled[band]) drawBand(ctx, history, from, band, look, scaleFor(history, from, band, now))
       })
 
       // A beat tick takes the color of the band that set it off.
@@ -131,7 +144,7 @@ export const BeatHud = (): React.ReactElement => {
       })
 
       // Beat lamp, colored by the band that last fired.
-      const lastBeat = [...beats].reverse()[0]
+      const lastBeat = beats[beats.length - 1]
       const lampAlpha = lastBeat ? Math.max(0, 1 - (now - lastBeat.t) / LAMP_FADE_MS) : 0
       ctx.globalAlpha = 0.15 + lampAlpha * 0.85
       ctx.fillStyle = BAND_LOOKS[lastBeat?.beatBand ?? 0]?.line ?? '#fff'

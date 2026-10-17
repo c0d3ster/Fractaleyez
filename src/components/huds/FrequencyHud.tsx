@@ -98,10 +98,14 @@ const FrequencyHudInner = ({ userSettings, updateUserSettings }: FrequencyHudPro
       const latest = samples[samples.length - 1]
       // The timeline's clock is the main window's, so flashes age against that and keep fading if sampling stops.
       const now = mainWindow().performance.now()
-      const flashes = LABELS.map((_, band) => {
-        const lastHit = [...samples].reverse().find(({ beatBand }) => beatBand === band)
-        return lastHit ? Math.max(0, 1 - (now - lastHit.t) / HIT_FLASH_MS) : 0
-      })
+      // Newest first, so the first hit seen on a band is its last one, and nothing older than the flash can matter.
+      const flashes = LABELS.map(() => 0)
+      for (let i = samples.length - 1; i >= 0; i--) {
+        const sample = samples[i]!
+        if (now - sample.t > HIT_FLASH_MS) break
+        const { beatBand } = sample
+        if (beatBand !== null && flashes[beatBand] === 0) flashes[beatBand] = Math.max(0, 1 - (now - sample.t) / HIT_FLASH_MS)
+      }
 
       for (let i = 0; i < VISIBLE_BANDS; i++) {
         const x = i * (BAR_W + GAP)

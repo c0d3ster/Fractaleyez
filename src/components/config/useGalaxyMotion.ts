@@ -7,9 +7,9 @@ import { RADIUS } from './kaleidoscopeGalaxy'
 const mainWindow = (): Window => window.opener ?? window
 
 // How fast a beat's kick dies away.
-const PULSE_DECAY_SECONDS = 0.18
-// Below this the kick is gone and the effects settle back to rest.
-const PULSE_FLOOR = 0.002
+const KICK_DECAY_SECONDS = 0.18
+// The kick is gone (under 0.2% of its size) after this long, and the effects are back at rest.
+const KICK_SECONDS = 1.1
 // Wob Wob: how far the galaxy pulls back on a beat (a fraction of its size).
 const WOB_DEPTH = 0.09
 // Glow: how much the core's light swells on a beat.
@@ -19,6 +19,24 @@ const RING_SECONDS = 0.55
 const RING_OPACITY = 0.95
 const RING_START_RADIUS = RADIUS + 1
 const RING_TRAVEL = 6
+/** The ring is drawn at the size it ends at and scaled up from `RING_START_SCALE`, so it is a transform the browser can run off the main thread. */
+export const RING_END_RADIUS = RING_START_RADIUS + RING_TRAVEL
+const RING_START_SCALE = RING_START_RADIUS / RING_END_RADIUS
+// Eased out, so it bursts off the rim and slows as it fades, like a pressure wave (ease-out quad).
+const RING_EASING = 'cubic-bezier(0.5, 1, 0.89, 1)'
+
+// The galaxy turns as one endless animation of this length per lap, sped up or slowed down by its playback rate. Turning
+// the other way is the animation's direction, not a negative rate: the browser will not run a reversed animation off the main thread.
+const SPIN_LAP_MS = 1000
+const LAPS_PER_SEC_PER_UNIT = userConfig.rotationSpeed_RAD_PER_SEC_PER_UNIT / (2 * Math.PI)
+
+/** The old per-frame exponential decay (1 down to 0) as a CSS easing, for the progress from a kick to rest. */
+const decayEasing = (): string => {
+  const steps = 24
+  const points = Array.from({ length: steps }, (_, i) => (1 - Math.exp(-((i / steps) * KICK_SECONDS) / KICK_DECAY_SECONDS)).toFixed(4))
+  return `linear(${points.join(', ')}, 1)`
+}
+const FALLBACK_KICK_EASING = 'cubic-bezier(0.1, 0.9, 0.2, 1)'
 
 export type MotionEffects = {
   cyclone: boolean
@@ -44,15 +62,33 @@ type MotionSettings = {
 export type GalaxyMotion = {
   /** The dial itself; the motion pauses while it is off screen. */
   root: RefObject<HTMLDivElement>
-  /** The inside and outside of the galaxy, each its own layer so turning it never repaints it; they turn opposite ways when Cyclone is on. */
-  inner: RefObject<SVGSVGElement>
-  outer: RefObject<SVGSVGElement>
+  /** The inside and outside of the galaxy, each its own layer so turning it never repaints it; they turn opposite ways when Cyclone is on. Plain boxes around the drawing, because the browser only animates those off the main thread, never an svg element itself. */
+  inner: RefObject<HTMLDivElement>
+  outer: RefObject<HTMLDivElement>
   /** Wraps both layers; everything that pulls back on a beat when Wob Wob is on. */
   wob: RefObject<HTMLDivElement>
-  ring: RefObject<SVGCircleElement>
-  core: RefObject<SVGCircleElement>
+  /** The ring and the core are each a layer of their own for the same reason. */
+  ring: RefObject<HTMLDivElement>
+  core: RefObject<HTMLDivElement>
   /** Beats seen while Color Shift or Switcheroo is on; odd or even picks which shape is showing, and the count seeds where Color Shift puts the colors. */
   beats: number
+}
+
+/**
+ * An animation built once and left finished, so it shows nothing until it is played. Replaying it on every beat costs next to
+ * nothing, where building a new one (and finding the old ones to cancel) makes the browser work out styles on the spot.
+ */
+const preparedAnimation = (element: Element | null, keyframes: Keyframe[], options: KeyframeAnimationOptions): Animation | undefined => {
+  const animation = element?.animate(keyframes, options)
+  animation?.finish()
+  return animation
+}
+
+/** Starts the animation over, even if the last beat's is still running. */
+const replay = (animation: Animation | undefined): void => {
+  if (!animation) return
+  animation.currentTime = 0
+  animation.play()
 }
 
 /**
@@ -61,27 +97,55 @@ export type GalaxyMotion = {
  * so the caller can move the colors around (Color Shift) or swap shapes (Switcheroo). Beats come from the same detector the visualizers
  * use. The effects do not depend on the kaleidoscope, so it runs whether that is on or off.
  *
- * The config window shares a thread with the visualizer, so this keeps its cost down: motion is written straight onto
- * the elements (no re-renders) and only when a value has changed, turning and pulling back are plain transforms on
- * layers the browser can move without repainting, and the loop stops altogether while the dial is off screen, the
+ * The config window shares a thread with the visualizer, so this keeps its cost down by never doing per-frame work in
+ * JavaScript: the turning is one endless Web Animation per layer whose speed is its playback rate, and each beat starts
+ * a short transform and opacity animation on layers of their own, which the browser runs off the main thread. The beat
+ * arrives as a callback from the detector rather than being polled. Everything stops while the dial is off screen, the
  * panel is collapsed or the tab is hidden. It holds still if the user has asked for less motion, and follows that preference if it changes while the dial is open.
  */
 export const useGalaxyMotion = (settings: MotionSettings): GalaxyMotion => {
   const root = useRef<HTMLDivElement>(null)
-  const inner = useRef<SVGSVGElement>(null)
-  const outer = useRef<SVGSVGElement>(null)
+  const inner = useRef<HTMLDivElement>(null)
+  const outer = useRef<HTMLDivElement>(null)
   const wob = useRef<HTMLDivElement>(null)
-  const ring = useRef<SVGCircleElement>(null)
-  const core = useRef<SVGCircleElement>(null)
+  const ring = useRef<HTMLDivElement>(null)
+  const core = useRef<HTMLDivElement>(null)
   const [beats, setBeats] = useState(0)
-  // The loop reads the latest settings from here, so changing one does not restart it or lose where the galaxy has turned to.
+  // The effect reads the latest settings from here, so changing one does not restart it or lose where the galaxy has turned to.
   const latest = useRef(settings)
-  const angles = useRef({ inner: 0, outer: 0 })
-  const lastBeat = useRef<number | null>(null)
+  const spinners = useRef<{ inner?: Animation; outer?: Animation }>({})
+  // The animations a beat plays, built the first time the dial shows.
+  const kicks = useRef<{ wob?: Animation; core?: Animation; ringScale?: Animation; ringFade?: Animation }>({})
+  // Whether the dial is showing; the turning waits while it is not, whatever the speed.
+  const moving = useRef(false)
 
   useEffect(() => {
     latest.current = settings
   })
+
+  // Speed is playback rate and direction is the animation's direction, set on the running animations, so the galaxy carries on from wherever it has turned to.
+  const syncSpin = (): void => {
+    const { rotationSpeed, effects } = latest.current
+    const lapsPerSecond = rotationSpeed * LAPS_PER_SEC_PER_UNIT
+    const apply = (animation: Animation | undefined, signedLaps: number): void => {
+      if (!animation) return
+      const reverse = signedLaps < 0
+      const timing = animation.effect?.getTiming()
+      if (timing && (timing.direction === 'reverse') !== reverse) {
+        // Flipping direction mirrors the angle, so mirror the time too and the galaxy does not jump.
+        const phase = (Number(animation.currentTime ?? 0) % SPIN_LAP_MS) / SPIN_LAP_MS
+        animation.effect?.updateTiming({ direction: reverse ? 'reverse' : 'normal' })
+        animation.currentTime = (1 - phase) * SPIN_LAP_MS
+      }
+      const rate = Math.abs(signedLaps)
+      if (rate > 0) animation.updatePlaybackRate(rate)
+      if (moving.current && rate > 0) animation.play()
+      else animation.pause()
+    }
+    apply(spinners.current.inner, lapsPerSecond)
+    apply(spinners.current.outer, effects.cyclone ? -lapsPerSecond : lapsPerSecond)
+  }
+  useEffect(syncSpin, [settings.rotationSpeed, settings.effects.cyclone])
 
   useEffect(() => {
     const rootElement = root.current
@@ -89,75 +153,53 @@ export const useGalaxyMotion = (settings: MotionSettings): GalaxyMotion => {
     const doc = rootElement.ownerDocument
     const view = doc.defaultView ?? window
     const motionQuery = view.matchMedia('(prefers-reduced-motion: reduce)')
+    const kickEasing = view.CSS?.supports('animation-timing-function', 'linear(0, 1)') ? decayEasing() : FALLBACK_KICK_EASING
 
-    let previous = performance.now()
-    let pulse = 0
-    let ringAge = Infinity
-    let frame = 0
     let onScreen = false
-    // What each element currently shows, so an unchanged value costs no DOM write.
-    const shown = { inner: '', outer: '', wob: '', core: '', ringRadius: '', ringOpacity: '' }
+    let unsubscribe: (() => void) | undefined
 
-    const tick = (now: number): void => {
-      const seconds = (now - previous) / 1000
-      previous = now
-      const { rotationSpeed, effects, onBeat } = latest.current
+    const startSpin = (element: HTMLDivElement | null): Animation | undefined =>
+      element?.animate({ transform: ['rotate(0deg)', 'rotate(360deg)'] }, { duration: SPIN_LAP_MS, iterations: Infinity, easing: 'linear' })
 
-      const beatTime = mainWindow().getLastBeatTime?.() ?? null
-      if (beatTime !== null && beatTime !== lastBeat.current) {
-        lastBeat.current = beatTime
-        pulse = 1
-        ringAge = 0
-        onBeat?.()
-        if (effects.colorShift || effects.switcheroo) setBeats((count) => count + 1)
+    const prepareKicks = (): void => {
+      kicks.current.wob ??= preparedAnimation(wob.current, [{ transform: `scale(${1 - WOB_DEPTH})` }, { transform: 'scale(1)' }], { duration: KICK_SECONDS * 1000, easing: kickEasing })
+      kicks.current.core ??= preparedAnimation(core.current, [{ transform: `scale(${1 + CORE_SWELL})` }, { transform: 'scale(1)' }], { duration: KICK_SECONDS * 1000, easing: kickEasing })
+      // Scale and opacity ease differently, so they are two animations on the same layer.
+      kicks.current.ringScale ??= preparedAnimation(ring.current, [{ transform: `scale(${RING_START_SCALE})` }, { transform: 'scale(1)' }], { duration: RING_SECONDS * 1000, easing: RING_EASING })
+      kicks.current.ringFade ??= preparedAnimation(ring.current, [{ opacity: RING_OPACITY }, { opacity: 0 }], { duration: RING_SECONDS * 1000, easing: 'linear' })
+    }
+
+    const handleBeat = (): void => {
+      const { effects, onBeat } = latest.current
+      if (effects.wobWob) replay(kicks.current.wob)
+      if (effects.glow) replay(kicks.current.core)
+      if (effects.shockwave) {
+        replay(kicks.current.ringScale)
+        replay(kicks.current.ringFade)
       }
-      pulse = pulse > PULSE_FLOOR ? pulse * Math.exp(-seconds / PULSE_DECAY_SECONDS) : 0
-      ringAge += seconds
-
-      const degrees = rotationSpeed * userConfig.rotationSpeed_RAD_PER_SEC_PER_UNIT * (180 / Math.PI) * seconds
-      angles.current.inner = (angles.current.inner + degrees) % 360
-      angles.current.outer = (angles.current.outer + (effects.cyclone ? -degrees : degrees)) % 360
-      const innerValue = `rotate(${angles.current.inner.toFixed(2)}deg)`
-      if (inner.current && innerValue !== shown.inner) inner.current.style.transform = shown.inner = innerValue
-      const outerValue = `rotate(${angles.current.outer.toFixed(2)}deg)`
-      if (outer.current && outerValue !== shown.outer) outer.current.style.transform = shown.outer = outerValue
-      const wobValue = `scale(${(1 - (effects.wobWob ? WOB_DEPTH * pulse : 0)).toFixed(3)})`
-      if (wob.current && wobValue !== shown.wob) wob.current.style.transform = shown.wob = wobValue
-      const coreValue = `scale(${(1 + (effects.glow ? CORE_SWELL * pulse : 0)).toFixed(3)})`
-      if (core.current && coreValue !== shown.core) core.current.setAttribute('transform', shown.core = coreValue)
-
-      const progress = ringAge / RING_SECONDS
-      const showRing = effects.shockwave && progress < 1
-      // Eased out, so it bursts off the rim and slows as it fades, like a pressure wave.
-      const travelled = 1 - (1 - Math.min(1, progress)) ** 2
-      const ringRadius = (RING_START_RADIUS + RING_TRAVEL * travelled).toFixed(2)
-      const ringOpacity = (showRing ? RING_OPACITY * (1 - progress) : 0).toFixed(3)
-      if (ring.current && ringRadius !== shown.ringRadius) ring.current.setAttribute('r', shown.ringRadius = ringRadius)
-      if (ring.current && ringOpacity !== shown.ringOpacity) ring.current.setAttribute('stroke-opacity', shown.ringOpacity = ringOpacity)
-
-      frame = requestAnimationFrame(tick)
+      onBeat?.()
+      if (effects.colorShift || effects.switcheroo) setBeats((count) => count + 1)
     }
 
     const start = (): void => {
-      if (frame !== 0) return
-      previous = performance.now()
-      // Beats that landed while it was paused are not replayed.
-      lastBeat.current = mainWindow().getLastBeatTime?.() ?? null
-      frame = requestAnimationFrame(tick)
+      moving.current = true
+      prepareKicks()
+      spinners.current.inner ??= startSpin(inner.current)
+      spinners.current.outer ??= startSpin(outer.current)
+      syncSpin()
+      unsubscribe ??= mainWindow().subscribeBeat?.(handleBeat)
     }
     const stop = (): void => {
-      cancelAnimationFrame(frame)
-      frame = 0
+      moving.current = false
+      unsubscribe?.()
+      unsubscribe = undefined
+      syncSpin()
     }
     // Back to rest, as when the hook unmounts; the galaxy keeps the angle it has turned to.
     const reset = (): void => {
-      pulse = 0
-      ringAge = Infinity
-      if (wob.current) wob.current.style.transform = 'scale(1)'
-      core.current?.setAttribute('transform', 'scale(1)')
-      ring.current?.setAttribute('stroke-opacity', '0')
+      Object.values(kicks.current).forEach((animation) => animation.finish())
     }
-    // Follows the preference live: a change to reduced motion stops the loop and settles the effects, and a change back resumes it.
+    // Follows the preference live: a change to reduced motion stops the motion and settles the effects, and a change back resumes it.
     const sync = (): void => {
       if (motionQuery.matches) {
         stop()
@@ -182,6 +224,11 @@ export const useGalaxyMotion = (settings: MotionSettings): GalaxyMotion => {
       motionQuery.removeEventListener('change', sync)
       stop()
       reset()
+      spinners.current.inner?.cancel()
+      spinners.current.outer?.cancel()
+      spinners.current = {}
+      Object.values(kicks.current).forEach((animation) => animation.cancel())
+      kicks.current = {}
     }
   }, [])
 

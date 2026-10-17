@@ -32,7 +32,8 @@ export type BeatSample = {
 }
 
 export type BeatTimeline = {
-  samples: BeatSample[]
+  /** The monitor's own history, oldest first: read it where it is called and do not keep it, since it keeps growing and being trimmed. */
+  samples: readonly BeatSample[]
 }
 
 const HISTORY_MS = 5000
@@ -41,14 +42,33 @@ const HISTORY_MS = 5000
 export class BeatMonitor {
   private samples: BeatSample[] = []
   private lastBeatTime: number | null = null
+  private readonly listeners = new Set<() => void>()
 
   record = (sample: BeatSample): void => {
-    if (sample.beatBand !== null) this.lastBeatTime = sample.t
     this.samples.push(sample)
     this.trim(this.samples, sample.t)
+    if (sample.beatBand === null) return
+    this.lastBeatTime = sample.t
+    // A listener can belong to a window that has since closed; one that throws is dropped so it never reaches the render loop.
+    this.listeners.forEach((listener) => {
+      try {
+        listener()
+      } catch {
+        this.listeners.delete(listener)
+      }
+    })
   }
 
-  getTimeline = (): BeatTimeline => ({ samples: this.samples.slice() })
+  /** Calls `listener` on the frame each beat is detected, so a consumer can react without polling every frame. Returns the unsubscribe. */
+  subscribe = (listener: () => void): (() => void) => {
+    this.listeners.add(listener)
+    return () => {
+      this.listeners.delete(listener)
+    }
+  }
+
+  // Not a copy: the HUDs read it every tick, and 5 seconds of frames is a lot to copy 20 times a second.
+  getTimeline = (): BeatTimeline => ({ samples: this.samples })
 
   /** When the detector last fired, or null if it has not. A cheap read for anything that only needs to know a beat just landed; the timeline copies every sample. */
   getLastBeatTime = (): number | null => this.lastBeatTime

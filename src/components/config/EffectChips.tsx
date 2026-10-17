@@ -34,10 +34,16 @@ const DESCRIPTIONS: Readonly<Record<EffectKey, string>> = {
 const KALEIDOSCOPE_DESCRIPTION = 'Mirrors the picture around the center. Drag the dial to choose how many mirrors.'
 
 const PULSE_MS = 280
-const PULSE_KEYFRAMES: Keyframe[] = [
-  { transform: 'scale(1)', filter: 'brightness(1)' },
-  { transform: 'scale(1.1)', filter: 'brightness(1.6)', offset: 0.25 },
-  { transform: 'scale(1)', filter: 'brightness(1)' },
+const PULSE_SCALE_KEYFRAMES: Keyframe[] = [
+  { transform: 'scale(1)' },
+  { transform: 'scale(1.1)', offset: 0.25 },
+  { transform: 'scale(1)' },
+]
+// The brightening is a white overlay (the chip's ::after) fading in and out.
+const PULSE_FLASH_KEYFRAMES: Keyframe[] = [
+  { opacity: 0 },
+  { opacity: 0.3, offset: 0.25 },
+  { opacity: 0 },
 ]
 
 /**
@@ -47,6 +53,8 @@ const PULSE_KEYFRAMES: Keyframe[] = [
  */
 export const EffectChips = React.memo(forwardRef<EffectChipsHandle, EffectChipsProps>(({ effects, labels, onToggle, kaleidoscope, kaleidoscopeLabel, kaleidoscopeCount, onToggleKaleidoscope }, ref): React.ReactElement => {
   const chips = useRef<Partial<Record<EffectKey, HTMLButtonElement | null>>>({})
+  // Built the first time a chip flashes and replayed after that; making new animations on every beat is what costs.
+  const flashes = useRef<Partial<Record<EffectKey, Animation[]>>>({})
   // The flash reads the latest settings from here, so a beat never has to wait for a re-render.
   const latest = useRef(effects)
 
@@ -58,7 +66,17 @@ export const EffectChips = React.memo(forwardRef<EffectChipsHandle, EffectChipsP
     pulse: (): void => {
       EFFECT_KEYS.forEach((key) => {
         if (!latest.current[key] || !BEAT_DRIVEN.has(key)) return
-        chips.current[key]?.animate(PULSE_KEYFRAMES, { duration: PULSE_MS, easing: 'ease-out' })
+        const chip = chips.current[key]
+        if (!chip) return
+        const animations = flashes.current[key] ?? [
+          chip.animate(PULSE_SCALE_KEYFRAMES, { duration: PULSE_MS, easing: 'ease-out' }),
+          chip.animate(PULSE_FLASH_KEYFRAMES, { duration: PULSE_MS, easing: 'ease-out', pseudoElement: '::after' }),
+        ]
+        flashes.current[key] = animations
+        animations.forEach((animation) => {
+          animation.currentTime = 0
+          animation.play()
+        })
       })
     },
   }), [])

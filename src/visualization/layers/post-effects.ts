@@ -19,6 +19,10 @@ export class PostEffects {
   private readonly bloomEffect = new BloomEffect()
   private readonly kaleidoscopeEffect = new KaleidoscopeEffect()
   private readonly shockwaveEffect: ShockWaveEffect
+  // Two passes over the same kaleidoscope and shockwave, one with bloom and one without; Glow picks which runs. A bloom held at
+  // zero opacity still blurs the whole frame, so with Glow off it is not in the pass at all. The one not in use never renders, so it never compiles.
+  private readonly glowPass: EffectPass
+  private readonly plainPass: EffectPass
   // The shockwave's own world position (not the camera's focus point, which the camera looks at and so
   // always projects to screen center). Moved to the camera pointer before each explosion.
   private readonly shockwavePosition = new THREE.Vector3(0, 0, SHOCKWAVE_PLANE_Z)
@@ -41,9 +45,18 @@ export class PostEffects {
     this.shockwaveEffect = new ShockWaveEffect(fakeCamera, this.shockwavePosition, options)
 
     // Kaleidoscope goes first so the shockwave and bloom act on the folded image and repeat symmetrically.
-    const effectPass = new EffectPass(camera, this.kaleidoscopeEffect, this.shockwaveEffect, this.bloomEffect)
-    effectPass.renderToScreen = true
-    this.composer.addPass(effectPass)
+    this.glowPass = new EffectPass(camera, this.kaleidoscopeEffect, this.shockwaveEffect, this.bloomEffect)
+    this.plainPass = new EffectPass(camera, this.kaleidoscopeEffect, this.shockwaveEffect)
+    this.glowPass.renderToScreen = true
+    this.plainPass.renderToScreen = true
+    this.plainPass.enabled = false
+    this.composer.addPass(this.glowPass)
+    this.composer.addPass(this.plainPass)
+  }
+
+  private syncGlow = (glow: boolean): void => {
+    this.glowPass.enabled = glow
+    this.plainPass.enabled = !glow
   }
 
   // Fires the shockwave on demand (the S key), regardless of the audio, for testing and tuning.
@@ -77,9 +90,9 @@ export class PostEffects {
     const { kaleidoscope, kaleidoscopeCount } = window.config.effects
     this.kaleidoscopeEffect.setCount(kaleidoscope.value ? Math.round(kaleidoscopeCount.value) : 1)
     this.shockwaveEffect.speed =SHOCKWAVE_BASE_SPEED + (window.config.user.speed.value / 15) + audio.beat.value * 1.25
-    if (window.config.effects.glow.value) {
-      this.bloomEffect.blendMode.opacity.value = audio.beat.value * audio.beat.energy
-    }
+    const glow = window.config.effects.glow.value
+    this.syncGlow(glow)
+    if (glow) this.bloomEffect.blendMode.opacity.value = audio.beat.value * audio.beat.energy
     // The wave's source follows the camera while it is out (the effect re-projects its position every frame).
     this.aimShockwaveAtCameraPointer()
     // Which bands can set off a beat is chosen in the Frequency HUD and applied by the beat detector itself.
