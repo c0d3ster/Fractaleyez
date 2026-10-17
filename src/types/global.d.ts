@@ -39,6 +39,7 @@ declare global {
     } | null
     getBeatTimeline?: () => BeatTimeline
     getLastBeatTime?: () => number | null
+    subscribeBeat?: (listener: () => void) => () => void
     enabledFreqBands?: boolean[]
     getPerfData?: () => {
       fps: number

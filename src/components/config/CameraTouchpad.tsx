@@ -1,5 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react'
 import './CameraTouchpad.css'
+import { subscribeUiTick } from '../../utils/uiTicker'
 import { mainWindow, Pad, PadPoint, screenAspectRatio } from './Pad'
 import { snapToCenter } from './cameraPadGeometry'
 
@@ -12,40 +13,67 @@ const fractionToVal = (fraction: number, range: number): number => (fraction * 2
 
 type Pos = { x: number; y: number }
 
+// The trailing dot moves less than this between frames when it has all but arrived, so it is not worth a repaint.
+const MOVED_BY = 0.05
+// Frames the pad keeps watching after the camera last moved, so a dot easing to a stop is followed all the way in.
+const SETTLE_FRAMES = 12
+
 export const CameraTouchpad = (): React.ReactElement => {
   const [pos, setPos] = useState<Pos>({ x: 0, y: 0 })
   // Where the on-screen visualizer's camera has actually got to; it trails the target dot, in every mode.
   const [current, setCurrent] = useState<Pos | null>(null)
   const dragging = useRef(false)
-  const rafRef = useRef<number>(0)
 
-  // Poll the camera's actual mouseX/mouseY every frame so the dot stays in sync
-  // with real mouse movement on the main screen too. Every frame (not the shared UI tick) so the dots glide;
-  // state only changes when a value does, so the pad costs nothing repaint-wise while the camera is still.
+  // Poll the camera's actual mouseX/mouseY so the dot stays in sync with real mouse movement on the main screen too. While
+  // the camera moves it is every frame, so the dots glide; once it has been still for a moment the pad stops asking for frames
+  // and the shared UI tick just checks for movement, since a frame loop in the config window keeps the whole window repainting
+  // on a thread it shares with the visualizer. State only changes when a value does, so the pad costs nothing repaint-wise while the camera is still.
   useEffect(() => {
-    const tick = (): void => {
-      rafRef.current = requestAnimationFrame(tick)
+    let frame = 0
+    let quietFrames = 0
+    let steerSeen: Pos | null = null
+    let cameraSeen: Pos | null = null
+
+    // Reads the camera once, updates what changed, and says whether anything did.
+    const poll = (): boolean => {
+      let moved = false
       const steer = mainWindow().getCameraSteer?.() ?? null
-      setCurrent((c) => {
-        if (!steer) return c === null ? c : null
-        return c && Math.abs(c.x - steer.x) < 0.05 && Math.abs(c.y - steer.y) < 0.05 ? c : steer
-      })
-      if (!dragging.current) {
-        const range = getRange()
-        if (range === 0) {
-          setPos((p) => (p.x === 0 && p.y === 0 ? p : { x: 0, y: 0 }))
-        } else {
-          const cam = mainWindow().getVirtualCameraPosition?.()
-          if (cam) {
-            const nx = clamp(cam.x, -range, range)
-            const ny = clamp(cam.y, -range, range)
-            setPos((p) => (p.x === nx && p.y === ny ? p : { x: nx, y: ny }))
-          }
-        }
+      const steerMoved = steer === null
+        ? steerSeen !== null
+        : steerSeen === null || Math.abs(steerSeen.x - steer.x) >= MOVED_BY || Math.abs(steerSeen.y - steer.y) >= MOVED_BY
+      if (steerMoved) {
+        steerSeen = steer
+        setCurrent(steer)
+        moved = true
       }
+      if (dragging.current) return moved
+      const range = getRange()
+      const cam = range === 0 ? { x: 0, y: 0 } : mainWindow().getVirtualCameraPosition?.()
+      if (!cam) return moved
+      const next = { x: clamp(cam.x, -range, range), y: clamp(cam.y, -range, range) }
+      if (cameraSeen && cameraSeen.x === next.x && cameraSeen.y === next.y) return moved
+      cameraSeen = next
+      setPos((p) => (p.x === next.x && p.y === next.y ? p : next))
+      return true
     }
-    rafRef.current = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(rafRef.current)
+
+    const step = (): void => {
+      quietFrames = poll() ? 0 : quietFrames + 1
+      frame = quietFrames < SETTLE_FRAMES ? requestAnimationFrame(step) : 0
+    }
+    const wake = (): void => {
+      if (frame !== 0 || !poll()) return
+      quietFrames = 0
+      frame = requestAnimationFrame(step)
+    }
+
+    poll()
+    frame = requestAnimationFrame(step)
+    const unsubscribe = subscribeUiTick(wake)
+    return () => {
+      unsubscribe()
+      cancelAnimationFrame(frame)
+    }
   }, [])
 
   const applyPos = useCallback((x: number, y: number) => {

@@ -118,6 +118,7 @@ const init = (): void => {
   window.getAudioData = audioFeed.getLatest
   window.getBeatTimeline = beatMonitor.getTimeline
   window.getLastBeatTime = beatMonitor.getLastBeatTime
+  window.subscribeBeat = beatMonitor.subscribe
   window.getPerfData = () => {
     const { fps, frameMs } = medianFpsFromDeltas(frameDeltaMs)
     return {

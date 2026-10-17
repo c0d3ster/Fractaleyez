@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { BeatMonitor, BeatSample } from './beat'
 
@@ -27,5 +27,38 @@ describe('BeatMonitor.getLastBeatTime', () => {
     monitor.record(sample(60000, null))
     expect(monitor.getTimeline().samples.some(({ beatBand }) => beatBand !== null)).toBe(false)
     expect(monitor.getLastBeatTime()).toBe(0)
+  })
+})
+
+describe('BeatMonitor.subscribe', () => {
+  it('calls the listener on frames that carry a beat only', () => {
+    const monitor = new BeatMonitor()
+    const listener = vi.fn()
+    monitor.subscribe(listener)
+    monitor.record(sample(10, null))
+    expect(listener).not.toHaveBeenCalled()
+    monitor.record(sample(20, 1))
+    expect(listener).toHaveBeenCalledTimes(1)
+  })
+
+  it('stops calling the listener once unsubscribed', () => {
+    const monitor = new BeatMonitor()
+    const listener = vi.fn()
+    const unsubscribe = monitor.subscribe(listener)
+    unsubscribe()
+    monitor.record(sample(20, 0))
+    expect(listener).not.toHaveBeenCalled()
+  })
+
+  it('drops a listener that throws and keeps serving the others', () => {
+    const monitor = new BeatMonitor()
+    const good = vi.fn()
+    monitor.subscribe(() => {
+      throw new Error('window closed')
+    })
+    monitor.subscribe(good)
+    expect(() => monitor.record(sample(10, 0))).not.toThrow()
+    monitor.record(sample(20, 0))
+    expect(good).toHaveBeenCalledTimes(2)
   })
 })

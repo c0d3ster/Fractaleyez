@@ -63,7 +63,11 @@
   stroke-linejoin: round;
 }
 
-/* The Shockwave ring; its size and opacity are set from the motion hook, so they must not be set here (CSS would win). */
+/* The Shockwave ring sits invisible until a beat. The motion hook scales it up and fades it out with animations, so the layer's own transform and opacity are left alone here. */
+.kaleidoscope-dial-ring-pane {
+  opacity: 0;
+}
+
 .kaleidoscope-dial-ring {
   fill: none;
   stroke: #fff;

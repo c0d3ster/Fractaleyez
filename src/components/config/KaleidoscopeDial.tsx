@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 
 import { ColorState } from '../../config/colorState'
 import { Arm, armOf, colorShiftOffset, coords, CYCLONE_SPLIT, dotScaleOf, lighten, paletteRgb, RADIUS, ShapeVariant, starScaleOf, starsPerArm, TAU, toCss } from './kaleidoscopeGalaxy'
 import { EffectChips, EffectChipsHandle } from './EffectChips'
-import { EffectKey, MotionEffects, useGalaxyMotion } from './useGalaxyMotion'
+import { EffectKey, MotionEffects, RING_END_RADIUS, useGalaxyMotion } from './useGalaxyMotion'
 import './KaleidoscopeDial.css'
 
 const HANDLE_RADIUS = 7
@@ -188,45 +188,55 @@ export const KaleidoscopeDial = React.memo(({ count, min, max, step, kaleidoscop
         </svg>
         <div ref={motion.wob} className='kaleidoscope-dial-pane kaleidoscope-dial-moving'>
           {ZONES.map(({ key, glowAlong, includes }) => (
-            <svg key={key} ref={motion[key]} className='kaleidoscope-dial-pane kaleidoscope-dial-moving' viewBox={VIEW_BOX}>
-              <defs>
-                <filter id={`${uid}-${key}-haze`} x='-20%' y='-20%' width='140%' height='140%'>
-                  <feGaussianBlur stdDeviation='2.4' />
-                </filter>
-                <clipPath id={`${uid}-${key}-disc`}>
-                  <circle r={RADIUS} />
-                </clipPath>
-              </defs>
-              {layers.map(({ key: layerKey, arms, opacity: layerOpacity, glowWidth }) => (
-                <g key={layerKey} className='kaleidoscope-dial-layer' style={{ opacity: layerOpacity }}>
-                  <g clipPath={`url(#${uid}-${key}-disc)`} opacity={effects.glow ? 1 : HAZE_OPACITY_WITHOUT_GLOW}>
-                    <g filter={`url(#${uid}-${key}-haze)`}>
-                      {arms.map((arm, i) => (
-                        <path key={i} className='kaleidoscope-dial-arm' d={key === 'inner' ? arm.glowInner : arm.glowOuter} stroke={colorOf(glowAlong, i)} strokeWidth={glowWidth} />
-                      ))}
-                      {arms.map((arm, i) => arm.clouds.map(({ x, y, radius, opacity, along }, s) => (
-                        includes(along) ? <circle key={`${i}-${s}`} cx={x} cy={y} r={radius} fill={colorOf(along, i)} fillOpacity={opacity} /> : null
-                      )))}
+            <div key={key} ref={motion[key]} className='kaleidoscope-dial-pane kaleidoscope-dial-moving'>
+              <svg className='kaleidoscope-dial-pane' viewBox={VIEW_BOX}>
+                <defs>
+                  <filter id={`${uid}-${key}-haze`} x='-20%' y='-20%' width='140%' height='140%'>
+                    <feGaussianBlur stdDeviation='2.4' />
+                  </filter>
+                  <clipPath id={`${uid}-${key}-disc`}>
+                    <circle r={RADIUS} />
+                  </clipPath>
+                </defs>
+                {layers.map(({ key: layerKey, arms, opacity: layerOpacity, glowWidth }) => (
+                  <g key={layerKey} className='kaleidoscope-dial-layer' style={{ opacity: layerOpacity }}>
+                    <g clipPath={`url(#${uid}-${key}-disc)`} opacity={effects.glow ? 1 : HAZE_OPACITY_WITHOUT_GLOW}>
+                      <g filter={`url(#${uid}-${key}-haze)`}>
+                        {arms.map((arm, i) => (
+                          <path key={i} className='kaleidoscope-dial-arm' d={key === 'inner' ? arm.glowInner : arm.glowOuter} stroke={colorOf(glowAlong, i)} strokeWidth={glowWidth} />
+                        ))}
+                        {arms.map((arm, i) => arm.clouds.map(({ x, y, radius, opacity, along }, s) => (
+                          includes(along) ? <circle key={`${i}-${s}`} cx={x} cy={y} r={radius} fill={colorOf(along, i)} fillOpacity={opacity} /> : null
+                        )))}
+                      </g>
                     </g>
+                    {arms.map((arm, i) => arm.stars.map(({ x, y, radius, opacity, along }, s) => (
+                      includes(along) ? <circle key={`${i}-${s}`} cx={x} cy={y} r={radius} fill={colorOf(along, i)} fillOpacity={opacity} /> : null
+                    )))}
                   </g>
-                  {arms.map((arm, i) => arm.stars.map(({ x, y, radius, opacity, along }, s) => (
-                    includes(along) ? <circle key={`${i}-${s}`} cx={x} cy={y} r={radius} fill={colorOf(along, i)} fillOpacity={opacity} /> : null
-                  )))}
-                </g>
-              ))}
-            </svg>
+                ))}
+              </svg>
+            </div>
           ))}
         </div>
+        <div ref={motion.ring} className='kaleidoscope-dial-pane kaleidoscope-dial-moving kaleidoscope-dial-ring-pane'>
+          <svg className='kaleidoscope-dial-pane' viewBox={VIEW_BOX}>
+            <circle className='kaleidoscope-dial-ring' r={RING_END_RADIUS} />
+          </svg>
+        </div>
+        <div ref={motion.core} className='kaleidoscope-dial-pane kaleidoscope-dial-moving'>
+          <svg className='kaleidoscope-dial-pane' viewBox={VIEW_BOX}>
+            <defs>
+              <radialGradient id={`${uid}-core`}>
+                <stop offset='0' stopColor={toCss(lighten(core, 0.7))} stopOpacity='1' />
+                <stop offset='0.35' stopColor={toCss(lighten(core, 0.25))} stopOpacity='0.75' />
+                <stop offset='1' stopColor={toCss(core)} stopOpacity='0' />
+              </radialGradient>
+            </defs>
+            <circle className='kaleidoscope-dial-core-glow' fill={`url(#${uid}-core)`} r={(effects.glow ? 10 : 6) + (effects.glow ? 4 : 2) * dotScale} />
+          </svg>
+        </div>
         <svg className='kaleidoscope-dial-pane' viewBox={VIEW_BOX}>
-          <defs>
-            <radialGradient id={`${uid}-core`}>
-              <stop offset='0' stopColor={toCss(lighten(core, 0.7))} stopOpacity='1' />
-              <stop offset='0.35' stopColor={toCss(lighten(core, 0.25))} stopOpacity='0.75' />
-              <stop offset='1' stopColor={toCss(core)} stopOpacity='0' />
-            </radialGradient>
-          </defs>
-          <circle ref={motion.ring} className='kaleidoscope-dial-ring' r={RADIUS} strokeOpacity={0} />
-          <circle ref={motion.core} className='kaleidoscope-dial-core-glow' fill={`url(#${uid}-core)`} r={(effects.glow ? 10 : 6) + (effects.glow ? 4 : 2) * dotScale} />
           <circle className='kaleidoscope-dial-handle-halo' cx={handle.x} cy={handle.y} r={HANDLE_RADIUS + 2} />
           <circle className='kaleidoscope-dial-handle' cx={handle.x} cy={handle.y} r={HANDLE_RADIUS} />
         </svg>
