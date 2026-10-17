@@ -34,7 +34,8 @@ export class PostEffects {
     camera: THREE.Camera,
     private readonly getCameraPosition: () => { x: number; y: number },
   ) {
-    this.composer = new EffectComposer(renderer)
+    // The composite is one full-screen quad, so the composer's buffers need no depth.
+    this.composer = new EffectComposer(renderer, { depthBuffer: false })
     this.composer.addPass(new RenderPass(scene, camera))
     this.bloomEffect.kernelSize = 1
 
