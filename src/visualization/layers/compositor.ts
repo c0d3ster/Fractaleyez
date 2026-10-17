@@ -128,7 +128,8 @@ export class LayerCompositor {
     if (existing) return existing
     const { x, y } = this.renderer.getDrawingBufferSize(new THREE.Vector2())
     const [w, h] = this.targetSize(key, x, y)
-    const target = new THREE.WebGLRenderTarget(w, h, { depthBuffer: true })
+    // No depth buffer: every layer draws with depth testing off (additive points, full-screen quads, sorted sprites), so one would only cost memory bandwidth to clear.
+    const target = new THREE.WebGLRenderTarget(w, h, { depthBuffer: false })
     this.targets.set(key, target)
     return target
   }
