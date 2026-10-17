@@ -19,9 +19,20 @@ const throttle = Number((args.find((a) => a.startsWith('--throttle=')) || '--thr
 const slowRaf = args.includes('--poprafslow')
 const size = (args.find((a) => a.startsWith('--size=')) || '--size=1280x800').split('=')[1]
 const uncapped = args.includes('--uncapped')
+const gpuFlag = (args.find((a) => a.startsWith('--gpu=')) || '--gpu=default').split('=')[1]
+const pos = (args.find((a) => a.startsWith('--pos=')) || '--pos=0,0').split('=')[1]
+const offList = ((args.find((a) => a.startsWith('--off=')) || '--off=').split('=')[1] || '').split(',').filter(Boolean)
 const warm = 5000
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+
+// GPU engine utilization of the browser's processes over the measured window (Windows only), per adapter.
+const sampleGpu = (seconds) => new Promise((resolve) => {
+  if (process.platform !== 'win32') return resolve(null)
+  require('child_process').execFile('powershell', ['-NoProfile', '-File', path.join(__dirname, 'gpu-util.ps1'), '-Seconds', String(seconds), '-ExePath', path.resolve(CHROME)], (err, stdout) => {
+    try { resolve(JSON.parse(stdout)) } catch (e) { resolve(null) }
+  })
+})
 
 const RECORDER = `(() => {
   const rec = { frames: [], beats: [], long: [], loaf: [] }
@@ -56,7 +67,7 @@ const run = async () => {
     args: [
       '--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream',
       '--use-file-for-fake-audio-capture=' + path.join(JOB, 'drums.wav'),
-      '--window-size=' + size.replace('x', ','), ...(uncapped ? ['--disable-frame-rate-limit', '--disable-gpu-vsync'] : []), '--window-position=0,0',
+      '--window-size=' + size.replace('x', ','), ...(gpuFlag === 'nvidia' ? ['--force_high_performance_gpu'] : []), ...(uncapped ? ['--disable-frame-rate-limit', '--disable-gpu-vsync'] : []), '--window-position=' + pos,
       '--disable-backgrounding-occluded-windows', '--disable-renderer-backgrounding',
       '--disable-features=CalculateNativeWinOcclusion', '--autoplay-policy=no-user-gesture-required',
     ],
@@ -81,6 +92,14 @@ const run = async () => {
     if (!on) await page.evaluate(() => window.updateConfigItem('effects', 'shockwave', true))
   }
 
+  // --off=fractal,logo,kaleidoscope,glow,shockwave,video,orbit: switch layers and effects off to see what each costs.
+  for (const name of offList) {
+    await page.evaluate((n) => {
+      if (['video', 'fractal', 'orbit', 'logo'].includes(n)) window.setLayerEnabled(n, false)
+      else window.updateConfigItem('effects', n, false)
+    }, name)
+  }
+  await sleep(1500)
   let pop = null
   if (popup) {
     const [p] = await Promise.all([ctx.waitForEvent('page', { timeout: 10000 }), page.keyboard.press('e')])
@@ -100,7 +119,9 @@ const run = async () => {
   const mm = await metricsOf(page)
   const pm = pop ? await metricsOf(pop) : null
   const m0 = await mm.get(); const p0 = pm ? await pm.get() : null
+  const gpuPromise = sampleGpu(secs)
   await sleep(secs * 1000)
+  const gpuUtil = await gpuPromise
   const m1 = await mm.get(); const p1 = pm ? await pm.get() : null
 
   const rec = await page.evaluate(() => window.__rec)
@@ -111,8 +132,8 @@ const run = async () => {
   const offBeat = rec.frames.filter(([t]) => !beatsT.some((b) => t >= b && t - b <= 200)).map((f) => f[1])
   const delta = (a, b, k) => ((b[k] - a[k]) * 1000) / secs // ms per second
   const out = {
-    label, popup, noshock, throttle, uncapped, secs, gpu,
-    frames: dts.length, fps: +(dts.length / secs).toFixed(1), beats: beatsT.length,
+    label, popup, noshock, throttle, uncapped, secs, gpu, gpuUtil, off: offList, size, pos,
+    frames: dts.length, fps: +(dts.length / (dts.reduce((a, b) => a + b, 0) / 1000)).toFixed(1), beats: beatsT.length,
     frameMs: { p50: +pct(dts, 0.5).toFixed(1), p95: +pct(dts, 0.95).toFixed(1), p99: +pct(dts, 0.99).toFixed(1), max: +Math.max(...dts).toFixed(1) },
     over25: dts.filter((d) => d > 25).length, over40: dts.filter((d) => d > 40).length,
     nearBeat: { n: nearBeat.length, p50: +pct(nearBeat, 0.5).toFixed(1), p95: +pct(nearBeat, 0.95).toFixed(1), max: +Math.max(0, ...nearBeat).toFixed(1), over25: nearBeat.filter((d) => d > 25).length },

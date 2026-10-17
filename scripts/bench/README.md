@@ -26,6 +26,19 @@ node scripts/bench/agg.js <prefix> [<prefix> ...]  # table of averages across ru
 machine behaves. The columns that matter in `agg.js`: `nearBeat p95` against the overall `p95` (a beat hitch shows as near-beat frames
 running slower), `near>9ms%` (frames that missed a vsync within 200 ms of a beat), and `busy ms/s` (main-thread time per second).
 
+## GPU runs (Windows)
+
+```sh
+node scripts/bench/bench.js <label> --gpu=nvidia --size=2560x1440 --pos=2560,59 --secs=15
+node scripts/bench/gpusumm.js <prefix>     # GPU 3D% per adapter and GPU ms per frame
+```
+
+`--gpu=nvidia` launches with `--force_high_performance_gpu`, which puts Chrome on the dedicated GPU; without it Chrome uses the
+integrated one on a hybrid laptop. `--pos` and `--size` place the window on a particular monitor. `--off=fractal,logo,glow,...`
+switches layers (`video`, `fractal`, `orbit`, `logo`) and effects (`kaleidoscope`, `shockwave`, `glow`) off, to see what each
+costs. GPU utilization comes from Windows GPU engine counters for the benchmark browser's processes (`gpu-util.ps1`), so close
+any other copy of the app first or it will share the GPU and skew the numbers.
+
 Runs vary by about ±100 ms/s between browser launches, so compare averages of several runs, not single ones.
 
 ## Digging into a result
