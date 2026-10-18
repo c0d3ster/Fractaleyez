@@ -58,8 +58,9 @@ Legend: yes = available, locked = visible but disabled with an upgrade prompt, n
 |---|---|---|---|---|---|
 | Load existing presets | yes | yes | yes | yes | proposed |
 | Edit from the default configuration | yes | yes | yes | yes | **Decided** |
-| Save a modified copy of a premium preset | locked | locked | yes | yes | **Decided** |
-| Save a modified copy of a free built-in preset | locked | quota | quota | unlimited | **Decided** |
+| Modify a premium preset during the preview | locked | locked | n/a | n/a | **Decided** |
+| Edit a free built-in preset | yes | yes | yes | yes | **Decided** |
+| Save a modified copy of a free built-in preset | locked | open (A or B) | quota | unlimited | open |
 | Custom path for the fractal | locked | locked | yes | yes | **Decided** (see note) |
 | Save presets | locked | quota | quota | unlimited | proposed |
 | Custom particle sprite upload | locked | quota | quota | unlimited | proposed |
@@ -70,9 +71,8 @@ Legend: yes = available, locked = visible but disabled with an upgrade prompt, n
 
 Notes:
 
-- **Derivatives of premium presets.** Everyone can build a configuration from the defaults, and Free users can save those within their quota (so "Free: 3 saved presets" stays meaningful). Free users can also tweak and save copies of free built-in presets. What is locked for Guest and Free is loading a premium preset (including via the preview), changing one knob, and saving the result to their account. The aim is to stop people re-saving paid work through the preview, not to stop them playing with free content.
-- **Open: live tweaking a premium preview.** Whether Free users can move knobs during the 15s preview (just not save) is not decided. Leaning no: the preview is about showing the preset as authored, and the timer is short anyway.
-- **How the server enforces it.** The client marks a session as derived from a premium preset once one is loaded and then changed, and the save request carries that source. The server knows which presets belong to premium packs, so it refuses the save for Guest and Free when the source is one of them. This is a soft gate: a determined user could omit the marker and save anyway. A stricter check (comparing a saved config against premium preset configs and rejecting near-matches) is possible later but needs a similarity rule, so start with the marker.
+- **Premium presets in the preview.** **Decided:** no modification at all for Guest and Free during the 15s preview. The controls are locked (visible, disabled, rainbow outline), so there is nothing to save. This also removes the need for a derived-from marker for premium content: the server only has to refuse saves from a session that is in preview.
+- **Open: free built-in presets for Free users.** Two options. (A) Edit and save: Free users tweak a free built-in and save the copy within their quota. (B) Edit only: they can tweak live but the save is blocked, so saved presets only come from the default configuration. Leaning A, since premium content is now fully protected and A keeps "Free: 3 saved presets" useful. B is stricter and is the safer pick if you want built-in work never to appear as a user's own. Guests can edit but never save either way.
 - **Custom fractal path.** Read as locked for Guest and Free, open for Plus and up. The boundary between Plus and Premium is not decided.
 - **Locked means visible.** Controls stay on screen, disabled, with the existing rainbow premium outline and an upgrade message. Hiding them would hide what the paid tiers offer.
 - **Enforcement.** Locked controls are a client display. The server must also refuse the matching writes (for example, a saved preset whose settings differ from the original for a Free user), or the lock is cosmetic. `getEntitlements` should expose a feature set (`features: { editLoadedPreset, customFractalPath, ... }`) next to the quotas, so a new gated feature is one config entry.
@@ -144,7 +144,7 @@ This is a rough sketch. The real ordering, file-level detail, and task split bel
 ## Open questions
 
 - Feature gating inventory: which tier gets each unplaced feature (see Feature gating).
-- Can Free users tweak a premium preset live during the 15s preview (without saving), and is the soft client marker enough for the save gate?
+- Free users and free built-in presets: edit and save (A) or edit only (B). See Feature gating.
 
 - Final tier prices and limits (the table is a starting point).
 - Premium preview. **Decided:** the preview stays but becomes one-shot per preset. Today it is a fixed 30s that restarts on every click, so re-clicking gives unlimited viewing. Shorten to 15s and record each previewed preset in localStorage (soft nudge, not security; server entitlements protect real content). A previewed preset opens the upgrade modal directly, and the record resets each local day so every locked preset can be previewed once per day.
