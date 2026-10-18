@@ -60,7 +60,7 @@ Legend: yes = available, locked = visible but disabled with an upgrade prompt, n
 | Edit from the default configuration | yes | yes | yes | yes | **Decided** |
 | Modify a premium preset during the preview | locked | locked | n/a | n/a | **Decided** |
 | Edit a free built-in preset | yes | yes | yes | yes | **Decided** |
-| Save a modified copy of a free built-in preset | locked | open (A or B) | quota | unlimited | open |
+| Save a modified copy of a free built-in preset | locked | quota | quota | unlimited | **Decided** |
 | Custom path for the fractal | locked | locked | yes | yes | **Decided** (see note) |
 | Save presets | locked | quota | quota | unlimited | proposed |
 | Custom particle sprite upload | locked | quota | quota | unlimited | proposed |
@@ -72,7 +72,7 @@ Legend: yes = available, locked = visible but disabled with an upgrade prompt, n
 Notes:
 
 - **Premium presets in the preview.** **Decided:** no modification at all for Guest and Free during the 15s preview. The controls are locked (visible, disabled, rainbow outline), so there is nothing to save. This also removes the need for a derived-from marker for premium content: the server only has to refuse saves from a session that is in preview.
-- **Open: free built-in presets for Free users.** Two options. (A) Edit and save: Free users tweak a free built-in and save the copy within their quota. (B) Edit only: they can tweak live but the save is blocked, so saved presets only come from the default configuration. Leaning A, since premium content is now fully protected and A keeps "Free: 3 saved presets" useful. B is stricter and is the safer pick if you want built-in work never to appear as a user's own. Guests can edit but never save either way.
+- **Free built-in presets.** **Decided:** everyone can edit them, and Free users can save a modified copy within their quota. Premium content is fully protected by the preview lock, so the extra save restriction would add little. Guests can edit but never save.
 - **Custom fractal path.** Read as locked for Guest and Free, open for Plus and up. The boundary between Plus and Premium is not decided.
 - **Locked means visible.** Controls stay on screen, disabled, with the existing rainbow premium outline and an upgrade message. Hiding them would hide what the paid tiers offer.
 - **Enforcement.** Locked controls are a client display. The server must also refuse the matching writes (for example, a saved preset whose settings differ from the original for a Free user), or the lock is cosmetic. `getEntitlements` should expose a feature set (`features: { editLoadedPreset, customFractalPath, ... }`) next to the quotas, so a new gated feature is one config entry.
