@@ -144,7 +144,6 @@ This is a rough sketch. The real ordering, file-level detail, and task split bel
 ## Open questions
 
 - Feature gating inventory: which tier gets each unplaced feature (see Feature gating).
-- Free users and free built-in presets: edit and save (A) or edit only (B). See Feature gating.
 
 - Final tier prices and limits (the table is a starting point).
 - Premium preview. **Decided:** the preview stays but becomes one-shot per preset. Today it is a fixed 30s that restarts on every click, so re-clicking gives unlimited viewing. Shorten to 15s and record each previewed preset in localStorage (soft nudge, not security; server entitlements protect real content). A previewed preset opens the upgrade modal directly, and the record resets each local day so every locked preset can be previewed once per day.
