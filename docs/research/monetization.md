@@ -48,6 +48,32 @@ Setting `origin: 'builtIn'` or marking a pack premium is admin-only, enforced in
 
 Numbers are placeholders from the task. Tune them after seeing real usage.
 
+## Feature gating
+
+The numbers above are quotas. This section is the other half: features that are locked or open per tier. It is a living inventory. Add a row whenever a new feature ships, and decide its tier at the same time.
+
+Legend: yes = available, locked = visible but disabled with an upgrade prompt, n/a = does not apply.
+
+| Feature | Guest | Free | Plus | Premium | Status |
+|---|---|---|---|---|---|
+| Load existing presets | yes | yes | yes | yes | proposed |
+| Modify settings after loading an existing preset | locked | locked | yes | yes | **Decided** |
+| Custom path for the fractal | locked | locked | yes | yes | **Decided** (see note) |
+| Save presets | locked | quota | quota | unlimited | proposed |
+| Custom particle sprite upload | locked | quota | quota | unlimited | proposed |
+| Create private packs | locked | quota | quota | unlimited | proposed |
+| Create public packs | locked | locked | quota | unlimited | proposed |
+| Built-in premium packs | preview | preview | yes | yes | **Decided** |
+| Creator packs | n/a | purchase | purchase | TBD | open |
+
+Notes:
+
+- **Modify after load.** Guests and Free users can load and watch existing presets but cannot change their settings. This also changes what "Free: 3 saved presets" means in practice, since a Free user has little to save. Settle how that tier works before fixing the numbers. Options: Free can edit only a small set of safe controls (volume, sensitivity), or Free can edit a preset they created from scratch but not one loaded from a pack.
+- **Custom fractal path.** Read as locked for Guest and Free, open for Plus and up. The boundary between Plus and Premium is not decided.
+- **Locked means visible.** Controls stay on screen, disabled, with the existing rainbow premium outline and an upgrade message. Hiding them would hide what the paid tiers offer.
+- **Enforcement.** Locked controls are a client display. The server must also refuse the matching writes (for example, a saved preset whose settings differ from the original for a Free user), or the lock is cosmetic. `getEntitlements` should expose a feature set (`features: { editLoadedPreset, customFractalPath, ... }`) next to the quotas, so a new gated feature is one config entry.
+- **Open inventory.** Other candidates to place: external config window, video layer, logo layer, camera macros, extra layer slots beyond a cap, high-resolution or recording features. These need a tier each.
+
 ## Purchases
 
 **Decided:** per-pack purchases are one-time payments (permanent ownership, no churn handling).
@@ -112,6 +138,8 @@ This is a rough sketch. The real ordering, file-level detail, and task split bel
 7. **Creator market (later).** Seller records, Connect payouts, revisit what Premium includes, moderation (ties to `#19`).
 
 ## Open questions
+
+- Feature gating inventory: which tier gets each unplaced feature (see Feature gating), and how Free works if loaded presets are read-only.
 
 - Final tier prices and limits (the table is a starting point).
 - Premium preview. **Decided:** the preview stays but becomes one-shot per preset. Today it is a fixed 30s that restarts on every click, so re-clicking gives unlimited viewing. Shorten to 15s and record each previewed preset in localStorage (soft nudge, not security; server entitlements protect real content). A previewed preset opens the upgrade modal directly, and the record resets each local day so every locked preset can be previewed once per day.
