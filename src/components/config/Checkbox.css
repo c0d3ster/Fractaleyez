@@ -8,8 +8,9 @@
    gets a third of the row, so a long name would be cut off. */
 .config-checkbox-row {
   display: flex;
-  gap: .5rem;
-  margin: 1rem;
+  /* As wide as the margins around the other controls; anything tighter reads as crowded. */
+  gap: 1rem;
+  margin: 1.25rem 1rem;
 }
 
 .config-checkbox-row .config-checkbox-container {
@@ -20,7 +21,19 @@
 
 .config-checkbox-row .config-checkbox-container label {
   display: block;
-  padding: .5rem .25rem;
+  padding: .6rem .25rem;
+}
+
+/* The expanded config's columns are narrow (about 45px per chip here), so the row gives up some side margin and a
+   smaller font leaves each chip's text room inside its pill instead of touching its edges. */
+.config-window-root .config-checkbox-row {
+  gap: .6rem;
+  margin: 1.25rem .5rem;
+}
+
+.config-window-root .config-checkbox-row .config-checkbox-container label {
+  font-size: 13px;
+  padding: .6rem .5rem;
 }
 
 .config-checkbox-container label {
