@@ -810,7 +810,8 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
     const newPreset: PresetMeta = { id: data.id, name: data.name, label: toLabel(data.name), pack, sprite, isOwn: true, updatedAt }
     // What was just saved is current: keep it so opening this preset needs no request.
     writeCachedPresetBody(data.id, { config: storedConfig, updatedAt })
-    const matches = (p: PresetMeta): boolean => p.id === data.id || p.name === data.name
+    // A global preset can share a name with the viewer's own (the model is unique on name and user), so a name only matches an own entry.
+    const matches = (p: PresetMeta): boolean => p.id === data.id || (p.isOwn && p.name === data.name)
     const prev = presetListRef.current
     const next = prev.some(matches) ? prev.map(p => (matches(p) ? newPreset : p)) : [...prev, newPreset]
     setPresetList(next)
