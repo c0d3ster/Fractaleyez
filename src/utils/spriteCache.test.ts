@@ -89,7 +89,8 @@ describe('spriteCache', () => {
 
     await warmSpriteCache([url])
 
-    expect(fetchSpy).toHaveBeenCalledWith(url)
+    // Bypasses the HTTP cache, which can hold a copy of the image without CORS headers.
+    expect(fetchSpy).toHaveBeenCalledWith(url, { cache: 'reload' })
     expect(fakeCache.store.has(url)).toBe(true)
     expect(getResolvedSpriteUrl(url).startsWith('blob:')).toBe(true)
   })
