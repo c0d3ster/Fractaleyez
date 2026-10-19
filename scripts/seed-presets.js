@@ -26,7 +26,8 @@ const parseArgs = (args) => {
   const fileFlag = args.indexOf('--file')
   const file = fileFlag === -1 ? undefined : args[fileFlag + 1]
   if (fileFlag !== -1 && !file) throw new Error('--file needs a path')
-  const names = args.filter((arg, i) => i !== fileFlag && i !== fileFlag + 1)
+  // Drop the flag and its path only when the flag is there; with no --file, every arg is a preset name.
+  const names = args.filter((arg, i) => fileFlag === -1 || (i !== fileFlag && i !== fileFlag + 1))
   return { file, names }
 }
 
