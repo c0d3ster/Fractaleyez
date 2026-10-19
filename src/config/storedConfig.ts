@@ -113,7 +113,8 @@ export const toStoredConfig = (config: AppConfig, camera?: StoredCamera): Stored
     effects: valuesOf(effects),
     color: valuesOf(color),
     ...(on('orbit') && { particle: valuesOf(particle), orbit: valuesOf(orbit) }),
-    ...(on('video') && { video: { clips: video.clips, index: video.index } }),
+    // The clip list only: `index` is the playback cursor, which the video layer resets on creation, so a stored one does nothing (older presets still carry it)
+    ...(on('video') && { video: { clips: video.clips } }),
     ...(on('logo') && { logo: valuesOf(logo) }),
     ...(storedLayers && { layers: storedLayers }),
   }

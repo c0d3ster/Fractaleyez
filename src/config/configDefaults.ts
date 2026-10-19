@@ -99,7 +99,7 @@ export type VideoConfigSection = {
 }
 
 /** Stored/authored shape of a preset's video config — allClips is the runtime clip catalog, computed by mergeVideo and never persisted. */
-export type StoredVideoSection = Pick<VideoConfigSection, 'clips' | 'index'>
+export type StoredVideoSection = Pick<VideoConfigSection, 'clips'> & Partial<Pick<VideoConfigSection, 'index'>>
 
 export type LayerKey = 'video' | 'fractal' | 'orbit' | 'logo' // widened as layer types are added
 export type BlendMode = 'mask' | 'screen' | 'over' // fixed per layer for now (see createLayerMeta); no UI until it is configurable

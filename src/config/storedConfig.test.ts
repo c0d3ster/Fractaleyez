@@ -60,6 +60,12 @@ describe('toStoredConfig', () => {
     expect(presentLayers(stored, stored.video?.clips.length ?? 0)).toEqual({ video: true, fractal: true, orbit: true, logo: true })
   })
 
+  it('stores the video clips but not the playback index', () => {
+    const config = withLayers({ ...allOff, video: true })
+    config.video.index = 1
+    expect(toStoredConfig(config).video).toEqual({ clips: config.video.clips })
+  })
+
   it('stores no camera when it is centered or Sway is 0', () => {
     expect(toStoredConfig(withLayers(allOff, 200), { x: 0, y: 0 }).user).not.toHaveProperty('cameraX')
     expect(toStoredConfig(withLayers(allOff, 0), { x: 50, y: 20 }).user).not.toHaveProperty('cameraX')
