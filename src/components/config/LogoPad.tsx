@@ -6,6 +6,7 @@ import { AppConfig } from '../../config/configDefaults'
 import { logoConfig } from '../../config/logo.config'
 import { ImageShape, loadImageShape, SQUARE_SHAPE } from '../../utils/opaqueBounds'
 import { getResolvedSpriteUrl } from '../../utils/spriteCache'
+import { loadZoomFocus } from '../../utils/zoomFocus'
 import { focusSpot, frameRect, hitTest, LogoPadState, LogoPadTarget, moveFocus, moveLogo, PadSize } from './logoPadGeometry'
 import { Pad, PadPoint, screenAspectRatio } from './Pad'
 
@@ -80,31 +81,31 @@ const LogoPadInner = ({ config, updateConfigItem, resetConfigItem }: LogoPadProp
     const { target, offset } = grab.current
     if (target === 'focus') {
       const focus = moveFocus(point, offset, state, pad)
-      updateConfigItem('logo', 'focusAuto', false)
       setValues({ focusX: focus.x, focusY: focus.y })
       return
     }
     const position = moveLogo(point, offset)
     setValues({ positionX: position.x, positionY: position.y })
-  }, [state, zoomOn, setValues, updateConfigItem])
+  }, [state, zoomOn, setValues])
 
   const resetItems = useCallback((items: readonly string[]): void => {
     items.forEach((item) => resetConfigItem('logo', item))
   }, [resetConfigItem])
 
-  // The zoom point goes back to what the image itself suggests (Auto Focus), not to the middle of the frame.
+  // The zoom point goes back to what the image itself suggests, not to the middle of the frame.
   const handleReset = useCallback((): void => {
     const { target } = firstPress.current
     if (target !== 'focus') resetItems(['positionX', 'positionY'])
-    if (target !== 'logo') updateConfigItem('logo', 'focusAuto', true)
-  }, [resetItems, updateConfigItem])
+    if (target === 'logo' || !sprite) return
+    void loadZoomFocus(getResolvedSpriteUrl(sprite)).then(({ x, y }) => setValues({ focusX: x, focusY: y }))
+  }, [resetItems, setValues, sprite])
 
   const padSize: PadSize = { width: aspectRatio, height: 1 } // only the ratio matters for where things sit
   const frame = frameRect(state, padSize)
   const spriteUrl = sprite ? getResolvedSpriteUrl(sprite) : ''
   const silhouette = spriteUrl ? { maskImage: `url("${spriteUrl}")`, WebkitMaskImage: `url("${spriteUrl}")` } : undefined
   const dot = focusSpot(state, padSize)
-  const readouts = [`X ${format(state.x)}`, `Y ${format(state.y)}`, ...(zoomOn ? [`Zoom ${format(state.focusX)}, ${format(state.focusY)}${config.logo.focusAuto.value ? ' auto' : ''}`] : [])]
+  const readouts = [`X ${format(state.x)}`, `Y ${format(state.y)}`, ...(zoomOn ? [`Zoom ${format(state.focusX)}, ${format(state.focusY)}`] : [])]
 
   return (
     <Pad

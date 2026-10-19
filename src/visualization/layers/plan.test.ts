@@ -3,7 +3,12 @@ import { describe, expect, it } from 'vitest'
 import { configDefaults, LayersConfigSection } from '../../config/configDefaults'
 import { planLayers } from './plan'
 
-const makeLayers = (): LayersConfigSection => structuredClone(configDefaults.layers)
+// The logo layer is switched off here so each test starts from video, fractal and orbit only.
+const makeLayers = (): LayersConfigSection => {
+  const layers = structuredClone(configDefaults.layers)
+  layers.meta.logo.enabled.value = false
+  return layers
+}
 
 describe('planLayers', () => {
   it('lists enabled layers front to back, reversing layers.order', () => {
