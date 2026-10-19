@@ -20,7 +20,9 @@ const resolveOne = async (url: string): Promise<void> => {
     const cache = await caches.open(CACHE_NAME)
     let response = await cache.match(url)
     if (!response) {
-      response = await fetch(url)
+      // 'reload' skips the browser's HTTP cache: R2 sprites are cached for a year, and a copy stored by a plain <img> (no CORS
+      // headers) makes this CORS fetch fail, as does THREE's texture load after it. The fresh response also replaces that entry.
+      response = await fetch(url, { cache: 'reload' })
       if (!response.ok) return
       await cache.put(url, response.clone())
     }
