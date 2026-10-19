@@ -33,7 +33,11 @@ export type PublicPresetMeta = {
   pack: string  // always a string; empty when no pack assigned
   sprite: string
   isOwn: boolean
+  updatedAt: string | null // ISO; null for a legacy document that has not been written since timestamps were added
 }
+
+/** Lets a client tell whether a cached copy of a preset is current. */
+export const toUpdatedAt = (updatedAt: Date | undefined): string | null => (updatedAt ? updatedAt.toISOString() : null)
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -72,6 +76,7 @@ export class PresetService {
       pack: p.pack ?? '',
       sprite: p.sprite,
       isOwn: !!viewerId && !!p.userId && p.userId === viewerId,
+      updatedAt: toUpdatedAt(p.updatedAt),
     }))
   }
 

@@ -5,6 +5,8 @@ export type ApiPreset = {
   pack: string
   sprite: string
   isOwn: boolean
+  /** ISO time of the preset's last write; null for a legacy document. A cached copy of its config is current while this is unchanged. */
+  updatedAt: string | null
 }
 
 /** What `/api/packs` returns for one pack. */
@@ -39,7 +41,9 @@ const isApiPreset = (value: unknown): value is ApiPreset =>
   typeof value.name === 'string' &&
   typeof value.pack === 'string' &&
   typeof value.sprite === 'string' &&
-  typeof value.isOwn === 'boolean'
+  typeof value.isOwn === 'boolean' &&
+  'updatedAt' in value &&
+  (value.updatedAt === null || typeof value.updatedAt === 'string')
 
 const isApiPack = (value: unknown): value is ApiPack =>
   isRecord(value) &&
