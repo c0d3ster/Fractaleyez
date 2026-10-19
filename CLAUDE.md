@@ -11,7 +11,8 @@ pnpm server-dev       # express API only (tsx watch: restarts on save, no build 
 pnpm build            # production webpack build -> public/app.js
 pnpm lint             # eslint src --fix
 pnpm typecheck        # tsc --noEmit (src/** only, see tsconfig.json)
-pnpm seed             # seed src/config/presets.ts into MongoDB
+pnpm seed             # seed `default` (generated from configDefaults) into MongoDB; `pnpm seed --file presets.json` adds presets from a file
+pnpm export-presets   # write the global presets from MongoDB to scripts/presets.local.json (git-ignored), for seeding another database
 pnpm seed-packs       # seed pack documents into MongoDB
 ```
 
@@ -38,9 +39,9 @@ Clerk is the identity provider. Client: `ClerkProvider` wraps the app in `src/in
 
 ### Presets and packs
 
-- Bundled presets ship with the client as plain data in `src/config/presets.ts` (`BundledPreset` records: `pack`, `sprite`, `config`). A preset's `config` is a `StoredConfig` (`src/config/storedConfig.ts`): bare values only, no labels, ranges, or `defaultValue`. Those come from `configDefaults` at load time, and the loader also accepts the older full-item shape. Out-of-range values are kept on purpose (no clamping). `toStoredConfig` produces the slim shape for `savePreset`. This file is also the seed source for MongoDB (`pnpm seed`) and the client's offline/fallback source if the `/api/presets` fetch fails — see `ConfigProvider.tsx`'s "falling back to bundled" path.
+- Presets live in MongoDB; nothing in the repo holds preset data. The default look is `configDefaults` (`src/config/configDefaults.ts`): the client boots from it, `Reset` loads it, and `pnpm seed` generates the `default` preset from it with `toStoredConfig`. A preset's `config` is a `StoredConfig` (`src/config/storedConfig.ts`): bare values only, no labels, ranges, or `defaultValue`. Those come from `configDefaults` at load time, and the loader also accepts the older full-item shape. Out-of-range values are kept on purpose (no clamping). A layer is on when its sections are stored (`presentLayers`/`mergeLayers`), and `layers` stores only a non-default order, opacity or blend mode. `toStoredConfig` produces the slim shape for `savePreset`.
 - Live presets/packs are Mongoose documents (`server/models/Preset.ts`, `server/models/Pack.ts`). A `Preset` has an optional `packId` ref plus a legacy `pack` string field. `Preset` is unique on `(name, userId)`; seeded/global presets have no `userId`.
-- `src/components/config/context/ConfigProvider.tsx` is the client-side source of truth for the active config: it fetches the preset list from the API, merges any loaded preset config against `configDefaults` (`mergeConfigSection`/`mergeVideo`) so older or partial shapes stay valid, and falls back to `presets` from `src/config/presets.ts` when the API is unreachable.
+- `src/components/config/context/ConfigProvider.tsx` is the client-side source of truth for the active config: it fetches the preset and pack lists from the API, merges any loaded preset config against `configDefaults` (`mergeConfigSection`/`mergeVideo`) so older or partial shapes stay valid, and keeps the last lists in localStorage (`src/utils/presetListCache.ts`, per viewer) so a reload with the API unreachable still shows them. Preset configs fetched by id are cached under the `presets` key.
 - `ConfigProvider` keeps a baseline (the active preset's values at load or last save) that `resetConfigItem` (double-click a slider) and `resetConfigSection` (section header button) restore from.
 - See `TASKS.md` for in-flight preset/pack work (e.g. moving pack membership from embedding to many-to-many references).
 

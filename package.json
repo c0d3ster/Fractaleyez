@@ -13,6 +13,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "seed": "node scripts/seed-presets.js",
+    "export-presets": "node scripts/export-presets.js",
     "seed-packs": "node scripts/seed-packs.js",
     "migrate-particles-to-r2": "node scripts/migrate-particles-to-r2.js"
   },

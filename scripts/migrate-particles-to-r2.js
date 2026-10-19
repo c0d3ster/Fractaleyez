@@ -1,5 +1,6 @@
-// Uploads the built-in particle sprite PNGs referenced by src/config/presets.ts (plus
-// BUILTIN_PARTICLE_SPRITES) from public/ up to R2, under the `builtins/` prefix.
+// Uploads the built-in particle sprite PNGs (BUILTIN_PARTICLE_SPRITES, plus any referenced by configDefaults
+// or by a presets file passed as the first argument, e.g. one from `pnpm export-presets`) from public/ up to R2,
+// under the `builtins/` prefix.
 // Idempotent: skips any key that's already present in the bucket.
 require('dotenv').config({ quiet: true })
 require('@babel/register')({
@@ -13,12 +14,12 @@ require('@babel/register')({
 const fs = require('fs')
 const path = require('path')
 const { storageService } = require('../server/services/StorageService.ts')
-const { presets } = require('../src/config/presets.ts')
+const { configDefaults } = require('../src/config/configDefaults.ts')
 const { BUILTIN_PARTICLE_SPRITES } = require('../src/config/particle.config.ts')
 
 const PUBLIC_DIR = path.join(__dirname, '../public')
 
-// Bundled presets reference sprites by bare filename (e.g. 'galaxySprite.png') anywhere
+// Presets reference built-in sprites by bare filename (e.g. 'galaxySprite.png') anywhere
 // inside their config tree — walk every value to find them, rather than hardcoding a list.
 const collectReferencedPngs = (value, out) => {
   if (typeof value === 'string') {
@@ -36,7 +37,9 @@ const collectReferencedPngs = (value, out) => {
 
 const findBuiltinPngs = () => {
   const out = new Set(BUILTIN_PARTICLE_SPRITES)
-  collectReferencedPngs(presets, out)
+  collectReferencedPngs(configDefaults, out)
+  const presetsFile = process.argv[2]
+  if (presetsFile) collectReferencedPngs(JSON.parse(fs.readFileSync(path.resolve(presetsFile), 'utf8')), out)
   return [...out].filter((name) => fs.existsSync(path.join(PUBLIC_DIR, name)))
 }
 
