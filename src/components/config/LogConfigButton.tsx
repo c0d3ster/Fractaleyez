@@ -3,7 +3,7 @@ import React, { useContext } from 'react'
 import { toStoredConfig } from '../../config/storedConfig'
 import { ConfigContext } from './context/ConfigProvider'
 
-/** Logs the current config as slim preset JSON (what presets.ts stores) and copies it to the clipboard. */
+/** Logs the current config as slim preset JSON (what a saved preset stores) and copies it to the clipboard. */
 export const LogConfigButton = (): React.ReactElement | null => {
   const context = useContext(ConfigContext)
   if (!context) return null

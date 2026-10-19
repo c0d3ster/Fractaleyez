@@ -7,8 +7,8 @@ import { AppConfig, ConfigItem, LayerKey, ParticleConfigSection, configDefaults 
 import { LAYER_CAP } from '../../../config/layers'
 import { mergeLayers, presentLayers } from '../../../config/mergeLayers'
 import { particleConfig } from '../../../config/particle.config'
-import { presets } from '../../../config/presets'
 import { getResolvedSpriteUrl, warmSpriteCache } from '../../../utils/spriteCache'
+import { ApiPack, ApiPreset, readPresetListCache, updatePresetListCache } from '../../../utils/presetListCache'
 import { FocusPoint, loadZoomFocus } from '../../../utils/zoomFocus'
 import { persistClerkPhotoAsLogo } from '../../../utils/clerkPhotoLogo'
 import {
@@ -45,22 +45,6 @@ export type PackMeta = {
   isOwn: boolean
 }
 
-type ApiPreset = {
-  id: string
-  name: string
-  pack: string
-  sprite: string
-  isOwn: boolean
-}
-
-type ApiPack = {
-  id: string
-  name: string
-  slug: string
-  isPremium: boolean
-  isOwn: boolean
-}
-
 type ApiMeResponse = {
   clerkId: string
   displayName: string
@@ -84,6 +68,17 @@ const toLabel = (name: string): string => {
   if (!collapsed) return collapsed
   const spaced = collapsed.replace(/([a-z\d])([A-Z])/g, '$1 $2').replace(/\s+/g, ' ').trim()
   return spaced.replace(/^./, c => c.toUpperCase())
+}
+
+const toPresetMeta = (p: ApiPreset): PresetMeta => ({ ...p, label: toLabel(p.name) })
+
+/** The default preset is configDefaults, so it is in the list even with no cache and no API. It has no id: it loads without a fetch. */
+const DEFAULT_PRESET_META: PresetMeta = {
+  name: 'default',
+  label: toLabel('default'),
+  pack: 'Essentials',
+  sprite: configDefaults.particle.sprites.value[0] ?? 'fractaleye.png',
+  isOwn: false,
 }
 
 export type ConfigSectionKey = 'user' | 'fractal' | 'audio' | 'effects' | 'color' | 'particle' | 'orbit' | 'logo'
@@ -284,11 +279,13 @@ export const connectConfig = <P extends Partial<ConfigContextValue>>(WrappedComp
 
 export const ConfigProvider = ({ children }: { children: React.ReactNode }): React.ReactElement => {
   const { getToken } = useAuth()
-  const { isSignedIn, user } = useUser()
+  const { isSignedIn, isLoaded, user } = useUser()
+  // Who the preset and pack lists belong to; null is signed out. Only meaningful once Clerk has loaded.
+  const viewerId = isSignedIn ? (user?.id ?? null) : null
 
+  // configDefaults is the default look (every layer on), so the first frame needs nothing from the API.
   const [config, setConfig] = useState<AppConfig>(() => {
-    const bundledDefault = presets.default
-    const initial = bundledDefault ? normalizeLoadedPreset(structuredClone(bundledDefault.config)) : configDefaults
+    const initial = structuredClone(configDefaults)
     window.config = initial
     return initial
   })
@@ -297,6 +294,8 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
   const baselineRef = useRef<AppConfig>(config)
 
   const [presetList, setPresetList] = useState<PresetMeta[]>([])
+  const presetListRef = useRef(presetList)
+  presetListRef.current = presetList
   const [packList, setPackList] = useState<PackMeta[]>([])
   const [userSettings, setUserSettings] = useState<UserSettings | null>(null)
   const [displayName, setDisplayName] = useState<string | null>(null)
@@ -320,15 +319,17 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
     void warmSpriteCache(window.config.particle.sprites.value)
   }, [])
 
+  // Shows the last lists this viewer saw while the live fetch is out. Another viewer's lists are never shown, so a viewer
+  // change starts empty. Declared before the fetches below so a fetch that lands later wins.
   useEffect(() => {
-    if (!localStorage.getItem('presets')) {
-      localStorage.setItem('presets', JSON.stringify(
-        Object.fromEntries(Object.entries(presets).map(([k, v]) => [k, v.config]))
-      ))
-    }
-  }, [])
+    if (!isLoaded) return
+    const cached = readPresetListCache(viewerId)
+    setPresetList(cached ? cached.presets.map(toPresetMeta) : [])
+    setPackList(cached ? cached.packs : [])
+  }, [isLoaded, viewerId])
 
   useEffect(() => {
+    if (!isLoaded) return undefined
     let cancelled = false
     const load = async (): Promise<void> => {
       try {
@@ -337,26 +338,20 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         })
         if (cancelled) return
-        setPresetList(data.map(p => ({ ...p, label: toLabel(p.name) })))
+        setPresetList(data.map(toPresetMeta))
+        updatePresetListCache(viewerId, { presets: data })
       } catch (err) {
-        console.error('Failed to load presets from API, falling back to bundled', err)
+        console.error('Failed to load presets from API, keeping the cached list', err)
         if (cancelled) return
-        const bundled = Object.entries(presets).map(([name, data]) => ({
-          name,
-          label: toLabel(name),
-          pack: data.pack,
-          sprite: data.sprite,
-          isOwn: false,
-          id: undefined,
-        }))
-        setPresetList(bundled)
+        setPresetList(prev => (prev.length > 0 ? prev : [DEFAULT_PRESET_META]))
       }
     }
     void load()
     return () => { cancelled = true }
-  }, [getToken])
+  }, [getToken, isLoaded, viewerId])
 
   useEffect(() => {
+    if (!isLoaded) return undefined
     let cancelled = false
     const load = async (): Promise<void> => {
       try {
@@ -366,13 +361,14 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
         })
         if (cancelled) return
         setPackList(data)
+        updatePresetListCache(viewerId, { packs: data })
       } catch (err) {
-        console.error('Failed to load packs', err)
+        console.error('Failed to load packs, keeping the cached list', err)
       }
     }
     void load()
     return () => { cancelled = true }
-  }, [getToken])
+  }, [getToken, isLoaded, viewerId])
 
   // Lazy-creates/fetches the app-data user doc. Independent of the preset/pack loads above:
   // a timeout or 5xx here must never block preset/pack data or the bundled-preset fallback.
@@ -668,37 +664,23 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
     const id = event.currentTarget?.dataset?.id
     if (!name) return
 
-    const cacheKey = id || name
-
-    // The bundled default has no id and ships with the client, so skip the name-keyed localStorage copy: it is seeded once
-    // and goes stale whenever the bundled default changes.
-    let cfg: Record<string, unknown> | null = name === 'default' && !id ? null : retrieveCachedPreset(cacheKey)
+    // The default preset is configDefaults: no id, nothing to fetch, nothing to go stale.
+    let cfg: Record<string, unknown> | null = id ? retrieveCachedPreset(id) : name === 'default' ? toStoredConfig(configDefaults) : null
 
     if (!cfg) {
-      if (id) {
-        try {
-          const result = await axios.get<{ config: Record<string, unknown> }>('/api/preset', { params: { id } })
-          cfg = result.data.config
-          const stored = localStorage.getItem('presets')
-          const cached = stored ? (JSON.parse(stored) as Record<string, unknown>) : {}
-          localStorage.setItem('presets', JSON.stringify({ ...cached, [cacheKey]: cfg }))
-        } catch {
-          cfg = presets[name]?.config ?? null
-          if (!cfg) {
-            console.error(`Preset "${name}" not found locally or via API`)
-            return
-          }
-          console.warn(`Using bundled preset for "${name}" (offline fallback)`)
-          cfg = structuredClone(cfg)
-        }
-      } else {
-        cfg = presets[name]?.config ?? null
-        if (!cfg) {
-          console.error(`Preset "${name}" not found locally or via API`)
-          return
-        }
-        console.warn(`Using bundled preset for "${name}" (offline fallback)`)
-        cfg = structuredClone(cfg)
+      if (!id) {
+        console.error(`Preset "${name}" has no id and is not the default`)
+        return
+      }
+      try {
+        const result = await axios.get<{ config: Record<string, unknown> }>('/api/preset', { params: { id } })
+        cfg = result.data.config
+        const stored = localStorage.getItem('presets')
+        const cached = stored ? (JSON.parse(stored) as Record<string, unknown>) : {}
+        localStorage.setItem('presets', JSON.stringify({ ...cached, [id]: cfg }))
+      } catch (err) {
+        console.error(`Preset "${name}" is not cached and the API is unreachable`, err)
+        return
       }
     }
 
@@ -824,12 +806,16 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
     baselineRef.current = config
     const sprite = config.particle.sprites.value[0] ?? 'fractaleye.png'
     const newPreset: PresetMeta = { id: data.id, name: data.name, label: toLabel(data.name), pack, sprite, isOwn: true }
-    setPresetList(prev => {
-      const matches = (p: PresetMeta): boolean => p.id === data.id || p.name === data.name
-      const exists = prev.some(matches)
-      return exists ? prev.map(p => (matches(p) ? newPreset : p)) : [...prev, newPreset]
+    const matches = (p: PresetMeta): boolean => p.id === data.id || p.name === data.name
+    const prev = presetListRef.current
+    const next = prev.some(matches) ? prev.map(p => (matches(p) ? newPreset : p)) : [...prev, newPreset]
+    setPresetList(next)
+    // Keep the cached list current, so a reload with the API down still shows what was just saved.
+    updatePresetListCache(viewerId, {
+      presets: next.flatMap(({ id, name: presetName, pack: presetPack, sprite: presetSprite, isOwn }) =>
+        id ? [{ id, name: presetName, pack: presetPack, sprite: presetSprite, isOwn }] : []),
     })
-  }, [config, getToken, withUserReference])
+  }, [config, getToken, withUserReference, viewerId])
 
   return (
     <ConfigContext.Provider value={{ config, updateConfigItem, updateVideoClips, updateParticleSprites, updateLogoSprite, applyUserReference, releaseUserReference, userReferenceStandIn, updateColorList, setLayerEnabled, setLayerOpacity, moveLayer, retrieveConfigPreset, revertConfig, resetConfig, resetConfigItem, resetConfigSection, resetVideoClips, savePreset, isSignedIn: isSignedIn ?? false, currentUserId: user?.id ?? null, getToken, presets: presetList, packs: packList, userSettings, isAdmin: isSignedIn === true && isAdmin, userSprite, updateUserSettings }}>

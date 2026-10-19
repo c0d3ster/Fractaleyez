@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { AppConfig, LayerKey, configDefaults } from './configDefaults'
+import { presentLayers } from './mergeLayers'
 import { cameraStart, keepDisabledLayerSections, toStoredConfig } from './storedConfig'
 
 const withLayers = (enabled: Record<LayerKey, boolean>, bound = configDefaults.user.cameraBound.value): AppConfig => {
@@ -50,6 +51,13 @@ describe('toStoredConfig', () => {
     expect(stored.logo).toBeDefined()
     expect(stored.orbit).toBeUndefined()
     expect(stored.particle).toBeUndefined()
+  })
+
+  it('stores the default config with every layer included and no layers section', () => {
+    const stored = toStoredConfig(configDefaults)
+    expect(stored.layers).toBeUndefined()
+    expect(Object.keys(stored)).toEqual(['user', 'fractal', 'audio', 'effects', 'color', 'particle', 'orbit', 'video', 'logo'])
+    expect(presentLayers(stored, stored.video?.clips.length ?? 0)).toEqual({ video: true, fractal: true, orbit: true, logo: true })
   })
 
   it('stores no camera when it is centered or Sway is 0', () => {
