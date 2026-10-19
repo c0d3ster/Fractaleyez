@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express'
 import { Types } from 'mongoose'
-import { presetService } from '../services/PresetService'
+import { presetService, toUpdatedAt } from '../services/PresetService'
 import { AuthUnauthorizedError, verifyAuth } from '../auth'
 
 export const savePresetHandler = async (req: Request, res: Response): Promise<void> => {
@@ -44,7 +44,7 @@ export const savePresetHandler = async (req: Request, res: Response): Promise<vo
       userId,
       force,
     })
-    res.status(200).json({ id: preset._id, name: preset.name })
+    res.status(200).json({ id: preset._id, name: preset.name, updatedAt: toUpdatedAt(preset.updatedAt) })
   } catch (err: unknown) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const e = err as any

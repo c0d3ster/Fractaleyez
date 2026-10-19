@@ -9,6 +9,7 @@ import { mergeLayers, presentLayers } from '../../../config/mergeLayers'
 import { particleConfig } from '../../../config/particle.config'
 import { getResolvedSpriteUrl, warmSpriteCache } from '../../../utils/spriteCache'
 import { ApiPack, ApiPreset, readPresetListCache, updatePresetListCache } from '../../../utils/presetListCache'
+import { isCurrent, readCachedPresetBody, writeCachedPresetBody } from '../../../utils/presetBodyCache'
 import { FocusPoint, loadZoomFocus } from '../../../utils/zoomFocus'
 import { persistClerkPhotoAsLogo } from '../../../utils/clerkPhotoLogo'
 import {
@@ -35,6 +36,7 @@ export type PresetMeta = {
   pack: string
   sprite: string
   isOwn: boolean
+  updatedAt?: string | null
 }
 
 export type PackMeta = {
@@ -480,16 +482,6 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
     })
   }, [])
 
-  const retrieveCachedPreset = useCallback((cacheKey: string): AppConfig | null => {
-    try {
-      const stored = localStorage.getItem('presets')
-      if (!stored) return null
-      return (JSON.parse(stored) as Record<string, AppConfig>)[cacheKey] ?? null
-    } catch {
-      return null
-    }
-  }, [])
-
   const updateParticleSprites = useCallback(async (sprites: string[]) => {
     const { sprites_MIN: spritesMin, sprites_MAX: spritesMax } = particleConfig
     const deduped = [...new Set(sprites)].slice(0, spritesMax)
@@ -664,8 +656,13 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
     const id = event.currentTarget?.dataset?.id
     if (!name) return
 
-    // The default preset is configDefaults: no id, nothing to fetch, nothing to go stale.
-    let cfg: Record<string, unknown> | null = id ? retrieveCachedPreset(id) : name === 'default' ? toStoredConfig(configDefaults) : null
+    // The default preset is configDefaults: no id, nothing to fetch, nothing to go stale. Every other preset is cached by id with the
+    // updatedAt it had when fetched, and a copy the list says has changed is fetched again.
+    const listed = id ? presetListRef.current.find(p => p.id === id) : undefined
+    const cached = id ? readCachedPresetBody(id) : null
+    let cfg: Record<string, unknown> | null = cached && isCurrent(cached, listed?.updatedAt)
+      ? cached.config
+      : !id && name === 'default' ? toStoredConfig(configDefaults) : null
 
     if (!cfg) {
       if (!id) {
@@ -673,14 +670,17 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
         return
       }
       try {
-        const result = await axios.get<{ config: Record<string, unknown> }>('/api/preset', { params: { id } })
+        const result = await axios.get<{ config: Record<string, unknown>; updatedAt?: string }>('/api/preset', { params: { id } })
         cfg = result.data.config
-        const stored = localStorage.getItem('presets')
-        const cached = stored ? (JSON.parse(stored) as Record<string, unknown>) : {}
-        localStorage.setItem('presets', JSON.stringify({ ...cached, [id]: cfg }))
+        writeCachedPresetBody(id, { config: cfg, updatedAt: result.data.updatedAt ?? null })
       } catch (err) {
-        console.error(`Preset "${name}" is not cached and the API is unreachable`, err)
-        return
+        // Offline (or the API is down): an out-of-date copy beats none.
+        if (!cached) {
+          console.error(`Preset "${name}" is not cached and the API is unreachable`, err)
+          return
+        }
+        console.warn(`Using the cached copy of "${name}" (could not check for a newer one)`)
+        cfg = cached.config
       }
     }
 
@@ -707,7 +707,7 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
     if (!sameClips) {
       window.dispatchEvent(new CustomEvent('videoClipsRestored', { detail: { clips: nextClips } }))
     }
-  }, [retrieveCachedPreset])
+  }, [])
 
   const revertConfig = useCallback((snapshot: AppConfig) => {
     setConfig(snapshot)
@@ -795,25 +795,29 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
   const savePreset = useCallback(async (name: string, pack: string, force?: boolean) => {
     const token = await getToken()
     if (!token) throw Object.assign(new Error('Not authenticated'), { response: { status: 401, data: { error: 'Not authenticated — try signing out and back in' } } })
-    const { data } = await axios.post<{ id: string; name: string }>('/api/savePreset', {
+    const storedConfig = toStoredConfig(withUserReference(config), window.getVirtualCameraPosition?.())
+    const { data } = await axios.post<{ id: string; name: string; updatedAt?: string | null }>('/api/savePreset', {
       name,
       pack,
-      config: toStoredConfig(withUserReference(config), window.getVirtualCameraPosition?.()),
+      config: storedConfig,
       force: force ?? false,
     }, {
       headers: { Authorization: `Bearer ${token}` },
     })
     baselineRef.current = config
     const sprite = config.particle.sprites.value[0] ?? 'fractaleye.png'
-    const newPreset: PresetMeta = { id: data.id, name: data.name, label: toLabel(data.name), pack, sprite, isOwn: true }
+    const updatedAt = data.updatedAt ?? null
+    const newPreset: PresetMeta = { id: data.id, name: data.name, label: toLabel(data.name), pack, sprite, isOwn: true, updatedAt }
+    // What was just saved is current: keep it so opening this preset needs no request.
+    writeCachedPresetBody(data.id, { config: storedConfig, updatedAt })
     const matches = (p: PresetMeta): boolean => p.id === data.id || p.name === data.name
     const prev = presetListRef.current
     const next = prev.some(matches) ? prev.map(p => (matches(p) ? newPreset : p)) : [...prev, newPreset]
     setPresetList(next)
     // Keep the cached list current, so a reload with the API down still shows what was just saved.
     updatePresetListCache(viewerId, {
-      presets: next.flatMap(({ id, name: presetName, pack: presetPack, sprite: presetSprite, isOwn }) =>
-        id ? [{ id, name: presetName, pack: presetPack, sprite: presetSprite, isOwn }] : []),
+      presets: next.flatMap(({ id, name: presetName, pack: presetPack, sprite: presetSprite, isOwn, updatedAt: presetUpdatedAt }) =>
+        id ? [{ id, name: presetName, pack: presetPack, sprite: presetSprite, isOwn, updatedAt: presetUpdatedAt ?? null }] : []),
     })
   }, [config, getToken, withUserReference, viewerId])
 

@@ -3,11 +3,11 @@ import { Types } from 'mongoose'
 import { PresetMeta } from '../repositories/PresetRepository'
 import { presetRepository } from '../repositories/PresetRepository'
 import { IPreset } from '../models/Preset'
-import { defaultFirst, PresetService } from './PresetService'
+import { defaultFirst, PresetService, toUpdatedAt } from './PresetService'
 import { userService } from './UserService'
 
 vi.mock('../repositories/PresetRepository', () => ({
-  presetRepository: { create: vi.fn(), upsert: vi.fn() },
+  presetRepository: { create: vi.fn(), upsert: vi.fn(), findAll: vi.fn() },
 }))
 vi.mock('./UserService', () => ({
   userService: { isAdmin: vi.fn() },
@@ -43,6 +43,20 @@ describe('defaultFirst', () => {
   it('returns the list as-is when there is no default', () => {
     const rows = [row('pointerz'), row('circles')]
     expect(names(defaultFirst(rows))).toEqual(['pointerz', 'circles'])
+  })
+})
+
+describe('updatedAt', () => {
+  it('is an ISO string for a timestamped document and null for a legacy one', () => {
+    expect(toUpdatedAt(new Date('2026-10-19T12:30:00.000Z'))).toBe('2026-10-19T12:30:00.000Z')
+    expect(toUpdatedAt(undefined)).toBeNull()
+  })
+
+  it('is listed for every preset, so a client can tell which cached copies are out of date', async () => {
+    const stamped = { ...row('pointerz'), updatedAt: new Date('2026-10-19T12:30:00.000Z') }
+    vi.mocked(presetRepository.findAll).mockResolvedValue([row('default'), stamped])
+    const list = await new PresetService().listPresetsForViewer(null)
+    expect(list.map((p) => [p.name, p.updatedAt])).toEqual([['default', null], ['pointerz', '2026-10-19T12:30:00.000Z']])
   })
 })
 

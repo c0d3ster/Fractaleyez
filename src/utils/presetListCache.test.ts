@@ -15,7 +15,7 @@ const makeStorage = (initial: Record<string, string> = {}): Pick<Storage, 'getIt
   }
 }
 
-const preset: ApiPreset = { id: 'p1', name: 'fire', pack: 'Elemental', sprite: 'fire.png', isOwn: false }
+const preset: ApiPreset = { id: 'p1', name: 'fire', pack: 'Elemental', sprite: 'fire.png', isOwn: false, updatedAt: '2026-10-19T12:00:00.000Z' }
 const pack: ApiPack = { id: 'k1', name: 'Elemental', slug: 'elemental', isPremium: false, isOwn: false }
 
 describe('presetListCache', () => {
@@ -54,6 +54,9 @@ describe('presetListCache', () => {
   it('treats corrupt or wrong-shaped data as no cache without throwing', () => {
     expect(readPresetListCache(null, makeStorage({ presetList: '{nope' }))).toBeNull()
     expect(readPresetListCache(null, makeStorage({ presetList: JSON.stringify({ viewerId: null, presets: [{ id: 1 }], packs: [], savedAt: 1 }) }))).toBeNull()
+    // a list cached before presets carried updatedAt is not served
+    const { updatedAt: _omitted, ...withoutUpdatedAt } = preset
+    expect(readPresetListCache(null, makeStorage({ presetList: JSON.stringify({ viewerId: null, presets: [withoutUpdatedAt], packs: [], savedAt: 1 }) }))).toBeNull()
     expect(readPresetListCache(null, makeStorage({ presetList: JSON.stringify([1, 2]) }))).toBeNull()
   })
 
