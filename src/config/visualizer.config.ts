@@ -4,7 +4,7 @@ export const visualizerConfig = {
   switcheroo: true,
   colorShift: true,
   glow: true,
-  shockwave: true,
+  shockwave: false,
 
   kaleidoscope: false,
   kaleidoscopeCount_MIN: 2,
