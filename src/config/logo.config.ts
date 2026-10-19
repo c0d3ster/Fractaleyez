@@ -9,7 +9,7 @@ export const logoConfig = {
 
   size_MIN: 0.1,
   size_MAX: 2,
-  size_DEFAULT: 1, // 1 fills baseHeightFraction of the view
+  size_DEFAULT: 0.5, // 1 fills baseHeightFraction of the view
   size_STEP_SIZE: 0.01,
 
   spinSpeed_MIN: -5, // negative spins the other way
@@ -24,7 +24,7 @@ export const logoConfig = {
   shake_DEFAULT: 0,
   shake_STEP_SIZE: 0.01,
 
-  zoom_DEFAULT: false, // endless zoom into the image, its rate follows the user Speed
+  zoom_DEFAULT: true, // endless zoom into the image, its rate follows the user Speed
 
   // Where the logo sits on the screen, as 0..1 across the view (y down), set by the pad. The range is the limit on the
   // logo's center: 0..1 keeps the center on screen while an edge can hang off; widen it to let the logo leave entirely.
@@ -37,15 +37,14 @@ export const logoConfig = {
   positionY_DEFAULT: 0.5,
   positionY_STEP_SIZE: 0.01,
 
-  // The point of the image the zoom dives into, as 0..1 across the image (y down), set by the pad. While Auto Focus is on
-  // it follows the point the image itself suggests (see utils/zoomFocus); dragging the pad's dot turns that off.
-  focusAuto_DEFAULT: true,
+  // The point of the image the zoom dives into, as 0..1 across the image (y down), set by the pad. Picking a logo aims
+  // it at the point the image itself suggests (see utils/zoomFocus), and the pad's dot moves it from there.
   focusX_MIN: 0,
   focusX_MAX: 1,
-  focusX_DEFAULT: 0.5,
+  focusX_DEFAULT: 0.5395868126430383,
   focusX_STEP_SIZE: 0.01,
   focusY_MIN: 0,
   focusY_MAX: 1,
-  focusY_DEFAULT: 0.5,
+  focusY_DEFAULT: 0.4406197810354425,
   focusY_STEP_SIZE: 0.01,
 } as const

@@ -9,7 +9,7 @@ import { mergeLayers, presentLayers } from '../../../config/mergeLayers'
 import { particleConfig } from '../../../config/particle.config'
 import { presets } from '../../../config/presets'
 import { getResolvedSpriteUrl, warmSpriteCache } from '../../../utils/spriteCache'
-import { loadZoomFocus } from '../../../utils/zoomFocus'
+import { FocusPoint, loadZoomFocus } from '../../../utils/zoomFocus'
 import { persistClerkPhotoAsLogo } from '../../../utils/clerkPhotoLogo'
 import {
   resolveUserParticle,
@@ -179,6 +179,18 @@ const normalizeLoadedPreset = (cfg: Record<string, unknown>): AppConfig => {
     layers: mergeLayers(cfg.layers, presentLayers(cfg, video.clips.length)),
     logo: mergeConfigSection('logo', cfg.logo as Record<string, unknown> | undefined),
   }
+}
+
+/** Aims the logo's zoom at a point of its image. */
+const withLogoFocus = (cfg: AppConfig, { x, y }: FocusPoint): AppConfig => ({
+  ...cfg,
+  logo: { ...cfg.logo, focusX: { ...cfg.logo.focusX, value: x }, focusY: { ...cfg.logo.focusY, value: y } },
+})
+
+/** Aims the logo's zoom at the point its current image suggests. */
+const withSuggestedLogoFocus = async (cfg: AppConfig): Promise<AppConfig> => {
+  const [sprite] = cfg.logo.sprite.value
+  return sprite ? withLogoFocus(cfg, await loadZoomFocus(getResolvedSpriteUrl(sprite))) : cfg
 }
 
 /** The live `@user` stand-in for one sprite list, kept so it can be re-resolved when user data arrives and un-resolved on save. */
@@ -521,11 +533,13 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
   const updateLogoSprite = useCallback(async (sprite: string) => {
     const chosen = sprite || configDefaults.logo.sprite.value[0] || ''
     await warmSpriteCache([chosen])
+    // Picking a logo aims its zoom at the point the image suggests; the pad's dot adjusts it from there, and a saved preset keeps what was set.
+    const focus = await loadZoomFocus(getResolvedSpriteUrl(chosen))
     setConfig((prev) => {
-      const n: AppConfig = {
-        ...prev,
-        logo: { ...prev.logo, sprite: { ...prev.logo.sprite, value: [chosen] } },
-      }
+      const n = withLogoFocus(
+        { ...prev, logo: { ...prev.logo, sprite: { ...prev.logo.sprite, value: [chosen] } } },
+        focus,
+      )
       window.config = n
       return n
     })
@@ -590,21 +604,6 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
       delete window.updateConfigItem
     }
   }, [setLayerEnabled, updateConfigItem])
-
-  // While Auto Focus is on, the logo's zoom point follows the point the image itself suggests. It is read once per sprite
-  // and only once Zoom is switched on. It also re-applies after a reset, which puts the stored numbers back.
-  const logoSprite = config.logo.sprite.value[0] ?? ''
-  const { zoom, focusAuto, focusX, focusY } = config.logo
-  useEffect(() => {
-    if (!zoom.value || !focusAuto.value || !logoSprite) return undefined
-    let current = true
-    void loadZoomFocus(getResolvedSpriteUrl(logoSprite)).then((focus) => {
-      if (!current) return
-      if (Math.abs(focus.x - focusX.value) > 0.0005) updateConfigItem('logo', 'focusX', String(focus.x))
-      if (Math.abs(focus.y - focusY.value) > 0.0005) updateConfigItem('logo', 'focusY', String(focus.y))
-    })
-    return () => { current = false }
-  }, [zoom.value, focusAuto.value, logoSprite, focusX.value, focusY.value, updateConfigItem])
 
   const setLayerOpacity = useCallback((key: LayerKey, opacity: number) => {
     setConfig((prev) => {
@@ -706,7 +705,9 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
     // Effective clips: a disabled video layer has no plane, same as an empty clip list.
     const prevClips = window.config.layers.meta.video.enabled.value ? window.config.video.clips : []
     const loaded = keepDisabledLayerSections(normalizeLoadedPreset(cfg), cfg, window.config)
-    const { config: next, active } = resolveUserReferenceIn(loaded, userContextRef.current)
+    const { config: resolved, active } = resolveUserReferenceIn(loaded, userContextRef.current)
+    // A stored focus belongs to the image it was set on, and an `@user` logo is a different image for every viewer.
+    const next = active.logo ? await withSuggestedLogoFocus(resolved) : resolved
     activeUserReferenceRef.current = active
     baselineRef.current = next
     // Same reasoning as updateParticleSprites: warm the cache before the config write triggers
@@ -795,9 +796,14 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
       )
     activeUserReferenceRef.current = updated
     baselineRef.current = swap(baselineRef.current)
-    void warmSpriteCache(changed.map(c => c.next)).then(() => {
+    const logoNext = changed.find(c => c.slot === 'logo')?.next
+    void warmSpriteCache(changed.map(c => c.next)).then(async () => {
+      // The viewer's logo just landed (or changed): aim the zoom at the point it suggests, as at preset load.
+      const focus = logoNext === undefined ? undefined : await loadZoomFocus(getResolvedSpriteUrl(logoNext))
+      if (focus) baselineRef.current = withLogoFocus(baselineRef.current, focus)
       setConfig(prev => {
-        const n = swap(prev)
+        const swapped = swap(prev)
+        const n = focus ? withLogoFocus(swapped, focus) : swapped
         window.config = n
         return n
       })
