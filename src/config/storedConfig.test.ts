@@ -16,8 +16,31 @@ const allOff = { video: false, fractal: false, orbit: false, logo: false }
 describe('toStoredConfig', () => {
   it('leaves out the sections of layers that are off', () => {
     const stored = toStoredConfig(withLayers({ ...allOff, orbit: true }))
-    expect(Object.keys(stored)).toEqual(['user', 'audio', 'effects', 'color', 'particle', 'orbit', 'layers'])
-    expect(stored.layers?.meta?.logo?.enabled).toBe(false)
+    expect(Object.keys(stored)).toEqual(['user', 'audio', 'effects', 'color', 'particle', 'orbit'])
+  })
+
+  it('stores no enabled flags and no layers section when everything is default', () => {
+    expect(toStoredConfig(withLayers({ video: true, fractal: true, orbit: true, logo: true })).layers).toBeUndefined()
+  })
+
+  it('stores opacity and blend mode only for included layers, and only when they differ', () => {
+    const config = withLayers({ video: true, fractal: false, orbit: true, logo: false })
+    config.layers.meta.orbit.opacity.value = 0.4
+    config.layers.meta.video.blendMode = 'over'
+    config.layers.meta.fractal.opacity.value = 0.2
+    expect(toStoredConfig(config).layers).toEqual({ meta: { orbit: { opacity: 0.4 }, video: { blendMode: 'over' } } })
+  })
+
+  it('stores the relative order of the included layers only when it differs from the default', () => {
+    const config = withLayers({ video: false, fractal: true, orbit: true, logo: true })
+    config.layers.order = ['logo', 'video', 'orbit', 'fractal']
+    expect(toStoredConfig(config).layers).toEqual({ order: ['logo', 'orbit', 'fractal'] })
+    config.layers.order = ['video', 'fractal', 'logo', 'orbit']
+    expect(toStoredConfig(config).layers).toEqual({ order: ['fractal', 'logo', 'orbit'] })
+    config.layers.order = ['logo', 'video', 'fractal', 'orbit']
+    expect(toStoredConfig(config).layers).toEqual({ order: ['logo', 'fractal', 'orbit'] })
+    config.layers.order = ['video', 'logo', 'fractal', 'orbit']
+    expect(toStoredConfig(config).layers).toEqual({ order: ['logo', 'fractal', 'orbit'] })
   })
 
   it('keeps the sections of layers that are on', () => {

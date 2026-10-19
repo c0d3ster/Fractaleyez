@@ -5,7 +5,7 @@ import { useAuth, useUser } from '@clerk/clerk-react'
 import { cameraStart, keepDisabledLayerSections, toStoredConfig } from '../../../config/storedConfig'
 import { AppConfig, ConfigItem, LayerKey, ParticleConfigSection, configDefaults } from '../../../config/configDefaults'
 import { LAYER_CAP } from '../../../config/layers'
-import { mergeLayers } from '../../../config/mergeLayers'
+import { mergeLayers, presentLayers } from '../../../config/mergeLayers'
 import { particleConfig } from '../../../config/particle.config'
 import { presets } from '../../../config/presets'
 import { getResolvedSpriteUrl, warmSpriteCache } from '../../../utils/spriteCache'
@@ -176,7 +176,7 @@ const normalizeLoadedPreset = (cfg: Record<string, unknown>): AppConfig => {
     },
     orbit: mergeConfigSection('orbit', cfg.orbit as Record<string, unknown> | undefined),
     video,
-    layers: mergeLayers(cfg.layers, video.clips.length),
+    layers: mergeLayers(cfg.layers, presentLayers(cfg, video.clips.length)),
     logo: mergeConfigSection('logo', cfg.logo as Record<string, unknown> | undefined),
   }
 }

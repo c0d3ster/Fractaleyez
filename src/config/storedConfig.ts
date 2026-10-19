@@ -1,6 +1,7 @@
 import {
   AppConfig,
   AudioConfigSection,
+  BlendMode,
   ColorConfigSection,
   ConfigItem,
   EffectsConfigSection,
@@ -12,14 +13,23 @@ import {
   ParticleConfigSection,
   StoredVideoSection,
   UserConfigSection,
+  configDefaults,
 } from './configDefaults'
+import { DEFAULT_LAYER_ORDER } from './layers'
 
 /** Where the camera pad starts when a preset loads, in pad units (within +/- Sway). Absent means centered. */
 export type StoredCamera = { x: number; y: number }
 
+/**
+ * `order` lists only the layers the preset includes, and only when their relative order differs from the default.
+ * `meta` holds a layer's non-default opacity and blend mode. Whether a layer is on comes from its sections being
+ * stored; `enabled` is only read from older presets, which stored it for every layer.
+ */
+export type StoredLayerMeta = { enabled?: boolean; opacity?: number; blendMode?: BlendMode }
+
 export type StoredLayersSection = {
   order?: LayerKey[]
-  meta?: Partial<Record<LayerKey, { enabled?: boolean; opacity?: number }>>
+  meta?: Partial<Record<LayerKey, StoredLayerMeta>>
 }
 
 type ItemValues<S> = { [K in keyof S]: S[K] extends { value: infer V } ? V : never }
@@ -48,15 +58,25 @@ export type StoredConfig = {
 const valuesOf = <S extends Record<string, ConfigItem>>(section: S): ItemValues<S> =>
   Object.fromEntries(Object.entries(section).map(([key, item]) => [key, item.value])) as ItemValues<S>
 
-const toStoredLayers = ({ order, meta }: LayersConfigSection): StoredLayersSection => ({
-  order,
-  meta: {
-    video: { enabled: meta.video.enabled.value, opacity: meta.video.opacity.value },
-    fractal: { enabled: meta.fractal.enabled.value, opacity: meta.fractal.opacity.value },
-    orbit: { enabled: meta.orbit.enabled.value, opacity: meta.orbit.opacity.value },
-    logo: { enabled: meta.logo.enabled.value, opacity: meta.logo.opacity.value },
-  },
-})
+/** Only what differs from the defaults, for the layers that are on; undefined when that is nothing. */
+const toStoredLayers = ({ order, meta }: LayersConfigSection): StoredLayersSection | undefined => {
+  const included = DEFAULT_LAYER_ORDER.filter(key => meta[key].enabled.value)
+  const includedOrder = order.filter(key => included.includes(key))
+  const storedOrder = includedOrder.some((key, i) => key !== included[i]) ? includedOrder : undefined
+  const storedMeta: Partial<Record<LayerKey, StoredLayerMeta>> = {}
+  included.forEach((key) => {
+    const base = configDefaults.layers.meta[key]
+    const { opacity, blendMode } = meta[key]
+    const changed: StoredLayerMeta = {
+      ...(opacity.value !== base.opacity.defaultValue && { opacity: opacity.value }),
+      ...(blendMode !== base.blendMode && { blendMode }),
+    }
+    if (Object.keys(changed).length > 0) storedMeta[key] = changed
+  })
+  const hasMeta = Object.keys(storedMeta).length > 0
+  if (!storedOrder && !hasMeta) return undefined
+  return { ...(storedOrder && { order: storedOrder }), ...(hasMeta && { meta: storedMeta }) }
+}
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null
 
@@ -80,11 +100,12 @@ export const toStoredCamera = (position: StoredCamera | undefined, bound: number
 
 /**
  * Sections that belong to a layer that is switched off are left out: the loader keeps whatever the previous preset had
- * for them (see keepDisabledLayerSections), and the layer's enabled flag is still stored in `layers`.
+ * for them (see keepDisabledLayerSections). A layer is on when its sections are stored, so no enabled flag is written.
  */
 export const toStoredConfig = (config: AppConfig, camera?: StoredCamera): StoredConfig => {
   const { user, fractal, audio, effects, color, particle, orbit, video, logo, layers } = config
   const on = (key: LayerKey): boolean => layers.meta[key].enabled.value
+  const storedLayers = toStoredLayers(layers)
   return {
     user: { ...valuesOf(user), ...toStoredCamera(camera, user.cameraBound.value) },
     ...(on('fractal') && { fractal: valuesOf(fractal) }),
@@ -94,7 +115,7 @@ export const toStoredConfig = (config: AppConfig, camera?: StoredCamera): Stored
     ...(on('orbit') && { particle: valuesOf(particle), orbit: valuesOf(orbit) }),
     ...(on('video') && { video: { clips: video.clips, index: video.index } }),
     ...(on('logo') && { logo: valuesOf(logo) }),
-    layers: toStoredLayers(layers),
+    ...(storedLayers && { layers: storedLayers }),
   }
 }
 
