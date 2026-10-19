@@ -5,8 +5,7 @@ import { ConfigSectionItems } from './ConfigSectionItems'
 import { ConfigSubAccordion } from './ConfigSubAccordion'
 import { ConfigVideoBody } from './ConfigVideoBody'
 import { ColorConfigBody } from './ColorConfigBody'
-import { LogoPad } from './LogoPad'
-import { LogoSpritePicker } from './LogoSpritePicker'
+import { LogoConfigBody } from './LogoConfigBody'
 import { ShapePad } from './ShapePad'
 import { ParticleSpriteHud } from '../huds'
 import { connectConfig } from './context/ConfigProvider'
@@ -46,7 +45,7 @@ const Entry = ({ entry, onChange, isOpen, toggleOpen }: EntryProps): React.React
       </ConfigCategory>
     )
   case 'logo':
-    return <ConfigCategory {...shared} bare><LogoSpritePicker /><ConfigSectionItems name='logo' onChange={onChange} /><LogoPad /></ConfigCategory>
+    return <ConfigCategory {...shared} bare><LogoConfigBody /></ConfigCategory>
   default:
     return <ConfigCategory {...shared} />
   }

@@ -4,6 +4,25 @@
   text-align: center;
 }
 
+/* Checkbox pills side by side on one line, sharing the width equally. Only for short labels (3D, Tilt, Zoom): each pill
+   gets a third of the row, so a long name would be cut off. */
+.config-checkbox-row {
+  display: flex;
+  gap: .5rem;
+  margin: 1rem;
+}
+
+.config-checkbox-row .config-checkbox-container {
+  flex: 1 1 0;
+  min-width: 0;
+  margin: 0;
+}
+
+.config-checkbox-row .config-checkbox-container label {
+  display: block;
+  padding: .5rem .25rem;
+}
+
 .config-checkbox-container label {
   margin: 0;
   width: 100%;
