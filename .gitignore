@@ -21,7 +21,7 @@ ssl/
 .env
 
 # Presets exported from the database for seeding (pnpm export-presets)
-scripts/presets.local.json
+scripts/presets.local*.json
 
 # Claude Code
 .claude/
