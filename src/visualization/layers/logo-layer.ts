@@ -36,19 +36,19 @@ const SWAY_LEAN_EXPONENT = 0.5
 
 // Endless zoom: flying into a point of the image. The image is drawn as a chain of copies, each `ZOOM_RATIO` times
 // smaller than the one before and placed so the focus point of every copy lands on the focus point of the one it sits
-// in (a Droste). Zooming scales the whole chain up around the focus. A copy is at full opacity at the logo's own size
-// (what Size sets, the same as with Zoom off) and fades out as it grows past that, gone once it is `ZOOM_FADE_GROWTH`
-// times bigger. By the time it is a whole level (`ZOOM_RATIO` times) bigger, the next copy inside it has grown to the
-// logo's own size and the chain starts over, which is invisible because it looks the same one level in. The copies
-// inside are only faded in while they are still too small to see, so nothing pops. Copy `j` sits `phase - j` levels
-// from full size.
+// in (a Droste). Zooming scales the whole chain up around the focus. A copy fades out around the logo's own size (what
+// Size sets, the same as with Zoom off): it is fully opaque until `ZOOM_FADE_START` levels (the logo's own size) and
+// is gone at `ZOOM_FADE_END` levels. By the time it is a whole level (`ZOOM_RATIO` times) bigger,
+// the next copy inside it has grown to the logo's own size and the chain starts over, which is invisible because it
+// looks the same one level in. The copies inside are only faded in while they are still too small to see, so nothing
+// pops. Copy `j` sits `phase - j` levels from full size.
 // Where the zoom dives in, as 0..1 across the image (y down); the pad sets it.
 type FocusPoint = { x: number, y: number }
 // How fast the zoom runs: doublings of the image's size per second at User Speed 1, whatever the ratio.
 const ZOOM_DOUBLINGS_PER_SPEED = 0.2
 const ZOOM_RATIO = 16
-const ZOOM_FADE_GROWTH = 8 // how many times bigger than the logo's own size a copy gets before it is gone
-const ZOOM_FADE_LEVELS = Math.log(ZOOM_FADE_GROWTH) / Math.log(ZOOM_RATIO) // the same, in levels (a level is a growth of ZOOM_RATIO)
+const ZOOM_FADE_START = 0 // levels from the logo's own size where a copy starts to fade out (a level is a growth of ZOOM_RATIO)
+const ZOOM_FADE_END = 0.5 // levels where it is gone; a copy is fully opaque at the logo's own size
 const ZOOM_COPIES = 4 // the levels from full size down to a speck, with the fade-in just past it
 const ZOOM_FADE_IN_START = -3 // levels below the logo's own size where the next copy starts to fade in; down here it is a speck
 const ZOOM_FADE_IN_END = -2
@@ -189,7 +189,7 @@ export class LogoLayer implements Layer {
       const scale = Math.pow(ZOOM_RATIO, level)
       mesh.scale.set(scale, scale, 1)
       mesh.position.set(px * (1 - scale), py * (1 - scale), 0)
-      const fadeOut = 1 - THREE.MathUtils.smoothstep(level, 0, ZOOM_FADE_LEVELS)
+      const fadeOut = 1 - THREE.MathUtils.smoothstep(level, ZOOM_FADE_START, ZOOM_FADE_END)
       const fadeIn = THREE.MathUtils.smoothstep(level, ZOOM_FADE_IN_START, ZOOM_FADE_IN_END)
       const material = this.zoomMaterials[i]
       if (material) material.opacity = fadeOut * fadeIn * opacity
