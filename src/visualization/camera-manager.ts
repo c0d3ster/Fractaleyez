@@ -5,6 +5,8 @@ import { userConfig } from '../config/user.config'
 // Half-life of the camera's chase toward the pointer; matches the Julia visualizer's steering ease.
 const CAMERA_EASE_HALF_LIFE_SECONDS = 0.7
 
+const clamp = (value: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, value))
+
 /** 1 when the Orbit camera moves toward the pad (Reverse Lean), -1 when it moves away from it. */
 export const cameraFollowSign = (): 1 | -1 => (window.config.user.reverseLean.value ? 1 : -1)
 
@@ -59,23 +61,13 @@ export class CameraManager {
 
     // Off, the camera moves opposite the pointer, so with the pointer (or the pad) at the top left the particles come in
     // from the bottom right, like the other effects that lean toward it. On (Reverse Lean), it moves toward the pointer.
+    // The bound is read fresh every frame: a camera outside a smaller Sway is pulled in to its edge, and a larger Sway
+    // just lets the same chase carry the camera further out from where it is, with no reset.
+    this.cameraBound = window.config.user.cameraBound.value
     const follow = cameraFollowSign()
-    if (this.camera!.position.x >= -this.cameraBound && this.camera!.position.x <= this.cameraBound) {
-      this.camera!.position.x += (follow * this.mouseX - this.camera!.position.x) * ease
-      if (this.camera!.position.x < -this.cameraBound) this.camera!.position.x = -this.cameraBound
-      if (this.camera!.position.x > this.cameraBound) this.camera!.position.x = this.cameraBound
-    }
-    if (this.camera!.position.y >= -this.cameraBound && this.camera!.position.y <= this.cameraBound) {
-      this.camera!.position.y += (-follow * this.mouseY - this.camera!.position.y) * ease
-      if (this.camera!.position.y < -this.cameraBound) this.camera!.position.y = -this.cameraBound
-      if (this.camera!.position.y > this.cameraBound) this.camera!.position.y = this.cameraBound
-    }
-
-    if (this.cameraBound !== window.config.user.cameraBound.value) {
-      this.camera!.position.y = 0
-      this.camera!.position.x = 0
-      this.cameraBound = window.config.user.cameraBound.value
-    }
+    const { position } = this.camera!
+    position.x = clamp(position.x + (follow * this.mouseX - position.x) * ease, -this.cameraBound, this.cameraBound)
+    position.y = clamp(position.y + (-follow * this.mouseY - position.y) * ease, -this.cameraBound, this.cameraBound)
 
     const nextFar = CameraManager.farForScale(window.config.user.scaleFactor.value)
     if (this.camera!.far !== nextFar) {
