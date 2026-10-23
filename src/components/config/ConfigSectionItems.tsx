@@ -26,7 +26,7 @@ import {
 // itself (min/max/step/onChange) is untouched, only the text shown next to the slider.
 const SLIDER_DISPLAY_FORMATTERS: Partial<Record<string, (value: number) => string>> = {
   scaleFactor: (value) => `${(value / 1000).toFixed(2)}x`,
-  cameraBound: (value) => (value / 100).toFixed(1),
+  sway: (value) => (value / 100).toFixed(1),
 }
 
 // Sliders whose track is painted in zones (Scale: the Julia view's regimes).

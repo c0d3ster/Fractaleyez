@@ -25,10 +25,10 @@ export const userConfig = {
   scaleFactor_MAX: 2000,
   scaleFactor_STEP_SIZE: 10,
 
-  cameraBound_DEFAULT: 0,
-  cameraBound_MIN: 0,
-  cameraBound_MAX: 500,
-  cameraBound_SEP_SIZE: 20,
+  sway_DEFAULT: 0,
+  sway_MIN: 0,
+  sway_MAX: 500,
+  sway_STEP_SIZE: 20,
 
   // The fractal is the reference: it always steers toward the camera pad. Off, Orbit and the logo go the same way. On,
   // both go the other way: the Orbit camera moves toward the pad (the vortex look) and the logo leans away from it.

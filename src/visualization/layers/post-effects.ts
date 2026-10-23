@@ -72,7 +72,7 @@ export class PostEffects {
   // z = 7 with a 60 degree field of view, so the matching world point on the shockwave's plane follows
   // from that frustum.
   private aimShockwaveAtCameraPointer = (): void => {
-    const range = window.config.user.cameraBound.value
+    const range = window.config.user.sway.value
     // Use where the camera has actually got to, not the pointer's target: the camera eases toward the pointer
     // (and stores y negated), and the Julia wave likewise uses its eased steering.
     const position = this.getCameraPosition()

@@ -6,7 +6,7 @@ import { snapToCenter } from './cameraPadGeometry'
 
 const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v))
 
-const getRange = (): number => mainWindow().config?.user?.cameraBound?.value ?? 100
+const getRange = (): number => mainWindow().config?.user?.sway?.value ?? 100
 // Spot on the pad as a percentage of its width/height, so the pad can fill whatever width it is given.
 const valToPercent = (v: number, range: number): string => `${((v / range) + 1) * 50}%`
 const fractionToVal = (fraction: number, range: number): number => (fraction * 2 - 1) * range

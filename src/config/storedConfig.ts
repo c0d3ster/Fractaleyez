@@ -50,8 +50,7 @@ export type StoredConfig = {
   particle?: Partial<ItemValues<ParticleConfigSection>> & { saturation?: number }
   orbit?: Partial<ItemValues<OrbitConfigSection>>
   video?: StoredVideoSection
-  // Lean was called tilt; older presets still carry it under that name and the loader reads it from there.
-  logo?: Partial<ItemValues<LogoConfigSection>> & { tilt?: boolean }
+  logo?: Partial<ItemValues<LogoConfigSection>>
   layers?: StoredLayersSection
 }
 
@@ -108,7 +107,7 @@ export const toStoredConfig = (config: AppConfig, camera?: StoredCamera): Stored
   const on = (key: LayerKey): boolean => layers.meta[key].enabled.value
   const storedLayers = toStoredLayers(layers)
   return {
-    user: { ...valuesOf(user), ...toStoredCamera(camera, user.cameraBound.value) },
+    user: { ...valuesOf(user), ...toStoredCamera(camera, user.sway.value) },
     ...(on('fractal') && { fractal: valuesOf(fractal) }),
     audio: valuesOf(audio),
     effects: valuesOf(effects),

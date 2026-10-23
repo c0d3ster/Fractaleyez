@@ -68,7 +68,7 @@ const hasSize = (image: unknown): image is { width: number; height: number } =>
   && typeof image.width === 'number' && typeof image.height === 'number' && image.width > 0 && image.height > 0
 
 /**
- * Logo as a layer: a stack of textured planes parented to its own camera, so it ignores `cameraBound` panning (the
+ * Logo as a layer: a stack of textured planes parented to its own camera, so it ignores `sway` panning (the
  * camera is never steered) and `scaleFactor`. Reacts to the shared beat: scale pulse, shake, glow (the Effects glow
  * switch), and a spin (speed 0 is still) that turns the whole stack around its vertical axis.
  */
@@ -254,9 +254,9 @@ export class LogoLayer implements Layer {
     // Turns toward where the camera has got to: its direction sets the way the logo leans (pad units, y down) and how
     // far it is through its swing sets how far. The angle at the edge of the swing also grows with Sway, but on a
     // curve (see SWAY_LEAN_EXPONENT), so a small Sway still leans clearly and none leans not at all.
-    const range = window.config.user.cameraBound.value
+    const range = window.config.user.sway.value
     const steer = window.getCameraSteer?.() ?? { x: 0, y: 0 }
-    const swayFactor = Math.pow(clamp(range / userConfig.cameraBound_MAX, 0, 1), SWAY_LEAN_EXPONENT)
+    const swayFactor = Math.pow(clamp(range / userConfig.sway_MAX, 0, 1), SWAY_LEAN_EXPONENT)
     // Leans toward the pad, like the fractal steers, unless Reverse Lean is on, which turns it the other way
     // (the same way the Orbit camera then goes).
     const leanDirection = window.config.user.reverseLean.value ? -1 : 1
