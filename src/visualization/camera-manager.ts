@@ -5,6 +5,11 @@ import { userConfig } from '../config/user.config'
 // Half-life of the camera's chase toward the pointer; matches the Julia visualizer's steering ease.
 const CAMERA_EASE_HALF_LIFE_SECONDS = 0.7
 
+// Half-life of the Sway bound's glide to a new value; shorter than the camera's own chase so the camera stays the slower of the two.
+const CAMERA_BOUND_EASE_HALF_LIFE_SECONDS = 0.2
+// Within this many pad units of its target the bound just lands on it, so the glide does not trail off forever.
+const BOUND_SNAP = 0.5
+
 const clamp = (value: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, value))
 
 /** 1 when the Orbit camera moves toward the pad (Reverse Lean), -1 when it moves away from it. */
@@ -61,9 +66,12 @@ export class CameraManager {
 
     // Off, the camera moves opposite the pointer, so with the pointer (or the pad) at the top left the particles come in
     // from the bottom right, like the other effects that lean toward it. On (Reverse Lean), it moves toward the pointer.
-    // The bound is read fresh every frame: a camera outside a smaller Sway is pulled in to its edge, and a larger Sway
+    // The bound glides toward Sway rather than jumping, since the slider moves in coarse steps and a camera pinned to the
+    // bound would follow each step as a jump. A camera outside a smaller bound is pulled in to its edge, and a larger one
     // just lets the same chase carry the camera further out from where it is, with no reset.
-    this.cameraBound = window.config.user.cameraBound.value
+    const boundTarget = window.config.user.cameraBound.value
+    const boundEase = 1 - Math.pow(0.5, deltaTimeMs / 1000 / CAMERA_BOUND_EASE_HALF_LIFE_SECONDS)
+    this.cameraBound = Math.abs(boundTarget - this.cameraBound) < BOUND_SNAP ? boundTarget : this.cameraBound + (boundTarget - this.cameraBound) * boundEase
     const follow = cameraFollowSign()
     const { position } = this.camera!
     position.x = clamp(position.x + (follow * this.mouseX - position.x) * ease, -this.cameraBound, this.cameraBound)
