@@ -50,7 +50,8 @@ export type StoredConfig = {
   particle?: Partial<ItemValues<ParticleConfigSection>> & { saturation?: number }
   orbit?: Partial<ItemValues<OrbitConfigSection>>
   video?: StoredVideoSection
-  logo?: Partial<ItemValues<LogoConfigSection>>
+  // Lean was called tilt; older presets still carry it under that name and the loader reads it from there.
+  logo?: Partial<ItemValues<LogoConfigSection>> & { tilt?: boolean }
   layers?: StoredLayersSection
 }
 

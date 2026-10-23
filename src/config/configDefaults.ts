@@ -42,6 +42,7 @@ export type UserConfigSection = {
   rotationSpeed: SliderItem
   scaleFactor: SliderItem
   cameraBound: SliderItem
+  reverseLean: CheckboxItem // Orbit and the logo go against the fractal's direction (the fractal always steers toward the camera pad)
 }
 
 export type FractalConfigSection = {
@@ -118,7 +119,7 @@ export type LayersConfigSection = {
 export type LogoConfigSection = {
   sprite: MultiselectItem // single-select via min:1,max:1
   threeD: CheckboxItem // off is flat: one plane that spins in the screen plane
-  tilt: CheckboxItem // leans toward the camera position
+  lean: CheckboxItem // leans toward the camera position
   zoom: CheckboxItem // endless zoom into the image, the user Speed sets its rate
   size: SliderItem // multiplier on the logo's base size
   spinSpeed: SliderItem
@@ -188,6 +189,7 @@ export const configDefaults: AppConfig = {
       max: userConfig.cameraBound_MAX,
       step: userConfig.cameraBound_SEP_SIZE,
     },
+    reverseLean: { name: 'Reverse Lean', type: 'checkbox', defaultValue: userConfig.reverseLean_DEFAULT, value: userConfig.reverseLean_DEFAULT },
   },
   fractal: {
     tour: {
@@ -272,7 +274,7 @@ export const configDefaults: AppConfig = {
   logo: {
     sprite: { name: 'Sprite', type: 'multiselect', defaultValue: [logoConfig.sprite_DEFAULT], value: [logoConfig.sprite_DEFAULT], min: 1, max: 1 },
     threeD: { name: '3D', type: 'checkbox', defaultValue: logoConfig.threeD_DEFAULT, value: logoConfig.threeD_DEFAULT },
-    tilt: { name: 'Tilt', type: 'checkbox', defaultValue: logoConfig.tilt_DEFAULT, value: logoConfig.tilt_DEFAULT },
+    lean: { name: 'Lean', type: 'checkbox', defaultValue: logoConfig.lean_DEFAULT, value: logoConfig.lean_DEFAULT },
     zoom: { name: 'Zoom', type: 'checkbox', defaultValue: logoConfig.zoom_DEFAULT, value: logoConfig.zoom_DEFAULT },
     size: { name: 'Size', type: 'slider', defaultValue: logoConfig.size_DEFAULT, value: logoConfig.size_DEFAULT, min: logoConfig.size_MIN, max: logoConfig.size_MAX, step: logoConfig.size_STEP_SIZE },
     spinSpeed: { name: 'Spin Speed', type: 'slider', defaultValue: logoConfig.spinSpeed_DEFAULT, value: logoConfig.spinSpeed_DEFAULT, min: logoConfig.spinSpeed_MIN, max: logoConfig.spinSpeed_MAX, step: logoConfig.spinSpeed_STEP_SIZE },

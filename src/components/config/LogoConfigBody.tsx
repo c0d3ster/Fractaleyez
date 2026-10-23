@@ -12,12 +12,12 @@ const LogoConfigBodyInner = ({ updateConfigItem }: LogoConfigBodyProps): React.R
   <>
     <LogoSpritePicker />
     <div className='config-checkbox-row'>
-      <ConfigSectionItems name='logo' only={['threeD', 'tilt', 'zoom']} onChange={updateConfigItem} />
+      <ConfigSectionItems name='logo' only={['threeD', 'lean', 'zoom']} onChange={updateConfigItem} />
     </div>
     <ConfigSectionItems name='logo' only={['size', 'spinSpeed', 'shake']} onChange={updateConfigItem} />
     <LogoPad />
   </>
 )
 
-/** The Logo config's layout: the sprite picker, the 3D, Tilt and Zoom chips on one line, the sliders, then the position pad. */
+/** The Logo config's layout: the sprite picker, the 3D, Lean and Zoom chips on one line, the sliders, then the position pad. */
 export const LogoConfigBody = connectConfig(LogoConfigBodyInner)

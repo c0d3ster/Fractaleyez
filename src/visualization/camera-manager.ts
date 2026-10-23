@@ -5,6 +5,9 @@ import { userConfig } from '../config/user.config'
 // Half-life of the camera's chase toward the pointer; matches the Julia visualizer's steering ease.
 const CAMERA_EASE_HALF_LIFE_SECONDS = 0.7
 
+/** 1 when the Orbit camera moves toward the pad (Reverse Lean), -1 when it moves away from it. */
+export const cameraFollowSign = (): 1 | -1 => (window.config.user.reverseLean.value ? 1 : -1)
+
 export class CameraManager {
   camera: THREE.PerspectiveCamera | null
   cameraBound: number
@@ -54,15 +57,16 @@ export class CameraManager {
     this.camera!.lookAt(this.focusPoint)
     const ease = 1 - Math.pow(0.5, deltaTimeMs / 1000 / CAMERA_EASE_HALF_LIFE_SECONDS)
 
-    // The camera moves opposite the pointer, so with the pointer (or the pad) at the top left the particles come in from
-    // the bottom right, like the other effects that lean toward it.
+    // Off, the camera moves opposite the pointer, so with the pointer (or the pad) at the top left the particles come in
+    // from the bottom right, like the other effects that lean toward it. On (Reverse Lean), it moves toward the pointer.
+    const follow = cameraFollowSign()
     if (this.camera!.position.x >= -this.cameraBound && this.camera!.position.x <= this.cameraBound) {
-      this.camera!.position.x += (-this.mouseX - this.camera!.position.x) * ease
+      this.camera!.position.x += (follow * this.mouseX - this.camera!.position.x) * ease
       if (this.camera!.position.x < -this.cameraBound) this.camera!.position.x = -this.cameraBound
       if (this.camera!.position.x > this.cameraBound) this.camera!.position.x = this.cameraBound
     }
     if (this.camera!.position.y >= -this.cameraBound && this.camera!.position.y <= this.cameraBound) {
-      this.camera!.position.y += (this.mouseY - this.camera!.position.y) * ease
+      this.camera!.position.y += (-follow * this.mouseY - this.camera!.position.y) * ease
       if (this.camera!.position.y < -this.cameraBound) this.camera!.position.y = -this.cameraBound
       if (this.camera!.position.y > this.cameraBound) this.camera!.position.y = this.cameraBound
     }

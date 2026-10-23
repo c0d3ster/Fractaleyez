@@ -3,7 +3,7 @@ import * as THREE from 'three'
 import { AudioAnalysedDataForVisualization } from '../../audioanalysis/audio-analysed-data'
 import { DEFAULT_ENABLED_BANDS } from '../../audioanalysis/onset-bands'
 import { getParticleCrossfadeDurationMs, MAX_CROSSFADE_GENERATIONS } from '../../config/visualizer.config'
-import { CameraManager } from '../camera-manager'
+import { CameraManager, cameraFollowSign } from '../camera-manager'
 import { HopalongVisualizer } from '../hopalong-visualizer'
 import { Layer } from './layer'
 
@@ -52,7 +52,7 @@ export class OrbitLayer implements Layer {
 
   /**
    * Moves the camera toward the pointer. The pipeline calls this every frame, not only while Orbit draws: the camera
-   * position also steers the Logo's tilt and the Julia dive, so it has to keep following the pointer with Orbit off.
+   * position also steers the Logo's lean and the Julia dive, so it has to keep following the pointer with Orbit off.
    */
   stepCamera = (deltaTime: number): void => {
     this.cameraManager.manageCameraPosition(deltaTime)
@@ -73,10 +73,11 @@ export class OrbitLayer implements Layer {
     this.visualizer.destroyVisualization()
   }
 
-  /** Where the camera has actually got to, in the camera pad's units (the camera moves opposite the pad on both axes). */
+  /** Where the camera has actually got to, in the camera pad's units (the camera's y is the pad's y inverted, and both axes flip when it moves away from the pad). */
   getCameraTrailPosition = (): { x: number; y: number } => {
     const { position } = this.cameraManager.getCamera()
-    return { x: -position.x, y: position.y }
+    const follow = cameraFollowSign()
+    return { x: follow * position.x, y: -follow * position.y }
   }
 
   /**

@@ -4,7 +4,7 @@
   text-align: center;
 }
 
-/* Checkbox pills side by side on one line, sharing the width equally. Only for short labels (3D, Tilt, Zoom): each pill
+/* Checkbox pills side by side on one line, sharing the width equally. Only for short labels (3D, Lean, Zoom): each pill
    gets a third of the row, so a long name would be cut off. */
 .config-checkbox-row {
   display: flex;
