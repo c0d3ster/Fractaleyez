@@ -10,7 +10,7 @@ import { ConfigVideo } from './ConfigVideo'
 import { copyStyles } from '../../styles/AppStyleCopier'
 import { DISPLAY_ORDER } from '../../config/layers'
 import { connectConfig, ConfigContext, ConfigContextValue } from './context/ConfigProvider'
-import { CameraTouchpad } from './CameraTouchpad'
+import { UserConfigBody } from './UserConfigBody'
 import { ShapePad } from './ShapePad'
 import { LogConfigButton } from './LogConfigButton'
 import { ColorConfigBody } from './ColorConfigBody'
@@ -179,9 +179,13 @@ const ExternalWindowBridge = ({
                   <ShapePad />
                 </ConfigCategory>
               ) : null}
-              {entry === 'user' || entry === 'effects' || entry === 'audio' ? (
+              {entry === 'user' ? (
+                <ConfigCategory name='user' onChange={updateConfigItem} isOpen={true} toggleOpen={() => null} expanded popup bare>
+                  <UserConfigBody />
+                </ConfigCategory>
+              ) : null}
+              {entry === 'effects' || entry === 'audio' ? (
                 <ConfigCategory name={entry} onChange={updateConfigItem} isOpen={true} toggleOpen={() => null} expanded popup>
-                  {entry === 'user' ? <CameraTouchpad /> : null}
                   {entry === 'audio' ? <><FrequencyHud /><BeatHud /></> : null}
                 </ConfigCategory>
               ) : null}

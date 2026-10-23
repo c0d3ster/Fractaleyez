@@ -79,7 +79,7 @@ export class LogoLayer implements Layer {
   // so the back shows the image mirrored. The group's scale sets the logo size and, on z, the thickness; the slices
   // sit at unit z offsets in [-0.5, 0.5]. Swappable for a real extrusion later.
   private readonly geometry = new THREE.PlaneGeometry(1, 1)
-  // The tilt toward the camera position turns this pivot, and the spin turns `logo` inside it, so the two compose
+  // The lean toward the camera position turns this pivot, and the spin turns `logo` inside it, so the two compose
   // (the spin stays about the logo's own axis, whichever way it leans).
   private readonly pivot = new THREE.Group()
   private readonly logo = new THREE.Group()
@@ -257,7 +257,10 @@ export class LogoLayer implements Layer {
     const range = window.config.user.cameraBound.value
     const steer = window.getCameraSteer?.() ?? { x: 0, y: 0 }
     const swayFactor = Math.pow(clamp(range / userConfig.cameraBound_MAX, 0, 1), SWAY_LEAN_EXPONENT)
-    const lean = logo.tilt.value && range > 0 ? logoConfig.tilt_MAX_RADIANS * swayFactor / range : 0
+    // Leans toward the pad, like the fractal steers, unless Reverse Lean is on, which turns it the other way
+    // (the same way the Orbit camera then goes).
+    const leanDirection = window.config.user.reverseLean.value ? -1 : 1
+    const lean = logo.lean.value && range > 0 ? leanDirection * logoConfig.lean_MAX_RADIANS * swayFactor / range : 0
     this.pivot.rotation.set(
       clamp(steer.y, -range, range) * lean,
       clamp(steer.x, -range, range) * lean,

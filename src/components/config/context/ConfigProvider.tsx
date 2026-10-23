@@ -154,6 +154,14 @@ const colorSectionFrom = (cfg: Record<string, unknown>): Record<string, unknown>
   return { saturation: legacySaturation, ...color }
 }
 
+/** The logo's Lean switch used to be called tilt; older presets (cached or stored) still carry it under that name. */
+const logoSectionFrom = (cfg: Record<string, unknown>): Record<string, unknown> | undefined => {
+  const logo = isRecord(cfg.logo) ? cfg.logo : undefined
+  if (!logo || logo.tilt === undefined) return logo
+  const { tilt, ...rest } = logo
+  return { lean: tilt, ...rest }
+}
+
 /** Presets from disk/API may omit multiselect metadata or use older shapes — merge with defaults so UI + viz stay valid. */
 const normalizeLoadedPreset = (cfg: Record<string, unknown>): AppConfig => {
   const particle = mergeConfigSection('particle', cfg.particle as Record<string, unknown> | undefined) as ParticleConfigSection
@@ -174,7 +182,7 @@ const normalizeLoadedPreset = (cfg: Record<string, unknown>): AppConfig => {
     orbit: mergeConfigSection('orbit', cfg.orbit as Record<string, unknown> | undefined),
     video,
     layers: mergeLayers(cfg.layers, presentLayers(cfg, video.clips.length)),
-    logo: mergeConfigSection('logo', cfg.logo as Record<string, unknown> | undefined),
+    logo: mergeConfigSection('logo', logoSectionFrom(cfg)),
   }
 }
 

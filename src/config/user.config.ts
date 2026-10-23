@@ -29,4 +29,8 @@ export const userConfig = {
   cameraBound_MIN: 0,
   cameraBound_MAX: 500,
   cameraBound_SEP_SIZE: 20,
+
+  // The fractal is the reference: it always steers toward the camera pad. Off, Orbit and the logo go the same way. On,
+  // both go the other way: the Orbit camera moves toward the pad (the vortex look) and the logo leans away from it.
+  reverseLean_DEFAULT: false,
 } as const

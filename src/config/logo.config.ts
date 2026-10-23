@@ -2,8 +2,8 @@ export const logoConfig = {
   sprite_DEFAULT: 'fractaleye.png',
 
   threeD_DEFAULT: true, // off is a flat logo that spins in the screen plane
-  tilt_DEFAULT: true, // leans toward the camera position
-  tilt_MAX_RADIANS: 0.55, // the lean with the camera at the edge of the largest Sway (about 31 degrees)
+  lean_DEFAULT: true, // leans toward the camera position
+  lean_MAX_RADIANS: 0.55, // the lean with the camera at the edge of the largest Sway (about 31 degrees)
 
   baseHeightFraction: 0.6, // the fraction of the view height the logo fills at Size 1 and no beat
 
