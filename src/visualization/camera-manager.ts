@@ -17,7 +17,7 @@ export const cameraFollowSign = (): 1 | -1 => (window.config.user.reverseLean.va
 
 export class CameraManager {
   camera: THREE.PerspectiveCamera | null
-  cameraBound: number
+  sway: number
   mouseX: number
   mouseY: number
   deltaTime: number
@@ -26,7 +26,7 @@ export class CameraManager {
 
   constructor() {
     this.camera = null
-    this.cameraBound = 100
+    this.sway = 100
     this.mouseX = 0
     this.mouseY = 0
     this.deltaTime = 0
@@ -41,7 +41,7 @@ export class CameraManager {
     const far = CameraManager.farForScale(window.config.user.scaleFactor.value)
     this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1, far)
     this.camera.position.z = cameraZ
-    this.cameraBound = window.config.user.cameraBound.value
+    this.sway = window.config.user.sway.value
   }
 
   private static farForScale(scaleFactor: number): number {
@@ -69,13 +69,13 @@ export class CameraManager {
     // The bound glides toward Sway rather than jumping, since the slider moves in coarse steps and a camera pinned to the
     // bound would follow each step as a jump. A camera outside a smaller bound is pulled in to its edge, and a larger one
     // just lets the same chase carry the camera further out from where it is, with no reset.
-    const boundTarget = window.config.user.cameraBound.value
+    const boundTarget = window.config.user.sway.value
     const boundEase = 1 - Math.pow(0.5, deltaTimeMs / 1000 / CAMERA_BOUND_EASE_HALF_LIFE_SECONDS)
-    this.cameraBound = Math.abs(boundTarget - this.cameraBound) < BOUND_SNAP ? boundTarget : this.cameraBound + (boundTarget - this.cameraBound) * boundEase
+    this.sway = Math.abs(boundTarget - this.sway) < BOUND_SNAP ? boundTarget : this.sway + (boundTarget - this.sway) * boundEase
     const follow = cameraFollowSign()
     const { position } = this.camera!
-    position.x = clamp(position.x + (follow * this.mouseX - position.x) * ease, -this.cameraBound, this.cameraBound)
-    position.y = clamp(position.y + (-follow * this.mouseY - position.y) * ease, -this.cameraBound, this.cameraBound)
+    position.x = clamp(position.x + (follow * this.mouseX - position.x) * ease, -this.sway, this.sway)
+    position.y = clamp(position.y + (-follow * this.mouseY - position.y) * ease, -this.sway, this.sway)
 
     const nextFar = CameraManager.farForScale(window.config.user.scaleFactor.value)
     if (this.camera!.far !== nextFar) {

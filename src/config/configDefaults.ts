@@ -41,7 +41,7 @@ export type UserConfigSection = {
   speed: SliderItem
   rotationSpeed: SliderItem
   scaleFactor: SliderItem
-  cameraBound: SliderItem
+  sway: SliderItem
   reverseLean: CheckboxItem // Orbit and the logo go against the fractal's direction (the fractal always steers toward the camera pad)
 }
 
@@ -180,14 +180,14 @@ export const configDefaults: AppConfig = {
       max: userConfig.scaleFactor_MAX,
       step: userConfig.scaleFactor_STEP_SIZE,
     },
-    cameraBound: {
+    sway: {
       name: 'Sway',
       type: 'slider',
-      defaultValue: userConfig.cameraBound_DEFAULT,
-      value: userConfig.cameraBound_DEFAULT,
-      min: userConfig.cameraBound_MIN,
-      max: userConfig.cameraBound_MAX,
-      step: userConfig.cameraBound_SEP_SIZE,
+      defaultValue: userConfig.sway_DEFAULT,
+      value: userConfig.sway_DEFAULT,
+      min: userConfig.sway_MIN,
+      max: userConfig.sway_MAX,
+      step: userConfig.sway_STEP_SIZE,
     },
     reverseLean: { name: 'Reverse Lean', type: 'checkbox', defaultValue: userConfig.reverseLean_DEFAULT, value: userConfig.reverseLean_DEFAULT },
   },

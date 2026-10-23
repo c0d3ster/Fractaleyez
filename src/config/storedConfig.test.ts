@@ -3,12 +3,12 @@ import { AppConfig, LayerKey, configDefaults } from './configDefaults'
 import { presentLayers } from './mergeLayers'
 import { cameraStart, keepDisabledLayerSections, toStoredConfig } from './storedConfig'
 
-const withLayers = (enabled: Record<LayerKey, boolean>, bound = configDefaults.user.cameraBound.value): AppConfig => {
+const withLayers = (enabled: Record<LayerKey, boolean>, bound = configDefaults.user.sway.value): AppConfig => {
   const config = structuredClone(configDefaults)
   ;(Object.keys(enabled) as LayerKey[]).forEach((key) => {
     config.layers.meta[key].enabled.value = enabled[key]
   })
-  config.user.cameraBound.value = bound
+  config.user.sway.value = bound
   return config
 }
 

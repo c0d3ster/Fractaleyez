@@ -13,9 +13,9 @@ type UserConfigBodyProps = {
 
 const UserConfigBodyInner = ({ config, updateConfigItem }: UserConfigBodyProps): React.ReactElement => (
   <>
-    <ConfigSectionItems name='user' only={['speed', 'rotationSpeed', 'scaleFactor', 'cameraBound']} onChange={updateConfigItem} />
+    <ConfigSectionItems name='user' only={['speed', 'rotationSpeed', 'scaleFactor', 'sway']} onChange={updateConfigItem} />
     <CameraTouchpad />
-    <div style={{ opacity: config.user.cameraBound.value === 0 ? INACTIVE_OPACITY : 1, transition: 'opacity 0.2s ease' }}>
+    <div style={{ opacity: config.user.sway.value === 0 ? INACTIVE_OPACITY : 1, transition: 'opacity 0.2s ease' }}>
       <ConfigSectionItems name='user' only={['reverseLean']} onChange={updateConfigItem} />
     </div>
   </>

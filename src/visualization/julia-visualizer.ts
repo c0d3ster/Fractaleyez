@@ -120,7 +120,7 @@ const switcherooHopPoints = (speed: number): number => Math.max(
 )
 
 // Steering reads the same shared camera position the Camera Position pad writes (and Hopalong's
-// camera reads), in pad units clamped to +/- user.cameraBound (0-500); the shift per pad unit is shared
+// camera reads), in pad units clamped to +/- user.sway (0-500); the shift per pad unit is shared
 // with the Hopalong shockwave so both waves start from the same spot.
 const STEER_EMA_HALF_LIFE_SECONDS = 0.7
 
@@ -674,7 +674,7 @@ export class JuliaVisualizer {
     // Steering: the convergence point moves toward where the camera pad / mouse points (pad y grows downward,
     // the shader's offset y grows upward, hence the flip). The shift is in normalized frame space, so it
     // steers the dive without breaking the self-similar loop.
-    const range = window.config.user.cameraBound.value
+    const range = window.config.user.sway.value
     const pad = window.getVirtualCameraPosition?.() ?? { x: 0, y: 0 }
     const padX = Math.max(-range, Math.min(range, pad.x))
     const padY = Math.max(-range, Math.min(range, pad.y))
