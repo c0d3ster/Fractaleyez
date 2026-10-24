@@ -12,10 +12,11 @@ import { getParticleCrossfadeDurationMs } from '../../config/visualizer.config'
 // Changing the count morphs between the two folds, over the same crossfade duration as the other layers use (the user's
 // Crossfade setting; 0 is a plain cut): both are computed for the same pixel and their sample positions
 // are blended, so the wedges swirl into place instead of snapping.
-// The other two modes cut the screen into `count` equal strips instead. One strip (the source, the middle one unless the
-// user picks another) is left as it is and every other strip is its reflection, each one the reflection of the one next to it
-// on the way out: horizontal stacks the strips (mirror lines are horizontal), vertical puts them side by side (mirror
-// lines are vertical). Moving the source morphs like a change of count does.
+// The other two modes cut the screen into `count` equal strips instead. Every strip shows the same slice of the picture,
+// one strip wide, around the source position (the exact middle unless the user picks another), and each strip is the
+// reflection of the one next to it: horizontal stacks the strips (mirror lines are horizontal), vertical puts them side by
+// side (mirror lines are vertical). When the source sits at a strip's own center, that strip is the picture as it is and the
+// rest are its reflections. Moving the source morphs like a change of count does.
 const fragmentShader = `
   uniform float countFrom;
   uniform float countTo;
@@ -25,15 +26,16 @@ const fragmentShader = `
   uniform float sourceFrom;
   uniform float sourceTo;
 
-  // Where a point t (0 to 1) along the screen reads from: the matching spot in the source strip, which source (0 to 1
-  // across the screen) falls in. Strips an odd number away from it are flipped.
+  // Where a point t (0 to 1) along the screen reads from: the matching spot in the slice around source (0 to 1 across the
+  // screen). Strips an odd number away from the one source falls in are flipped.
   float strip(float t, float count, float source) {
     float scaled = t * count;
     float segment = floor(scaled);
     float local = scaled - segment;
     float sourceStrip = clamp(floor(source * count), 0.0, count - 1.0);
     if (mod(segment - sourceStrip, 2.0) > 0.5) local = 1.0 - local;
-    return (sourceStrip + local) / count;
+    float center = clamp(source, 0.5 / count, 1.0 - 0.5 / count);
+    return center + (local - 0.5) / count;
   }
 
   vec2 fold(vec2 uv, float count, float mode, float source) {
