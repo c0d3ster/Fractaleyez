@@ -15,6 +15,8 @@ type EffectChipsProps = {
   kaleidoscope: boolean
   kaleidoscopeLabel: string
   kaleidoscopeCount: number
+  mode: number
+  onModeChange: (mode: number) => void
   onToggleKaleidoscope: (enabled: boolean) => void
 }
 
@@ -32,6 +34,13 @@ const DESCRIPTIONS: Readonly<Record<EffectKey, string>> = {
 }
 
 const KALEIDOSCOPE_DESCRIPTION = 'Mirrors the picture around the center. Drag the dial to choose how many mirrors.'
+
+// The kaleidoscope's modes, in the order of the stored value: each button's icon is a dotted line (or circle) for the mirror axis.
+const MODES: readonly { label: string, description: string, icon: React.ReactElement }[] = [
+  { label: 'Radial', description: 'Mirrors around the center in wedges.', icon: <circle cx='12' cy='12' r='8' /> },
+  { label: 'Horizontal', description: 'Stacks mirrored strips, each flipped over the last.', icon: <line x1='3' y1='12' x2='21' y2='12' /> },
+  { label: 'Vertical', description: 'Puts mirrored strips side by side, each flipped over the last.', icon: <line x1='12' y1='3' x2='12' y2='21' /> },
+]
 
 const PULSE_MS = 280
 const PULSE_SCALE_KEYFRAMES: Keyframe[] = [
@@ -51,7 +60,7 @@ const PULSE_FLASH_KEYFRAMES: Keyframe[] = [
  * and flashes on a beat when it is acting.
  * Together with the galaxy above them they show what the effects are doing and let you turn them on and off.
  */
-export const EffectChips = React.memo(forwardRef<EffectChipsHandle, EffectChipsProps>(({ effects, labels, onToggle, kaleidoscope, kaleidoscopeLabel, kaleidoscopeCount, onToggleKaleidoscope }, ref): React.ReactElement => {
+export const EffectChips = React.memo(forwardRef<EffectChipsHandle, EffectChipsProps>(({ effects, labels, onToggle, kaleidoscope, kaleidoscopeLabel, kaleidoscopeCount, mode, onModeChange, onToggleKaleidoscope }, ref): React.ReactElement => {
   const chips = useRef<Partial<Record<EffectKey, HTMLButtonElement | null>>>({})
   // Built the first time a chip flashes and replayed after that; making new animations on every beat is what costs.
   const flashes = useRef<Partial<Record<EffectKey, Animation[]>>>({})
@@ -83,6 +92,23 @@ export const EffectChips = React.memo(forwardRef<EffectChipsHandle, EffectChipsP
 
   return (
     <div className='effect-chips-box'>
+      <div className='kaleidoscope-modes' role='group' aria-label='Kaleidoscope mode'>
+        {MODES.map(({ label, description, icon }, index) => (
+          <button
+            key={label}
+            type='button'
+            className={`kaleidoscope-mode${mode === index ? ' kaleidoscope-mode--on' : ''}`}
+            title={`${label}: ${description}`}
+            aria-label={label}
+            aria-pressed={mode === index}
+            onClick={() => onModeChange(index)}
+          >
+            <svg viewBox='0 0 24 24' aria-hidden='true' fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeDasharray='0.1 4'>
+              {icon}
+            </svg>
+          </button>
+        ))}
+      </div>
       <div className='effect-chips' role='group' aria-label='Effects'>
         <button
           type='button'
