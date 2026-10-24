@@ -27,13 +27,15 @@ const fragmentShader = `
   uniform float sourceTo;
 
   // Where a point t (0 to 1) along the screen reads from: the matching spot in the slice around source (0 to 1 across the
-  // screen). Strips an odd number away from the one source falls in are flipped.
+  // screen). With source at a strip's own center that strip is left as it is and the strips an odd number away from it are
+  // flipped; anywhere else (the default, the exact middle) it is the first strip that is left as it is.
   float strip(float t, float count, float source) {
     float scaled = t * count;
     float segment = floor(scaled);
     float local = scaled - segment;
-    float sourceStrip = clamp(floor(source * count), 0.0, count - 1.0);
-    if (mod(segment - sourceStrip, 2.0) > 0.5) local = 1.0 - local;
+    float sourcePlace = source * count;
+    float anchor = abs(fract(sourcePlace) - 0.5) < 0.02 ? clamp(floor(sourcePlace), 0.0, count - 1.0) : 0.0;
+    if (mod(segment - anchor, 2.0) > 0.5) local = 1.0 - local;
     float center = clamp(source, 0.5 / count, 1.0 - 0.5 / count);
     return center + (local - 0.5) / count;
   }
