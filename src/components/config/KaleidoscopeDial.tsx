@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 
 import { ColorState } from '../../config/colorState'
 import { Arm, armOf, colorShiftOffset, coords, CYCLONE_SPLIT, dotScaleOf, lighten, paletteRgb, RADIUS, ShapeVariant, starScaleOf, starsPerArm, TAU, toCss } from './kaleidoscopeGalaxy'
 import { EffectChips, EffectChipsHandle } from './EffectChips'
-import { EffectKey, MotionEffects, RING_END_RADIUS, useGalaxyMotion } from './useGalaxyMotion'
+import { EffectKey, LAPS_PER_SEC_PER_UNIT, MotionEffects, RING_END_RADIUS, useGalaxyMotion } from './useGalaxyMotion'
 import './KaleidoscopeDial.css'
 
 const HANDLE_RADIUS = 7
@@ -16,6 +16,27 @@ const DEAD_ZONE = 6
 // maximum does not wrap straight back onto the minimum.
 const SWEEP = TAU * (330 / 360)
 
+// The straight mirror modes (horizontal, vertical) show the picture as a square cut into strips, not a disc cut into wedges.
+// The square fills the dial the disc fits in, and the handle rides its edge.
+const SQUARE_HALF = RADIUS
+const HORIZONTAL = 1
+const VERTICAL = 2
+// Every strip is its own turning copy of the galaxy (a mirror of something turning has to turn the other way), so past
+// this many the dial stops drawing more; they would be a pixel or two wide anyway.
+const MAX_DRAWN_STRIPS = 16
+// Reaches past the square's corners, so the strips are cut by their own edges and never by a disc.
+const UNCLIPPED_RADIUS = VIEW_HALF * 1.5
+
+/** Custom properties are fine in a style object, they just need saying so. */
+type SpinStyle = React.CSSProperties & Record<`--${string}`, string>
+
+/** A strip's picture is split in two so the haze of every strip can share one blur while the stars stay sharp. */
+type ZonePart = 'all' | 'haze' | 'stars'
+
+const pct = (units: number): string => `${(units / (VIEW_HALF * 2)) * 100}%`
+
+// How soft the haze under the galaxy is, in the dial's own units.
+const HAZE_BLUR = 2.4
 const HAZE_OPACITY_WITHOUT_GLOW = 0.45
 // With the kaleidoscope off, the mirrored galaxy it would make is drawn over the plain one this faintly.
 const GHOST_OPACITY = 0.25
@@ -32,6 +53,12 @@ type KaleidoscopeDialProps = {
   step: number
   /** Whether the kaleidoscope effect is on. Off, the dial shows the plain galaxy with the mirrored one faded over it. */
   kaleidoscope: boolean
+  /** How it mirrors: 0 radial, 1 horizontal, 2 vertical (the buttons above the kaleidoscope chip). */
+  mode: number
+  /** Where across the dial (0 to 1) the strip that stays as it is sits; the rest are its reflections. Click the dial to move it. */
+  source: number
+  onSourceChange: (source: number) => void
+  onModeChange: (mode: number) => void
   /** The live Color config: the galaxy is painted with the palette, so changing it changes the dial. */
   palette: ColorState
   /** The Scale setting: bigger scale, bigger stars and clouds. */
@@ -53,6 +80,13 @@ type KaleidoscopeDialProps = {
   onReset: () => void
 }
 
+/** Where the pointer is in the dial's own drawing units, with the center at 0. */
+const unitsAt = (event: React.PointerEvent<HTMLDivElement>): { x: number, y: number } => {
+  const rect = event.currentTarget.getBoundingClientRect()
+  const scale = (VIEW_HALF * 2) / rect.width
+  return { x: (event.clientX - (rect.left + rect.width / 2)) * scale, y: (event.clientY - (rect.top + rect.height / 2)) * scale }
+}
+
 /** Drag position to a count: a knob, so the pointer's angle maps evenly across the range and the handle stays under it. */
 const countAtPointer = (event: React.PointerEvent<HTMLDivElement>, { min, max, step }: Pick<KaleidoscopeDialProps, 'min' | 'max' | 'step'>): number | null => {
   const rect = event.currentTarget.getBoundingClientRect()
@@ -69,7 +103,7 @@ const countAtPointer = (event: React.PointerEvent<HTMLDivElement>, { min, max, s
 }
 
 type Layer = {
-  key: 'plain' | 'mirrored'
+  key: string
   arms: Arm[]
   opacity: number
   glowWidth: number
@@ -102,7 +136,7 @@ const ZONES: readonly Zone[] = [
  * It is built as a stack of separate layers (the sky, the inside of the galaxy, the outside, and the ring, core and
  * handle) so that turning and pulling back are transforms the browser can do without repainting the blurred galaxy.
  */
-export const KaleidoscopeDial = React.memo(({ count, min, max, step, kaleidoscope, palette, scale, particleSize, rotationSpeed, effects, effectLabels, onToggleEffect, kaleidoscopeLabel, onToggleKaleidoscope, onChange, onReset }: KaleidoscopeDialProps): React.ReactElement => {
+export const KaleidoscopeDial = React.memo(({ count, min, max, step, kaleidoscope, mode, source, onSourceChange, onModeChange, palette, scale, particleSize, rotationSpeed, effects, effectLabels, onToggleEffect, kaleidoscopeLabel, onToggleKaleidoscope, onChange, onReset }: KaleidoscopeDialProps): React.ReactElement => {
   // Unique per dial, since the filter, clip and gradient are referenced by id.
   const uid = useId().replace(/:/g, '')
   const wedge = TAU / count
@@ -112,22 +146,56 @@ export const KaleidoscopeDial = React.memo(({ count, min, max, step, kaleidoscop
   const motion = useGalaxyMotion({ rotationSpeed, effects, onBeat: () => chips.current?.pulse() })
   const swapped = motion.beats % 2 === 1
   const variant: ShapeVariant = effects.switcheroo && swapped ? 1 : 0
+  const stripped = mode === HORIZONTAL || mode === VERTICAL
+  // The radial mirror is one arm per wedge; the strip modes mirror the plain galaxy instead.
   const mirroredArms = useMemo(() => {
+    if (stripped) return []
     const starCount = starsPerArm(count)
     return Array.from({ length: count }, (_, i) => armOf(i, wedge, starCount, { dotScale, starScale }, variant, true))
-  }, [count, wedge, dotScale, starScale, variant])
-  // Only built while the kaleidoscope is off, when it is the picture and the mirrored galaxy is the ghost.
+  }, [stripped, count, wedge, dotScale, starScale, variant])
+  // Built while the kaleidoscope is off, when it is the picture and the mirrored galaxy is the ghost, and for the strips.
   const plainArms = useMemo(() => {
-    if (kaleidoscope) return []
+    if (kaleidoscope && !stripped) return []
     const plainWedge = TAU / PLAIN_ARM_COUNT
     return Array.from({ length: PLAIN_ARM_COUNT }, (_, i) => armOf(i, plainWedge, starsPerArm(PLAIN_ARM_COUNT), { dotScale, starScale }, variant, false))
-  }, [kaleidoscope, dotScale, starScale, variant])
-  const layers: readonly Layer[] = kaleidoscope
-    ? [{ key: 'mirrored', arms: mirroredArms, opacity: 1, glowWidth: glowWidthFor(count, dotScale) }]
-    : [
-      { key: 'plain', arms: plainArms, opacity: 1, glowWidth: glowWidthFor(PLAIN_ARM_COUNT, dotScale) },
-      { key: 'mirrored', arms: mirroredArms, opacity: GHOST_OPACITY, glowWidth: glowWidthFor(count, dotScale) },
-    ]
+  }, [kaleidoscope, stripped, dotScale, starScale, variant])
+  const plainLayer: Layer = { key: 'plain', arms: plainArms, opacity: 1, glowWidth: glowWidthFor(PLAIN_ARM_COUNT, dotScale) }
+  const radialLayer: Layer = { key: 'mirrored', arms: mirroredArms, opacity: kaleidoscope ? 1 : GHOST_OPACITY, glowWidth: glowWidthFor(count, dotScale) }
+  // What the main panes turn. In the strip modes the mirrored picture is not in them: every strip turns on its own copy
+  // (below), because the mirror image of something turning has to turn the other way.
+  const layers: readonly Layer[] = stripped
+    ? (kaleidoscope ? [] : [plainLayer])
+    : kaleidoscope ? [radialLayer] : [plainLayer, radialLayer]
+  const stripLayers: readonly Layer[] = [{ ...plainLayer, key: 'strip', opacity: kaleidoscope ? 1 : GHOST_OPACITY }]
+
+  // The strips: the first (the top one, or the left one) is the picture, every strip after it is the one before flipped.
+  const drawn = Math.min(count, MAX_DRAWN_STRIPS)
+  const stripWidth = (SQUARE_HALF * 2) / drawn
+  const margin = VIEW_HALF - SQUARE_HALF
+  const squareInset = `inset(${pct(margin)})`
+  const stripInset = (k: number): string => {
+    const before = margin + k * stripWidth
+    const after = margin + (drawn - 1 - k) * stripWidth
+    return mode === VERTICAL
+      ? `inset(${pct(margin)} ${pct(after)} ${pct(margin)} ${pct(before)})`
+      : `inset(${pct(before)} ${pct(margin)} ${pct(after)} ${pct(margin)})`
+  }
+  // The strip that stays as it is, and so the one every other strip is a reflection of.
+  const sourceStrip = Math.max(0, Math.min(drawn - 1, Math.floor(source * drawn)))
+  const stripStart = (k: number): number => -SQUARE_HALF + k * stripWidth
+  // Moves the galaxy from where the source strip is to where strip `k` is: slid across for the strips an even number
+  // of places away, flipped over for the odd ones.
+  const stripTransform = (k: number): string => {
+    const axis = mode === VERTICAL ? 'X' : 'Y'
+    if ((k - sourceStrip) % 2 === 0) return `translate${axis}(${pct((k - sourceStrip) * stripWidth)})`
+    return `translate${axis}(${pct(stripStart(k) + stripStart(sourceStrip) + stripWidth)}) scale${axis}(-1)`
+  }
+  const lapsPerSecond = rotationSpeed * LAPS_PER_SEC_PER_UNIT
+  const spinStyle = (signedLaps: number): SpinStyle => ({
+    '--spin-lap': `${signedLaps === 0 ? 1 : 1 / Math.abs(signedLaps)}s`,
+    '--spin-dir': signedLaps < 0 ? 'reverse' : 'normal',
+    '--spin-state': signedLaps === 0 ? 'paused' : 'running',
+  })
 
   // Color Shift only counts beats from the moment it was switched on, so turning it on does not change the look by itself.
   // The baseline is taken in an effect, not during render, so a render React throws away cannot leave one behind.
@@ -138,18 +206,95 @@ export const KaleidoscopeDial = React.memo(({ count, min, max, step, kaleidoscop
   const shiftBeats = effects.colorShift ? motion.beats - (shiftStart ?? motion.beats) : 0
   const colorOf = (along: number, armIndex: number): string => toCss(paletteRgb(palette, along + colorShiftOffset(armIndex, shiftBeats)))
 
+  // One half (inside or outside) of a galaxy, drawn from `layerList`. Ids carry a prefix, since each strip has its own copy.
+  // `part` draws only the haze (left for the caller to blur, once, for all of them) or only the stars.
+  const zoneSvg = ({ key, glowAlong, includes }: Zone, idPrefix: string, layerList: readonly Layer[], clipRadius: number, part: ZonePart = 'all'): React.ReactElement => (
+    <svg className='kaleidoscope-dial-pane' viewBox={VIEW_BOX}>
+      <defs>
+        {part === 'all' && (
+          <filter id={`${idPrefix}-${key}-haze`} x='-20%' y='-20%' width='140%' height='140%'>
+            <feGaussianBlur stdDeviation={HAZE_BLUR} />
+          </filter>
+        )}
+        <clipPath id={`${idPrefix}-${key}-disc`}>
+          <circle r={clipRadius} />
+        </clipPath>
+      </defs>
+      {layerList.map(({ key: layerKey, arms, opacity: layerOpacity, glowWidth }) => (
+        <g key={layerKey} className='kaleidoscope-dial-layer' style={{ opacity: layerOpacity }}>
+          {part !== 'stars' && (
+            <g clipPath={`url(#${idPrefix}-${key}-disc)`} opacity={effects.glow || part === 'haze' ? 1 : HAZE_OPACITY_WITHOUT_GLOW}>
+              <g filter={part === 'all' ? `url(#${idPrefix}-${key}-haze)` : undefined}>
+                {arms.map((arm, i) => (
+                  <path key={i} className='kaleidoscope-dial-arm' d={key === 'inner' ? arm.glowInner : arm.glowOuter} stroke={colorOf(glowAlong, i)} strokeWidth={glowWidth} />
+                ))}
+                {arms.map((arm, i) => arm.clouds.map(({ x, y, radius, opacity, along }, s) => (
+                  includes(along) ? <circle key={`${i}-${s}`} cx={x} cy={y} r={radius} fill={colorOf(along, i)} fillOpacity={opacity} /> : null
+                )))}
+              </g>
+            </g>
+          )}
+          {part !== 'haze' && arms.map((arm, i) => arm.stars.map(({ x, y, radius, opacity, along }, s) => (
+            includes(along) ? <circle key={`${i}-${s}`} cx={x} cy={y} r={radius} fill={colorOf(along, i)} fillOpacity={opacity} /> : null
+          )))}
+        </g>
+      ))}
+    </svg>
+  )
+
+  // The strips. Each shows the middle of the galaxy at its normal size, the first strip's as it is and every strip after
+  // it flipped over the last, turning the other way, just as the visualizer repeats the middle of its picture.
+  const strips = (part: ZonePart): React.ReactElement[] => Array.from({ length: drawn }, (_, k) => (
+    <div key={`${mode}-${sourceStrip}-${k}`} className='kaleidoscope-dial-pane' style={{ clipPath: stripInset(k) }}>
+      <div className='kaleidoscope-dial-pane' style={{ transform: stripTransform(k) }}>
+        <div className='kaleidoscope-dial-pane'>
+          {ZONES.map((zone) => (
+            <div
+              key={zone.key}
+              className='kaleidoscope-dial-pane kaleidoscope-dial-moving kaleidoscope-dial-tile-spin'
+              style={spinStyle(zone.key === 'outer' && effects.cyclone ? -lapsPerSecond : lapsPerSecond)}
+            >
+              {zoneSvg(zone, `${uid}-${part}${k}`, stripLayers, UNCLIPPED_RADIUS, part)}
+            </div>
+          ))}
+          {part === 'stars' && (
+            <svg className='kaleidoscope-dial-pane' viewBox={VIEW_BOX}>
+              <circle fill={`url(#${uid}-core)`} r={(effects.glow ? 10 : 6) + (effects.glow ? 4 : 2) * dotScale} opacity={stripLayers[0]?.opacity ?? 1} />
+            </svg>
+          )}
+        </div>
+      </div>
+    </div>
+  ))
+
   const core = paletteRgb(palette, 0)
-  const handle = coords(-SWEEP * (count - min) / (max - min), RADIUS)
+  const rimHandle = coords(-SWEEP * (count - min) / (max - min), RADIUS)
+  // Around the square the handle slides along its edge, on the same ray from the center.
+  const edgeScale = SQUARE_HALF / Math.max(Math.abs(rimHandle.x), Math.abs(rimHandle.y))
+  const handle = stripped ? { x: rimHandle.x * edgeScale, y: rimHandle.y * edgeScale } : rimHandle
+
+  // What a drag is doing: turning the knob (the count), or, in the strip modes, moving the source strip by pressing inside the square.
+  const dragging = useRef<'count' | 'source'>('count')
 
   const apply = useCallback((event: React.PointerEvent<HTMLDivElement>): void => {
+    if (dragging.current === 'source') {
+      const { x, y } = unitsAt(event)
+      const index = Math.max(0, Math.min(drawn - 1, Math.floor(((mode === VERTICAL ? x : y) + SQUARE_HALF) / stripWidth)))
+      if (index !== sourceStrip) onSourceChange((index + 0.5) / drawn)
+      return
+    }
     const next = countAtPointer(event, { min, max, step })
     if (next !== null && next !== count) onChange(next)
-  }, [min, max, step, count, onChange])
+  }, [min, max, step, count, onChange, mode, drawn, stripWidth, sourceStrip, onSourceChange])
 
   const handlePointerDown = useCallback((event: React.PointerEvent<HTMLDivElement>): void => {
     event.currentTarget.setPointerCapture(event.pointerId)
+    const { x, y } = unitsAt(event)
+    const inSquare = Math.max(Math.abs(x), Math.abs(y)) < SQUARE_HALF
+    // The handle sits on the square's edge and keeps its job; anywhere else in the square picks the strip.
+    dragging.current = stripped && inSquare && Math.hypot(x - handle.x, y - handle.y) > HANDLE_RADIUS * 1.8 ? 'source' : 'count'
     apply(event)
-  }, [apply])
+  }, [apply, stripped, handle.x, handle.y])
 
   const handlePointerMove = useCallback((event: React.PointerEvent<HTMLDivElement>): void => {
     if (event.currentTarget.hasPointerCapture(event.pointerId)) apply(event)
@@ -180,51 +325,42 @@ export const KaleidoscopeDial = React.memo(({ count, min, max, step, kaleidoscop
         onKeyDown={handleKeyDown}
       >
         <svg className='kaleidoscope-dial-pane' viewBox={VIEW_BOX}>
-          <circle className='kaleidoscope-dial-sky' r={RADIUS} />
+          {stripped
+            ? <rect className='kaleidoscope-dial-sky' x={-SQUARE_HALF} y={-SQUARE_HALF} width={SQUARE_HALF * 2} height={SQUARE_HALF * 2} rx={3} />
+            : <circle className='kaleidoscope-dial-sky' r={RADIUS} />}
           {FIELD_STARS.map(({ angle, radius }) => {
             const { x, y } = coords(angle, radius)
             return <circle key={angle} className='kaleidoscope-dial-field-star' cx={x} cy={y} r={0.7} />
           })}
         </svg>
-        <div ref={motion.wob} className='kaleidoscope-dial-pane kaleidoscope-dial-moving'>
-          {ZONES.map(({ key, glowAlong, includes }) => (
-            <div key={key} ref={motion[key]} className='kaleidoscope-dial-pane kaleidoscope-dial-moving'>
-              <svg className='kaleidoscope-dial-pane' viewBox={VIEW_BOX}>
-                <defs>
-                  <filter id={`${uid}-${key}-haze`} x='-20%' y='-20%' width='140%' height='140%'>
-                    <feGaussianBlur stdDeviation='2.4' />
-                  </filter>
-                  <clipPath id={`${uid}-${key}-disc`}>
-                    <circle r={RADIUS} />
-                  </clipPath>
-                </defs>
-                {layers.map(({ key: layerKey, arms, opacity: layerOpacity, glowWidth }) => (
-                  <g key={layerKey} className='kaleidoscope-dial-layer' style={{ opacity: layerOpacity }}>
-                    <g clipPath={`url(#${uid}-${key}-disc)`} opacity={effects.glow ? 1 : HAZE_OPACITY_WITHOUT_GLOW}>
-                      <g filter={`url(#${uid}-${key}-haze)`}>
-                        {arms.map((arm, i) => (
-                          <path key={i} className='kaleidoscope-dial-arm' d={key === 'inner' ? arm.glowInner : arm.glowOuter} stroke={colorOf(glowAlong, i)} strokeWidth={glowWidth} />
-                        ))}
-                        {arms.map((arm, i) => arm.clouds.map(({ x, y, radius, opacity, along }, s) => (
-                          includes(along) ? <circle key={`${i}-${s}`} cx={x} cy={y} r={radius} fill={colorOf(along, i)} fillOpacity={opacity} /> : null
-                        )))}
-                      </g>
-                    </g>
-                    {arms.map((arm, i) => arm.stars.map(({ x, y, radius, opacity, along }, s) => (
-                      includes(along) ? <circle key={`${i}-${s}`} cx={x} cy={y} r={radius} fill={colorOf(along, i)} fillOpacity={opacity} /> : null
-                    )))}
-                  </g>
-                ))}
-              </svg>
-            </div>
-          ))}
+        <div className='kaleidoscope-dial-pane' style={stripped ? { clipPath: squareInset } : undefined}>
+          <div ref={motion.wob} className='kaleidoscope-dial-pane kaleidoscope-dial-moving'>
+            {ZONES.map((zone) => (
+              <div key={zone.key} ref={motion[zone.key]} className='kaleidoscope-dial-pane kaleidoscope-dial-moving'>
+                {zoneSvg(zone, uid, layers, stripped ? UNCLIPPED_RADIUS : RADIUS)}
+              </div>
+            ))}
+            {stripped && (
+              <>
+                <div
+                  className='kaleidoscope-dial-pane kaleidoscope-dial-strip-haze'
+                  style={{ opacity: (effects.glow ? 1 : HAZE_OPACITY_WITHOUT_GLOW) * stripLayers.reduce((sum, { opacity }) => Math.max(sum, opacity), 0), filter: `blur(${(HAZE_BLUR / (VIEW_HALF * 2)) * 100}cqw)` }}
+                >
+                  {strips('haze')}
+                </div>
+                <div className='kaleidoscope-dial-pane'>
+                  {strips('stars')}
+                </div>
+              </>
+            )}
+          </div>
         </div>
         <div ref={motion.ring} className='kaleidoscope-dial-pane kaleidoscope-dial-moving kaleidoscope-dial-ring-pane'>
           <svg className='kaleidoscope-dial-pane' viewBox={VIEW_BOX}>
             <circle className='kaleidoscope-dial-ring' r={RING_END_RADIUS} />
           </svg>
         </div>
-        <div ref={motion.core} className='kaleidoscope-dial-pane kaleidoscope-dial-moving'>
+        <div ref={motion.core} className='kaleidoscope-dial-pane kaleidoscope-dial-moving' style={stripped ? { opacity: 0 } : undefined}>
           <svg className='kaleidoscope-dial-pane' viewBox={VIEW_BOX}>
             <defs>
               <radialGradient id={`${uid}-core`}>
@@ -237,6 +373,23 @@ export const KaleidoscopeDial = React.memo(({ count, min, max, step, kaleidoscop
           </svg>
         </div>
         <svg className='kaleidoscope-dial-pane' viewBox={VIEW_BOX}>
+          {stripped && (
+            <rect
+              className='kaleidoscope-dial-source'
+              x={-SQUARE_HALF}
+              y={-SQUARE_HALF}
+              width={mode === VERTICAL ? stripWidth : SQUARE_HALF * 2}
+              height={mode === VERTICAL ? SQUARE_HALF * 2 : stripWidth}
+              rx={2}
+              style={{ transform: `translate${mode === VERTICAL ? 'X' : 'Y'}(${sourceStrip * stripWidth}px)` }}
+            />
+          )}
+          {stripped && kaleidoscope && Array.from({ length: drawn - 1 }, (_, i) => {
+            const at = -SQUARE_HALF + (i + 1) * stripWidth
+            return mode === VERTICAL
+              ? <line key={i} className='kaleidoscope-dial-seam' x1={at} y1={-SQUARE_HALF} x2={at} y2={SQUARE_HALF} />
+              : <line key={i} className='kaleidoscope-dial-seam' x1={-SQUARE_HALF} y1={at} x2={SQUARE_HALF} y2={at} />
+          })}
           <circle className='kaleidoscope-dial-handle-halo' cx={handle.x} cy={handle.y} r={HANDLE_RADIUS + 2} />
           <circle className='kaleidoscope-dial-handle' cx={handle.x} cy={handle.y} r={HANDLE_RADIUS} />
         </svg>
@@ -249,6 +402,8 @@ export const KaleidoscopeDial = React.memo(({ count, min, max, step, kaleidoscop
         kaleidoscope={kaleidoscope}
         kaleidoscopeLabel={kaleidoscopeLabel}
         kaleidoscopeCount={count}
+        mode={mode}
+        onModeChange={onModeChange}
         onToggleKaleidoscope={onToggleKaleidoscope}
       />
     </div>

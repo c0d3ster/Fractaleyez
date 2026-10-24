@@ -28,7 +28,8 @@ const RING_EASING = 'cubic-bezier(0.5, 1, 0.89, 1)'
 // The galaxy turns as one endless animation of this length per lap, sped up or slowed down by its playback rate. Turning
 // the other way is the animation's direction, not a negative rate: the browser will not run a reversed animation off the main thread.
 const SPIN_LAP_MS = 1000
-const LAPS_PER_SEC_PER_UNIT = userConfig.rotationSpeed_RAD_PER_SEC_PER_UNIT / (2 * Math.PI)
+/** Laps a second at a Rotation of 1, for anything that turns with the galaxy but is not driven by this hook. */
+export const LAPS_PER_SEC_PER_UNIT = userConfig.rotationSpeed_RAD_PER_SEC_PER_UNIT / (2 * Math.PI)
 
 /** The old per-frame exponential decay (1 down to 0) as a CSS easing, for the progress from a kick to rest. */
 const decayEasing = (): string => {

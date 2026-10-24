@@ -38,7 +38,7 @@ const SLIDER_ZONES: Partial<Record<string, readonly SliderZone[]>> = {
 const STEPPER_AMOUNTS: Partial<Record<string, string>> = {
   kaleidoscope: 'kaleidoscopeCount',
 }
-const STEPPER_AMOUNT_ITEMS: readonly string[] = Object.values(STEPPER_AMOUNTS).filter((item): item is string => item !== undefined)
+const STEPPER_AMOUNT_ITEMS: readonly string[] = [...Object.values(STEPPER_AMOUNTS).filter((item): item is string => item !== undefined), 'kaleidoscopeMode', 'kaleidoscopeSource']
 
 // Items a pad edits (the logo's position and zoom focus): stored like any slider, but they get no row of their own.
 const PAD_ITEMS: Partial<Record<string, readonly string[]>> = {
@@ -145,6 +145,8 @@ const ConfigSectionItemsInner = ({ name, only, config, onChange, resetConfigItem
     [cyclone.name, wobWob.name, switcheroo.name, colorShift.name, shockwave.name, glow.name],
   )
   const handleToggleEffect = useCallback((key: EffectKey, enabled: boolean) => onChange('effects', key, enabled), [onChange])
+  const handleKaleidoscopeMode = useCallback((mode: number) => onChange('effects', 'kaleidoscopeMode', String(mode)), [onChange])
+  const handleKaleidoscopeSource = useCallback((source: number) => onChange('effects', 'kaleidoscopeSource', String(source)), [onChange])
   const handleKaleidoscopeCount = useCallback((count: number) => onChange('effects', 'kaleidoscopeCount', String(count)), [onChange])
   const handleToggleKaleidoscope = useCallback((enabled: boolean) => onChange('effects', 'kaleidoscope', enabled), [onChange])
   const handleResetKaleidoscopeCount = useCallback(() => resetConfigItem('effects', 'kaleidoscopeCount'), [resetConfigItem])
@@ -171,6 +173,10 @@ const ConfigSectionItemsInner = ({ name, only, config, onChange, resetConfigItem
           max={config.effects.kaleidoscopeCount.max}
           step={config.effects.kaleidoscopeCount.step}
           kaleidoscope={config.effects.kaleidoscope.value}
+          mode={config.effects.kaleidoscopeMode.value}
+          source={config.effects.kaleidoscopeSource.value}
+          onSourceChange={handleKaleidoscopeSource}
+          onModeChange={handleKaleidoscopeMode}
           palette={resolveColorState(config.color)}
           scale={config.user.scaleFactor.value}
           particleSize={config.particle.particleSize.value}

@@ -6,6 +6,52 @@
   margin: 0 .5rem;
 }
 
+/* Three small rounded squares above the kaleidoscope chip, one per mirror mode; the picked one is lit like an active chip. */
+.kaleidoscope-modes {
+  display: flex;
+  justify-content: center;
+  gap: .75rem;
+  margin-bottom: 1rem;
+}
+
+.kaleidoscope-mode {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: .5rem;
+  background: #EEE;
+  color: #555;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.kaleidoscope-mode svg {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.kaleidoscope-mode--on {
+  background: #005500;
+  color: white;
+}
+
+@media (hover: hover) {
+  :where(html:not([data-input='touch'])) .kaleidoscope-mode:hover {
+    background: #004400;
+    border-color: #004400;
+    color: #ccc;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kaleidoscope-mode {
+    transition: none;
+  }
+}
+
 /* How the six chips lay out, by the room they have:
    - narrow (the pop-out column): two equal columns, three rows;
    - too narrow even for that, in a sidebar on a small screen: one chip per row;
