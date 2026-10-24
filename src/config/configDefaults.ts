@@ -62,7 +62,7 @@ export type EffectsConfigSection = {
   glow: CheckboxItem
   shockwave: CheckboxItem
   kaleidoscope: CheckboxItem
-  kaleidoscopeSource: SliderItem // 0 to 1 across the screen: which strip the straight mirrors leave as it is and reflect into the rest; picked by clicking the dial, not a slider
+  kaleidoscopeSource: SliderItem // 0 to 1 across the screen: where the slice every strip of the straight mirrors shows is taken from; picked by clicking the dial, not a slider
   kaleidoscopeMode: SliderItem // 0 radial, 1 horizontal mirror, 2 vertical mirror; picked with the three buttons above the kaleidoscope chip, not a slider
   kaleidoscopeCount: SliderItem // wedges around the screen center when kaleidoscope is on; shown as its tile's stepper, not a slider
 }

@@ -12,7 +12,7 @@ export const visualizerConfig = {
   kaleidoscopeCount_DEFAULT: 2, // wedges around the center; 2 mirrors the left half onto the right
   kaleidoscopeSource_MIN: 0,
   kaleidoscopeSource_MAX: 1,
-  kaleidoscopeSource_DEFAULT: 0.5, // strip modes: where across the screen the strip that stays as it is (and is mirrored into the rest) sits; 0.5 is the middle
+  kaleidoscopeSource_DEFAULT: 0.5, // strip modes: where across the screen the slice every strip shows is taken from; 0.5 is the exact middle
   kaleidoscopeSource_STEP_SIZE: 0.01,
   kaleidoscopeMode_MIN: 0,
   kaleidoscopeMode_MAX: 2,

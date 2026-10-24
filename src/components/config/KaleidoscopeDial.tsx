@@ -55,7 +55,7 @@ type KaleidoscopeDialProps = {
   kaleidoscope: boolean
   /** How it mirrors: 0 radial, 1 horizontal, 2 vertical (the buttons above the kaleidoscope chip). */
   mode: number
-  /** Where across the dial (0 to 1) the strip that stays as it is sits; the rest are its reflections. Click the dial to move it. */
+  /** Where across the dial (0 to 1) the slice every strip shows is taken from (0.5 is the exact middle). Click the dial to move it. */
   source: number
   onSourceChange: (source: number) => void
   onModeChange: (mode: number) => void
@@ -180,15 +180,18 @@ export const KaleidoscopeDial = React.memo(({ count, min, max, step, kaleidoscop
       ? `inset(${pct(margin)} ${pct(after)} ${pct(margin)} ${pct(before)})`
       : `inset(${pct(before)} ${pct(margin)} ${pct(after)} ${pct(margin)})`
   }
-  // The strip that stays as it is, and so the one every other strip is a reflection of.
+  // The slice every strip shows, one strip wide around the source position. At a strip's own center that strip is the
+  // picture as it is; the exact middle (the default) sits between the two middle strips when the count is even.
   const sourceStrip = Math.max(0, Math.min(drawn - 1, Math.floor(source * drawn)))
+  const sourceCenter = Math.max(0.5 / drawn, Math.min(1 - 0.5 / drawn, source))
   const stripStart = (k: number): number => -SQUARE_HALF + k * stripWidth
-  // Moves the galaxy from where the source strip is to where strip `k` is: slid across for the strips an even number
-  // of places away, flipped over for the odd ones.
+  const sourceStart = -SQUARE_HALF + (sourceCenter - 0.5 / drawn) * SQUARE_HALF * 2
+  // Moves the galaxy from where the slice is to where strip `k` is: slid across for the strips an even number of places
+  // from the source's, flipped over for the odd ones.
   const stripTransform = (k: number): string => {
     const axis = mode === VERTICAL ? 'X' : 'Y'
-    if ((k - sourceStrip) % 2 === 0) return `translate${axis}(${pct((k - sourceStrip) * stripWidth)})`
-    return `translate${axis}(${pct(stripStart(k) + stripStart(sourceStrip) + stripWidth)}) scale${axis}(-1)`
+    if ((k - sourceStrip) % 2 === 0) return `translate${axis}(${pct(stripStart(k) - sourceStart)})`
+    return `translate${axis}(${pct(stripStart(k) + sourceStart + stripWidth)}) scale${axis}(-1)`
   }
   const lapsPerSecond = rotationSpeed * LAPS_PER_SEC_PER_UNIT
   const spinStyle = (signedLaps: number): SpinStyle => ({
@@ -245,7 +248,7 @@ export const KaleidoscopeDial = React.memo(({ count, min, max, step, kaleidoscop
   // The strips. Each shows the middle of the galaxy at its normal size, the first strip's as it is and every strip after
   // it flipped over the last, turning the other way, just as the visualizer repeats the middle of its picture.
   const strips = (part: ZonePart): React.ReactElement[] => Array.from({ length: drawn }, (_, k) => (
-    <div key={`${mode}-${sourceStrip}-${k}`} className='kaleidoscope-dial-pane' style={{ clipPath: stripInset(k) }}>
+    <div key={`${mode}-${Math.round(sourceCenter * 1000)}-${k}`} className='kaleidoscope-dial-pane' style={{ clipPath: stripInset(k) }}>
       <div className='kaleidoscope-dial-pane' style={{ transform: stripTransform(k) }}>
         <div className='kaleidoscope-dial-pane'>
           {ZONES.map((zone) => (
@@ -279,13 +282,16 @@ export const KaleidoscopeDial = React.memo(({ count, min, max, step, kaleidoscop
   const apply = useCallback((event: React.PointerEvent<HTMLDivElement>): void => {
     if (dragging.current === 'source') {
       const { x, y } = unitsAt(event)
-      const index = Math.max(0, Math.min(drawn - 1, Math.floor(((mode === VERTICAL ? x : y) + SQUARE_HALF) / stripWidth)))
-      if (index !== sourceStrip) onSourceChange((index + 0.5) / drawn)
+      const at = ((mode === VERTICAL ? x : y) + SQUARE_HALF) / (SQUARE_HALF * 2)
+      // It lands on a strip's own center, or on the exact middle.
+      const stops = [0.5, ...Array.from({ length: drawn }, (_, k) => (k + 0.5) / drawn)]
+      const nextSource = stops.reduce((best, stop) => (Math.abs(stop - at) < Math.abs(best - at) ? stop : best), 0.5)
+      if (nextSource !== source) onSourceChange(nextSource)
       return
     }
     const next = countAtPointer(event, { min, max, step })
     if (next !== null && next !== count) onChange(next)
-  }, [min, max, step, count, onChange, mode, drawn, stripWidth, sourceStrip, onSourceChange])
+  }, [min, max, step, count, onChange, mode, drawn, source, onSourceChange])
 
   const handlePointerDown = useCallback((event: React.PointerEvent<HTMLDivElement>): void => {
     event.currentTarget.setPointerCapture(event.pointerId)
@@ -381,7 +387,7 @@ export const KaleidoscopeDial = React.memo(({ count, min, max, step, kaleidoscop
               width={mode === VERTICAL ? stripWidth : SQUARE_HALF * 2}
               height={mode === VERTICAL ? SQUARE_HALF * 2 : stripWidth}
               rx={2}
-              style={{ transform: `translate${mode === VERTICAL ? 'X' : 'Y'}(${sourceStrip * stripWidth}px)` }}
+              style={{ transform: `translate${mode === VERTICAL ? 'X' : 'Y'}(${sourceStart + SQUARE_HALF}px)` }}
             />
           )}
           {stripped && kaleidoscope && Array.from({ length: drawn - 1 }, (_, i) => {
