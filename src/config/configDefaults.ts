@@ -62,6 +62,8 @@ export type EffectsConfigSection = {
   glow: CheckboxItem
   shockwave: CheckboxItem
   kaleidoscope: CheckboxItem
+  kaleidoscopeSource: SliderItem // 0 to 1 across the screen: where the slice every strip of the straight mirrors shows is taken from; picked by clicking the dial, not a slider
+  kaleidoscopeMode: SliderItem // 0 radial, 1 horizontal mirror, 2 vertical mirror; picked with the three buttons above the kaleidoscope chip, not a slider
   kaleidoscopeCount: SliderItem // wedges around the screen center when kaleidoscope is on; shown as its tile's stepper, not a slider
 }
 
@@ -230,6 +232,8 @@ export const configDefaults: AppConfig = {
     glow: { name: 'Glow', type: 'checkbox', defaultValue: visualizerConfig.glow, value: visualizerConfig.glow },
     shockwave: { name: 'Shockwave', type: 'checkbox', defaultValue: visualizerConfig.shockwave, value: visualizerConfig.shockwave },
     kaleidoscope: { name: 'Kaleidoscope', type: 'checkbox', defaultValue: visualizerConfig.kaleidoscope, value: visualizerConfig.kaleidoscope },
+    kaleidoscopeSource: { name: 'Kaleidoscope Source', type: 'slider', defaultValue: visualizerConfig.kaleidoscopeSource_DEFAULT, value: visualizerConfig.kaleidoscopeSource_DEFAULT, min: visualizerConfig.kaleidoscopeSource_MIN, max: visualizerConfig.kaleidoscopeSource_MAX, step: visualizerConfig.kaleidoscopeSource_STEP_SIZE },
+    kaleidoscopeMode: { name: 'Kaleidoscope Mode', type: 'slider', defaultValue: visualizerConfig.kaleidoscopeMode_DEFAULT, value: visualizerConfig.kaleidoscopeMode_DEFAULT, min: visualizerConfig.kaleidoscopeMode_MIN, max: visualizerConfig.kaleidoscopeMode_MAX, step: visualizerConfig.kaleidoscopeMode_STEP_SIZE },
     kaleidoscopeCount: { name: 'Kaleidoscope Count', type: 'slider', defaultValue: visualizerConfig.kaleidoscopeCount_DEFAULT, value: visualizerConfig.kaleidoscopeCount_DEFAULT, min: visualizerConfig.kaleidoscopeCount_MIN, max: visualizerConfig.kaleidoscopeCount_MAX, step: visualizerConfig.kaleidoscopeCount_STEP_SIZE },
   },
   color: {

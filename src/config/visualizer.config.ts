@@ -10,6 +10,14 @@ export const visualizerConfig = {
   kaleidoscopeCount_MIN: 2,
   kaleidoscopeCount_MAX: 32,
   kaleidoscopeCount_DEFAULT: 2, // wedges around the center; 2 mirrors the left half onto the right
+  kaleidoscopeSource_MIN: 0,
+  kaleidoscopeSource_MAX: 1,
+  kaleidoscopeSource_DEFAULT: 0.5, // strip modes: where across the screen the slice every strip shows is taken from; 0.5 is the exact middle
+  kaleidoscopeSource_STEP_SIZE: 0.01,
+  kaleidoscopeMode_MIN: 0,
+  kaleidoscopeMode_MAX: 2,
+  kaleidoscopeMode_DEFAULT: 0, // 0 radial, 1 horizontal mirror, 2 vertical mirror
+  kaleidoscopeMode_STEP_SIZE: 1,
   kaleidoscopeCount_STEP_SIZE: 2, // even only: odd counts leave a seam where the last reflection meets the first wedge
 } as const
 

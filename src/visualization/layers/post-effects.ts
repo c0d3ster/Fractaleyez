@@ -88,8 +88,9 @@ export class PostEffects {
 
   /** Beat-driven effect state, then renders the composite scene through the effects to the screen. */
   render = (audio: AudioAnalysedDataForVisualization): void => {
-    const { kaleidoscope, kaleidoscopeCount } = window.config.effects
-    this.kaleidoscopeEffect.setCount(kaleidoscope.value ? Math.round(kaleidoscopeCount.value) : 1)
+    const { kaleidoscope, kaleidoscopeCount, kaleidoscopeMode, kaleidoscopeSource } = window.config.effects
+    const mode = Math.round(kaleidoscopeMode.value)
+    this.kaleidoscopeEffect.setFold(kaleidoscope.value ? Math.round(kaleidoscopeCount.value) : 1, mode, kaleidoscopeSource.value)
     this.shockwaveEffect.speed =SHOCKWAVE_BASE_SPEED + (window.config.user.speed.value / 15) + audio.beat.value * 1.25
     const glow = window.config.effects.glow.value
     this.syncGlow(glow)

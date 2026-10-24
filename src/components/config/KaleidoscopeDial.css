@@ -8,6 +8,8 @@
   outline: none;
   -webkit-tap-highlight-color: transparent;
   user-select: none;
+  /* Lets the strips' blur be sized from the dial's own width (cqw). */
+  container-type: inline-size;
 }
 
 /* Every pane fills the dial, stacked: the sky, the inside and outside of the galaxy, then the ring, core and handle. */
@@ -23,6 +25,25 @@
 /* The panes that turn and pull back. A layer of their own, so moving them is the browser's job and never a repaint of the blurred galaxy. */
 .kaleidoscope-dial-moving {
   will-change: transform;
+}
+
+/* Each strip of a straight mirror turns on its own copy (the hook only drives the main panes), at the pace the dial sets
+   through custom properties. A strip that is flipped turns the other way for it, which is what a mirror does. */
+/* The haze of all the strips together, blurred once rather than once per strip. */
+.kaleidoscope-dial-strip-haze {
+  will-change: filter;
+}
+
+.kaleidoscope-dial-tile-spin {
+  animation: kaleidoscope-dial-spin var(--spin-lap, 1s) linear infinite;
+  animation-direction: var(--spin-dir, normal);
+  animation-play-state: var(--spin-state, running);
+}
+
+@keyframes kaleidoscope-dial-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* The plain galaxy and the mirrored one fade in and out as the kaleidoscope is switched. */
@@ -42,6 +63,10 @@
     transition: none;
     animation: none;
   }
+
+  .kaleidoscope-dial-tile-spin {
+    animation: none;
+  }
 }
 
 .kaleidoscope-dial-sky {
@@ -49,6 +74,30 @@
   stroke: currentColor;
   stroke-opacity: .3;
   stroke-width: .6;
+}
+
+/* The mirror lines of the strip modes, where one strip is flipped over the next. */
+/* The strip that stays as it is, with the rest reflecting it; it slides to the strip you pick. */
+.kaleidoscope-dial-source {
+  fill: #fff;
+  fill-opacity: .14;
+  stroke: #fff;
+  stroke-opacity: .7;
+  stroke-width: .8;
+  transition: transform 0.35s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kaleidoscope-dial-source {
+    transition: none;
+  }
+}
+
+.kaleidoscope-dial-seam {
+  stroke: #fff;
+  stroke-opacity: .45;
+  stroke-width: .5;
+  stroke-dasharray: 1.5 1.5;
 }
 
 .kaleidoscope-dial-field-star {
