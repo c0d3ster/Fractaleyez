@@ -186,11 +186,13 @@ export const KaleidoscopeDial = React.memo(({ count, min, max, step, kaleidoscop
   const sourceCenter = Math.max(0.5 / drawn, Math.min(1 - 0.5 / drawn, source))
   const stripStart = (k: number): number => -SQUARE_HALF + k * stripWidth
   const sourceStart = -SQUARE_HALF + (sourceCenter - 0.5 / drawn) * SQUARE_HALF * 2
+  // The strip left as it is: the one the source sits at the center of, else the first.
+  const anchorStrip = Math.abs(((source * drawn) % 1) - 0.5) < 0.02 ? sourceStrip : 0
   // Moves the galaxy from where the slice is to where strip `k` is: slid across for the strips an even number of places
   // from the source's, flipped over for the odd ones.
   const stripTransform = (k: number): string => {
     const axis = mode === VERTICAL ? 'X' : 'Y'
-    if ((k - sourceStrip) % 2 === 0) return `translate${axis}(${pct(stripStart(k) - sourceStart)})`
+    if ((k - anchorStrip) % 2 === 0) return `translate${axis}(${pct(stripStart(k) - sourceStart)})`
     return `translate${axis}(${pct(stripStart(k) + sourceStart + stripWidth)}) scale${axis}(-1)`
   }
   const lapsPerSecond = rotationSpeed * LAPS_PER_SEC_PER_UNIT
