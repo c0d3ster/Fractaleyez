@@ -180,7 +180,7 @@ const FrequencyHudInner = ({ userSettings, updateUserSettings }: FrequencyHudPro
       }
     }
 
-    return subscribeUiTick(draw)
+    return subscribeUiTick(draw, canvas)
   }, [])
 
   const bandAt = useCallback((e: React.MouseEvent<HTMLCanvasElement>): number | null => {

@@ -34,6 +34,8 @@ type PadProps = {
   children?: React.ReactNode
   /** Drawn under the readouts, outside the surface (chips). */
   footer?: React.ReactNode
+  /** The pad's outer element, for a pad that needs to know when it is on screen. */
+  wrapperRef?: React.Ref<HTMLDivElement>
 }
 
 /**
@@ -41,7 +43,7 @@ type PadProps = {
  * (pointer capture, so a drag keeps going outside the pad and works on touch), plus the readout and hint rows. What is
  * drawn on it and what a pick means is up to each pad.
  */
-export const Pad = ({ label, aspectRatio = 3 / 2, onPick, onPickEnd, onReset, readouts, hint, disabled = false, children, footer }: PadProps): React.ReactElement => {
+export const Pad = ({ label, aspectRatio = 3 / 2, onPick, onPickEnd, onReset, readouts, hint, disabled = false, children, footer, wrapperRef }: PadProps): React.ReactElement => {
   const dragging = useRef(false)
 
   const pointOf = useCallback((event: React.MouseEvent<HTMLDivElement>): PadPoint => {
@@ -77,7 +79,7 @@ export const Pad = ({ label, aspectRatio = 3 / 2, onPick, onPickEnd, onReset, re
   }, [onReset, pointOf])
 
   return (
-    <div className='pad-wrapper' style={{ opacity: disabled ? 0.25 : 1, pointerEvents: disabled ? 'none' : undefined }}>
+    <div className='pad-wrapper' ref={wrapperRef} style={{ opacity: disabled ? 0.25 : 1, pointerEvents: disabled ? 'none' : undefined }}>
       <span className='pad-label'>{label}</span>
       <div
         className='pad'

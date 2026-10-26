@@ -60,6 +60,12 @@ AudioSource (mic capture) → AudioStream (FFT, fixed 512 size) → AudioAnalyse
 - Real-time config changes flow from `ConfigProvider` down into the manager; changes to the Particle Config category force a full re-render of the particle system (documented user-facing warning in `README.md` about GPU load).
 - `window.getPerfData()` is set up in `main.ts` for the perf HUD (FPS, ping, estimated audio-to-visual lag).
 
+### Quality tiers
+
+`src/config/quality.config.ts` holds the tier table (`QUALITY_PROFILES`: Saver, Balanced, Quality, Ultra) and `quality: 'auto' | tier` is a user setting (`UserSettings.quality`, default `auto`, Settings page dropdown, saved through `PATCH /api/me`). `QualityController` (`src/visualization/quality-controller.ts`, the `qualityController` singleton) owns the active tier: a fixed setting is that tier, and Auto asks `QualityGovernor` (pure, unit tested), which is fed every display frame's time from `main.ts`. Auto starts at the tier it last settled on (localStorage `autoQualityTier`), steps down one tier after about 3s of slow frames, and probes one tier up when the scene's estimated cost (`estimateSceneCost`) falls clearly below where it last stepped down; a probe that goes slow steps back down and waits for another cheaper scene. Auto never picks Ultra.
+
+A tier is a `QualityProfile`; `createLayerPipeline` subscribes to the controller and applies it (fractal target scale and iteration uniform, bloom scale, video upload rate, logo bicubic magnification), `main.ts` applies the frame cap (analysis and drawing skip together), and `uiTicker.ts` reads `uiTickHz` through `window.getQuality` (the pop-out config window reaches it via `window.opener`). To add a lever, add a field to `QualityProfile` and a value per tier, then apply it in the pipeline. `scripts/bench` takes `--quality=<tier>` to compare tiers (see its README).
+
 ### Config system
 
 Config is organized into five categories mirrored across `src/config/*.config.ts` (defaults/schema), `src/components/config/*` (UI: sliders, checkboxes, accordion), and the visualization/audio modules that consume them: User, Audio, Effects, Orbit, Particle (see README for what each controls).

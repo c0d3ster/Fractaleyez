@@ -220,7 +220,7 @@ export const ShapePad = (): React.ReactElement => {
         }
       }
     }
-    return subscribeUiTick(tick)
+    return subscribeUiTick(tick, overlayRef.current)
   }, [])
 
   const handlePick = useCallback((point: PadPoint): void => {

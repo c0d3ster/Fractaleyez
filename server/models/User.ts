@@ -4,6 +4,8 @@ export type UserSettings = {
   crossfadeDurationMs?: number
   logoParticle?: string
   skipRedZoneWarning?: boolean
+  /** 'auto' or a fixed quality tier; mirrors src/config/quality.config.ts's QualitySetting. */
+  quality?: string
   hud?: Record<string, unknown>
 }
 
@@ -21,6 +23,7 @@ const userSettingsSchema = new Schema<UserSettings>({
   crossfadeDurationMs: { type: Number },
   logoParticle: { type: String },
   skipRedZoneWarning: { type: Boolean },
+  quality: { type: String },
   hud: { type: Schema.Types.Mixed },
 }, { _id: false })
 

@@ -1,4 +1,4 @@
-// Usage: node bench.js <label> [--popup] [--noshock] [--secs=20]
+// Usage: node bench.js <label> [--popup] [--noshock] [--secs=20] [--quality=auto|saver|balanced|quality|ultra] [--shot]
 const path = require('path')
 const fs = require('fs')
 // Paths come from the environment so this runs on any machine: PLAYWRIGHT_CORE (module to require, default 'playwright-core'),
@@ -8,6 +8,8 @@ fs.mkdirSync(OUT, { recursive: true })
 const { chromium } = require(process.env.PLAYWRIGHT_CORE || 'playwright-core')
 const CHROME = process.env.CHROME_PATH
 const BASE_URL = process.env.BENCH_URL || 'http://localhost:3000'
+// Extra Chromium flags, space separated (e.g. software GL on a machine without a GPU: "--use-angle=swiftshader --enable-unsafe-swiftshader").
+const EXTRA_ARGS = (process.env.BENCH_CHROME_ARGS || '').split(' ').filter(Boolean)
 
 const JOB = OUT
 const args = process.argv.slice(2)
@@ -22,6 +24,8 @@ const uncapped = args.includes('--uncapped')
 const gpuFlag = (args.find((a) => a.startsWith('--gpu=')) || '--gpu=default').split('=')[1]
 const pos = (args.find((a) => a.startsWith('--pos=')) || '--pos=0,0').split('=')[1]
 const offList = ((args.find((a) => a.startsWith('--off=')) || '--off=').split('=')[1] || '').split(',').filter(Boolean)
+const quality = (args.find((a) => a.startsWith('--quality=')) || '--quality=').split('=')[1] || null
+const shot = args.includes('--shot')
 const warm = 5000
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
@@ -35,7 +39,7 @@ const sampleGpu = (seconds) => new Promise((resolve) => {
 })
 
 const RECORDER = `(() => {
-  const rec = { frames: [], beats: [], long: [], loaf: [] }
+  const rec = { frames: [], beats: [], long: [], loaf: [], tiers: [] }
   window.__rec = rec
   let last = performance.now(), lastBeat = null
   const tick = (now) => {
@@ -46,6 +50,13 @@ const RECORDER = `(() => {
     requestAnimationFrame(tick)
   }
   requestAnimationFrame(tick)
+  // The quality tier over time: one entry each time the setting or the tier it settled on changes (the main window only).
+  let seenQuality = ''
+  setInterval(() => {
+    const q = window.getQuality && window.getQuality()
+    const key = q ? q.setting + '/' + q.tier : ''
+    if (key && key !== seenQuality) { seenQuality = key; rec.tiers.push([performance.now(), q.setting, q.tier]) }
+  }, 250)
   try { new PerformanceObserver((l) => l.getEntries().forEach((e) => rec.long.push([e.startTime, e.duration]))).observe({ type: 'longtask', buffered: false }) } catch (e) {}
   try { new PerformanceObserver((l) => l.getEntries().forEach((e) => rec.loaf.push([e.startTime, e.duration, e.blockingDuration]))).observe({ type: 'long-animation-frame', buffered: false }) } catch (e) {}
 })()`
@@ -69,7 +80,7 @@ const run = async () => {
       '--use-file-for-fake-audio-capture=' + path.join(JOB, 'drums.wav'),
       '--window-size=' + size.replace('x', ','), ...(gpuFlag === 'nvidia' ? ['--force_high_performance_gpu'] : []), ...(uncapped ? ['--disable-frame-rate-limit', '--disable-gpu-vsync'] : []), '--window-position=' + pos,
       '--disable-backgrounding-occluded-windows', '--disable-renderer-backgrounding',
-      '--disable-features=CalculateNativeWinOcclusion', '--autoplay-policy=no-user-gesture-required',
+      '--disable-features=CalculateNativeWinOcclusion', '--autoplay-policy=no-user-gesture-required', ...EXTRA_ARGS,
     ],
   })
   await ctx.addInitScript(() => { Object.defineProperty(Screen.prototype, 'isExtended', { get: () => false }) })
@@ -86,6 +97,7 @@ const run = async () => {
   console.log('GPU:', gpu)
   console.log('viewport', await page.evaluate(() => [innerWidth, innerHeight, devicePixelRatio]))
 
+  if (quality) await page.evaluate((q) => window.setQuality(q), quality)
   if (noshock) await page.evaluate(() => window.updateConfigItem('effects', 'shockwave', false))
   else {
     const on = await page.evaluate(() => window.config.effects.shockwave.value)
@@ -120,10 +132,13 @@ const run = async () => {
   const pm = pop ? await metricsOf(pop) : null
   const m0 = await mm.get(); const p0 = pm ? await pm.get() : null
   const gpuPromise = sampleGpu(secs)
-  await sleep(secs * 1000)
+  const t0 = await page.evaluate(() => performance.now())
+  if (shot) { await sleep(Math.min(secs, 4) * 1000); await page.screenshot({ path: path.join(JOB, `shot-${label}.png`) }); await sleep(Math.max(0, secs - 4) * 1000) } else await sleep(secs * 1000)
   const gpuUtil = await gpuPromise
   const m1 = await mm.get(); const p1 = pm ? await pm.get() : null
 
+  // Frames the app drew per second (its own rolling median); the recorder's `fps` counts display frames, which a frame-capped tier skips.
+  const drawnFps = await page.evaluate(() => window.getPerfData().fps)
   const rec = await page.evaluate(() => window.__rec)
   const prec = pop ? await pop.evaluate(() => window.__rec) : null
   const dts = rec.frames.map((f) => f[1])
@@ -132,8 +147,8 @@ const run = async () => {
   const offBeat = rec.frames.filter(([t]) => !beatsT.some((b) => t >= b && t - b <= 200)).map((f) => f[1])
   const delta = (a, b, k) => ((b[k] - a[k]) * 1000) / secs // ms per second
   const out = {
-    label, popup, noshock, throttle, uncapped, secs, gpu, gpuUtil, off: offList, size, pos,
-    frames: dts.length, fps: +(dts.length / (dts.reduce((a, b) => a + b, 0) / 1000)).toFixed(1), beats: beatsT.length,
+    label, popup, noshock, throttle, uncapped, secs, quality, tiers: rec.tiers.map(([t, setting, tier]) => ({ atSec: +((t - t0) / 1000).toFixed(1), setting, tier })), gpu, gpuUtil, off: offList, size, pos,
+    drawnFps, frames: dts.length, fps: +(dts.length / (dts.reduce((a, b) => a + b, 0) / 1000)).toFixed(1), beats: beatsT.length,
     frameMs: { p50: +pct(dts, 0.5).toFixed(1), p95: +pct(dts, 0.95).toFixed(1), p99: +pct(dts, 0.99).toFixed(1), max: +Math.max(...dts).toFixed(1) },
     over25: dts.filter((d) => d > 25).length, over40: dts.filter((d) => d > 40).length,
     nearBeat: { n: nearBeat.length, p50: +pct(nearBeat, 0.5).toFixed(1), p95: +pct(nearBeat, 0.95).toFixed(1), max: +Math.max(0, ...nearBeat).toFixed(1), over25: nearBeat.filter((d) => d > 25).length },

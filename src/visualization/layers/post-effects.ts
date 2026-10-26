@@ -102,6 +102,11 @@ export class PostEffects {
     this.composer.render(this.clock.getDelta())
   }
 
+  /** The glow's blur runs at this fraction of the screen size. */
+  setBloomScale = (scale: number): void => {
+    this.bloomEffect.resolution.scale = scale
+  }
+
   resize = (width: number, height: number): void => {
     this.composer.setSize(width, height)
   }

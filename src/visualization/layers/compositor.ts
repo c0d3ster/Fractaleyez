@@ -5,6 +5,7 @@ import { LayerKey, LayersConfigSection } from '../../config/configDefaults'
 import { BLEND_CODES, compositeFragmentShader, compositeVertexShader, MAX_COMPOSITE_LAYERS } from './composite.glsl'
 import { Layer } from './layer'
 import { getParticleCrossfadeDurationMs } from '../../config/visualizer.config'
+import { SUPERSAMPLE_MAX_SIDE_PX } from '../../config/quality.config'
 import { stepOpacity } from './fade'
 import { planLayers, targetOpacity } from './plan'
 
@@ -20,6 +21,7 @@ export type LayerCompositorOptions = {
  */
 export class LayerCompositor {
   private readonly targets = new Map<LayerKey, THREE.WebGLRenderTarget>()
+  private readonly resolutionScale: Partial<Record<LayerKey, number>>
   private readonly effectiveOpacity: Partial<Record<LayerKey, number>> = {}
   private readonly wasActive: Partial<Record<LayerKey, boolean>> = {}
   private readonly blank: THREE.DataTexture
@@ -31,8 +33,9 @@ export class LayerCompositor {
   constructor(
     private readonly renderer: THREE.WebGLRenderer,
     private readonly layers: Partial<Record<LayerKey, Layer>>,
-    private readonly options: LayerCompositorOptions = {},
+    options: LayerCompositorOptions = {},
   ) {
+    this.resolutionScale = { ...options.resolutionScale }
     this.blank = new THREE.DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1)
     this.blank.needsUpdate = true
     const uniforms: Record<string, THREE.IUniform> = {
@@ -106,6 +109,17 @@ export class LayerCompositor {
     this.renderer.render(this.scene, this.camera)
   }
 
+  /** Changes a layer's render target scale (against the drawing buffer) while it is running; an existing target is resized in place. */
+  setResolutionScale = (key: LayerKey, scale: number): void => {
+    if (this.resolutionScale[key] === scale) return
+    this.resolutionScale[key] = scale
+    const target = this.targets.get(key)
+    if (!target) return
+    const { x, y } = this.renderer.getDrawingBufferSize(new THREE.Vector2())
+    const [w, h] = this.targetSize(key, x, y)
+    target.setSize(w, h)
+  }
+
   resize = (width: number, height: number): void => {
     this.targets.forEach((target, key) => {
       const [w, h] = this.targetSize(key, width, height)
@@ -135,7 +149,9 @@ export class LayerCompositor {
   }
 
   private targetSize = (key: LayerKey, width: number, height: number): [number, number] => {
-    const scale = this.options.resolutionScale?.[key] ?? 1
+    const requested = this.resolutionScale[key] ?? 1
+    // A supersampled target stops growing at the cap, so a big screen never asks for a huge texture.
+    const scale = requested > 1 ? Math.max(1, Math.min(requested, SUPERSAMPLE_MAX_SIDE_PX / Math.max(width, height))) : requested
     return [Math.max(1, Math.floor(width * scale)), Math.max(1, Math.floor(height * scale))]
   }
 }

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react'
 import './CameraTouchpad.css'
 import { subscribeUiTick } from '../../utils/uiTicker'
+import { observeOnScreen } from '../../utils/onScreen'
 import { mainWindow, Pad, PadPoint, screenAspectRatio } from './Pad'
 import { snapToCenter } from './cameraPadGeometry'
 
@@ -23,6 +24,7 @@ export const CameraTouchpad = (): React.ReactElement => {
   // Where the on-screen visualizer's camera has actually got to; it trails the target dot, in every mode.
   const [current, setCurrent] = useState<Pos | null>(null)
   const dragging = useRef(false)
+  const wrapperRef = useRef<HTMLDivElement>(null)
 
   // Poll the camera's actual mouseX/mouseY so the dot stays in sync with real mouse movement on the main screen too. While
   // the camera moves it is every frame, so the dots glide; once it has been still for a moment the pad stops asking for frames
@@ -33,6 +35,8 @@ export const CameraTouchpad = (): React.ReactElement => {
     let quietFrames = 0
     let steerSeen: Pos | null = null
     let cameraSeen: Pos | null = null
+    // Scrolled out of view, the pad neither follows the camera nor asks for frames; it catches up when it is back.
+    let onScreen = true
 
     // Reads the camera once, updates what changed, and says whether anything did.
     const poll = (): boolean => {
@@ -58,11 +62,15 @@ export const CameraTouchpad = (): React.ReactElement => {
     }
 
     const step = (): void => {
+      if (!onScreen) {
+        frame = 0
+        return
+      }
       quietFrames = poll() ? 0 : quietFrames + 1
       frame = quietFrames < SETTLE_FRAMES ? requestAnimationFrame(step) : 0
     }
     const wake = (): void => {
-      if (frame !== 0 || !poll()) return
+      if (!onScreen || frame !== 0 || !poll()) return
       quietFrames = 0
       frame = requestAnimationFrame(step)
     }
@@ -70,7 +78,16 @@ export const CameraTouchpad = (): React.ReactElement => {
     poll()
     frame = requestAnimationFrame(step)
     const unsubscribe = subscribeUiTick(wake)
+    const stopObserving = wrapperRef.current
+      ? observeOnScreen(wrapperRef.current, (visible) => {
+        onScreen = visible
+        if (!visible) return
+        quietFrames = 0
+        if (frame === 0) frame = requestAnimationFrame(step)
+      })
+      : undefined
     return () => {
+      stopObserving?.()
       unsubscribe()
       cancelAnimationFrame(frame)
     }
@@ -107,6 +124,7 @@ export const CameraTouchpad = (): React.ReactElement => {
       readouts={[`X ${pos.x >= 0 ? '+' : ''}${Math.round(pos.x)}`, `Y ${pos.y >= 0 ? '+' : ''}${Math.round(pos.y)}`]}
       hint='double-click to reset'
       disabled={disabled}
+      wrapperRef={wrapperRef}
     >
       <div className='camera-touchpad-crosshair camera-touchpad-crosshair--h' />
       <div className='camera-touchpad-crosshair camera-touchpad-crosshair--v' />

@@ -148,6 +148,20 @@ describe('updateMeHandler', () => {
     expect(userService.updateSettings).not.toHaveBeenCalled()
   })
 
+  it.each(['auto', 'saver', 'balanced', 'quality', 'ultra'])('persists a %s quality patch', async (quality) => {
+    const res = makeRes()
+    await updateMeHandler(makeReq(undefined, { quality }), res)
+    expect(userService.updateSettings).toHaveBeenCalledWith('user_123', { quality })
+    expect(res.statusCode).toBe(200)
+  })
+
+  it.each(['low', '', 3, null])('rejects the quality value %s', async (quality) => {
+    const res = makeRes()
+    await updateMeHandler(makeReq(undefined, { quality }), res)
+    expect(res.statusCode).toBe(400)
+    expect(userService.updateSettings).not.toHaveBeenCalled()
+  })
+
   it('rejects a non-boolean skipRedZoneWarning', async () => {
     const res = makeRes()
     await updateMeHandler(makeReq(undefined, { skipRedZoneWarning: 'yes' }), res)

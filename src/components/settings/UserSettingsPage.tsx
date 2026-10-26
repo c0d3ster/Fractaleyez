@@ -8,6 +8,13 @@ import { connectConfig } from '../config/context/ConfigProvider'
 import { ConfigSlider } from '../config/ConfigSlider'
 import { UserSettings } from '../../config/userSettings.config'
 import {
+  isQualitySetting,
+  QUALITY_HINTS,
+  QUALITY_LABELS,
+  QUALITY_SETTING_DEFAULT,
+  QUALITY_SETTINGS,
+} from '../../config/quality.config'
+import {
   PARTICLE_CROSSFADE_DURATION_DEFAULT_MS,
   PARTICLE_CROSSFADE_DURATION_MIN_MS,
   PARTICLE_CROSSFADE_DURATION_MAX_MS,
@@ -63,6 +70,13 @@ const UserSettingsPageInner = ({ userSettings, updateUserSettings, getToken }: U
   const onCrossfadeCommit = useCallback((value: number) => {
     setDraggingCrossfadeMs(null)
     updateUserSettings({ crossfadeDurationMs: value })
+  }, [updateUserSettings])
+
+  const quality = userSettings?.quality ?? QUALITY_SETTING_DEFAULT
+
+  const onQualityChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
+    const { value } = e.target
+    if (isQualitySetting(value)) updateUserSettings({ quality: value })
   }, [updateUserSettings])
 
   const warnBeforeRedZone = userSettings?.skipRedZoneWarning !== true
@@ -131,6 +145,15 @@ const UserSettingsPageInner = ({ userSettings, updateUserSettings, getToken }: U
         onChange={onCrossfadeChange}
         onCommit={onCrossfadeCommit}
       />
+      <div className='user-settings-page__row'>
+        <label className='user-settings-page__label' htmlFor='quality-setting'>Quality</label>
+        <select id='quality-setting' className='user-settings-page__select' value={quality} onChange={onQualityChange}>
+          {QUALITY_SETTINGS.map((setting) => (
+            <option key={setting} value={setting}>{QUALITY_LABELS[setting]}</option>
+          ))}
+        </select>
+        <span className='user-settings-page__logo-hint'>{QUALITY_HINTS[quality]}</span>
+      </div>
       <label className='user-settings-page__checkbox'>
         <input type='checkbox' checked={warnBeforeRedZone} onChange={onRedZoneWarningChange} />
         Warn me before going into the red zone

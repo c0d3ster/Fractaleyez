@@ -8,6 +8,8 @@ const CROSSFADE_DURATION_MIN_MS = 0
 const CROSSFADE_DURATION_MAX_MS = 5000
 // Comfortably above an R2 object URL's length; just a ceiling against garbage input.
 const MAX_LOGO_PARTICLE_URL_LENGTH = 2048
+// Mirrors src/config/quality.config.ts's QUALITY_SETTINGS.
+const QUALITY_SETTINGS = ['auto', 'saver', 'balanced', 'quality', 'ultra']
 // Mirrors FrequencyHud.tsx's VISIBLE_BANDS plus headroom for hidden high bands.
 const MAX_HUD_FREQ_BANDS = 16
 
@@ -94,6 +96,15 @@ export const updateMeHandler = async (req: Request, res: Response): Promise<void
       return
     }
     patch.skipRedZoneWarning = body.skipRedZoneWarning
+  }
+
+  if ('quality' in body) {
+    const { quality } = body
+    if (typeof quality !== 'string' || !QUALITY_SETTINGS.includes(quality)) {
+      res.status(400).json({ error: `quality must be one of: ${QUALITY_SETTINGS.join(', ')}` })
+      return
+    }
+    patch.quality = quality
   }
 
   if ('hud' in body) {
