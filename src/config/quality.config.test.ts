@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   AUTO_TIERS,
+  capHidesLoad,
   estimateSceneCost,
   FRACTAL_MAX_ITERATIONS,
   isQualitySetting,
@@ -74,5 +75,21 @@ describe('estimateSceneCost', () => {
 
   it('is zero for an empty scene', () => {
     expect(estimateSceneCost({ ...scene, fractal: false, orbit: false, glow: false })).toBe(0)
+  })
+})
+
+describe('capHidesLoad', () => {
+  it('is false without a cap', () => {
+    expect(capHidesLoad(null)).toBe(false)
+  })
+
+  it('is true for a cap slower than the slowness threshold Auto uses', () => {
+    expect(capHidesLoad(QUALITY_PROFILES.saver.frameCapFps)).toBe(true)
+    expect(capHidesLoad(30)).toBe(true)
+  })
+
+  it('is false for a cap well above it, so Auto can still step a slow machine down', () => {
+    expect(capHidesLoad(QUALITY_PROFILES.balanced.frameCapFps)).toBe(false)
+    expect(capHidesLoad(120)).toBe(false)
   })
 })

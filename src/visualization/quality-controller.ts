@@ -2,6 +2,7 @@ import { AppConfig } from '../config/configDefaults'
 import {
   AUTO_EVAL_MS,
   AUTO_TIERS,
+  capHidesLoad,
   estimateSceneCost,
   isQualitySetting,
   isQualityTier,
@@ -120,7 +121,7 @@ export class QualityController {
     this.governor.push(frameMs)
     if (now < this.nextEvalAt) return
     this.nextEvalAt = now + AUTO_EVAL_MS
-    const capped = QUALITY_PROFILES[this.tier].frameCapFps !== null
+    const capped = capHidesLoad(QUALITY_PROFILES[this.tier].frameCapFps)
     const next = this.governor.evaluate(now, readSceneCost(window.config), capped)
     if (next === this.tier) return
     this.setTier(next)

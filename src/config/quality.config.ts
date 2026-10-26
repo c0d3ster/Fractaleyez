@@ -71,6 +71,13 @@ export const AUTO_SLOW_FACTOR = 1.4
 export const AUTO_SLOW_MIN_MS = 18
 export const AUTO_SLOW_MAX_MS = 24
 
+/**
+ * Whether a tier's frame cap is slow enough that its frame times are the cap's own pace and say nothing about load (Saver's 30fps).
+ * A cap faster than Auto's slowness threshold (Balanced's 120fps) only skips frames when the machine is running ahead of it, so
+ * a slow machine still shows slow frames and Auto can still step it down.
+ */
+export const capHidesLoad = (frameCapFps: number | null): boolean => frameCapFps !== null && 1000 / frameCapFps >= AUTO_SLOW_MIN_MS
+
 // Auto steps down after the frame time has been slow for this long without a break.
 export const AUTO_SLOW_FOR_MS = 3000
 // Frames are judged in windows this long.
