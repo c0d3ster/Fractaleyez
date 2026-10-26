@@ -39,14 +39,30 @@ const sampleGpu = (seconds) => new Promise((resolve) => {
 })
 
 const RECORDER = `(() => {
-  const rec = { frames: [], beats: [], long: [], loaf: [], tiers: [] }
+  const rec = { frames: [], beats: [], long: [], loaf: [], tiers: [], vfc: [], vdrop: {} }
   window.__rec = rec
   let last = performance.now(), lastBeat = null
+  // Video cadence: every <video> gets a requestVideoFrameCallback loop that logs [time, mediaTime, videoCount]; dropped frames are read per element.
+  const seen = new WeakSet()
+  let vid = 0
+  const watchVideos = () => {
+    const vs = document.querySelectorAll('video')
+    vs.forEach((v) => {
+      const q = v.getVideoPlaybackQuality && v.getVideoPlaybackQuality()
+      if (q) rec.vdrop[v.dataset.bid || (v.dataset.bid = String(++vid))] = [q.droppedVideoFrames, q.totalVideoFrames]
+      if (seen.has(v)) return
+      seen.add(v)
+      const id = v.dataset.bid || (v.dataset.bid = String(++vid))
+      const cb = (now, meta) => { rec.vfc.push([now, meta.mediaTime, document.querySelectorAll('video').length, id, v.videoWidth]); if (v.isConnected) v.requestVideoFrameCallback(cb) }
+      v.requestVideoFrameCallback(cb)
+    })
+  }
   const tick = (now) => {
     rec.frames.push([now, now - last])
     last = now
     const b = window.getLastBeatTime && window.getLastBeatTime()
     if (b != null && b !== lastBeat) { lastBeat = b; rec.beats.push(b) }
+    watchVideos()
     requestAnimationFrame(tick)
   }
   requestAnimationFrame(tick)
@@ -124,7 +140,7 @@ const run = async () => {
   await page.evaluate(RECORDER)
   await sleep(warm)
   // reset recorders after warm up
-  await page.evaluate(() => { const r = window.__rec; r.frames.length = 0; r.beats.length = 0; r.long.length = 0; r.loaf.length = 0 })
+  await page.evaluate(() => { const r = window.__rec; r.frames.length = 0; r.beats.length = 0; r.long.length = 0; r.loaf.length = 0; r.vfc.length = 0; r.vdrop0 = JSON.parse(JSON.stringify(r.vdrop)) })
   if (pop) await pop.evaluate(() => { const r = window.__rec; r.frames.length = 0; r.long.length = 0; r.loaf.length = 0 })
 
   if (throttle > 1) { const cs = await ctx.newCDPSession(page); await cs.send('Emulation.setCPUThrottlingRate', { rate: throttle }) }
@@ -146,7 +162,45 @@ const run = async () => {
   const nearBeat = rec.frames.filter(([t]) => beatsT.some((b) => t >= b && t - b <= 200)).map((f) => f[1])
   const offBeat = rec.frames.filter(([t]) => !beatsT.some((b) => t >= b && t - b <= 200)).map((f) => f[1])
   const delta = (a, b, k) => ((b[k] - a[k]) * 1000) / secs // ms per second
+  // Video cadence: gaps between consecutive presented frames of the same element, split into steady playback (one element) and crossfade (two).
+  const vgaps = (pred) => {
+    const g = []
+    const last = {}
+    for (const [t, , n, id] of rec.vfc) { if (last[id] !== undefined && pred(n)) g.push(t - last[id]); last[id] = t }
+    return g
+  }
+  const vstats = (g) => ({ n: g.length, p50: +pct(g, 0.5).toFixed(1), p95: +pct(g, 0.95).toFixed(1), max: +Math.max(0, ...g).toFixed(1), over60: g.filter((x) => x > 60).length, over100: g.filter((x) => x > 100).length })
+  const drops = Object.entries(rec.vdrop).reduce((a, [id, [d, tot]]) => { const [d0, t0v] = (rec.vdrop0 || {})[id] || [0, 0]; return [a[0] + d - d0, a[1] + tot - t0v] }, [0, 0])
+  // Beat sync: the drum loop is 16 s with a kick every 60/128 s (33 per loop, then a longer gap at the wrap), and the detector fires once per kick.
+  // The loop's phase against the page clock is unknown (it depends on when capture started), so it is fitted by least squares; that also absorbs
+  // the constant audio-capture latency, which cannot be measured without a loopback. What is left is timing jitter and misses.
+  const LOOP = 16000, KICK = 60000 / 128, KICKS = 33
+  const onsets = Array.from({ length: KICKS }, (_, k) => k * KICK)
+  const nearest = (t, phi) => {
+    const x = (((t - phi) % LOOP) + LOOP) % LOOP
+    let best = Infinity
+    for (const o of [...onsets, LOOP]) { const d = x - o; if (Math.abs(d) < Math.abs(best)) best = d }
+    return best
+  }
+  let phi = 0
+  if (beatsT.length) {
+    let bestCost = Infinity
+    for (let c = 0; c < LOOP; c += 5) { const cost = beatsT.reduce((a, t) => a + Math.min(nearest(t, c), 150) ** 2, 0); if (cost < bestCost) { bestCost = cost; phi = c } }
+  }
+  const resid = beatsT.map((t) => nearest(t, phi))
+  const absr = resid.map(Math.abs)
+  const hits = resid.filter((x) => Math.abs(x) <= 100).length
+  const sync = {
+    perSec: +(beatsT.length / secs).toFixed(2), expectedPerSec: +(KICKS / (LOOP / 1000)).toFixed(2),
+    jitterP50: +pct(absr, 0.5).toFixed(1), jitterP95: +pct(absr, 0.95).toFixed(1), late40: absr.filter((x) => x > 40).length, n: beatsT.length, offGrid: beatsT.length - hits,
+    lateMean: +(resid.reduce((a, b) => a + b, 0) / Math.max(1, resid.length)).toFixed(1),
+  }
+  const med = pct(dts, 0.5)
+  const mean = dts.reduce((a, b) => a + b, 0) / Math.max(1, dts.length)
+  const flow = { stdMs: +Math.sqrt(dts.reduce((a, b) => a + (b - mean) ** 2, 0) / Math.max(1, dts.length)).toFixed(2), hitchPerSec: +(dts.filter((d) => d > med * 2.5).length / secs).toFixed(2) }
   const out = {
+    sync, flow, beatTimes: beatsT.map((b) => +(b - t0).toFixed(1)),
+    video: { steady: vstats(vgaps((n) => n === 1)), crossfade: vstats(vgaps((n) => n > 1)), dropped: drops[0], total: drops[1], widths: [...new Set(rec.vfc.map((v) => v[4]))] },
     label, popup, noshock, throttle, uncapped, secs, quality, tiers: rec.tiers.map(([t, setting, tier]) => ({ atSec: +((t - t0) / 1000).toFixed(1), setting, tier })), gpu, gpuUtil, off: offList, size, pos,
     drawnFps, frames: dts.length, fps: +(dts.length / (dts.reduce((a, b) => a + b, 0) / 1000)).toFixed(1), beats: beatsT.length,
     frameMs: { p50: +pct(dts, 0.5).toFixed(1), p95: +pct(dts, 0.95).toFixed(1), p99: +pct(dts, 0.99).toFixed(1), max: +Math.max(...dts).toFixed(1) },

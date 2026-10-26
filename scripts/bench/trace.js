@@ -1,4 +1,4 @@
-// node trace.js <label> [--popup] [--noshock] [--secs=10]
+// node trace.js <label> [--popup] [--noshock] [--secs=10] [--quality=<tier>] [--gpu=nvidia] [--size=1280x800] [--pos=0,0]
 const path = require('path')
 const fs = require('fs')
 // Paths come from the environment so this runs on any machine: PLAYWRIGHT_CORE (module to require, default 'playwright-core'),
@@ -12,13 +12,15 @@ const JOB = OUT
 const args = process.argv.slice(2)
 const label = args[0], popup = args.includes('--popup'), noshock = args.includes('--noshock')
 const secs = Number((args.find((a) => a.startsWith('--secs=')) || '--secs=10').split('=')[1])
+const opt = (name, fallback) => (args.find((a) => a.startsWith(`--${name}=`)) || `--${name}=${fallback}`).split('=')[1]
+const quality = opt('quality', '') || null
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 ;(async () => {
   const browser = await chromium.launch({
     executablePath: CHROME,
     headless: false,
     args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream', '--use-file-for-fake-audio-capture=' + path.join(JOB, 'drums.wav'),
-      '--window-size=1280,800', '--window-position=0,0', '--disable-backgrounding-occluded-windows', '--disable-renderer-backgrounding',
+      '--window-size=' + opt('size', '1280x800').replace('x', ','), '--window-position=' + opt('pos', '0,0'), ...(opt('gpu', 'default') === 'nvidia' ? ['--force_high_performance_gpu'] : []), '--disable-backgrounding-occluded-windows', '--disable-renderer-backgrounding',
       '--disable-features=CalculateNativeWinOcclusion', '--autoplay-policy=no-user-gesture-required'],
   })
   const ctx = await browser.newContext({ viewport: null })
@@ -26,6 +28,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
   const page = await ctx.newPage()
   await page.goto(BASE_URL); await sleep(4000)
   await page.mouse.click(600, 400)
+  if (quality) await page.evaluate((q) => window.setQuality(q), quality)
   const early = args.includes('--early')
   if (early) await browser.startTracing(page, { categories: ['devtools.timeline', 'blink.animations', 'disabled-by-default-devtools.timeline', 'cc'], screenshots: false })
   if (noshock) await page.evaluate(() => window.updateConfigItem('effects', 'shockwave', false))
