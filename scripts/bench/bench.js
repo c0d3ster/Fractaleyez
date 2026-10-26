@@ -26,6 +26,8 @@ const pos = (args.find((a) => a.startsWith('--pos=')) || '--pos=0,0').split('=')
 const offList = ((args.find((a) => a.startsWith('--off=')) || '--off=').split('=')[1] || '').split(',').filter(Boolean)
 const quality = (args.find((a) => a.startsWith('--quality=')) || '--quality=').split('=')[1] || null
 const shot = args.includes('--shot')
+// The popup normally gets a frame recorder, whose rAF loop makes it paint on every vsync; --norecpop leaves the popup alone, as a user's would be.
+const recPopup = !args.includes('--norecpop')
 const warm = 5000
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
@@ -135,13 +137,13 @@ const run = async () => {
     await pop.waitForLoadState('load')
     await sleep(2500)
     console.log('popup open', await pop.evaluate(() => [innerWidth, innerHeight, document.querySelectorAll('*').length]))
-    await pop.evaluate(RECORDER)
+    if (recPopup) await pop.evaluate(RECORDER)
   }
   await page.evaluate(RECORDER)
   await sleep(warm)
   // reset recorders after warm up
   await page.evaluate(() => { const r = window.__rec; r.frames.length = 0; r.beats.length = 0; r.long.length = 0; r.loaf.length = 0; r.vfc.length = 0; r.vdrop0 = JSON.parse(JSON.stringify(r.vdrop)) })
-  if (pop) await pop.evaluate(() => { const r = window.__rec; r.frames.length = 0; r.long.length = 0; r.loaf.length = 0 })
+  if (pop && recPopup) await pop.evaluate(() => { const r = window.__rec; r.frames.length = 0; r.long.length = 0; r.loaf.length = 0 })
 
   if (throttle > 1) { const cs = await ctx.newCDPSession(page); await cs.send('Emulation.setCPUThrottlingRate', { rate: throttle }) }
   const mm = await metricsOf(page)
@@ -156,7 +158,7 @@ const run = async () => {
   // Frames the app drew per second (its own rolling median); the recorder's `fps` counts display frames, which a frame-capped tier skips.
   const drawnFps = await page.evaluate(() => window.getPerfData().fps)
   const rec = await page.evaluate(() => window.__rec)
-  const prec = pop ? await pop.evaluate(() => window.__rec) : null
+  const prec = pop && recPopup ? await pop.evaluate(() => window.__rec) : null
   const dts = rec.frames.map((f) => f[1])
   const beatsT = rec.beats
   const nearBeat = rec.frames.filter(([t]) => beatsT.some((b) => t >= b && t - b <= 200)).map((f) => f[1])
@@ -214,8 +216,8 @@ const run = async () => {
   }
   if (p0) {
     out.popupMsPerSec = { task: +delta(p0, p1, 'TaskDuration').toFixed(1), script: +delta(p0, p1, 'ScriptDuration').toFixed(1), layout: +delta(p0, p1, 'LayoutDuration').toFixed(1), style: +delta(p0, p1, 'RecalcStyleDuration').toFixed(1) }
-    out.popupFrames = prec.frames.length
-    out.popupLong = { n: prec.long.length, ms: +prec.long.reduce((s, l) => s + l[1], 0).toFixed(0), longest: +Math.max(0, ...prec.long.map((l) => l[1])).toFixed(0), loaf: prec.loaf.length }
+    if (prec) out.popupFrames = prec.frames.length
+    if (prec) out.popupLong = { n: prec.long.length, ms: +prec.long.reduce((s, l) => s + l[1], 0).toFixed(0), longest: +Math.max(0, ...prec.long.map((l) => l[1])).toFixed(0), loaf: prec.loaf.length }
   }
   console.log(JSON.stringify(out, null, 1))
   fs.writeFileSync(path.join(JOB, `result-${label}.json`), JSON.stringify(out, null, 1))
