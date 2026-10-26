@@ -7,6 +7,8 @@ import { RedrawGate } from './redraw-gate'
 
 const VIDEO_RESUME_DELAY_MS = 250
 const VIDEO_RESUME_MAX_ATTEMPTS = 5
+// A clip that was handed over from is paused at once but only torn down (source released, texture freed) this long after, so that work does not land on a frame of the fade it just finished.
+const RETIRE_DELAY_MS = 600
 // HTMLMediaElement.HAVE_CURRENT_DATA: the incoming clip has a frame to show, so a crossfade never fades to black.
 const HAVE_CURRENT_DATA = 2
 // A decoded frame is uploaded when at least this share of the upload interval has passed. A little under 1 so a 30fps clip
@@ -236,7 +238,7 @@ export class VideoLayer implements Layer {
     return slot
   }
 
-  private disposeSlot = (slot: VideoSlot): void => {
+  private disposeSlot = (slot: VideoSlot, retireLater = false): void => {
     const { video } = slot
     if (slot.frameHandle !== null) video.cancelVideoFrameCallback(slot.frameHandle)
     slot.frameHandle = null
@@ -247,10 +249,14 @@ export class VideoLayer implements Layer {
     slot.resumeTimer = undefined
     slot.resumeAttempts = 0
     video.pause()
-    video.removeAttribute('src')
-    video.load()
-    video.remove()
-    slot.texture.dispose()
+    const release = (): void => {
+      video.removeAttribute('src')
+      video.load()
+      video.remove()
+      slot.texture.dispose()
+    }
+    if (retireLater) setTimeout(release, RETIRE_DELAY_MS)
+    else release()
   }
 
   private disposeVideo = (): void => {
@@ -305,7 +311,7 @@ export class VideoLayer implements Layer {
     this.redrawGate.markDirty()
     const { current, incoming } = this
     if (!incoming) return
-    if (current) this.disposeSlot(current)
+    if (current) this.disposeSlot(current, true)
     this.current = incoming
     this.incoming = null
     this.fade = 0
