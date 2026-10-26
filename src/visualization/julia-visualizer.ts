@@ -4,6 +4,7 @@ import { AudioAnalysedDataForVisualization } from '../audioanalysis/audio-analys
 import { juliaFragmentShader, juliaVertexShader } from './shaders/julia-fragment.glsl'
 import { JULIA_MAP_VIEW, JULIA_TOUR } from './julia-tour'
 import { userConfig } from '../config/user.config'
+import { FRACTAL_MAX_ITERATIONS, QUALITY_PROFILES } from '../config/quality.config'
 import { resolveColorState } from '../config/colorState'
 import { LUT_SIZE } from '../config/paletteLut'
 import { JULIA_SCALE, SCALE_UNITS_PER_SLIDER_STEP } from '../config/juliaScale.config'
@@ -370,6 +371,7 @@ export class JuliaVisualizer {
         uGlow: { value: 0 },
         uShockRadius: { value: 0 },
         uShockStrength: { value: 0 },
+        uMaxIter: { value: QUALITY_PROFILES.quality.fractalIterations },
       },
     })
 
@@ -388,6 +390,12 @@ export class JuliaVisualizer {
   private onResize = (): void => {
     if (!this.material) return
     this.material.uniforms.uAspect!.value = window.innerWidth / window.innerHeight
+  }
+
+  /** How many escape-time iterations each pixel runs at most; the quality tier sets it. */
+  setMaxIterations(iterations: number): void {
+    if (!this.material) return
+    this.material.uniforms.uMaxIter!.value = Math.min(FRACTAL_MAX_ITERATIONS, Math.max(1, iterations))
   }
 
   private emaTowards(current: number, target: number, dtSeconds: number): number {

@@ -1,5 +1,6 @@
 import type { AppConfig, LayerKey } from '../config/configDefaults'
 import type { BeatTimeline } from '../audioanalysis/beat'
+import type { QualityStatus } from '../visualization/quality-controller'
 
 // Window Management API — not yet in TypeScript's lib.dom.d.ts.
 // https://developer.mozilla.org/en-US/docs/Web/API/Window_Management_API
@@ -46,7 +47,10 @@ declare global {
       frameMs: number
       pingMs: number | null
       estimatedLagMs: number
+      quality: QualityStatus
     }
+    getQuality?: () => QualityStatus
+    setQuality?: (setting: string) => void
     getScreenDetails?: () => Promise<ScreenDetails>
   }
 

@@ -100,3 +100,19 @@
 .user-settings-page__checkbox input[type='checkbox'] {
   margin: 0;
 }
+
+.user-settings-page__select {
+  font: inherit;
+  font-size: 13px;
+  color: #ccc;
+  background: #111;
+  border: 1px solid #3a3a3a;
+  border-radius: 6px;
+  padding: 8px 10px;
+  cursor: pointer;
+}
+
+.user-settings-page__select:focus-visible {
+  outline: 2px solid #ccc;
+  outline-offset: 2px;
+}

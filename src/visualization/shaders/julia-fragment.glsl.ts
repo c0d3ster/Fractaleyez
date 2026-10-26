@@ -1,3 +1,5 @@
+import { FRACTAL_MAX_ITERATIONS } from '../../config/quality.config'
+
 
 export const juliaVertexShader = /* glsl */ `
   varying vec2 vUv;
@@ -32,10 +34,12 @@ export const juliaFragmentShader = /* glsl */ `
   uniform float uGlow;
   uniform float uShockRadius;
   uniform float uShockStrength;
+  uniform float uMaxIter;
 
   varying vec2 vUv;
 
-  const int MAX_ITER = 128;
+  // The loop bound is the most any quality tier asks for (FRACTAL_MAX_ITERATIONS); uMaxIter ends it early.
+  const int MAX_ITER = ${FRACTAL_MAX_ITERATIONS};
   const float WIDE_START = 0.25;
   const float WIDE_END = 0.8;
 
@@ -53,6 +57,7 @@ export const juliaFragmentShader = /* glsl */ `
     bool escaped = false;
 
     for (int i = 0; i < MAX_ITER; i++) {
+      if (float(i) >= uMaxIter) break;
       z = complexSquare(z) + c;
       if (dot(z, z) > 256.0) {
         n = float(i);

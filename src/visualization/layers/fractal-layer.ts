@@ -17,6 +17,10 @@ export class FractalLayer implements Layer {
     this.visualizer.renderTo(this.renderer, target)
   }
 
+  setMaxIterations = (iterations: number): void => {
+    this.visualizer.setMaxIterations(iterations)
+  }
+
   getSteerPosition = (): { x: number; y: number } => this.visualizer.getSteerPosition()
 
   // The visualizer tracks window size itself (uAspect); only the target size changes, and the compositor owns that.

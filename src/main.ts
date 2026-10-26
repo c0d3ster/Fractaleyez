@@ -6,6 +6,7 @@ import { beatMonitor } from './audioanalysis/beat'
 import { LayerKey } from './config/configDefaults'
 import { LAYER_REGISTRY } from './config/layers'
 import { createLayerPipeline, LayerPipeline } from './visualization/layers'
+import { qualityController } from './visualization/quality-controller'
 
 // Size of the fft transform performed on audio stream
 const FFT_SIZE = 512
@@ -38,8 +39,19 @@ document.addEventListener('keydown', (event: KeyboardEvent) => {
   if (key === 's') window.updateConfigItem?.('effects', 'shockwave', !window.config.effects.shockwave.value)
 })
 
-// Create timing mechanism
+// The quality tier (Auto or fixed) as the perf readout and the pop-out config window see it.
+window.getQuality = () => qualityController.getStatus()
+// For the benchmark script (scripts/bench), which picks a tier from outside the settings page.
+window.setQuality = (setting) => qualityController.setSetting(setting)
+
+// Create timing mechanism. A frame is drawn when the tier's frame cap allows; every display frame still goes to Auto,
+// which judges the display's pace, not the drawn one.
 let lastFrameTime = 0
+let lastDisplayFrameTime = 0
+// A frame is drawn once this share of the cap's interval has passed, so a display frame that lands a hair early is not skipped for a whole extra one.
+const FRAME_CAP_SLACK = 0.9
+// A longer gap between display frames is a background tab or a stall, not load; Auto ignores it. (The perf readout ignores gaps over 250ms, which is below 4fps.)
+const DISPLAY_GAP_MAX_MS = 2000
 
 const FRAME_DELTA_SAMPLES = 60
 const frameDeltaMs: number[] = []
@@ -112,8 +124,12 @@ const init = (): void => {
 
   audiostream.init()
   lastFrameTime = performance.now()
+  lastDisplayFrameTime = lastFrameTime
 
-  pipeline = createLayerPipeline()
+  pipeline = createLayerPipeline(qualityController)
+  // Frames around a resize or a tab coming back say nothing about load; Auto waits them out.
+  window.addEventListener('resize', qualityController.disturb)
+  document.addEventListener('visibilitychange', qualityController.disturb)
   // Owned here (not by a visualizer) so the frequency HUD keeps working in every layer combination.
   window.getAudioData = audioFeed.getLatest
   window.getBeatTimeline = beatMonitor.getTimeline
@@ -126,6 +142,7 @@ const init = (): void => {
       frameMs,
       pingMs: getPingMs(),
       estimatedLagMs: getEstimatedAudioVisualLagMs(frameMs),
+      quality: qualityController.getStatus(),
     }
   }
   refreshHttpPing()
@@ -163,6 +180,14 @@ const analyze = (): void => {
   window.requestAnimationFrame(analyze)
 
   const now = performance.now()
+  const displayGap = now - lastDisplayFrameTime
+  lastDisplayFrameTime = now
+  if (displayGap > 0 && displayGap < DISPLAY_GAP_MAX_MS) qualityController.recordFrame(displayGap, now)
+
+  // Analysis and drawing share the cap: a skipped frame does neither, so a beat is never detected on a frame that is not drawn.
+  const { frameCapFps } = qualityController.getProfile()
+  if (frameCapFps !== null && now - lastFrameTime < (1000 / frameCapFps) * FRAME_CAP_SLACK) return
+
   const deltaTime = now - lastFrameTime
   lastFrameTime = now
   const currentTimer = new Date()

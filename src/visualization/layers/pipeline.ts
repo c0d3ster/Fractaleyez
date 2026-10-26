@@ -1,6 +1,8 @@
 import * as THREE from 'three'
 
 import { AudioAnalysedDataForVisualization } from '../../audioanalysis/audio-analysed-data'
+import { QualityProfile } from '../../config/quality.config'
+import { QualityController } from '../quality-controller'
 import { LayerCompositor } from './compositor'
 import { FractalLayer } from './fractal-layer'
 import { LogoLayer } from './logo-layer'
@@ -16,7 +18,7 @@ export type LayerPipeline = {
 }
 
 /** One renderer and canvas; Video, Orbit, Fractal and Logo draw to their own targets, composed in `layers.order`, then bloom and shockwave. */
-export const createLayerPipeline = (): LayerPipeline => {
+export const createLayerPipeline = (quality: QualityController): LayerPipeline => {
   const renderer = new THREE.WebGLRenderer({ antialias: false })
   renderer.setClearColor(0x000000, 1)
   renderer.setSize(window.innerWidth, window.innerHeight)
@@ -34,6 +36,16 @@ export const createLayerPipeline = (): LayerPipeline => {
   const getVisualCenter = (): { x: number; y: number } =>
     window.config.layers.meta.fractal.enabled.value ? fractal.getSteerPosition() : orbit.getCameraTrailPosition()
   const effects = new PostEffects(renderer, compositor.getScene(), compositor.getCamera(), getVisualCenter)
+
+  // The tier sets how much each layer and effect spends; it is applied now and again whenever Auto or the user changes it.
+  const applyProfile = (_tier: unknown, profile: QualityProfile): void => {
+    compositor.setResolutionScale('fractal', profile.fractalScale)
+    fractal.setMaxIterations(profile.fractalIterations)
+    effects.setBloomScale(profile.bloomScale)
+    video.setUploadFps(profile.videoUploadFps)
+    logo.setSmoothMagnification(profile.logoBicubic)
+  }
+  const unsubscribeQuality = quality.subscribe(applyProfile)
 
   const onResize = (): void => {
     renderer.setSize(window.innerWidth, window.innerHeight)
@@ -55,6 +67,7 @@ export const createLayerPipeline = (): LayerPipeline => {
     },
     dispose: () => {
       window.removeEventListener('resize', onResize)
+      unsubscribeQuality()
       effects.dispose()
       compositor.dispose()
       renderer.dispose()

@@ -8,6 +8,9 @@ const VIDEO_RESUME_DELAY_MS = 250
 const VIDEO_RESUME_MAX_ATTEMPTS = 5
 // HTMLMediaElement.HAVE_CURRENT_DATA: the incoming clip has a frame to show, so a crossfade never fades to black.
 const HAVE_CURRENT_DATA = 2
+// A decoded frame is uploaded when at least this share of the upload interval has passed. A little under 1 so a 30fps clip
+// with jittery frame times is not thinned to 15fps, while a 60fps clip still uploads every other frame.
+const UPLOAD_INTERVAL_SLACK = 0.9
 
 const isClipsDetail = (detail: unknown): detail is { clips: string[] } =>
   typeof detail === 'object' && detail !== null && 'clips' in detail && Array.isArray(detail.clips)
@@ -18,6 +21,7 @@ type VideoSlot = {
   src: string
   texture: THREE.Texture
   frameHandle: number | null
+  lastUploadAt: number
   resumeAttempts: number
   resumeTimer: ReturnType<typeof setTimeout> | undefined
   onEnded: () => void
@@ -54,6 +58,8 @@ export class VideoLayer implements Layer {
   private incomingIndex = 0
   private fade = 0
   private teardownWhenHidden = false
+  // Least time between texture uploads; 0 uploads every decoded frame.
+  private uploadIntervalMs = 0
 
   constructor(private readonly renderer: THREE.WebGLRenderer) {
     this.scene.add(new THREE.Mesh(this.geometry, this.currentMaterial))
@@ -64,6 +70,11 @@ export class VideoLayer implements Layer {
     window.addEventListener('videoClipsChanged', this.onClipsChanged)
     const { clips } = window.config.video
     if (window.config.layers.meta.video.enabled.value && clips.length) this.createVideo(clips)
+  }
+
+  /** The video texture is re-uploaded at most this many times a second (null: every decoded frame). The video itself keeps decoding at its own rate. */
+  setUploadFps = (fps: number | null): void => {
+    this.uploadIntervalMs = fps === null ? 0 : (1000 / fps) * UPLOAD_INTERVAL_SLACK
   }
 
   /** Only has something to draw while a clip is loaded (the layer gate is `video.enabled && clips.length`). */
@@ -195,6 +206,7 @@ export class VideoLayer implements Layer {
       src,
       texture,
       frameHandle: null,
+      lastUploadAt: Number.NEGATIVE_INFINITY,
       resumeAttempts: 0,
       resumeTimer: undefined,
       onEnded: () => this.onEnded(slot),
@@ -203,8 +215,11 @@ export class VideoLayer implements Layer {
         slot.resumeAttempts = 0
       },
     }
-    const onFrame = (): void => {
-      texture.needsUpdate = true
+    const onFrame = (now: number): void => {
+      if (now - slot.lastUploadAt >= this.uploadIntervalMs) {
+        slot.lastUploadAt = now
+        texture.needsUpdate = true
+      }
       slot.frameHandle = video.requestVideoFrameCallback(onFrame)
     }
     slot.frameHandle = video.requestVideoFrameCallback(onFrame)

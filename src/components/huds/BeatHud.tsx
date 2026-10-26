@@ -165,7 +165,7 @@ export const BeatHud = (): React.ReactElement => {
       })
     }
 
-    return subscribeUiTick(draw)
+    return subscribeUiTick(draw, canvas)
   }, [])
 
   return (

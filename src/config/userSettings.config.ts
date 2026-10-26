@@ -1,3 +1,5 @@
+import type { QualitySetting } from './quality.config'
+
 /** Mirrors server/models/User.ts's UserSettings shape -- the client-side view of what's persisted per-user. */
 export type UserHudSettings = {
   enabledFreqBands?: boolean[]
@@ -7,6 +9,7 @@ export type UserSettings = {
   crossfadeDurationMs?: number
   logoParticle?: string
   skipRedZoneWarning?: boolean
+  quality?: QualitySetting
   hud?: UserHudSettings
 }
 

@@ -26,6 +26,25 @@ node scripts/bench/agg.js <prefix> [<prefix> ...]  # table of averages across ru
 machine behaves. The columns that matter in `agg.js`: `nearBeat p95` against the overall `p95` (a beat hitch shows as near-beat frames
 running slower), `near>9ms%` (frames that missed a vsync within 200 ms of a beat), and `busy ms/s` (main-thread time per second).
 
+## Quality tiers
+
+```sh
+scripts/bench/rep.sh q-saver 3 --quality=saver
+scripts/bench/rep.sh q-balanced 3 --quality=balanced
+scripts/bench/rep.sh q-quality 3 --quality=quality
+scripts/bench/rep.sh q-ultra 3 --quality=ultra
+node scripts/bench/agg.js q-saver q-balanced q-quality q-ultra
+```
+
+`--quality=<auto|saver|balanced|quality|ultra>` picks the tier after load (the app's default is `auto`). Each tier should cost less
+than the one above it: compare `busy ms/s` and, on Windows, the GPU ms per frame from `gpusumm.js`. A Saver run is frame-capped at
+30fps: `fps` still counts display frames, so judge it on `drawnFps` (what the app drew), `busy ms/s` and GPU time. `--shot` saves `shot-<label>.png` four seconds into the measured
+window, to compare how the tiers look. The `tier` column of `agg.js` is the tier the run ended on, and the result JSON's `tiers`
+lists every change with its time in seconds (negative is before the measured window started).
+
+To test Auto, start on `--quality=auto` with a heavy scene under `--throttle=4`: it should step down within about 3 to 8 seconds
+and then stay put. On a healthy run it should not move at all.
+
 ## GPU runs (Windows)
 
 ```sh

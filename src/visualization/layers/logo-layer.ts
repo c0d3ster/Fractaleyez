@@ -8,6 +8,7 @@ import { getParticleCrossfadeDurationMs } from '../../config/visualizer.config'
 import { userConfig } from '../../config/user.config'
 import { CameraManager } from '../camera-manager'
 import { getMusicSpeedMultiplier } from '../music-speed'
+import { createBicubicUniforms, enableBicubicMap } from './bicubic-map'
 import { Layer } from './layer'
 
 // Local distance in front of the camera. The logo fills `logoConfig.baseHeightFraction` of the viewport height at Size 1.
@@ -117,8 +118,12 @@ export class LogoLayer implements Layer {
   // down to a partly transparent blur, which falls under `SIDE_ALPHA_CUTOFF` and cuts the middle of the sliver out.
   // Without mipmaps each pixel samples real texels, so the sides keep their coverage (a little aliasing, briefly).
   private sideTexture: THREE.Texture | null = null
+  // Ultra samples the faces and the zoom copies bicubically where the image is drawn larger than its own size.
+  private readonly bicubic = createBicubicUniforms()
 
   constructor(private readonly renderer: THREE.WebGLRenderer) {
+    // The bicubic lookup needs fragment derivatives, which only WebGL2 has without an extension.
+    if (renderer.capabilities.isWebGL2) [...this.faces, ...this.zoomMaterials].forEach((material) => enableBicubicMap(material, this.bicubic))
     this.cameraManager.init()
     const camera = this.cameraManager.getCamera()
     this.pivot.add(this.logo)
@@ -139,6 +144,11 @@ export class LogoLayer implements Layer {
     this.renderer.render(this.scene, camera)
     this.renderer.setClearColor(0x000000, 1)
     this.renderer.setRenderTarget(null)
+  }
+
+  /** On, the faces and zoom copies are sampled bicubically where they are drawn larger than the image itself. */
+  setSmoothMagnification = (on: boolean): void => {
+    this.bicubic.uBicubic.value = on ? 1 : 0
   }
 
   resize = (): void => {
@@ -214,6 +224,7 @@ export class LogoLayer implements Layer {
     const { logo } = window.config
     const image: unknown = this.texture?.image
     if (!this.texture || !hasSize(image)) return // still loading
+    this.bicubic.uMapSize.value.set(image.width, image.height)
     if (!this.sideTexture) this.createSideTexture(this.texture)
     const camera = this.cameraManager.getCamera()
     const viewHeight = 2 * LOGO_DISTANCE * Math.tan((camera.fov / 2) * (Math.PI / 180))
