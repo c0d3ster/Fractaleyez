@@ -3,6 +3,7 @@ import * as THREE from 'three'
 import { getParticleCrossfadeDurationMs } from '../../config/visualizer.config'
 import { isNearEnd, stepOpacity } from './fade'
 import { Layer } from './layer'
+import { RedrawGate } from './redraw-gate'
 
 const VIDEO_RESUME_DELAY_MS = 250
 const VIDEO_RESUME_MAX_ATTEMPTS = 5
@@ -60,6 +61,8 @@ export class VideoLayer implements Layer {
   private teardownWhenHidden = false
   // Least time between texture uploads; 0 uploads every decoded frame.
   private uploadIntervalMs = 0
+  // The target keeps its pixels, so a frame with no new decoded frame and no crossfade running does not redraw it.
+  private readonly redrawGate = new RedrawGate()
 
   constructor(private readonly renderer: THREE.WebGLRenderer) {
     this.scene.add(new THREE.Mesh(this.geometry, this.currentMaterial))
@@ -92,6 +95,7 @@ export class VideoLayer implements Layer {
 
   render = (target: THREE.WebGLRenderTarget, deltaTime: number): void => {
     this.updateCrossfade(deltaTime)
+    if (!this.redrawGate.shouldDraw(target, this.incoming !== null)) return
     this.renderer.setRenderTarget(target)
     this.renderer.setClearColor(0x000000, 1)
     this.renderer.clear()
@@ -150,6 +154,7 @@ export class VideoLayer implements Layer {
   }
 
   private cancelIncoming = (): void => {
+    this.redrawGate.markDirty()
     if (this.incoming) this.disposeSlot(this.incoming)
     this.incoming = null
     this.fade = 0
@@ -160,6 +165,7 @@ export class VideoLayer implements Layer {
   }
 
   private createVideo = (clips: string[]): void => {
+    this.redrawGate.markDirty()
     this.disposeVideo()
     const [first] = clips
     if (first === undefined) return
@@ -219,6 +225,7 @@ export class VideoLayer implements Layer {
       if (now - slot.lastUploadAt >= this.uploadIntervalMs) {
         slot.lastUploadAt = now
         texture.needsUpdate = true
+        this.redrawGate.markDirty()
       }
       slot.frameHandle = video.requestVideoFrameCallback(onFrame)
     }
@@ -247,6 +254,7 @@ export class VideoLayer implements Layer {
   }
 
   private disposeVideo = (): void => {
+    this.redrawGate.markDirty()
     if (this.current) this.disposeSlot(this.current)
     if (this.incoming) this.disposeSlot(this.incoming)
     this.current = null
@@ -277,6 +285,7 @@ export class VideoLayer implements Layer {
   }
 
   private startIncoming = (): void => {
+    this.redrawGate.markDirty()
     const { clips } = window.config.video
     if (!clips.length) return
     const nextIndex = (window.config.video.index + 1) % clips.length
@@ -293,6 +302,7 @@ export class VideoLayer implements Layer {
 
   /** The incoming clip becomes the current one and the old one is freed. */
   private promoteIncoming = (): void => {
+    this.redrawGate.markDirty()
     const { current, incoming } = this
     if (!incoming) return
     if (current) this.disposeSlot(current)
