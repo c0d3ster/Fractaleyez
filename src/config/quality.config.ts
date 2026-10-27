@@ -39,8 +39,8 @@ export const SUPERSAMPLE_MAX_SIDE_PX = 4096
 export const QUALITY_PROFILES: Record<QualityTier, QualityProfile> = {
   saver: { frameCapFps: 30, fractalScale: 0.5, fractalIterations: 64, bloomScale: 0.25, videoUploadFps: 30, uiTickHz: 10, logoBicubic: false },
   balanced: { frameCapFps: 120, fractalScale: 0.75, fractalIterations: 96, bloomScale: 0.4, videoUploadFps: 30, uiTickHz: 15, logoBicubic: false },
-  // What the app drew before there were tiers.
-  quality: { frameCapFps: null, fractalScale: 1, fractalIterations: 128, bloomScale: 0.5, videoUploadFps: null, uiTickHz: 20, logoBicubic: false },
+  // What the app drew before there were tiers, except it stops at 120fps: faster than that only pins an integrated GPU and starves the video.
+  quality: { frameCapFps: 120, fractalScale: 1, fractalIterations: 128, bloomScale: 0.5, videoUploadFps: null, uiTickHz: 20, logoBicubic: false },
   ultra: { frameCapFps: null, fractalScale: 1.5, fractalIterations: 192, bloomScale: 0.75, videoUploadFps: null, uiTickHz: 20, logoBicubic: true },
 }
 
