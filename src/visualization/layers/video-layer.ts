@@ -12,6 +12,11 @@ const VIDEO_RESUME_MAX_ATTEMPTS = 5
 const RETIRE_DELAY_MS = 600
 // HTMLMediaElement.HAVE_CURRENT_DATA: the incoming clip has a frame to show, so a crossfade never fades to black.
 const HAVE_CURRENT_DATA = 2
+// How long before the crossfade window the next clip is created, paused, with its first frame already uploaded, so the
+// element setup and the first 4K upload are not all done in the frame the crossfade starts on. 0 disables preparing.
+const PREPARE_LEAD_MS = 3000
+// The prepared clip sits a few pixels to the side so it is not covered by the playing one (Chrome stalls a covered video).
+const PREPARED_OFFSET_PX = 3
 // A decoded frame is uploaded when at least this share of the upload interval has passed. A little under 1 so a 30fps clip
 // with jittery frame times is not thinned to 15fps, while a 60fps clip still uploads every other frame.
 const UPLOAD_INTERVAL_SLACK = 0.9
@@ -25,6 +30,8 @@ type VideoSlot = {
   src: string
   texture: THREE.Texture
   frameHandle: number | null
+  // The texture's first frame has been uploaded to the GPU ahead of use (see `warmPrepared`).
+  warmed: boolean
   lastUploadAt: number
   resumeAttempts: number
   resumeTimer: ReturnType<typeof setTimeout> | undefined
@@ -59,6 +66,8 @@ export class VideoLayer implements Layer {
   private readonly incomingQuad = new THREE.Mesh(this.geometry, this.incomingMaterial)
   private current: VideoSlot | null = null
   private incoming: VideoSlot | null = null
+  // The clip after the current one, created early and held paused until the crossfade starts.
+  private prepared: VideoSlot | null = null
   private incomingIndex = 0
   private fade = 0
   private teardownWhenHidden = false
@@ -155,6 +164,7 @@ export class VideoLayer implements Layer {
     if (!current || this.teardownWhenHidden || !clips.length) return
     // A pending clip that was unselected is dropped; the fade restarts below if the current one is also gone.
     if (incoming && !clips.includes(incoming.src)) this.cancelIncoming()
+    if (this.prepared && !clips.includes(this.prepared.src)) this.discardPrepared()
     const currentIndex = clips.indexOf(current.src)
     if (currentIndex !== -1) {
       // Still selected: keep "next" pointing at the right neighbour in the new list.
@@ -190,9 +200,11 @@ export class VideoLayer implements Layer {
     this.currentMaterial.needsUpdate = true
   }
 
-  private createSlot = (src: string): VideoSlot => {
+  /** `autoplay` false loads the clip and leaves it paused on its first frame, offset from the playing clip, until `startIncoming` plays it. */
+  private createSlot = (src: string, autoplay = true): VideoSlot => {
     const video = document.createElement('video')
     video.src = src
+    video.preload = 'auto'
     // Started with play() rather than the autoplay attribute: Chrome auto-pauses muted autoplay videos that
     // aren't sufficiently in view, and this one is only a 2px dot. Muted so playback is always allowed (and the clip's audio can't feed back into the mic).
     video.muted = true
@@ -203,7 +215,7 @@ export class VideoLayer implements Layer {
     // above everything, and the texture below samples from it.
     Object.assign(video.style, {
       position: 'fixed',
-      left: '0',
+      left: autoplay ? '0' : `${PREPARED_OFFSET_PX}px`,
       top: '0',
       width: '2px',
       height: '2px',
@@ -211,7 +223,7 @@ export class VideoLayer implements Layer {
       pointerEvents: 'none',
     })
     document.body.appendChild(video)
-    video.play().catch(() => undefined)
+    if (autoplay) video.play().catch(() => undefined)
 
     // A plain texture with our own frame callback instead of THREE.VideoTexture: that one starts a
     // requestVideoFrameCallback loop that dispose() never cancels. The callback only marks the texture dirty
@@ -227,6 +239,7 @@ export class VideoLayer implements Layer {
       src,
       texture,
       frameHandle: null,
+      warmed: false,
       lastUploadAt: Number.NEGATIVE_INFINITY,
       resumeAttempts: 0,
       resumeTimer: undefined,
@@ -274,6 +287,7 @@ export class VideoLayer implements Layer {
 
   private disposeVideo = (): void => {
     this.redrawGate.markDirty()
+    this.discardPrepared()
     if (this.current) this.disposeSlot(this.current)
     if (this.incoming) this.disposeSlot(this.incoming)
     this.current = null
@@ -294,7 +308,9 @@ export class VideoLayer implements Layer {
     const crossfadeMs = getParticleCrossfadeDurationMs()
     if (!incoming) {
       const { video } = current
-      if (crossfadeMs > 0 && !video.paused && isNearEnd(video.duration, video.currentTime, crossfadeMs)) this.startIncoming()
+      if (crossfadeMs <= 0 || video.paused) return
+      if (isNearEnd(video.duration, video.currentTime, crossfadeMs)) this.startIncoming()
+      else if (PREPARE_LEAD_MS > 0 && isNearEnd(video.duration, video.currentTime, crossfadeMs + PREPARE_LEAD_MS)) this.prepareNext()
       return
     }
     // Hold at 0 until the incoming clip has a frame, so the fade never goes through black.
@@ -303,15 +319,51 @@ export class VideoLayer implements Layer {
     if (this.fade >= 1) this.promoteIncoming()
   }
 
+  /** The clip that follows the current one in the selection, or null with nothing selected. */
+  private nextClip = (): { index: number; src: string } | null => {
+    const { clips } = window.config.video
+    if (!clips.length) return null
+    const index = (window.config.video.index + 1) % clips.length
+    const src = clips[index]
+    return src === undefined ? null : { index, src }
+  }
+
+  /** Creates the next clip paused and uploads its first frame to the GPU once it has one; called each frame until the crossfade starts. */
+  private prepareNext = (): void => {
+    const next = this.nextClip()
+    if (!next) return
+    if (this.prepared && this.prepared.src !== next.src) this.discardPrepared()
+    this.prepared ??= this.createSlot(next.src, false)
+    const { prepared } = this
+    if (prepared.warmed || prepared.video.readyState < HAVE_CURRENT_DATA) return
+    this.renderer.initTexture(prepared.texture)
+    prepared.warmed = true
+  }
+
+  private discardPrepared = (): void => {
+    if (this.prepared) this.disposeSlot(this.prepared)
+    this.prepared = null
+  }
+
+  /** The prepared clip when it is the one wanted next, started playing from its first frame; otherwise a clip created now. */
+  private takeOrCreateSlot = (src: string): VideoSlot => {
+    const { prepared } = this
+    if (!prepared || prepared.src !== src) {
+      this.discardPrepared()
+      return this.createSlot(src)
+    }
+    this.prepared = null
+    prepared.video.style.left = '0'
+    prepared.video.play().catch(() => undefined)
+    return prepared
+  }
+
   private startIncoming = (): void => {
     this.redrawGate.markDirty()
-    const { clips } = window.config.video
-    if (!clips.length) return
-    const nextIndex = (window.config.video.index + 1) % clips.length
-    const src = clips[nextIndex]
-    if (src === undefined) return
-    this.incoming = this.createSlot(src)
-    this.incomingIndex = nextIndex
+    const next = this.nextClip()
+    if (!next) return
+    this.incoming = this.takeOrCreateSlot(next.src)
+    this.incomingIndex = next.index
     this.fade = 0
     this.incomingMaterial.map = this.incoming.texture
     this.incomingMaterial.opacity = 0
@@ -351,6 +403,7 @@ export class VideoLayer implements Layer {
       return
     }
     // No crossfade (duration 0, or the clip was too short to reach it): a plain cut to the next clip.
+    this.discardPrepared()
     window.config.video.index = (window.config.video.index + 1) % clips.length
     slot.src = clips[window.config.video.index]!
     slot.video.src = slot.src
