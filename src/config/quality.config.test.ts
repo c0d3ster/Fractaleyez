@@ -40,8 +40,8 @@ describe('quality profiles', () => {
     })
   })
 
-  it('has Quality draw what the app drew before there were tiers', () => {
-    expect(QUALITY_PROFILES.quality).toMatchObject({ frameCapFps: null, fractalScale: 1, fractalIterations: 128, bloomScale: 0.5, videoUploadFps: null })
+  it('has Quality draw what the app drew before there were tiers, capped at 120fps', () => {
+    expect(QUALITY_PROFILES.quality).toMatchObject({ frameCapFps: 120, fractalScale: 1, fractalIterations: 128, bloomScale: 0.5, videoUploadFps: null })
   })
 
   it('keeps Ultra out of what Auto can pick', () => {
