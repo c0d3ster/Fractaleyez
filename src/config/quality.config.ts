@@ -10,8 +10,11 @@ export const QUALITY_SETTINGS: readonly QualitySetting[] = ['auto', ...QUALITY_T
 
 export const QUALITY_SETTING_DEFAULT: QualitySetting = 'auto'
 
-/** The tiers Auto can pick, lightest first. Ultra costs more than the app has ever drawn, so Auto never goes there on its own. */
-export const AUTO_TIERS: readonly QualityTier[] = ['saver', 'balanced', 'quality']
+/** The tiers Auto can pick, lightest first. It climbs to Ultra only by trying it (see `AUTO_CLIMB_AFTER_MS`) and falls back if the machine cannot hold it. */
+export const AUTO_TIERS: readonly QualityTier[] = ['saver', 'balanced', 'quality', 'ultra']
+
+/** Where Auto starts on a first visit; it climbs from here, and a later visit starts where it last settled. */
+export const AUTO_START_TIER: QualityTier = 'balanced'
 
 export type QualityProfile = {
   /** Frames drawn per second at most (analysis runs with them); null draws on every display frame. A cap above the display's refresh rate changes nothing. */
@@ -70,6 +73,8 @@ export const isQualityTier = (value: unknown): value is QualityTier =>
 export const AUTO_SLOW_FACTOR = 1.4
 export const AUTO_SLOW_MIN_MS = 18
 export const AUTO_SLOW_MAX_MS = 24
+// A window is also slow when its 95th percentile frame is this many display refresh intervals long: a tier can look fine by its median and still hitch constantly.
+export const AUTO_ROUGH_FACTOR = 2.5
 
 /**
  * Whether a tier's frame cap is slow enough that its frame times are the cap's own pace and say nothing about load (Saver's 30fps).
@@ -92,6 +97,10 @@ export const AUTO_PROBE_WATCH_MS = 8000
 export const AUTO_PROBE_COST_RATIO = 0.9
 // A change in the scene's estimated cost smaller than this (as a fraction) is not a scene change.
 export const AUTO_COST_CHANGE_RATIO = 0.1
+// This long with no slow frames and no dropped video frames, and Auto tries the next tier up. It then has `AUTO_PROBE_WATCH_MS` to hold it.
+export const AUTO_CLIMB_AFTER_MS = 10000
+// A smoothed share of video frames dropped above this means playback is struggling even when frame times look fine (an iGPU with a busy decoder).
+export const AUTO_VIDEO_DROP_LIMIT = 0.03
 
 /** How Auto's cost estimate sees the scene; mirrors the parts of `window.config` that set how heavy it is. */
 export type SceneCostInputs = {

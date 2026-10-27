@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  AUTO_START_TIER,
   AUTO_TIERS,
   capHidesLoad,
   estimateSceneCost,
@@ -44,8 +45,13 @@ describe('quality profiles', () => {
     expect(QUALITY_PROFILES.quality).toMatchObject({ frameCapFps: 120, fractalScale: 1, fractalIterations: 128, bloomScale: 0.5, videoUploadFps: null })
   })
 
-  it('keeps Ultra out of what Auto can pick', () => {
-    expect(AUTO_TIERS).not.toContain('ultra')
+  it('lets Auto reach Ultra, which stays uncapped', () => {
+    expect(AUTO_TIERS).toContain('ultra')
+    expect(QUALITY_PROFILES.ultra.frameCapFps).toBeNull()
+  })
+
+  it('starts Auto on a tier it can pick', () => {
+    expect(AUTO_TIERS).toContain(AUTO_START_TIER)
   })
 
   it('has a label and a hint for every setting', () => {

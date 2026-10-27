@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { AUTO_EVAL_MS, AUTO_GRACE_MS, AUTO_PROBE_WATCH_MS, AUTO_SLOW_FOR_MS } from '../config/quality.config'
-import { QualityGovernor } from './quality-governor'
+import { AUTO_CLIMB_AFTER_MS, AUTO_EVAL_MS, AUTO_GRACE_MS, AUTO_PROBE_WATCH_MS, AUTO_SLOW_FOR_MS } from '../config/quality.config'
+import { GovernorOptions, QualityGovernor } from './quality-governor'
 
 const FAST_MS = 16.7
 const SLOW_MS = 40
@@ -9,19 +9,22 @@ const FRAMES_PER_WINDOW = 30
 
 type Run = { governor: QualityGovernor; now: number; cost: number }
 
-const start = (tier: 'saver' | 'balanced' | 'quality' = 'quality', cost = 2): Run => {
-  const governor = new QualityGovernor(tier)
+type Tier = 'saver' | 'balanced' | 'quality' | 'ultra'
+
+// Climbing on clean frames is off unless a test asks for it, so the step-down and probe tests below stay about those.
+const start = (tier: Tier = 'quality', cost = 2, options: GovernorOptions = { climbAfterMs: null }): Run => {
+  const governor = new QualityGovernor(tier, options)
   // The first evaluation only records the scene's cost.
   governor.evaluate(0, cost, false)
   return { governor, now: 0, cost }
 }
 
 // Feeds `windows` evaluation windows of frames at `frameMs` and returns the tier after the last.
-const run = (state: Run, frameMs: number, windows: number): string => {
+const run = (state: Run, frameMs: number, windows: number, videoDropRate = 0, capped = false): string => {
   for (let i = 0; i < windows; i++) {
     for (let f = 0; f < FRAMES_PER_WINDOW; f++) state.governor.push(frameMs)
     state.now += AUTO_EVAL_MS
-    state.governor.evaluate(state.now, state.cost, false)
+    state.governor.evaluate(state.now, state.cost, false || capped, videoDropRate)
   }
   return state.governor.getTier()
 }
@@ -108,7 +111,8 @@ describe('QualityGovernor', () => {
       state.cost = 1
       expect(run(state, FAST_MS, windowsFor(AUTO_GRACE_MS) + 1)).toBe('balanced')
       expect(run(state, FAST_MS, windowsFor(AUTO_PROBE_WATCH_MS) + 4)).toBe('quality')
-      expect(run(state, FAST_MS, windowsFor(AUTO_PROBE_WATCH_MS) + 4)).toBe('quality')
+      expect(run(state, FAST_MS, windowsFor(AUTO_PROBE_WATCH_MS) + 4)).toBe('ultra')
+      expect(run(state, FAST_MS, windowsFor(AUTO_PROBE_WATCH_MS) + 4)).toBe('ultra')
     })
 
     it('does not step up for a change that is not cheaper than where it dropped', () => {
@@ -130,6 +134,105 @@ describe('QualityGovernor', () => {
       expect(state.governor.getTier()).toBe('quality')
       expect(run(state, SLOW_MS, windowsFor(AUTO_SLOW_FOR_MS) + 4)).toBe('balanced')
       expect(run(state, FAST_MS, 60)).toBe('balanced')
+    })
+  })
+
+  describe('climbing on clean frames', () => {
+    const climbing = (tier: Tier, cost = 2, options: GovernorOptions = {}): Run => start(tier, cost, options)
+    const cleanWindows = windowsFor(AUTO_CLIMB_AFTER_MS)
+    const watchWindows = windowsFor(AUTO_PROBE_WATCH_MS) + 2
+
+    it('tries the next tier after the clean stretch, not before', () => {
+      const state = climbing('balanced')
+      expect(run(state, FAST_MS, cleanWindows - 1)).toBe('balanced')
+      expect(run(state, FAST_MS, 1)).toBe('quality')
+    })
+
+    it('keeps climbing one tier per clean stretch and stops at the top', () => {
+      const state = climbing('balanced')
+      expect(run(state, FAST_MS, cleanWindows)).toBe('quality')
+      expect(run(state, FAST_MS, watchWindows + cleanWindows)).toBe('ultra')
+      expect(run(state, FAST_MS, 100)).toBe('ultra')
+    })
+
+    it('lets a capped tier climb, since its frame times only show the cap', () => {
+      const state = climbing('saver')
+      expect(run(state, FAST_MS, cleanWindows, 0, true)).toBe('balanced')
+    })
+
+    it('restarts the clean stretch when a window is slow', () => {
+      const state = climbing('balanced')
+      run(state, FAST_MS, cleanWindows - 2)
+      run(state, SLOW_MS, 1)
+      expect(run(state, FAST_MS, cleanWindows - 2)).toBe('balanced')
+      expect(run(state, FAST_MS, 3)).toBe('quality')
+    })
+
+    it('does not climb while video frames are being dropped, even with fast frames', () => {
+      const state = climbing('balanced')
+      expect(run(state, FAST_MS, cleanWindows * 3, 0.1)).toBe('balanced')
+    })
+
+    it('does not count one bad window of dropped video frames as trouble', () => {
+      const state = climbing('balanced')
+      run(state, FAST_MS, cleanWindows - 4)
+      run(state, FAST_MS, 1, 0.08)
+      expect(run(state, FAST_MS, 6)).toBe('quality')
+    })
+
+    it('steps back down when the climb turns slow, and does not try that tier again at the same cost', () => {
+      const state = climbing('balanced')
+      run(state, FAST_MS, cleanWindows)
+      expect(state.governor.getTier()).toBe('quality')
+      expect(run(state, SLOW_MS, windowsFor(AUTO_SLOW_FOR_MS) + 4)).toBe('balanced')
+      expect(state.governor.getCeiling()).toEqual({ tier: 'balanced', cost: 2 })
+      expect(run(state, FAST_MS, cleanWindows * 4)).toBe('balanced')
+    })
+
+    it('tries the heavier tier again once the scene gets clearly cheaper', () => {
+      const state = climbing('balanced', 3)
+      run(state, FAST_MS, cleanWindows)
+      run(state, SLOW_MS, windowsFor(AUTO_SLOW_FOR_MS) + 4)
+      expect(state.governor.getTier()).toBe('balanced')
+      state.cost = 1.5
+      run(state, FAST_MS, windowsFor(AUTO_GRACE_MS) + 1)
+      expect(state.governor.getCeiling()).toBeNull()
+      expect(state.governor.getTier()).toBe('quality')
+    })
+
+    it('honours a ceiling remembered from an earlier visit', () => {
+      const state = climbing('ultra', 2, { ceiling: { tier: 'quality', cost: 2 } })
+      expect(state.governor.getTier()).toBe('quality')
+      expect(run(state, FAST_MS, cleanWindows * 4)).toBe('quality')
+    })
+
+    it('never climbs when climbing is off', () => {
+      const state = climbing('balanced', 2, { climbAfterMs: null })
+      expect(run(state, FAST_MS, cleanWindows * 4)).toBe('balanced')
+    })
+  })
+
+  describe('rough frames', () => {
+    // A window of `FRAMES_PER_WINDOW` fast frames of which `rough` are long hitches.
+    const roughWindows = (state: Run, rough: number, hitchMs: number, windows: number): string => {
+      for (let w = 0; w < windows; w++) {
+        for (let f = 0; f < FRAMES_PER_WINDOW; f++) state.governor.push(f < rough ? hitchMs : 4.2)
+        state.now += AUTO_EVAL_MS
+        state.governor.evaluate(state.now, state.cost, false)
+      }
+      return state.governor.getTier()
+    }
+
+    it('steps down when a tenth of the frames are long hitches, though the median is fast', () => {
+      const state = start('ultra')
+      run(state, 4.2, 40)
+      expect(roughWindows(state, 4, 13, windowsFor(AUTO_SLOW_FOR_MS) + 2)).toBe('quality')
+    })
+
+    it('ignores the odd hitch', () => {
+      const state = start('ultra')
+      run(state, 4.2, 40)
+      expect(roughWindows(state, 1, 40, 40)).toBe('ultra')
     })
   })
 })

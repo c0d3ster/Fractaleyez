@@ -46,6 +46,7 @@ export const createLayerPipeline = (quality: QualityController): LayerPipeline =
     logo.setSmoothMagnification(profile.logoBicubic)
   }
   const unsubscribeQuality = quality.subscribe(applyProfile)
+  quality.setVideoDropProvider(video.getDropRate)
 
   const onResize = (): void => {
     renderer.setSize(window.innerWidth, window.innerHeight)
@@ -68,6 +69,7 @@ export const createLayerPipeline = (quality: QualityController): LayerPipeline =
     dispose: () => {
       window.removeEventListener('resize', onResize)
       unsubscribeQuality()
+      quality.setVideoDropProvider(null)
       effects.dispose()
       compositor.dispose()
       renderer.dispose()
