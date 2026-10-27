@@ -41,21 +41,24 @@ const sampleGpu = (seconds) => new Promise((resolve) => {
 })
 
 const RECORDER = `(() => {
-  const rec = { frames: [], beats: [], long: [], loaf: [], tiers: [], vfc: [], vdrop: {} }
+  const rec = { frames: [], beats: [], long: [], loaf: [], tiers: [], vfc: [], vdrop: {}, preparedFrames: 0 }
   window.__rec = rec
   let last = performance.now(), lastBeat = null
-  // Video cadence: every <video> gets a requestVideoFrameCallback loop that logs [time, mediaTime, videoCount]; dropped frames are read per element.
+  // Video cadence: every <video> gets a requestVideoFrameCallback loop that logs [time, mediaTime, playingVideoCount]; dropped frames are read per element.
+  // Only playing elements count, so a clip that is loaded early and held paused (or retired but not yet removed) does not turn steady playback into "crossfade".
   const seen = new WeakSet()
   let vid = 0
   const watchVideos = () => {
     const vs = document.querySelectorAll('video')
+    // Frames on which a clip sat paused with a frame ready: the next clip loaded early and waiting for the crossfade.
+    if ([...vs].some((x) => x.paused && x.readyState >= 2 && !x.ended)) rec.preparedFrames++
     vs.forEach((v) => {
       const q = v.getVideoPlaybackQuality && v.getVideoPlaybackQuality()
       if (q) rec.vdrop[v.dataset.bid || (v.dataset.bid = String(++vid))] = [q.droppedVideoFrames, q.totalVideoFrames]
       if (seen.has(v)) return
       seen.add(v)
       const id = v.dataset.bid || (v.dataset.bid = String(++vid))
-      const cb = (now, meta) => { rec.vfc.push([now, meta.mediaTime, document.querySelectorAll('video').length, id, v.videoWidth]); if (v.isConnected) v.requestVideoFrameCallback(cb) }
+      const cb = (now, meta) => { rec.vfc.push([now, meta.mediaTime, [...document.querySelectorAll('video')].filter((x) => !x.paused).length, id, v.videoWidth, v.paused]); if (v.isConnected) v.requestVideoFrameCallback(cb) }
       v.requestVideoFrameCallback(cb)
     })
   }
@@ -168,7 +171,8 @@ const run = async () => {
   const vgaps = (pred) => {
     const g = []
     const last = {}
-    for (const [t, , n, id] of rec.vfc) { if (last[id] !== undefined && pred(n)) g.push(t - last[id]); last[id] = t }
+    // A frame shown while paused (a clip loaded early shows its first frame) starts no gap: the wait until it plays is not a stall.
+    for (const [t, , n, id, , paused] of rec.vfc) { if (last[id] !== undefined && pred(n)) g.push(t - last[id]); last[id] = paused ? undefined : t }
     return g
   }
   const vstats = (g) => ({ n: g.length, p50: +pct(g, 0.5).toFixed(1), p95: +pct(g, 0.95).toFixed(1), max: +Math.max(0, ...g).toFixed(1), over60: g.filter((x) => x > 60).length, over100: g.filter((x) => x > 100).length })
@@ -202,7 +206,7 @@ const run = async () => {
   const flow = { stdMs: +Math.sqrt(dts.reduce((a, b) => a + (b - mean) ** 2, 0) / Math.max(1, dts.length)).toFixed(2), hitchPerSec: +(dts.filter((d) => d > med * 2.5).length / secs).toFixed(2) }
   const out = {
     sync, flow, beatTimes: beatsT.map((b) => +(b - t0).toFixed(1)),
-    video: { steady: vstats(vgaps((n) => n === 1)), crossfade: vstats(vgaps((n) => n > 1)), dropped: drops[0], total: drops[1], widths: [...new Set(rec.vfc.map((v) => v[4]))] },
+    video: { preparedFrames: rec.preparedFrames, steady: vstats(vgaps((n) => n === 1)), crossfade: vstats(vgaps((n) => n > 1)), dropped: drops[0], total: drops[1], widths: [...new Set(rec.vfc.map((v) => v[4]))] },
     label, popup, noshock, throttle, uncapped, secs, quality, tiers: rec.tiers.map(([t, setting, tier]) => ({ atSec: +((t - t0) / 1000).toFixed(1), setting, tier })), gpu, gpuUtil, off: offList, size, pos,
     drawnFps, frames: dts.length, fps: +(dts.length / (dts.reduce((a, b) => a + b, 0) / 1000)).toFixed(1), beats: beatsT.length,
     frameMs: { p50: +pct(dts, 0.5).toFixed(1), p95: +pct(dts, 0.95).toFixed(1), p99: +pct(dts, 0.99).toFixed(1), max: +Math.max(...dts).toFixed(1) },
