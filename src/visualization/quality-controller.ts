@@ -1,6 +1,7 @@
 import { AppConfig } from '../config/configDefaults'
 import {
   AUTO_EVAL_MS,
+  AUTO_START_TIER,
   AUTO_TIERS,
   capHidesLoad,
   estimateSceneCost,
@@ -12,10 +13,12 @@ import {
   QualitySetting,
   QualityTier,
 } from '../config/quality.config'
-import { QualityGovernor } from './quality-governor'
+import { AutoCeiling, QualityGovernor } from './quality-governor'
 
 // Where Auto starts next time: the tier it settled on, so a weak machine does not spend every load stepping down again.
 const AUTO_TIER_HINT_KEY = 'autoQualityTier'
+// A tier Auto stepped down from, with the scene cost it did so at, so a later visit does not retry it from scratch.
+const AUTO_CEILING_KEY = 'autoQualityCeiling'
 
 type TierListener = (tier: QualityTier, profile: QualityProfile) => void
 
@@ -33,7 +36,28 @@ const readTierHint = (): QualityTier => {
   } catch {
     // Storage can be blocked; Auto then starts at the top.
   }
-  return AUTO_TIERS[AUTO_TIERS.length - 1]!
+  return AUTO_START_TIER
+}
+
+const isCeiling = (value: unknown): value is AutoCeiling =>
+  typeof value === 'object' && value !== null && 'tier' in value && 'cost' in value && isQualityTier(value.tier) && typeof value.cost === 'number'
+
+const readCeiling = (): AutoCeiling | null => {
+  try {
+    const stored: unknown = JSON.parse(window.localStorage.getItem(AUTO_CEILING_KEY) ?? 'null')
+    return isCeiling(stored) && AUTO_TIERS.includes(stored.tier) ? stored : null
+  } catch {
+    return null
+  }
+}
+
+const writeCeiling = (ceiling: AutoCeiling | null): void => {
+  try {
+    if (ceiling) window.localStorage.setItem(AUTO_CEILING_KEY, JSON.stringify(ceiling))
+    else window.localStorage.removeItem(AUTO_CEILING_KEY)
+  } catch {
+    // Not worth failing a frame over.
+  }
 }
 
 const writeTierHint = (tier: QualityTier): void => {
@@ -75,11 +99,18 @@ export class QualityController {
   private governor: QualityGovernor
   private readonly listeners = new Set<TierListener>()
   private nextEvalAt = 0
+  private videoDropRate: () => number = () => 0
+  private ceiling: AutoCeiling | null
 
   constructor() {
-    const start = readTierHint()
-    this.governor = new QualityGovernor(start)
-    this.tier = start
+    this.ceiling = readCeiling()
+    this.governor = new QualityGovernor(readTierHint(), { ceiling: this.ceiling })
+    this.tier = this.governor.getTier()
+  }
+
+  /** Where Auto reads how many video frames are being dropped; the video layer sets it while it exists. */
+  setVideoDropProvider = (provider: (() => number) | null): void => {
+    this.videoDropRate = provider ?? (() => 0)
   }
 
   getSetting = (): QualitySetting => this.setting
@@ -102,6 +133,9 @@ export class QualityController {
     if (!isQualitySetting(setting) || setting === this.setting) return
     this.setting = setting
     if (setting === 'auto') {
+      // Choosing Auto again is a request to try the heavier tiers afresh.
+      this.ceiling = null
+      writeCeiling(null)
       this.governor = new QualityGovernor(readTierHint())
       this.governor.disturb(performance.now())
       this.setTier(this.governor.getTier())
@@ -122,10 +156,18 @@ export class QualityController {
     if (now < this.nextEvalAt) return
     this.nextEvalAt = now + AUTO_EVAL_MS
     const capped = capHidesLoad(QUALITY_PROFILES[this.tier].frameCapFps)
-    const next = this.governor.evaluate(now, readSceneCost(window.config), capped)
+    const next = this.governor.evaluate(now, readSceneCost(window.config), capped, this.videoDropRate())
+    this.rememberCeiling()
     if (next === this.tier) return
     this.setTier(next)
     writeTierHint(next)
+  }
+
+  private rememberCeiling = (): void => {
+    const ceiling = this.governor.getCeiling()
+    if (ceiling?.tier === this.ceiling?.tier && ceiling?.cost === this.ceiling?.cost) return
+    this.ceiling = ceiling
+    writeCeiling(ceiling)
   }
 
   private setTier = (tier: QualityTier): void => {

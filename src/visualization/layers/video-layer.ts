@@ -4,6 +4,7 @@ import { getParticleCrossfadeDurationMs } from '../../config/visualizer.config'
 import { isNearEnd, stepOpacity } from './fade'
 import { Layer } from './layer'
 import { RedrawGate } from './redraw-gate'
+import { dropShare, PlaybackCounts } from './video-drop'
 
 const VIDEO_RESUME_DELAY_MS = 250
 const VIDEO_RESUME_MAX_ATTEMPTS = 5
@@ -65,6 +66,7 @@ export class VideoLayer implements Layer {
   private uploadIntervalMs = 0
   // The target keeps its pixels, so a frame with no new decoded frame and no crossfade running does not redraw it.
   private readonly redrawGate = new RedrawGate()
+  private lastPlayback: { slot: VideoSlot; counts: PlaybackCounts } | null = null
 
   constructor(private readonly renderer: THREE.WebGLRenderer) {
     this.scene.add(new THREE.Mesh(this.geometry, this.currentMaterial))
@@ -80,6 +82,17 @@ export class VideoLayer implements Layer {
   /** The video texture is re-uploaded at most this many times a second (null: every decoded frame). The video itself keeps decoding at its own rate. */
   setUploadFps = (fps: number | null): void => {
     this.uploadIntervalMs = fps === null ? 0 : (1000 / fps) * UPLOAD_INTERVAL_SLACK
+  }
+
+  /** The share of the current clip's frames the browser dropped since this was last called (0 with no clip); Auto reads it to tell a struggling GPU that frame times alone do not show. */
+  getDropRate = (): number => {
+    const slot = this.current
+    if (!slot) return 0
+    const { droppedVideoFrames, totalVideoFrames } = slot.video.getVideoPlaybackQuality()
+    const counts = { dropped: droppedVideoFrames, total: totalVideoFrames }
+    const previous = this.lastPlayback?.slot === slot ? this.lastPlayback.counts : null
+    this.lastPlayback = { slot, counts }
+    return dropShare(previous, counts)
   }
 
   /** Only has something to draw while a clip is loaded (the layer gate is `video.enabled && clips.length`). */
