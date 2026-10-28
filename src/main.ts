@@ -6,8 +6,9 @@ import { beatMonitor } from './audioanalysis/beat'
 import { LayerKey } from './config/configDefaults'
 import { LAYER_REGISTRY } from './config/layers'
 import { createLayerPipeline, LayerPipeline } from './visualization/layers'
-import { shouldDrawUnderCap } from './visualization/frame-cap'
+import { shouldDrawForVideoFrame, shouldDrawUnderCap } from './visualization/frame-cap'
 import { qualityController } from './visualization/quality-controller'
+import { videoFrameSignal } from './visualization/video-frame-signal'
 
 // Size of the fft transform performed on audio stream
 const FFT_SIZE = 512
@@ -184,8 +185,13 @@ const analyze = (): void => {
   if (displayGap > 0 && displayGap < DISPLAY_GAP_MAX_MS) qualityController.recordFrame(displayGap, now)
 
   // Analysis and drawing share the cap: a skipped frame does neither, so a beat is never detected on a frame that is not drawn.
+  // A new video frame is also drawn when it arrives if the cap's next draw is not close, so no frame is shown for longer than another.
   const { frameCapFps } = qualityController.getProfile()
-  if (frameCapFps !== null && !shouldDrawUnderCap(now - lastFrameTime, frameCapFps, displayGap)) return
+  const sinceLastDraw = now - lastFrameTime
+  if (frameCapFps !== null && !shouldDrawUnderCap(sinceLastDraw, frameCapFps, displayGap)) {
+    if (!videoFrameSignal.isPending() || !shouldDrawForVideoFrame(sinceLastDraw, frameCapFps, displayGap)) return
+  }
+  videoFrameSignal.clear()
 
   const deltaTime = now - lastFrameTime
   lastFrameTime = now
