@@ -12,9 +12,12 @@ const VIDEO_RESUME_MAX_ATTEMPTS = 5
 const RETIRE_DELAY_MS = 600
 // HTMLMediaElement.HAVE_CURRENT_DATA: the incoming clip has a frame to show, so a crossfade never fades to black.
 const HAVE_CURRENT_DATA = 2
-// How long before the crossfade window the next clip is created, paused, with its first frame already uploaded, so the
-// element setup and the first 4K upload are not all done in the frame the crossfade starts on. 0 disables preparing.
+// How long before the crossfade window the next clip is created, paused, so the element setup is not done in the frame the
+// crossfade starts on. 0 disables preparing.
 const PREPARE_LEAD_MS = 3000
+// How long before the crossfade window the prepared clip's first frame is uploaded to the GPU (the heavy 4K step). At most
+// PREPARE_LEAD_MS; a shorter lead spreads creating and uploading over different frames. 0 leaves the upload to the crossfade.
+const WARM_LEAD_MS = 3000
 // The prepared clip sits a few pixels to the side so it is not covered by the playing one (Chrome stalls a covered video).
 const PREPARED_OFFSET_PX = 3
 // A decoded frame is uploaded when at least this share of the upload interval has passed. A little under 1 so a 30fps clip
@@ -310,7 +313,9 @@ export class VideoLayer implements Layer {
       const { video } = current
       if (crossfadeMs <= 0 || video.paused) return
       if (isNearEnd(video.duration, video.currentTime, crossfadeMs)) this.startIncoming()
-      else if (PREPARE_LEAD_MS > 0 && isNearEnd(video.duration, video.currentTime, crossfadeMs + PREPARE_LEAD_MS)) this.prepareNext()
+      else if (PREPARE_LEAD_MS > 0 && isNearEnd(video.duration, video.currentTime, crossfadeMs + PREPARE_LEAD_MS)) {
+        this.prepareNext(isNearEnd(video.duration, video.currentTime, crossfadeMs + WARM_LEAD_MS))
+      }
       return
     }
     // Hold at 0 until the incoming clip has a frame, so the fade never goes through black.
@@ -328,14 +333,14 @@ export class VideoLayer implements Layer {
     return src === undefined ? null : { index, src }
   }
 
-  /** Creates the next clip paused and uploads its first frame to the GPU once it has one; called each frame until the crossfade starts. */
-  private prepareNext = (): void => {
+  /** Creates the next clip paused and, once `warm`, uploads its first frame to the GPU when it has one; called each frame until the crossfade starts. */
+  private prepareNext = (warm: boolean): void => {
     const next = this.nextClip()
     if (!next) return
     if (this.prepared && this.prepared.src !== next.src) this.discardPrepared()
     this.prepared ??= this.createSlot(next.src, false)
     const { prepared } = this
-    if (prepared.warmed || prepared.video.readyState < HAVE_CURRENT_DATA) return
+    if (!warm || prepared.warmed || prepared.video.readyState < HAVE_CURRENT_DATA) return
     this.renderer.initTexture(prepared.texture)
     prepared.warmed = true
   }
