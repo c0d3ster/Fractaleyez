@@ -1,6 +1,7 @@
 import { AppConfig } from '../config/configDefaults'
 import {
   AUTO_EVAL_MS,
+  AUTO_HINT_HOLD_MS,
   AUTO_START_TIER,
   AUTO_TIERS,
   capHidesLoad,
@@ -101,6 +102,8 @@ export class QualityController {
   private nextEvalAt = 0
   private videoDropRate: () => number = () => 0
   private ceiling: AutoCeiling | null
+  // The tier Auto last moved to and when; it becomes the saved starting tier once it has held for `AUTO_HINT_HOLD_MS`.
+  private hintCandidate: { tier: QualityTier; since: number } | null = null
 
   constructor() {
     this.ceiling = readCeiling()
@@ -158,9 +161,19 @@ export class QualityController {
     const capped = capHidesLoad(QUALITY_PROFILES[this.tier].frameCapFps)
     const next = this.governor.evaluate(now, readSceneCost(window.config), capped, this.videoDropRate())
     this.rememberCeiling()
-    if (next === this.tier) return
-    this.setTier(next)
-    writeTierHint(next)
+    if (next !== this.tier) {
+      this.setTier(next)
+      this.hintCandidate = { tier: next, since: now }
+    }
+    this.rememberHint(now)
+  }
+
+  // A tier is saved for the next visit once Auto has stayed on it long enough to be a real settling, not a dip.
+  private rememberHint = (now: number): void => {
+    const candidate = this.hintCandidate
+    if (!candidate || now - candidate.since < AUTO_HINT_HOLD_MS) return
+    this.hintCandidate = null
+    writeTierHint(candidate.tier)
   }
 
   private rememberCeiling = (): void => {

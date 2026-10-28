@@ -13,8 +13,11 @@ export const QUALITY_SETTING_DEFAULT: QualitySetting = 'auto'
 /** The tiers Auto can pick, lightest first. It climbs to Ultra only by trying it (see `AUTO_CLIMB_AFTER_MS`) and falls back if the machine cannot hold it. */
 export const AUTO_TIERS: readonly QualityTier[] = ['saver', 'balanced', 'quality', 'ultra']
 
-/** Where Auto starts on a first visit; it climbs from here, and a later visit starts where it last settled. */
-export const AUTO_START_TIER: QualityTier = 'balanced'
+/** Where Auto starts on a first visit, and where it falls back to when nothing has been remembered. The first thing a visitor sees should look good, so it steps down from here only if the machine cannot hold it. */
+export const AUTO_START_TIER: QualityTier = 'quality'
+
+/** Auto remembers a tier for the next visit only after it has stayed on it this long, so a dip while the page loads, the window moves or another window covers it is not saved as the starting tier. */
+export const AUTO_HINT_HOLD_MS = 30000
 
 export type QualityProfile = {
   /** Frames drawn per second at most (analysis runs with them); null draws on every display frame. A cap above the display's refresh rate changes nothing. */
