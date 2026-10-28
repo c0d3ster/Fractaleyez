@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 
 import { getParticleCrossfadeDurationMs } from '../../config/visualizer.config'
+import { videoFrameSignal } from '../video-frame-signal'
 import { isNearEnd, stepOpacity } from './fade'
 import { Layer } from './layer'
 import { RedrawGate } from './redraw-gate'
@@ -20,8 +21,9 @@ const PREPARE_LEAD_MS = 3000
 const WARM_LEAD_MS = 3000
 // The prepared clip sits a few pixels to the side so it is not covered by the playing one (Chrome stalls a covered video).
 const PREPARED_OFFSET_PX = 3
-// A decoded frame is uploaded when at least this share of the upload interval has passed. A little under 1 so a 30fps clip
-// with jittery frame times is not thinned to 15fps, while a 60fps clip still uploads every other frame.
+// A decoded frame is uploaded when at least this share of the upload interval has passed on the clip's own timeline (not the
+// wall clock, whose few-ms callback jitter threw away one frame in five of a 29.97fps clip held to 30). A little under 1 so a
+// 30fps clip is never thinned to 15fps, while a 60fps clip still uploads every other frame.
 const UPLOAD_INTERVAL_SLACK = 0.9
 
 const isClipsDetail = (detail: unknown): detail is { clips: string[] } =>
@@ -35,7 +37,8 @@ type VideoSlot = {
   frameHandle: number | null
   // The texture's first frame has been uploaded to the GPU ahead of use (see `warmPrepared`).
   warmed: boolean
-  lastUploadAt: number
+  // Media time (ms) of the last frame uploaded, on the clip's timeline.
+  lastUploadedMediaMs: number
   resumeAttempts: number
   resumeTimer: ReturnType<typeof setTimeout> | undefined
   onEnded: () => void
@@ -243,7 +246,7 @@ export class VideoLayer implements Layer {
       texture,
       frameHandle: null,
       warmed: false,
-      lastUploadAt: Number.NEGATIVE_INFINITY,
+      lastUploadedMediaMs: Number.NEGATIVE_INFINITY,
       resumeAttempts: 0,
       resumeTimer: undefined,
       onEnded: () => this.onEnded(slot),
@@ -252,11 +255,14 @@ export class VideoLayer implements Layer {
         slot.resumeAttempts = 0
       },
     }
-    const onFrame = (now: number): void => {
-      if (now - slot.lastUploadAt >= this.uploadIntervalMs) {
-        slot.lastUploadAt = now
+    const onFrame = (_now: DOMHighResTimeStamp, { mediaTime }: VideoFrameCallbackMetadata): void => {
+      const mediaMs = mediaTime * 1000
+      // A frame earlier than the last upload means the clip looped or was seeked: upload it.
+      if (mediaMs < slot.lastUploadedMediaMs || mediaMs - slot.lastUploadedMediaMs >= this.uploadIntervalMs) {
+        slot.lastUploadedMediaMs = mediaMs
         texture.needsUpdate = true
         this.redrawGate.markDirty()
+        videoFrameSignal.mark()
       }
       slot.frameHandle = video.requestVideoFrameCallback(onFrame)
     }
