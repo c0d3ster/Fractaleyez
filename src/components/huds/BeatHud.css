@@ -29,19 +29,9 @@
   display: block;
   width: 100%;
   height: auto;
+  /* App.css hides the cursor on every canvas. */
+  cursor: default;
 }
-
-.beat-hud-hint {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 4px 10px;
-  font-size: 10px;
-  letter-spacing: 0.04em;
-  color: #555;
-}
-
-
 /* The title stays centered; the tempo sits to its right. */
 .beat-hud-title-row {
   display: grid;

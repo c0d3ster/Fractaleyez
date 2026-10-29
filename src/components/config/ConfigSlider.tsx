@@ -46,7 +46,7 @@ export const ConfigSlider = React.memo(({ name, label, description, value, displ
     onCommit?.(Number(e.currentTarget.value))
   }, [onCommit])
 
-  const hint = [description, onReset ? 'Double-click to reset.' : undefined].filter(Boolean).join(' ')
+  const hint = [description, onReset ? 'Double-click to reset.' : undefined].filter(Boolean).join('\n')
   const zoneBackground = zones ? zoneGradient(zones, min, max) : undefined
   const currentZone = zones?.find((zone) => value <= zone.upTo) ?? zones?.[zones.length - 1]
 
