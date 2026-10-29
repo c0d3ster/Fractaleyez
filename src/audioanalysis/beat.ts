@@ -79,7 +79,11 @@ export class BeatMonitor {
   getLastBeatTime = (): number | null => this.lastBeatTime
 
   /** When each recent beat landed (the last few seconds' worth), oldest first, for reading a tempo from. */
-  getBeatTimes = (): readonly number[] => this.beatTimes
+  getBeatTimes = (): readonly number[] => {
+    // Trimmed on read as well as on each beat, so the tempo goes away when the beats stop instead of showing the last one forever.
+    const oldest = performance.now() - TEMPO_HISTORY_MS
+    return this.beatTimes.filter((time) => time >= oldest)
+  }
 
   // Trim in batches so a per-frame push is not a per-frame array shift.
   private trim = (items: Array<{ t: number }>, now: number): void => {
