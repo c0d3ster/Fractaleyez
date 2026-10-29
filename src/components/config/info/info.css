@@ -30,3 +30,36 @@
 .info-strip--idle {
   color: #5c6470;
 }
+
+/* The strip is only as tall as its arrow tab when hidden, so it stays out of the way of everything below it. */
+.info-strip--collapsed {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+.info-strip__toggle {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translate(-50%, -100%);
+  appearance: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 18px;
+  padding: 0;
+  color: #8a909a;
+  background: rgba(8, 12, 18, 0.96);
+  border: 1px solid #2a2a2a;
+  border-bottom: 0;
+  border-radius: 8px 8px 0 0;
+  cursor: pointer;
+}
+
+.info-strip__toggle:hover,
+.info-strip__toggle:focus-visible {
+  color: #e0e4ea;
+}

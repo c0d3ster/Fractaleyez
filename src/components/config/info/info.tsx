@@ -46,11 +46,48 @@ export const useInfo = (): ((text: string | undefined) => InfoProps) => {
 
 const IDLE_TEXT = 'Hover a control to see what it does.'
 
-/** The strip itself: pinned to the bottom of the expanded config, showing what the control under the pointer (or in focus) does. */
+const COLLAPSED_KEY = 'infoStripCollapsed'
+
+const readCollapsed = (): boolean => {
+  try {
+    return window.localStorage.getItem(COLLAPSED_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+const writeCollapsed = (collapsed: boolean): void => {
+  try {
+    window.localStorage.setItem(COLLAPSED_KEY, collapsed ? '1' : '0')
+  } catch {
+    // Storage can be blocked; the strip still hides for this visit.
+  }
+}
+
+/**
+ * The strip itself: pinned to the bottom of the expanded config, showing what the control under the pointer (or in focus) does.
+ * The arrow at its top middle hides it, leaving only a small arrow to bring it back; the choice is kept.
+ */
 export const InfoStrip = (): React.ReactElement => {
   const text = useContext(InfoTextContext)
+  const [collapsed, setCollapsed] = useState(readCollapsed)
+  const toggle = (): void => {
+    setCollapsed((hidden) => {
+      writeCollapsed(!hidden)
+      return !hidden
+    })
+  }
+  const arrow = (
+    <button type='button' className='info-strip__toggle' aria-expanded={!collapsed} aria-label={collapsed ? 'Show the hint strip' : 'Hide the hint strip'} onClick={toggle}>
+      <svg viewBox='0 0 12 8' width='12' height='8' aria-hidden='true' fill='none' stroke='currentColor' strokeWidth='1.6' strokeLinecap='round' strokeLinejoin='round'>
+        <path d={collapsed ? 'M1 6.5 6 1.5 11 6.5' : 'M1 1.5 6 6.5 11 1.5'} />
+      </svg>
+    </button>
+  )
+  if (collapsed) return <div className='info-strip info-strip--collapsed'>{arrow}</div>
   return (
     <div className={text === null ? 'info-strip info-strip--idle' : 'info-strip'} role='status'>
+      {arrow}
       {text ?? IDLE_TEXT}
     </div>
   )

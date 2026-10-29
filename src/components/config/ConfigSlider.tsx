@@ -6,6 +6,8 @@ import { SliderZone } from '../../config/juliaScale.config'
 type ConfigSliderProps = {
   name: string
   label?: string
+  /** What the slider does, shown in the info strip while it is hovered. */
+  description?: string
   value: number
   displayValue?: string
   // Optional color zones painted on the track, with the current zone's name shown under it.
@@ -38,17 +40,18 @@ const zoneGradient = (zones: readonly SliderZone[], min: number, max: number): s
   return `linear-gradient(to right, ${stops.join(', ')})`
 }
 
-export const ConfigSlider = React.memo(({ name, label, value, displayValue, zones, min, max, step, onChange, onReset, onCommit }: ConfigSliderProps) => {
+export const ConfigSlider = React.memo(({ name, label, description, value, displayValue, zones, min, max, step, onChange, onReset, onCommit }: ConfigSliderProps) => {
   const info = useInfo()
   const handleCommit = useCallback((e: React.SyntheticEvent<HTMLInputElement>): void => {
     onCommit?.(Number(e.currentTarget.value))
   }, [onCommit])
 
+  const hint = [description, onReset ? 'Double-click to reset.' : undefined].filter(Boolean).join(' ')
   const zoneBackground = zones ? zoneGradient(zones, min, max) : undefined
   const currentZone = zones?.find((zone) => value <= zone.upTo) ?? zones?.[zones.length - 1]
 
   return (
-    <div>
+    <div {...info(hint)}>
       <div className="slider-info">
         <h4 className="slider-name">{label || name}: </h4>
         <h4 className="slider-value">{displayValue ?? value}</h4>
@@ -63,7 +66,6 @@ export const ConfigSlider = React.memo(({ name, label, value, displayValue, zone
         style={zoneBackground ? { background: zoneBackground } : undefined}
         onChange={onChange}
         onDoubleClick={onReset}
-        {...info(onReset ? 'Double-click to reset' : undefined)}
         onPointerDown={e => e.currentTarget.setPointerCapture(e.pointerId)}
         onPointerUp={handleCommit}
         onKeyUp={handleCommit} />

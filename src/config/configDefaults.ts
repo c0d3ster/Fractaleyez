@@ -11,6 +11,8 @@ import { layerConfig } from './layers.config'
 
 export type SliderItem = {
   name: string
+  /** What the control does, shown in the info strip while it is hovered. It is not stored in presets. */
+  description?: string
   type: 'slider'
   defaultValue: number
   value: number
@@ -21,6 +23,7 @@ export type SliderItem = {
 
 export type CheckboxItem = {
   name: string
+  description?: string
   type: 'checkbox'
   defaultValue: boolean
   value: boolean
@@ -28,6 +31,7 @@ export type CheckboxItem = {
 
 export type MultiselectItem = {
   name: string
+  description?: string
   type: 'multiselect'
   defaultValue: string[]
   value: string[]
@@ -157,6 +161,7 @@ export const configDefaults: AppConfig = {
   user: {
     speed: {
       name: 'Speed',
+      description: 'How fast you travel through the orbit layers. It also sets how fast the logo zoom dives and how quickly the fractal shape glides along its tour.',
       type: 'slider',
       defaultValue: userConfig.speed_DEFAULT,
       value: userConfig.speed_DEFAULT,
@@ -166,6 +171,7 @@ export const configDefaults: AppConfig = {
     },
     rotationSpeed: {
       name: 'Rotation',
+      description: 'How fast the layers spin. Negative spins them the other way and 0 holds them still.',
       type: 'slider',
       defaultValue: userConfig.rotationSpeed_DEFAULT,
       value: userConfig.rotationSpeed_DEFAULT,
@@ -175,6 +181,7 @@ export const configDefaults: AppConfig = {
     },
     scaleFactor: {
       name: 'Scale',
+      description: 'How deep the orbit reaches in front of the camera. For the fractal it is the zoom, and the colored zones under the slider name its looks.',
       type: 'slider',
       defaultValue: userConfig.scaleFactor_DEFAULT,
       value: userConfig.scaleFactor_DEFAULT,
@@ -184,6 +191,7 @@ export const configDefaults: AppConfig = {
     },
     sway: {
       name: 'Sway',
+      description: 'How far the camera can be steered with the camera pad, the arrow keys and the mouse. 0 holds it still.',
       type: 'slider',
       defaultValue: userConfig.sway_DEFAULT,
       value: userConfig.sway_DEFAULT,
@@ -191,11 +199,12 @@ export const configDefaults: AppConfig = {
       max: userConfig.sway_MAX,
       step: userConfig.sway_STEP_SIZE,
     },
-    reverseLean: { name: 'Reverse Lean', type: 'checkbox', defaultValue: userConfig.reverseLean_DEFAULT, value: userConfig.reverseLean_DEFAULT },
+    reverseLean: { name: 'Reverse Lean', description: 'Flips which way steering pulls Orbit and the logo. The fractal always steers toward the camera pad; on, the Orbit camera moves toward the pad (the vortex look) and the logo leans away from it.', type: 'checkbox', defaultValue: userConfig.reverseLean_DEFAULT, value: userConfig.reverseLean_DEFAULT },
   },
   fractal: {
     tour: {
       name: 'Tour',
+      description: 'Where the fractal shape sits along its tour through the Mandelbrot set. Drag the Shape pad to pick a shape yourself, and double-click it to return to this slider.',
       type: 'slider',
       defaultValue: fractalConfig.tour_DEFAULT,
       value: fractalConfig.tour_DEFAULT,
@@ -207,6 +216,7 @@ export const configDefaults: AppConfig = {
   audio: {
     soundThreshold: {
       name: 'Threshold',
+      description: 'How far a sound must jump above the recent level to count as a beat. Lower is more sensitive; higher needs a harder hit.',
       type: 'slider',
       defaultValue: pd.threshold_DEFAULT,
       value: pd.threshold_DEFAULT,
@@ -216,6 +226,7 @@ export const configDefaults: AppConfig = {
     },
     ignoreTime: {
       name: 'Ignore Time',
+      description: 'How long, in milliseconds, another beat is ignored after one is found. Raise it if one hit is counted twice.',
       type: 'slider',
       defaultValue: pd.ignoreTime_DEFAULT,
       value: pd.ignoreTime_DEFAULT,
@@ -237,29 +248,29 @@ export const configDefaults: AppConfig = {
     kaleidoscopeCount: { name: 'Kaleidoscope Count', type: 'slider', defaultValue: visualizerConfig.kaleidoscopeCount_DEFAULT, value: visualizerConfig.kaleidoscopeCount_DEFAULT, min: visualizerConfig.kaleidoscopeCount_MIN, max: visualizerConfig.kaleidoscopeCount_MAX, step: visualizerConfig.kaleidoscopeCount_STEP_SIZE },
   },
   color: {
-    saturation: { name: 'Saturation', type: 'slider', defaultValue: colorConfig.saturation_DEFAULT, value: colorConfig.saturation_DEFAULT, min: colorConfig.saturation_MIN, max: colorConfig.saturation_MAX, step: colorConfig.saturation_STEP_SIZE },
+    saturation: { name: 'Saturation', description: 'How vivid the colors are, from gray at the lowest to the full palette colors.', type: 'slider', defaultValue: colorConfig.saturation_DEFAULT, value: colorConfig.saturation_DEFAULT, min: colorConfig.saturation_MIN, max: colorConfig.saturation_MAX, step: colorConfig.saturation_STEP_SIZE },
     rangeStart: { name: 'Range Start', type: 'slider', defaultValue: colorConfig.rangeStart_DEFAULT, value: colorConfig.rangeStart_DEFAULT, min: colorConfig.rangeStart_MIN, max: colorConfig.rangeStart_MAX, step: colorConfig.rangeStart_STEP_SIZE },
     rangeEnd: { name: 'Range End', type: 'slider', defaultValue: colorConfig.rangeEnd_DEFAULT, value: colorConfig.rangeEnd_DEFAULT, min: colorConfig.rangeEnd_MIN, max: colorConfig.rangeEnd_MAX, step: colorConfig.rangeEnd_STEP_SIZE },
     palette: { name: 'Palette', type: 'multiselect', defaultValue: [colorConfig.palette_DEFAULT], value: [colorConfig.palette_DEFAULT], min: 1, max: 1 },
     customStops: { name: 'Custom Colors', type: 'multiselect', defaultValue: [...colorConfig.customStops_DEFAULT], value: [...colorConfig.customStops_DEFAULT], min: colorConfig.customStops_MIN, max: colorConfig.customStops_MAX },
-    paletteCycles: { name: 'Cycles', type: 'slider', defaultValue: colorConfig.paletteCycles_DEFAULT, value: colorConfig.paletteCycles_DEFAULT, min: colorConfig.paletteCycles_MIN, max: colorConfig.paletteCycles_MAX, step: colorConfig.paletteCycles_STEP_SIZE },
-    palettePhase: { name: 'Phase', type: 'slider', defaultValue: colorConfig.palettePhase_DEFAULT, value: colorConfig.palettePhase_DEFAULT, min: colorConfig.palettePhase_MIN, max: colorConfig.palettePhase_MAX, step: colorConfig.palettePhase_STEP_SIZE },
-    paletteReverse: { name: 'Reverse', type: 'checkbox', defaultValue: false, value: false },
-    paletteHardEdge: { name: 'Hard Edge', type: 'checkbox', defaultValue: false, value: false },
+    paletteCycles: { name: 'Cycles', description: 'How many times the palette repeats across the fractal.', type: 'slider', defaultValue: colorConfig.paletteCycles_DEFAULT, value: colorConfig.paletteCycles_DEFAULT, min: colorConfig.paletteCycles_MIN, max: colorConfig.paletteCycles_MAX, step: colorConfig.paletteCycles_STEP_SIZE },
+    palettePhase: { name: 'Phase', description: 'Slides where the palette starts, so the same colors land in different places.', type: 'slider', defaultValue: colorConfig.palettePhase_DEFAULT, value: colorConfig.palettePhase_DEFAULT, min: colorConfig.palettePhase_MIN, max: colorConfig.palettePhase_MAX, step: colorConfig.palettePhase_STEP_SIZE },
+    paletteReverse: { name: 'Reverse', description: 'Plays the palette backward.', type: 'checkbox', defaultValue: false, value: false },
+    paletteHardEdge: { name: 'Hard Edge', description: 'Leaves the seam where the palette wraps. Normally a palette that does not end where it starts is played out and back so it wraps smoothly.', type: 'checkbox', defaultValue: false, value: false },
   },
   particle: {
-    particleSize: { name: 'Size', type: 'slider', defaultValue: particleConfig.size_DEFAULT, value: particleConfig.size_DEFAULT, min: particleConfig.size_MIN, max: particleConfig.size_MAX, step: particleConfig.size_STEP_SIZE },
-    particlesPerLayer: { name: 'Count', type: 'slider', defaultValue: particleConfig.particles_DEFAULT, value: particleConfig.particles_DEFAULT, min: particleConfig.particles_MIN, max: particleConfig.particles_MAX, step: particleConfig.particles_STEP_SIZE },
-    layers: { name: 'Layers', type: 'slider', defaultValue: particleConfig.layers_DEFAULT, value: particleConfig.layers_DEFAULT, min: particleConfig.layers_MIN, max: particleConfig.layers_MAX, step: particleConfig.layers_STEP_SIZE },
-    levels: { name: 'Levels', type: 'slider', defaultValue: particleConfig.levels_DEFAULT, value: particleConfig.levels_DEFAULT, min: particleConfig.levels_MIN, max: particleConfig.levels_MAX, step: particleConfig.levels_STEP_SIZE },
+    particleSize: { name: 'Size', description: 'How big each particle sprite is. Changing it rebuilds the particle system.', type: 'slider', defaultValue: particleConfig.size_DEFAULT, value: particleConfig.size_DEFAULT, min: particleConfig.size_MIN, max: particleConfig.size_MAX, step: particleConfig.size_STEP_SIZE },
+    particlesPerLayer: { name: 'Count', description: 'How many particles each layer has. More look denser and cost more GPU, and changing it rebuilds the particle system.', type: 'slider', defaultValue: particleConfig.particles_DEFAULT, value: particleConfig.particles_DEFAULT, min: particleConfig.particles_MIN, max: particleConfig.particles_MAX, step: particleConfig.particles_STEP_SIZE },
+    layers: { name: 'Layers', description: 'How many separate sets of particles each level has. Each set gets its own color and, with Cyclone, its own spin. Changing it rebuilds the particle system.', type: 'slider', defaultValue: particleConfig.layers_DEFAULT, value: particleConfig.layers_DEFAULT, min: particleConfig.layers_MIN, max: particleConfig.layers_MAX, step: particleConfig.layers_STEP_SIZE },
+    levels: { name: 'Levels', description: 'How many depth steps the layers are stacked in, front to back. More fill more of the depth and cost more GPU, and changing it rebuilds the particle system.', type: 'slider', defaultValue: particleConfig.levels_DEFAULT, value: particleConfig.levels_DEFAULT, min: particleConfig.levels_MIN, max: particleConfig.levels_MAX, step: particleConfig.levels_STEP_SIZE },
     sprites: { name: 'Sprites', type: 'multiselect', defaultValue: [...particleConfig.sprites_DEFAULT], value: [...particleConfig.sprites_DEFAULT], min: particleConfig.sprites_MIN, max: particleConfig.sprites_MAX },
   },
   orbit: {
-    a: { name: 'Radius', type: 'slider', defaultValue: orbitConfig.A_DEFAULT, value: orbitConfig.A_DEFAULT, min: orbitConfig.A_MIN, max: orbitConfig.A_MAX, step: orbitConfig.A_STEP_SIZE },
-    b: { name: 'Spread', type: 'slider', defaultValue: orbitConfig.B_DEFAULT, value: orbitConfig.B_DEFAULT, min: orbitConfig.B_MIN, max: orbitConfig.B_MAX, step: orbitConfig.B_STEP_SIZE },
-    c: { name: 'Sharpness', type: 'slider', defaultValue: orbitConfig.C_DEFAULT, value: orbitConfig.C_DEFAULT, min: orbitConfig.C_MIN, max: orbitConfig.C_MAX, step: orbitConfig.C_STEP_SIZE },
-    d: { name: 'Shift', type: 'slider', defaultValue: orbitConfig.D_DEFAULT, value: orbitConfig.D_DEFAULT, min: orbitConfig.D_MIN, max: orbitConfig.D_MAX, step: orbitConfig.D_STEP_SIZE },
-    e: { name: 'Drift', type: 'slider', defaultValue: orbitConfig.E_DEFAULT, value: orbitConfig.E_DEFAULT, min: orbitConfig.E_MIN, max: orbitConfig.E_MAX, step: orbitConfig.E_STEP_SIZE },
+    a: { name: 'Radius', description: 'The overall size of the orbit. Higher values spread it outward.', type: 'slider', defaultValue: orbitConfig.A_DEFAULT, value: orbitConfig.A_DEFAULT, min: orbitConfig.A_MIN, max: orbitConfig.A_MAX, step: orbitConfig.A_STEP_SIZE },
+    b: { name: 'Spread', description: 'How densely or loosely the pattern is spread out.', type: 'slider', defaultValue: orbitConfig.B_DEFAULT, value: orbitConfig.B_DEFAULT, min: orbitConfig.B_MIN, max: orbitConfig.B_MAX, step: orbitConfig.B_STEP_SIZE },
+    c: { name: 'Sharpness', description: 'How soft or sharp the edges between the orbit arms are. Low is gradual and high is more defined.', type: 'slider', defaultValue: orbitConfig.C_DEFAULT, value: orbitConfig.C_DEFAULT, min: orbitConfig.C_MIN, max: orbitConfig.C_MAX, step: orbitConfig.C_STEP_SIZE },
+    d: { name: 'Shift', description: 'Pulls more particles toward the center as it rises.', type: 'slider', defaultValue: orbitConfig.D_DEFAULT, value: orbitConfig.D_DEFAULT, min: orbitConfig.D_MIN, max: orbitConfig.D_MAX, step: orbitConfig.D_STEP_SIZE },
+    e: { name: 'Drift', description: 'At 0 the orbit is most symmetric. Higher values favor one side, gradually changing the shape and density of the pattern.', type: 'slider', defaultValue: orbitConfig.E_DEFAULT, value: orbitConfig.E_DEFAULT, min: orbitConfig.E_MIN, max: orbitConfig.E_MAX, step: orbitConfig.E_STEP_SIZE },
   },
   video: {
     clips: [...videoConfig.clips],
@@ -277,12 +288,12 @@ export const configDefaults: AppConfig = {
   },
   logo: {
     sprite: { name: 'Sprite', type: 'multiselect', defaultValue: [logoConfig.sprite_DEFAULT], value: [logoConfig.sprite_DEFAULT], min: 1, max: 1 },
-    threeD: { name: '3D', type: 'checkbox', defaultValue: logoConfig.threeD_DEFAULT, value: logoConfig.threeD_DEFAULT },
-    lean: { name: 'Lean', type: 'checkbox', defaultValue: logoConfig.lean_DEFAULT, value: logoConfig.lean_DEFAULT },
-    zoom: { name: 'Zoom', type: 'checkbox', defaultValue: logoConfig.zoom_DEFAULT, value: logoConfig.zoom_DEFAULT },
-    size: { name: 'Size', type: 'slider', defaultValue: logoConfig.size_DEFAULT, value: logoConfig.size_DEFAULT, min: logoConfig.size_MIN, max: logoConfig.size_MAX, step: logoConfig.size_STEP_SIZE },
-    spinSpeed: { name: 'Spin Speed', type: 'slider', defaultValue: logoConfig.spinSpeed_DEFAULT, value: logoConfig.spinSpeed_DEFAULT, min: logoConfig.spinSpeed_MIN, max: logoConfig.spinSpeed_MAX, step: logoConfig.spinSpeed_STEP_SIZE },
-    shake: { name: 'Shake', type: 'slider', defaultValue: logoConfig.shake_DEFAULT, value: logoConfig.shake_DEFAULT, min: logoConfig.shake_MIN, max: logoConfig.shake_MAX, step: logoConfig.shake_STEP_SIZE },
+    threeD: { name: '3D', description: 'On, the logo turns in 3D. Off, it is flat and spins in the screen plane.', type: 'checkbox', defaultValue: logoConfig.threeD_DEFAULT, value: logoConfig.threeD_DEFAULT },
+    lean: { name: 'Lean', description: 'Tilts the logo toward the camera position, so it follows the camera pad.', type: 'checkbox', defaultValue: logoConfig.lean_DEFAULT, value: logoConfig.lean_DEFAULT },
+    zoom: { name: 'Zoom', description: 'Keeps zooming into the logo image, at a rate that follows Speed. The dot on the Logo pad sets where it dives in.', type: 'checkbox', defaultValue: logoConfig.zoom_DEFAULT, value: logoConfig.zoom_DEFAULT },
+    size: { name: 'Size', description: 'How big the logo is, as a multiple of its base size.', type: 'slider', defaultValue: logoConfig.size_DEFAULT, value: logoConfig.size_DEFAULT, min: logoConfig.size_MIN, max: logoConfig.size_MAX, step: logoConfig.size_STEP_SIZE },
+    spinSpeed: { name: 'Spin Speed', description: 'How fast the logo spins. 0 holds it still and negative spins it the other way.', type: 'slider', defaultValue: logoConfig.spinSpeed_DEFAULT, value: logoConfig.spinSpeed_DEFAULT, min: logoConfig.spinSpeed_MIN, max: logoConfig.spinSpeed_MAX, step: logoConfig.spinSpeed_STEP_SIZE },
+    shake: { name: 'Shake', description: 'How hard the logo jitters on a beat.', type: 'slider', defaultValue: logoConfig.shake_DEFAULT, value: logoConfig.shake_DEFAULT, min: logoConfig.shake_MIN, max: logoConfig.shake_MAX, step: logoConfig.shake_STEP_SIZE },
     positionX: { name: 'Position X', type: 'slider', defaultValue: logoConfig.positionX_DEFAULT, value: logoConfig.positionX_DEFAULT, min: logoConfig.positionX_MIN, max: logoConfig.positionX_MAX, step: logoConfig.positionX_STEP_SIZE },
     positionY: { name: 'Position Y', type: 'slider', defaultValue: logoConfig.positionY_DEFAULT, value: logoConfig.positionY_DEFAULT, min: logoConfig.positionY_MIN, max: logoConfig.positionY_MAX, step: logoConfig.positionY_STEP_SIZE },
     focusX: { name: 'Focus X', type: 'slider', defaultValue: logoConfig.focusX_DEFAULT, value: logoConfig.focusX_DEFAULT, min: logoConfig.focusX_MIN, max: logoConfig.focusX_MAX, step: logoConfig.focusX_STEP_SIZE },
