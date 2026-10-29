@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useState, useCallback } from 'react'
 import './FrequencyHud.css'
 
 import { connectConfig } from '../config/context/ConfigProvider'
+import { useInfo } from '../config/info/info'
 import { UserSettings } from '../../config/userSettings.config'
 import { DEFAULT_ENABLED_BANDS, ONSET_BANDS, isValidBandSelection } from '../../audioanalysis/onset-bands'
 import { subscribeUiTick } from '../../utils/uiTicker'
@@ -46,6 +47,7 @@ type FrequencyHudProps = {
 }
 
 const FrequencyHudInner = ({ userSettings, updateUserSettings }: FrequencyHudProps): React.ReactElement => {
+  const info = useInfo()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   // Persisted settings (loaded async from /api/me) take priority once they arrive; until then,
   // fall back to whatever the live global already holds (e.g. from an earlier session tab).
@@ -207,7 +209,7 @@ const FrequencyHudInner = ({ userSettings, updateUserSettings }: FrequencyHudPro
   }, [toggleBand])
 
   return (
-    <div className='frequency-hud-wrapper'>
+    <div className='frequency-hud-wrapper' {...info('Click a band to choose whether it can set off a beat. The bass band (the kick) and the hi band (snare and clap) are on by default.')}>
       <span className='frequency-hud-label'>Frequency</span>
       <div className='frequency-hud'>
         <canvas
@@ -220,7 +222,6 @@ const FrequencyHudInner = ({ userSettings, updateUserSettings }: FrequencyHudPro
           onPointerLeave={handlePointerLeave}
         />
       </div>
-      <span className='frequency-hud-hint'>click bands to choose what triggers</span>
     </div>
   )
 }
