@@ -1,4 +1,4 @@
-import { Arm, lighten, Rgb, TAU, ZONES } from './kaleidoscopeGalaxy'
+import { Arm, GLOW_ALONG, lighten, Rgb, TAU } from './kaleidoscopeGalaxy'
 
 /** The arm glow's own opacity, as the dial's stylesheet sets it for the SVG version. */
 const GLOW_STROKE_OPACITY = 0.3
@@ -39,7 +39,8 @@ export type StripScene = {
   strips: readonly StripPlacement[]
 }
 
-export type StripAngles = { inner: number, outer: number }
+/** How far the haze and the stars have turned. */
+export type StripAngles = { haze: number, stars: number }
 
 /** Where a canvas of `size` pixels puts the dial's drawing units: its center, and pixels per unit. */
 export type StripFrame = { size: number, center: number, unit: number }
@@ -51,50 +52,47 @@ const rgba = ([red, green, blue]: Rgb, alpha: number): string => `rgba(${red}, $
  * another. Each strip is then cut from these, so the work does not grow with the number of strips.
  */
 export const paintGalaxy = (haze: CanvasRenderingContext2D, stars: CanvasRenderingContext2D, scene: StripScene, angles: StripAngles, { size, center, unit }: StripFrame): void => {
-  const contexts = [haze, stars]
   haze.clearRect(0, 0, size, size)
   stars.clearRect(0, 0, size, size)
-  ZONES.forEach((zone) => {
-    contexts.forEach((ctx) => {
-      ctx.save()
-      ctx.translate(center, center)
-      ctx.rotate(angles[zone.key])
-      ctx.scale(unit, unit)
+  const turn = (ctx: CanvasRenderingContext2D, angle: number): void => {
+    ctx.save()
+    ctx.translate(center, center)
+    ctx.rotate(angle)
+    ctx.scale(unit, unit)
+  }
+  turn(haze, angles.haze)
+  haze.beginPath()
+  haze.arc(0, 0, scene.clipRadius, 0, TAU)
+  haze.clip()
+  haze.lineCap = 'round'
+  haze.lineJoin = 'round'
+  haze.lineWidth = scene.glowWidth
+  scene.arms.forEach((arm, index) => {
+    haze.globalAlpha = GLOW_STROKE_OPACITY
+    haze.strokeStyle = scene.colorOf(GLOW_ALONG.inner, index)
+    haze.stroke(new Path2D(arm.glowInner))
+    haze.strokeStyle = scene.colorOf(GLOW_ALONG.outer, index)
+    haze.stroke(new Path2D(arm.glowOuter))
+    arm.clouds.forEach(({ x, y, radius, opacity, along }) => {
+      haze.globalAlpha = opacity
+      haze.fillStyle = scene.colorOf(along, index)
+      haze.beginPath()
+      haze.arc(x, y, radius, 0, TAU)
+      haze.fill()
     })
-    haze.beginPath()
-    haze.arc(0, 0, scene.clipRadius, 0, TAU)
-    haze.save()
-    haze.clip()
-    haze.lineCap = 'round'
-    haze.lineJoin = 'round'
-    haze.lineWidth = scene.glowWidth
-    scene.arms.forEach((arm, index) => {
-      haze.globalAlpha = GLOW_STROKE_OPACITY
-      haze.strokeStyle = scene.colorOf(zone.glowAlong, index)
-      haze.stroke(new Path2D(zone.key === 'inner' ? arm.glowInner : arm.glowOuter))
-      arm.clouds.forEach(({ x, y, radius, opacity, along }) => {
-        if (!zone.includes(along)) return
-        haze.globalAlpha = opacity
-        haze.fillStyle = scene.colorOf(along, index)
-        haze.beginPath()
-        haze.arc(x, y, radius, 0, TAU)
-        haze.fill()
-      })
-    })
-    haze.restore()
-    scene.arms.forEach((arm, index) => {
-      arm.stars.forEach(({ x, y, radius, opacity, along }) => {
-        if (!zone.includes(along)) return
-        stars.globalAlpha = opacity
-        stars.fillStyle = scene.colorOf(along, index)
-        stars.beginPath()
-        stars.arc(x, y, radius, 0, TAU)
-        stars.fill()
-      })
-    })
-    haze.restore()
-    stars.restore()
   })
+  haze.restore()
+  turn(stars, angles.stars)
+  scene.arms.forEach((arm, index) => {
+    arm.stars.forEach(({ x, y, radius, opacity, along }) => {
+      stars.globalAlpha = opacity
+      stars.fillStyle = scene.colorOf(along, index)
+      stars.beginPath()
+      stars.arc(x, y, radius, 0, TAU)
+      stars.fill()
+    })
+  })
+  stars.restore()
 }
 
 /** Draws the core's light at the dial's center, in whatever transform the context has. */

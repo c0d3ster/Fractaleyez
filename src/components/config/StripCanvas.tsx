@@ -12,7 +12,7 @@ const MAX_STEP_MS = 250
 
 type StripCanvasProps = {
   scene: StripScene
-  /** How many laps a second the inside turns (the outside too, or the other way when Cyclone is on); negative turns it counterclockwise. */
+  /** How many laps a second the haze turns (the stars too, or the other way when Cyclone is on); negative turns it counterclockwise. */
   lapsPerSecond: number
   cyclone: boolean
   /** How bright the haze is, from the glow and the galaxy's own opacity; the canvas blurs it as one picture. */
@@ -31,7 +31,7 @@ export const StripCanvas = ({ scene, lapsPerSecond, cyclone, hazeOpacity, viewHa
   const starsRef = useRef<HTMLCanvasElement>(null)
   // The latest props, so the timer never draws from a render that has been replaced.
   const latest = useRef({ scene, lapsPerSecond, cyclone })
-  const angles = useRef<StripAngles>({ inner: 0, outer: 0 })
+  const angles = useRef<StripAngles>({ haze: 0, stars: 0 })
   const paint = useRef<() => void>(() => undefined)
 
   useEffect(() => {
@@ -74,8 +74,8 @@ export const StripCanvas = ({ scene, lapsPerSecond, cyclone, hazeOpacity, viewHa
       last = now
       if (doc.hidden) return
       const turn = TAU * latest.current.lapsPerSecond * (elapsed / 1000)
-      angles.current.inner += turn
-      angles.current.outer += latest.current.cyclone ? -turn : turn
+      angles.current.haze += turn
+      angles.current.stars += latest.current.cyclone ? -turn : turn
       paint.current()
     }
     const timer = view.setInterval(tick, STRIP_TICK_MS)
