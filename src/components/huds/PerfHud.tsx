@@ -1,6 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react'
 import './PerfHud.css'
 import { subscribeUiTick } from '../../utils/uiTicker'
+import { copyText } from '../../utils/copyText'
+import type { LagEstimate } from '../../audioanalysis/lag-estimate'
+import type { LagMeasurement } from '../../audioanalysis/lag-probe'
 import { AUTO_SLOW_FOR_MS, QUALITY_LABELS, SMOOTH_GOOD_MS } from '../../config/quality.config'
 import type { QualityStatus } from '../../visualization/quality-controller'
 import type { AutoDiagnostics } from '../../visualization/quality-governor'
@@ -9,7 +12,7 @@ import { STUTTER_MS, STUTTER_WINDOW_MS, type StutterSummary } from '../../visual
 type PerfData = {
   fps: number
   frameMs: number
-  estimatedLagMs: number
+  lag?: { estimate: LagEstimate; measurement: LagMeasurement | null; measuring: boolean }
   quality?: QualityStatus
   stutters?: { display: StutterSummary; video: StutterSummary }
 }
@@ -53,6 +56,67 @@ const StutterRow = ({ label, summary, hint }: StutterRowProps): React.ReactEleme
       <span className={summary.count > 0 ? 'perf-hud-value perf-hud-value--warn' : 'perf-hud-value'}>{summary.count}</span>
       {summary.count > 0 ? <span className='perf-hud-frame-ms'> · {Math.round(summary.worstMs)} ms</span> : null}
     </div>
+  </div>
+)
+
+type LagRowProps = { estimate: LagEstimate; measurement: LagMeasurement | null; setup: string }
+
+const COPIED_MS = 1200
+
+const LEFT_OUT = 'It leaves out the microphone and sound card before the audio engine, and the display after the frame is handed over.'
+
+// What the Lag figure is made of, for the hover text and the copy.
+const lagBreakdown = ({ detectorMs, calibrated, waitMs, workMs, displayMs }: LagEstimate): string => {
+  const source = calibrated ? 'measured here by Calibrate lag' : 'a typical figure for this quality mode, not measured here; run Calibrate lag in the debug view'
+  return `The delay from a sound reaching the audio engine to the screen: ${oneDecimal(detectorMs)} ms for the beat detector (${source}) + ${oneDecimal(waitMs)} ms waiting for the frame that reads the audio (a bit over half a drawn frame, so a lower frame cap adds to it) + ${oneDecimal(workMs)} ms drawing it + ${oneDecimal(displayMs)} ms for the monitor's next refresh. The last three are live, so this follows the frame rate and the scene. ${LEFT_OUT}`
+}
+
+const calibrationNote = (measurement: LagMeasurement): string => {
+  const time = new Date(measurement.measuredAt).toLocaleTimeString()
+  const clicks = `${measurement.heard} of ${measurement.clicks} clicks heard within 150 ms`
+  const steps = `a click took ${oneDecimal(measurement.detectMs)} ms to be detected and ${oneDecimal(measurement.submitMs)} ms to have its frame handed to the GPU (the middle of the ${clicks}, the slowest ${oneDecimal(measurement.worstMs)} ms), ${oneDecimal(measurement.totalMs)} ms with a monitor refresh`
+  if (!measurement.saved) {
+    const off = measurement.predictedMs - measurement.totalMs
+    return ` Last check at ${time} (nothing saved): ${steps}. The live estimate had said ${oneDecimal(measurement.predictedMs)} ms, ${oneDecimal(Math.abs(off))} ms ${off >= 0 ? 'high' : 'low'}.`
+  }
+  return ` Last calibration at ${time}: ${steps}. The live estimate had said ${oneDecimal(measurement.predictedMs)} ms just before it ran. Each quality mode keeps its own, and changing the bands or the Threshold means calibrating again.`
+}
+
+// The live estimate, marked with a tilde until the beat detector's delay has been measured for this setup.
+const LagRow = ({ estimate, measurement, setup }: LagRowProps): React.ReactElement => {
+  const [copied, setCopied] = useState<boolean | null>(null)
+  useEffect(() => {
+    if (copied === null) return undefined
+    const timer = window.setTimeout(() => setCopied(null), COPIED_MS)
+    return () => window.clearTimeout(timer)
+  }, [copied])
+  const text = `${lagBreakdown(estimate)}${measurement ? calibrationNote(measurement) : ''}`
+  // Click copies the tooltip with the setup it was read on, so it can be pasted somewhere instead of retyped.
+  const copy = (event: React.MouseEvent<HTMLButtonElement>): void => {
+    void copyText(event.currentTarget, [text, setup].join('\n')).then(setCopied)
+  }
+  const value = `${estimate.calibrated ? '' : '~'}${oneDecimal(estimate.totalMs)} ms`
+  return (
+    <div className='perf-hud-row' title={`${text} Click the value to copy this text.`}>
+      <span className='perf-hud-key'>Lag</span>
+      <button type='button' className='perf-hud-value perf-hud-value--copy' onClick={copy}>
+        {copied === null ? value : copied ? 'Copied' : 'Copy failed'}
+      </button>
+    </div>
+  )
+}
+
+type SoundcheckRowProps = { measuring: boolean; heardNothing: boolean; onMeasure: () => void }
+
+const SoundcheckRow = ({ measuring, heardNothing, onMeasure }: SoundcheckRowProps): React.ReactElement => (
+  <div
+    className='perf-hud-row'
+    title='Sends 10 silent test clicks into the audio engine, where the microphone sound enters, and times how long each takes to come out as a beat on screen. It keeps what is left once the frame parts are taken out, the beat detector delay, for the live Lag figure. Takes about 9 seconds and makes the visuals pulse, so do it in a quiet room, and again after changing the bands or the Threshold.'
+  >
+    <span className='perf-hud-key'>Lag test</span>
+    <button type='button' className='perf-hud-button' disabled={measuring} onClick={onMeasure}>
+      {measuring ? 'Listening…' : heardNothing ? 'No beat heard, retry' : 'Calibrate'}
+    </button>
   </div>
 )
 
@@ -117,8 +181,10 @@ const AutoRows = ({ auto }: AutoRowsProps): React.ReactElement => {
 }
 
 export const PerfHud = (): React.ReactElement => {
-  const [perf, setPerf] = useState<PerfData>({ fps: 0, frameMs: 0, estimatedLagMs: 0 })
+  const [perf, setPerf] = useState<PerfData>({ fps: 0, frameMs: 0 })
   const [debug, setDebug] = useState(readDebug)
+  const [asking, setAsking] = useState(false)
+  const [heardNothing, setHeardNothing] = useState(false)
   const wrapperRef = useRef<HTMLDivElement>(null)
 
   const toggleDebug = (): void => {
@@ -126,6 +192,16 @@ export const PerfHud = (): React.ReactElement => {
       writeDebug(!on)
       return !on
     })
+  }
+
+  const measureLag = (): void => {
+    setAsking(true)
+    setHeardNothing(false)
+    const measure = perfSourceWindow().measureBeatLag
+    void (measure ? measure() : Promise.resolve(null))
+      .then((result) => setHeardNothing(result === null))
+      .catch(() => setHeardNothing(true))
+      .finally(() => setAsking(false))
   }
 
   useEffect(() => {
@@ -192,10 +268,14 @@ export const PerfHud = (): React.ReactElement => {
           </>
         ) : null}
         {perf.quality ? <SmoothRow quality={perf.quality} /> : null}
-        <div className='perf-hud-row' title='A rough guess, not a measurement, of the delay from a sound reaching the audio engine to the next drawn frame: the Web Audio latencies, half the analysis window and half a frame. It leaves out the microphone and the display, and how long the beat detector takes to fire, so the real delay is longer.'>
-          <span className='perf-hud-key'>Lag</span>
-          <span className='perf-hud-value'>{perf.estimatedLagMs} ms</span>
-        </div>
+        {perf.lag ? (
+          <LagRow
+            estimate={perf.lag.estimate}
+            measurement={perf.lag.measurement}
+            setup={`Quality: ${perf.quality ? qualityLabel(perf.quality) : 'unknown'}, ${perf.fps} fps (${perf.frameMs} ms frames)`}
+          />
+        ) : null}
+        {debug ? <SoundcheckRow measuring={asking || (perf.lag?.measuring ?? false)} heardNothing={heardNothing} onMeasure={measureLag} /> : null}
       </div>
     </div>
   )

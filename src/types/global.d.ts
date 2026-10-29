@@ -1,5 +1,7 @@
 import type { AppConfig, LayerKey } from '../config/configDefaults'
 import type { BeatTimeline } from '../audioanalysis/beat'
+import type { LagEstimate } from '../audioanalysis/lag-estimate'
+import type { LagMeasurement } from '../audioanalysis/lag-probe'
 import type { QualityStatus } from '../visualization/quality-controller'
 import type { StutterSummary } from '../visualization/stutter-monitor'
 
@@ -43,11 +45,12 @@ declare global {
     getLastBeatTime?: () => number | null
     getBeatTimes?: () => readonly number[]
     subscribeBeat?: (listener: () => void) => () => void
+    measureBeatLag?: (save?: boolean) => Promise<LagMeasurement | null>
     enabledFreqBands?: boolean[]
     getPerfData?: () => {
       fps: number
       frameMs: number
-      estimatedLagMs: number
+      lag: { estimate: LagEstimate; measurement: LagMeasurement | null; measuring: boolean }
       quality: QualityStatus
       stutters: { display: StutterSummary; video: StutterSummary }
     }

@@ -3,6 +3,9 @@ import { AudioStream } from './audiostream/audio-stream'
 import { AudioAnalyser } from './audioanalysis/audio-analyser'
 import { AudioFeed } from './audioanalysis/audio-feed'
 import { beatMonitor } from './audioanalysis/beat'
+import { DEFAULT_DETECTOR_MS, detectorCalibration, estimateLag, LagEstimate, median } from './audioanalysis/lag-estimate'
+import { LagProbe } from './audioanalysis/lag-probe'
+import { DEFAULT_ENABLED_BANDS } from './audioanalysis/onset-bands'
 import { LayerKey } from './config/configDefaults'
 import { LAYER_REGISTRY } from './config/layers'
 import { createLayerPipeline, LayerPipeline } from './visualization/layers'
@@ -19,6 +22,18 @@ const FFT_SIZE = 512
 const audiosource = new AudioSource()
 const audiostream = new AudioStream(audiosource, FFT_SIZE)
 const audioFeed = new AudioFeed(audiostream, new AudioAnalyser(audiostream.getBufferSize()))
+const lagProbe = new LagProbe({
+  context: audiosource.getAudioContext(),
+  injectClick: audiostream.injectClick,
+  subscribeBeat: beatMonitor.subscribe,
+  lastBeatTime: beatMonitor.getLastBeatTime,
+  now: () => performance.now(),
+  frameMs: () => medianFpsFromDeltas(frameDeltaMs).frameMs,
+  refreshMs: () => median(displayGapMs),
+  workMs: () => median(frameWorkMs),
+  predictMs: () => currentLag().totalMs,
+  onMeasured: ({ detectorMs }) => detectorCalibration.save(detectorSetup(), detectorMs),
+})
 
 // The layer pipeline (created in init) draws every enabled layer; which layers show is layers.meta[key].enabled.
 let pipeline: LayerPipeline | null = null
@@ -57,6 +72,25 @@ const DISPLAY_GAP_MAX_MS = 2000
 
 const FRAME_DELTA_SAMPLES = 60
 const frameDeltaMs: number[] = []
+// How long each drawn frame takes from the start of its callback until it is handed to the GPU; one term of the Lag figure.
+const frameWorkMs: number[] = []
+// The gap between display frames (the monitor's refresh, whatever the frame cap); the other term of the Lag figure.
+const displayGapMs: number[] = []
+
+// What the beat detector's delay depends on: the sample rate (its windows are a number of samples), which bands can set off a beat, the Threshold slider, and the quality mode (its frame rate changes how the detector smooths).
+const detectorSetup = (): string => [
+  audiosource.getAudioContext().sampleRate,
+  (window.enabledFreqBands ?? DEFAULT_ENABLED_BANDS).map((on) => (on ? 1 : 0)).join(''),
+  window.config.audio.soundThreshold.value,
+  qualityController.getTier(),
+].join('|')
+
+const currentLag = (): LagEstimate => estimateLag(
+  detectorCalibration.read(detectorSetup(), DEFAULT_DETECTOR_MS[qualityController.getTier()]),
+  medianFpsFromDeltas(frameDeltaMs).frameMs,
+  median(frameWorkMs),
+  median(displayGapMs),
+)
 // Shader compiles and first uploads make the first frames slow whatever the scene weighs, so Auto does not judge until this many are drawn.
 const STARTUP_FRAMES = 45
 let endStartupLoad: (() => void) | null = null
@@ -68,19 +102,6 @@ const medianFpsFromDeltas = (deltas: number[]): { fps: number; frameMs: number }
   const mid = sorted[Math.floor(sorted.length / 2)]!
   if (mid <= 0) return { fps: 0, frameMs: 0 }
   return { fps: Math.round(1000 / mid), frameMs: Math.round(mid * 10) / 10 }
-}
-
-/** Rough mic→screen delay: Web Audio latencies + half FFT window + half frame (not measured end-to-end). */
-const getEstimatedAudioVisualLagMs = (frameMs: number): number => {
-  const ctx = audiosource.getAudioContext()
-  const sr = ctx.sampleRate
-  const base = ctx.baseLatency ?? 0
-  const output = ctx.outputLatency ?? 0
-  const engineMs = (base + output) * 1000
-  const fftHalfMs = sr > 0 ? (FFT_SIZE / sr) * 1000 * 0.5 : 0
-  const renderMs = frameMs > 0 ? frameMs * 0.5 : 0
-  const total = engineMs + fftHalfMs + renderMs
-  return Math.round(total * 10) / 10
 }
 
 // Initialize variables to track mouse movement and hide mouse after timeout
@@ -119,13 +140,14 @@ const init = (): void => {
   window.getLastBeatTime = beatMonitor.getLastBeatTime
   window.getBeatTimes = beatMonitor.getBeatTimes
   window.subscribeBeat = beatMonitor.subscribe
+  window.measureBeatLag = lagProbe.measure
   window.getPerfData = () => {
     const { fps, frameMs } = medianFpsFromDeltas(frameDeltaMs)
     const now = performance.now()
     return {
       fps,
       frameMs,
-      estimatedLagMs: getEstimatedAudioVisualLagMs(frameMs),
+      lag: { estimate: currentLag(), measurement: lagProbe.getLast(), measuring: lagProbe.isRunning() },
       quality: qualityController.getStatus(),
       stutters: { display: displayStutters.summary(now), video: videoStutters.summary(now) },
     }
@@ -168,6 +190,8 @@ const analyze = (): void => {
   if (displayGap > 0 && displayGap < DISPLAY_GAP_MAX_MS) {
     qualityController.recordFrame(displayGap, now)
     displayStutters.record(now, displayGap)
+    displayGapMs.push(displayGap)
+    if (displayGapMs.length > FRAME_DELTA_SAMPLES) displayGapMs.shift()
   }
 
   // Analysis and drawing share the cap: a skipped frame does neither, so a beat is never detected on a frame that is not drawn.
@@ -202,6 +226,10 @@ const analyze = (): void => {
   }
 
   pipeline?.render(deltaTime, visualizationData)
+  const submittedAt = performance.now()
+  lagProbe.frameSubmitted(submittedAt)
+  frameWorkMs.push(submittedAt - now)
+  if (frameWorkMs.length > FRAME_DELTA_SAMPLES) frameWorkMs.shift()
   if (endStartupLoad && --startupFramesLeft <= 0) {
     endStartupLoad()
     endStartupLoad = null
