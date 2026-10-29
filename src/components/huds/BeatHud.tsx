@@ -198,10 +198,9 @@ export const BeatHud = (): React.ReactElement => {
           {tempo ? `${Math.round(tempo.confidence * 100)}% conf` : '—'}
         </span>
       </div>
-      <div className='beat-hud'>
+      <div className='beat-hud' {...info('Colored ticks are beats. The dashed lines are what each band had to pass to count as a hit.')}>
         <canvas ref={canvasRef} width={W} height={H} className='beat-hud-canvas' />
       </div>
-      <span className='beat-hud-hint'>colored ticks are beats, dashed lines are what each band had to pass</span>
     </div>
   )
 }

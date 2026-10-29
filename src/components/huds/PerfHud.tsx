@@ -69,28 +69,20 @@ const StutterRow = ({ label, summary, hint }: StutterRowProps): React.ReactEleme
 
 type LagRowProps = { estimate: LagEstimate; measurement: LagMeasurement | null }
 
-const LEFT_OUT = 'It leaves out the microphone and sound card before the audio engine, and the display after the frame is handed over.'
+// What the Lag figure is made of, for the hover text: short, one idea a line.
+const lagBreakdown = ({ detectorMs, calibrated, waitMs, workMs, displayMs }: LagEstimate): string => [
+  'Sound reaching the audio engine to the screen, not counting the mic, sound card or monitor.',
+  `Beat detector ${oneDecimal(detectorMs)} ms (${calibrated ? 'measured here' : 'typical for this mode'}) + frame wait ${oneDecimal(waitMs)} + drawing ${oneDecimal(workMs)} + display ${oneDecimal(displayMs)}.`,
+].join('\n')
 
-// What the Lag figure is made of, for the hover text.
-const lagBreakdown = ({ detectorMs, calibrated, waitMs, workMs, displayMs }: LagEstimate): string => {
-  const source = calibrated ? 'measured here by Calibrate lag' : 'a typical figure for this quality mode, not measured here; run Calibrate lag in the debug view'
-  return `The delay from a sound reaching the audio engine to the screen: ${oneDecimal(detectorMs)} ms for the beat detector (${source}) + ${oneDecimal(waitMs)} ms waiting for the frame that reads the audio (a bit over half a drawn frame, so a lower frame cap adds to it) + ${oneDecimal(workMs)} ms drawing it + ${oneDecimal(displayMs)} ms for the monitor's next refresh. The last three are live, so this follows the frame rate and the scene. ${LEFT_OUT}`
-}
-
-const calibrationNote = (measurement: LagMeasurement): string => {
-  const time = new Date(measurement.measuredAt).toLocaleTimeString()
-  const clicks = `${measurement.heard} of ${measurement.clicks} clicks heard within 150 ms`
-  const steps = `a click took ${oneDecimal(measurement.detectMs)} ms to be detected and ${oneDecimal(measurement.submitMs)} ms to have its frame handed to the GPU (the middle of the ${clicks}, the slowest ${oneDecimal(measurement.worstMs)} ms), ${oneDecimal(measurement.totalMs)} ms with a monitor refresh`
-  if (!measurement.saved) {
-    const off = measurement.predictedMs - measurement.totalMs
-    return ` Last check at ${time} (nothing saved): ${steps}. The live estimate had said ${oneDecimal(measurement.predictedMs)} ms, ${oneDecimal(Math.abs(off))} ms ${off >= 0 ? 'high' : 'low'}.`
-  }
-  return ` Last calibration at ${time}: ${steps}. The live estimate had said ${oneDecimal(measurement.predictedMs)} ms just before it ran. Each quality mode keeps its own, and changing the bands or the Threshold means calibrating again.`
+const calibrationNote = (measurement: LagMeasurement | null, calibrated: boolean): string => {
+  if (measurement) return `\n${measurement.saved ? 'Calibrated' : 'Checked'} at ${new Date(measurement.measuredAt).toLocaleTimeString()}.`
+  return calibrated ? '' : '\nCalibrate lag in the debug view measures it here.'
 }
 
 // The live estimate, marked with a tilde until the beat detector's delay has been measured for this setup.
 const LagRow = ({ estimate, measurement }: LagRowProps): React.ReactElement => (
-  <HudRow text={`${lagBreakdown(estimate)}${measurement ? calibrationNote(measurement) : ''}`}>
+  <HudRow text={`${lagBreakdown(estimate)}${calibrationNote(measurement, estimate.calibrated)}`}>
     <span className='perf-hud-key'>Lag</span>
     <span className='perf-hud-value'>{`${estimate.calibrated ? '' : '~'}${oneDecimal(estimate.totalMs)} ms`}</span>
   </HudRow>

@@ -27,8 +27,24 @@
   user-select: none;
 }
 
-.info-strip--idle {
+.info-strip__text {
+  /* A line break in a description is shown as one. */
+  white-space: pre-line;
+  transition: opacity 120ms ease;
+}
+
+.info-strip__text--idle {
   color: #5c6470;
+}
+
+.info-strip__text--hidden {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .info-strip__text {
+    transition: none;
+  }
 }
 
 /* The strip is only as tall as its arrow tab when hidden, so it stays out of the way of everything below it. */
