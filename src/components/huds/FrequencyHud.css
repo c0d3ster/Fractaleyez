@@ -36,10 +36,3 @@
   /* App.css hides the cursor on every canvas. */
   cursor: pointer;
 }
-
-.frequency-hud-hint {
-  font-size: 10px;
-  color: #555;
-  letter-spacing: 0.04em;
-  text-align: center;
-}
