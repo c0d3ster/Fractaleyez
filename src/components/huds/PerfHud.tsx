@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import './PerfHud.css'
 import { subscribeUiTick } from '../../utils/uiTicker'
-import { QUALITY_LABELS } from '../../config/quality.config'
+import { AUTO_SLOW_FOR_MS, QUALITY_LABELS, SMOOTH_GOOD_MS } from '../../config/quality.config'
 import type { QualityStatus } from '../../visualization/quality-controller'
 import type { AutoDiagnostics } from '../../visualization/quality-governor'
 import { STUTTER_MS, STUTTER_WINDOW_MS, type StutterSummary } from '../../visualization/stutter-monitor'
@@ -9,7 +9,6 @@ import { STUTTER_MS, STUTTER_WINDOW_MS, type StutterSummary } from '../../visual
 type PerfData = {
   fps: number
   frameMs: number
-  pingMs: number | null
   estimatedLagMs: number
   quality?: QualityStatus
   stutters?: { display: StutterSummary; video: StutterSummary }
@@ -25,7 +24,6 @@ const qualityLabel = ({ setting, tier }: QualityStatus): string =>
 
 const seconds = (ms: number): string => (ms / 1000).toFixed(1)
 const oneDecimal = (value: number): string => value.toFixed(1)
-const percent = (share: number, digits: number): string => `${(share * 100).toFixed(digits)}%`
 
 type StutterRowProps = { label: string; summary: StutterSummary; hint: string }
 
@@ -34,19 +32,51 @@ const StutterRow = ({ label, summary, hint }: StutterRowProps): React.ReactEleme
   <div className='perf-hud-row' title={hint}>
     <span className='perf-hud-key'>{label}</span>
     <div className='perf-hud-metric'>
-      <span className={summary.count > 0 ? 'perf-hud-value perf-hud-value--bad' : 'perf-hud-value'}>{summary.count}</span>
+      <span className={summary.count > 0 ? 'perf-hud-value perf-hud-value--warn' : 'perf-hud-value'}>{summary.count}</span>
       {summary.count > 0 ? <span className='perf-hud-frame-ms'> · {Math.round(summary.worstMs)} ms</span> : null}
     </div>
   </div>
 )
 
+type SmoothRowProps = { quality: QualityStatus }
+
+// What Auto is waiting for, for the hover text: how long until it may try a higher tier.
+const climbHint = (auto: AutoDiagnostics | null): string => {
+  if (!auto) return ''
+  if (auto.retryInMs > 0) return ` Auto may try a higher tier again in ${seconds(auto.retryInMs)} s.`
+  if (auto.probationLeftMs > 0) return ` Auto is trying a higher tier and watching it for ${seconds(auto.probationLeftMs)} s more.`
+  return ''
+}
+
+const smoothTone = (loading: boolean, ms: number): string => {
+  if (loading) return 'perf-hud-value--muted'
+  if (ms >= SMOOTH_GOOD_MS) return 'perf-hud-value--good'
+  if (ms <= -AUTO_SLOW_FOR_MS) return 'perf-hud-value--bad'
+  return ms < 0 ? 'perf-hud-value--warn' : ''
+}
+
+// How long the page has been smooth, or minus how long it has been struggling; a dash while something loads.
+const SmoothRow = ({ quality }: SmoothRowProps): React.ReactElement => {
+  const { loading, ms, reasons } = quality.smooth
+  const loadingHint = reasons.length > 0
+    ? `Loading ${reasons.join(', ')}: frame times are not judged until it is done.`
+    : 'Settling after a resize, a tab change or a tier change: frame times are not judged for a moment.'
+  const title = loading
+    ? loadingHint
+    : `How long frames have gone without trouble (slow frames or dropped video), green from ${SMOOTH_GOOD_MS / 1000} s. Negative is how long they have been slow: orange, then red from ${AUTO_SLOW_FOR_MS / 1000} s, where Auto steps down.${climbHint(quality.auto)}`
+  return (
+    <div className='perf-hud-row' title={title}>
+      <span className='perf-hud-key'>Smooth</span>
+      <span className={`perf-hud-value ${smoothTone(loading, ms)}`.trim()}>{loading ? '—' : `${ms < 0 ? '-' : ''}${seconds(Math.abs(ms))} s`}</span>
+    </div>
+  )
+}
+
 type AutoRowsProps = { auto: AutoDiagnostics }
 
 // What decides Auto's next move, live, one short line each; the hover text says what each number means.
 const AutoRows = ({ auto }: AutoRowsProps): React.ReactElement => {
-  const { frameMs, p95Ms, slowAboveMs, roughAboveMs, slowForMs, slowLimitMs, videoDropShare, videoDropLimit, cleanForMs, climbAfterMs, probationLeftMs, retryInMs, lastChange } = auto
-  const upState = retryInMs > 0 ? `retry ${seconds(retryInMs)} s` : probationLeftMs > 0 ? `trial ${seconds(probationLeftMs)} s` : `${percent(videoDropShare, 1)} drop`
-  const upAfter = climbAfterMs === null ? 'a cheaper scene' : `${seconds(climbAfterMs)} s`
+  const { frameMs, p95Ms, slowAboveMs, roughAboveMs, lastChange } = auto
   return (
     <>
       <div
@@ -55,20 +85,6 @@ const AutoRows = ({ auto }: AutoRowsProps): React.ReactElement => {
       >
         <span className='perf-hud-key'>Frames</span>
         <span className='perf-hud-value'>{frameMs === null || p95Ms === null ? '—' : `${oneDecimal(frameMs)} / ${oneDecimal(p95Ms)} ms`}</span>
-      </div>
-      <div className='perf-hud-row' title={`How long frames have been slow without a break. Auto steps down after ${seconds(slowLimitMs)} s.`}>
-        <span className='perf-hud-key'>Down</span>
-        <span className={slowForMs > 0 ? 'perf-hud-value perf-hud-value--bad' : 'perf-hud-value'}>{seconds(slowForMs)} / {seconds(slowLimitMs)} s</span>
-      </div>
-      <div
-        className='perf-hud-row'
-        title={`How long frames have been clean: no slow windows, and dropped video under ${percent(videoDropLimit, 0)} (now ${percent(videoDropShare, 1)}). Auto tries the next tier up after ${upAfter}, then watches it for a few seconds.`}
-      >
-        <span className='perf-hud-key'>Up</span>
-        <div className='perf-hud-metric'>
-          <span className='perf-hud-value'>{climbAfterMs === null ? '—' : `${seconds(cleanForMs)} / ${seconds(climbAfterMs)} s`}</span>
-          <span className='perf-hud-frame-ms'> · {upState}</span>
-        </div>
       </div>
       <div className='perf-hud-row' title='The last time Auto changed tier, and how long ago'>
         <span className='perf-hud-key'>Last</span>
@@ -83,7 +99,7 @@ const AutoRows = ({ auto }: AutoRowsProps): React.ReactElement => {
 }
 
 export const PerfHud = (): React.ReactElement => {
-  const [perf, setPerf] = useState<PerfData>({ fps: 0, frameMs: 0, pingMs: null, estimatedLagMs: 0 })
+  const [perf, setPerf] = useState<PerfData>({ fps: 0, frameMs: 0, estimatedLagMs: 0 })
   const wrapperRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -98,7 +114,6 @@ export const PerfHud = (): React.ReactElement => {
     return subscribeUiTick(tick, wrapperRef.current)
   }, [])
 
-  const pingLabel = perf.pingMs != null ? `${perf.pingMs}` : '—'
   const windowLabel = `${STUTTER_WINDOW_MS / 1000} s`
 
   return (
@@ -135,13 +150,7 @@ export const PerfHud = (): React.ReactElement => {
             />
           </>
         ) : null}
-        <div className='perf-hud-row'>
-          <span className='perf-hud-key'>Ping</span>
-          <span className={perf.pingMs != null ? 'perf-hud-value' : 'perf-hud-value perf-hud-value--muted'}>
-            {pingLabel}
-            {perf.pingMs != null ? ' ms' : ''}
-          </span>
-        </div>
+        {perf.quality ? <SmoothRow quality={perf.quality} /> : null}
         <div className='perf-hud-row'>
           <span className='perf-hud-key'>Lag</span>
           <span className='perf-hud-value'>{perf.estimatedLagMs} ms</span>

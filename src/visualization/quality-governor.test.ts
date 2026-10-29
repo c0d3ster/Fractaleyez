@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { AUTO_CLIMB_AFTER_MS, AUTO_EVAL_MS, AUTO_GRACE_MS, AUTO_PROBE_WATCH_MS, AUTO_RETRY_BASE_MS, AUTO_RETRY_MAX_MS, AUTO_SLOW_FOR_MS } from '../config/quality.config'
+import { AUTO_BUSY_MAX_MS, AUTO_CLIMB_AFTER_MS, AUTO_DISTURB_MS, AUTO_EVAL_MS, AUTO_PROBE_WATCH_MS, AUTO_RETRY_BASE_MS, AUTO_RETRY_MAX_MS, AUTO_SEVERE_WEIGHT, AUTO_SLOW_FOR_MS } from '../config/quality.config'
 import { GovernorOptions, QualityGovernor } from './quality-governor'
 
 const FAST_MS = 16.7
@@ -67,11 +67,13 @@ describe('QualityGovernor', () => {
     expect(run(state, SLOW_MS, 100)).toBe('saver')
   })
 
-  it('ignores frames for the grace window after the scene changes', () => {
+  it('ignores frames for the disturb window after the scene changes, then judges them', () => {
     const state = start()
     state.cost = 4
-    run(state, SLOW_MS, windowsFor(AUTO_GRACE_MS) - 1)
-    expect(state.governor.getTier()).toBe('quality')
+    const ignored = windowsFor(AUTO_DISTURB_MS)
+    const toStepDown = windowsFor(AUTO_SLOW_FOR_MS)
+    expect(run(state, SLOW_MS, ignored + toStepDown - 1)).toBe('quality')
+    expect(run(state, SLOW_MS, 1)).toBe('balanced')
   })
 
   it('judges a 120Hz display by its own refresh rate', () => {
@@ -257,5 +259,94 @@ describe('QualityGovernor', () => {
       run(state, 4.2, 40)
       expect(roughWindows(state, 1, 40, 40)).toBe('ultra')
     })
+  })
+})
+
+// Like `run`, with something loading (or not) throughout.
+const runLoading = (state: Run, frameMs: number, windows: number, busy: boolean): string => {
+  for (let i = 0; i < windows; i++) {
+    for (let f = 0; f < FRAMES_PER_WINDOW; f++) state.governor.push(frameMs)
+    state.now += AUTO_EVAL_MS
+    state.governor.evaluate(state.now, state.cost, false, 0, busy)
+  }
+  return state.governor.getTier()
+}
+
+describe('QualityGovernor while something loads', () => {
+  it('ignores slow frames for as long as the load lasts', () => {
+    const state = start()
+    expect(runLoading(state, SLOW_MS, windowsFor(AUTO_BUSY_MAX_MS) - 2, true)).toBe('quality')
+  })
+
+  it('judges again as soon as the load is done and the settle has passed', () => {
+    const state = start()
+    runLoading(state, SLOW_MS, 14, true)
+    expect(runLoading(state, SLOW_MS, windowsFor(AUTO_SLOW_FOR_MS) - 1, false)).toBe('quality')
+    expect(runLoading(state, SLOW_MS, 1, false)).toBe('balanced')
+  })
+
+  it('stops waiting for a load that never ends, so it cannot turn Auto off for good', () => {
+    const state = start()
+    expect(runLoading(state, SLOW_MS, windowsFor(AUTO_BUSY_MAX_MS + AUTO_SLOW_FOR_MS) + 3, true)).toBe('balanced')
+  })
+
+  it('does not count the frames of a load toward a climb either', () => {
+    const state = start('balanced', 2, {})
+    runLoading(state, FAST_MS, windowsFor(AUTO_CLIMB_AFTER_MS) + 2, true)
+    expect(state.governor.getTier()).toBe('balanced')
+  })
+})
+
+describe('QualityGovernor with a stall', () => {
+  // A median frame several times the slow limit: the machine is really struggling, not just a heavy scene.
+  const STALL_MS = 100
+
+  it('steps down sooner than for ordinary slow frames', () => {
+    const state = start()
+    const windows = windowsFor(AUTO_SLOW_FOR_MS / AUTO_SEVERE_WEIGHT)
+    expect(run(state, STALL_MS, windows - 1)).toBe('quality')
+    expect(run(state, STALL_MS, 1)).toBe('balanced')
+  })
+
+  it('still needs the full stretch for frames that are only slow', () => {
+    const state = start()
+    expect(run(state, SLOW_MS, windowsFor(AUTO_SLOW_FOR_MS / AUTO_SEVERE_WEIGHT))).toBe('quality')
+  })
+})
+
+describe('QualityGovernor smoothness', () => {
+  it('counts up the time since the last trouble', () => {
+    const state = start()
+    run(state, FAST_MS, 4)
+    expect(state.governor.getSmoothness()).toEqual({ loading: false, ms: 4 * AUTO_EVAL_MS })
+  })
+
+  it('goes negative for as long as frames are slow, and back to counting up after', () => {
+    const state = start()
+    run(state, SLOW_MS, 3)
+    expect(state.governor.getSmoothness().ms).toBe(-3 * AUTO_EVAL_MS)
+    run(state, FAST_MS, 2)
+    expect(state.governor.getSmoothness().ms).toBe(2 * AUTO_EVAL_MS)
+  })
+
+  it('says loading while something loads, and after the settle it counts from zero', () => {
+    const state = start()
+    run(state, FAST_MS, 6)
+    runLoading(state, FAST_MS, 2, true)
+    expect(state.governor.getSmoothness().loading).toBe(true)
+    runLoading(state, FAST_MS, 3, false)
+    const { loading, ms } = state.governor.getSmoothness()
+    expect(loading).toBe(false)
+    expect(ms).toBeLessThanOrEqual(3 * AUTO_EVAL_MS)
+  })
+
+  it('measures but never moves a tier when it only observes, so a fixed tier still has a smooth time', () => {
+    const governor = new QualityGovernor('quality', { observeOnly: true })
+    const state: Run = { governor, now: 0, cost: 2 }
+    governor.evaluate(0, 2, false)
+    expect(run(state, SLOW_MS, 40)).toBe('quality')
+    expect(governor.getSmoothness().ms).toBe(-40 * AUTO_EVAL_MS)
+    expect(run(state, FAST_MS, 40)).toBe('quality')
+    expect(governor.getSmoothness().ms).toBeGreaterThan(0)
   })
 })

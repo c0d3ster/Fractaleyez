@@ -7,6 +7,7 @@ import { LayerKey } from './config/configDefaults'
 import { LAYER_REGISTRY } from './config/layers'
 import { createLayerPipeline, LayerPipeline } from './visualization/layers'
 import { shouldDrawForVideoFrame, shouldDrawUnderCap } from './visualization/frame-cap'
+import { loadTracker } from './visualization/load-tracker'
 import { qualityController } from './visualization/quality-controller'
 import { displayStutters, videoStutters } from './visualization/stutter-monitor'
 import { videoFrameSignal } from './visualization/video-frame-signal'
@@ -56,9 +57,10 @@ const DISPLAY_GAP_MAX_MS = 2000
 
 const FRAME_DELTA_SAMPLES = 60
 const frameDeltaMs: number[] = []
-let httpPingMs: number | null = null
-
-const PING_PROBE = '/site.webmanifest'
+// Shader compiles and first uploads make the first frames slow whatever the scene weighs, so Auto does not judge until this many are drawn.
+const STARTUP_FRAMES = 45
+let endStartupLoad: (() => void) | null = null
+let startupFramesLeft = 0
 
 const medianFpsFromDeltas = (deltas: number[]): { fps: number; frameMs: number } => {
   if (deltas.length === 0) return { fps: 0, frameMs: 0 }
@@ -66,28 +68,6 @@ const medianFpsFromDeltas = (deltas: number[]): { fps: number; frameMs: number }
   const mid = sorted[Math.floor(sorted.length / 2)]!
   if (mid <= 0) return { fps: 0, frameMs: 0 }
   return { fps: Math.round(1000 / mid), frameMs: Math.round(mid * 10) / 10 }
-}
-
-const refreshHttpPing = (): void => {
-  const tryFetch = (path: string): void => {
-    const t0 = performance.now()
-    fetch(`${window.location.origin}${path}?t=${Date.now()}`, { cache: 'no-store', credentials: 'same-origin' })
-      .then((res) => {
-        if (!res.ok) throw new Error('ping probe failed')
-        httpPingMs = Math.round(performance.now() - t0)
-      })
-      .catch(() => {
-        if (path === PING_PROBE) tryFetch('/index.html')
-      })
-  }
-  tryFetch(PING_PROBE)
-}
-
-const getPingMs = (): number | null => {
-  if (httpPingMs != null) return httpPingMs
-  const c = (navigator as Navigator & { connection?: { rtt?: number } }).connection
-  if (c?.rtt != null && !Number.isNaN(c.rtt) && c.rtt > 0) return Math.round(c.rtt)
-  return null
 }
 
 /** Rough mic→screen delay: Web Audio latencies + half FFT window + half frame (not measured end-to-end). */
@@ -127,6 +107,8 @@ const init = (): void => {
   lastFrameTime = performance.now()
   lastDisplayFrameTime = lastFrameTime
 
+  startupFramesLeft = STARTUP_FRAMES
+  endStartupLoad = loadTracker.begin('startup')
   pipeline = createLayerPipeline(qualityController)
   // Frames around a resize or a tab coming back say nothing about load; Auto waits them out.
   window.addEventListener('resize', qualityController.disturb)
@@ -143,14 +125,11 @@ const init = (): void => {
     return {
       fps,
       frameMs,
-      pingMs: getPingMs(),
       estimatedLagMs: getEstimatedAudioVisualLagMs(frameMs),
       quality: qualityController.getStatus(),
       stutters: { display: displayStutters.summary(now), video: videoStutters.summary(now) },
     }
   }
-  refreshHttpPing()
-  window.setInterval(refreshHttpPing, 5000)
   // TODO create a message modal here telling the user to click anywhere to connect mic as long as audiostream has intialized correctly (aka permissions are good)
   analyze()
 }
@@ -223,4 +202,8 @@ const analyze = (): void => {
   }
 
   pipeline?.render(deltaTime, visualizationData)
+  if (endStartupLoad && --startupFramesLeft <= 0) {
+    endStartupLoad()
+    endStartupLoad = null
+  }
 }

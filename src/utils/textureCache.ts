@@ -1,5 +1,7 @@
 import * as THREE from 'three'
 
+import { loadTracker } from '../visualization/load-tracker'
+
 const FALLBACK_SPRITE_URL = '/fractaleye.png'
 
 type CacheEntry = {
@@ -14,12 +16,20 @@ const urlByTexture = new WeakMap<THREE.Texture, string>()
 // R2 request never fires onLoad) -- a try/catch around .load() can't see that. Catch it here
 // and fall back to the bundled sprite so a bad sprite URL doesn't leave particles blank.
 const loadTexture = (url: string): THREE.Texture => {
-  const texture = new THREE.TextureLoader().load(url, undefined, undefined, (error) => {
+  // Auto does not judge frame times while a sprite is loading: the decode and upload make hitches that are not the scene's weight.
+  const loaded = loadTracker.begin('sprite')
+  const texture = new THREE.TextureLoader().load(url, loaded, undefined, (error) => {
     console.warn(`Failed to load particle sprite "${url}", falling back to default`, error)
-    new THREE.TextureLoader().load(FALLBACK_SPRITE_URL, (fallback) => {
-      texture.image = fallback.image
-      texture.needsUpdate = true
-    })
+    new THREE.TextureLoader().load(
+      FALLBACK_SPRITE_URL,
+      (fallback) => {
+        texture.image = fallback.image
+        texture.needsUpdate = true
+        loaded()
+      },
+      undefined,
+      loaded,
+    )
   })
   return texture
 }

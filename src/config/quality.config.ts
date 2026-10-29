@@ -90,8 +90,15 @@ export const capHidesLoad = (frameCapFps: number | null): boolean => frameCapFps
 export const AUTO_SLOW_FOR_MS = 3000
 // Frames are judged in windows this long.
 export const AUTO_EVAL_MS = 500
-// A scene change, resize or tab refocus makes one-off hitches (textures loading, orbits rebuilding), so frames are ignored for this long after.
-export const AUTO_GRACE_MS = 5000
+// A scene change, resize or tab refocus makes one-off hitches (orbits rebuilding, the browser relaying out), so frames are ignored for this long after, and the clock restarts on each one in a run (a window being dragged).
+export const AUTO_DISTURB_MS = 1500
+// Loading (see `load-tracker.ts`) is waited out rather than timed: frames are ignored while anything loads, and for this long after the last load finishes.
+export const AUTO_BUSY_SETTLE_MS = 500
+// A load that has gone on this long (a stalled request) no longer stops Auto judging, so a load that never finishes cannot turn it off.
+export const AUTO_BUSY_MAX_MS = 8000
+// A median frame this many times the slow threshold is not a slightly heavy scene but a stall, and counts double toward stepping down.
+export const AUTO_SEVERE_FACTOR = 2.5
+export const AUTO_SEVERE_WEIGHT = 2
 // Switching tier resizes render targets and recompiles nothing but still hitches once, so frames are ignored this long after Auto steps.
 export const AUTO_STEP_SETTLE_MS = 1500
 // A step up that has held this long without having to step back down counts as a success (and the retry wait goes back to the base).
@@ -103,6 +110,8 @@ export const AUTO_RETRY_MAX_MS = 240000
 export const AUTO_COST_CHANGE_RATIO = 0.1
 // This long with no slow frames and no dropped video frames, and Auto tries the next tier up. It then has `AUTO_PROBE_WATCH_MS` to hold it.
 export const AUTO_CLIMB_AFTER_MS = 10000
+// The Performance panel's Smooth stat is green from this long without trouble (the stretch after which Auto tries the next tier up), and red from `AUTO_SLOW_FOR_MS` of trouble (where Auto steps down).
+export const SMOOTH_GOOD_MS = AUTO_CLIMB_AFTER_MS
 // A smoothed share of video frames dropped above this means playback is struggling even when frame times look fine (an iGPU with a busy decoder).
 export const AUTO_VIDEO_DROP_LIMIT = 0.03
 

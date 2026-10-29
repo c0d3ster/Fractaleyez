@@ -14,7 +14,8 @@ import {
   QualitySetting,
   QualityTier,
 } from '../config/quality.config'
-import { AutoDiagnostics, QualityGovernor } from './quality-governor'
+import { loadTracker } from './load-tracker'
+import { AutoDiagnostics, QualityGovernor, Smoothness } from './quality-governor'
 
 // Where Auto starts next time: the tier it settled on, so a weak machine does not spend every load stepping down again.
 const AUTO_TIER_HINT_KEY = 'autoQualityTier'
@@ -28,6 +29,8 @@ export type QualityStatus = {
   profile: QualityProfile
   /** What decides Auto's next move and why it last moved; null when a tier is fixed. */
   auto: AutoDiagnostics | null
+  /** How smooth the page has been, whatever the setting, and what is loading while it says so (see `LoadTracker`). */
+  smooth: Smoothness & { reasons: string[] }
 }
 
 const readTierHint = (): QualityTier => {
@@ -104,6 +107,7 @@ export class QualityController {
     tier: this.tier,
     profile: this.getProfile(),
     auto: this.setting === 'auto' ? this.governor.getDiagnostics(performance.now()) : null,
+    smooth: { ...this.governor.getSmoothness(), reasons: loadTracker.reasons() },
   })
 
   /** Calls `listener` now and again whenever the tier changes. Returns the unsubscribe. */
@@ -113,10 +117,11 @@ export class QualityController {
     return () => { this.listeners.delete(listener) }
   }
 
-  /** Picking a tier fixes it. Picking Auto starts the governor over from where it last settled. */
+  /** Picking a tier fixes it (the governor then only watches, so the panel can still say how smooth it is). Picking Auto starts the governor over from where it last settled. */
   setSetting = (setting: unknown): void => {
     if (!isQualitySetting(setting) || setting === this.setting) return
     this.setting = setting
+    this.hintCandidate = null
     if (setting === 'auto') {
       // Choosing Auto again starts the governor over, with no wait before it may step up.
       this.governor = new QualityGovernor(readTierHint())
@@ -124,6 +129,8 @@ export class QualityController {
       this.setTier(this.governor.getTier())
       return
     }
+    this.governor = new QualityGovernor(setting, { observeOnly: true })
+    this.governor.disturb(performance.now())
     this.setTier(setting)
   }
 
@@ -132,14 +139,14 @@ export class QualityController {
     this.governor.disturb(performance.now())
   }
 
-  /** Call once per display frame with the time since the previous one. Auto looks at them in windows of `AUTO_EVAL_MS`. */
+  /** Call once per display frame with the time since the previous one. The governor looks at them in windows of `AUTO_EVAL_MS`, and only Auto acts on what it finds. */
   recordFrame = (frameMs: number, now: number): void => {
-    if (this.setting !== 'auto') return
     this.governor.push(frameMs)
     if (now < this.nextEvalAt) return
     this.nextEvalAt = now + AUTO_EVAL_MS
     const capped = capHidesLoad(QUALITY_PROFILES[this.tier].frameCapFps)
-    const next = this.governor.evaluate(now, readSceneCost(window.config), capped, this.videoDropRate())
+    const next = this.governor.evaluate(now, readSceneCost(window.config), capped, this.videoDropRate(), loadTracker.isBusy())
+    if (this.setting !== 'auto') return
     if (next !== this.tier) {
       this.setTier(next)
       this.hintCandidate = { tier: next, since: now }
