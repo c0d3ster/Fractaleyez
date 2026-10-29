@@ -85,20 +85,6 @@
   color: #ccc;
 }
 
-.perf-hud-value--copy {
-  appearance: none;
-  background: none;
-  border: 0;
-  padding: 0;
-  font: inherit;
-  letter-spacing: inherit;
-  cursor: pointer;
-}
-
-.perf-hud-value--copy:hover {
-  color: #fff;
-}
-
 .perf-hud-button {
   appearance: none;
   background: none;
