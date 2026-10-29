@@ -104,7 +104,7 @@ export const AUTO_STEP_SETTLE_MS = 1500
 // A step up that has held this long without having to step back down counts as a success (and the retry wait goes back to the base).
 export const AUTO_PROBE_WATCH_MS = 8000
 // After stepping down, Auto waits this long before stepping up again. Each step up that has to be undone doubles the wait, up to the max.
-export const AUTO_RETRY_BASE_MS = 30000
+export const AUTO_RETRY_BASE_MS = 15000
 export const AUTO_RETRY_MAX_MS = 240000
 // A change in the scene's estimated cost smaller than this (as a fraction) is not a scene change.
 export const AUTO_COST_CHANGE_RATIO = 0.1
