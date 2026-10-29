@@ -10,6 +10,8 @@ export type EffectChipsHandle = {
 type EffectChipsProps = {
   effects: MotionEffects
   labels: Readonly<Record<EffectKey, string>>
+  /** Flashes in a few steps, so the popup only has a new frame to draw when one changes. */
+  stepped: boolean
   onToggle: (key: EffectKey, enabled: boolean) => void
   /** The kaleidoscope leads the row: it changes the whole picture and is the one effect with an amount (the dial's knob). */
   kaleidoscope: boolean
@@ -43,6 +45,7 @@ const MODES: readonly { label: string, description: string, icon: React.ReactEle
 ]
 
 const PULSE_MS = 280
+const PULSE_STEPS = 4
 const PULSE_SCALE_KEYFRAMES: Keyframe[] = [
   { transform: 'scale(1)' },
   { transform: 'scale(1.1)', offset: 0.25 },
@@ -60,7 +63,7 @@ const PULSE_FLASH_KEYFRAMES: Keyframe[] = [
  * and flashes on a beat when it is acting.
  * Together with the galaxy above them they show what the effects are doing and let you turn them on and off.
  */
-export const EffectChips = React.memo(forwardRef<EffectChipsHandle, EffectChipsProps>(({ effects, labels, onToggle, kaleidoscope, kaleidoscopeLabel, kaleidoscopeCount, mode, onModeChange, onToggleKaleidoscope }, ref): React.ReactElement => {
+export const EffectChips = React.memo(forwardRef<EffectChipsHandle, EffectChipsProps>(({ effects, labels, stepped, onToggle, kaleidoscope, kaleidoscopeLabel, kaleidoscopeCount, mode, onModeChange, onToggleKaleidoscope }, ref): React.ReactElement => {
   const chips = useRef<Partial<Record<EffectKey, HTMLButtonElement | null>>>({})
   // Built the first time a chip flashes and replayed after that; making new animations on every beat is what costs.
   const flashes = useRef<Partial<Record<EffectKey, Animation[]>>>({})
@@ -71,15 +74,22 @@ export const EffectChips = React.memo(forwardRef<EffectChipsHandle, EffectChipsP
     latest.current = effects
   })
 
+  // The flashes are built with their easing, so a change to or from stepped builds them again.
+  useEffect(() => () => {
+    Object.values(flashes.current).forEach((animations) => animations.forEach((animation) => animation.cancel()))
+    flashes.current = {}
+  }, [stepped])
+
   useImperativeHandle(ref, () => ({
     pulse: (): void => {
+      const easing = stepped ? `steps(${PULSE_STEPS})` : 'ease-out'
       EFFECT_KEYS.forEach((key) => {
         if (!latest.current[key] || !BEAT_DRIVEN.has(key)) return
         const chip = chips.current[key]
         if (!chip) return
         const animations = flashes.current[key] ?? [
-          chip.animate(PULSE_SCALE_KEYFRAMES, { duration: PULSE_MS, easing: 'ease-out' }),
-          chip.animate(PULSE_FLASH_KEYFRAMES, { duration: PULSE_MS, easing: 'ease-out', pseudoElement: '::after' }),
+          chip.animate(PULSE_SCALE_KEYFRAMES, { duration: PULSE_MS, easing }),
+          chip.animate(PULSE_FLASH_KEYFRAMES, { duration: PULSE_MS, easing, pseudoElement: '::after' }),
         ]
         flashes.current[key] = animations
         animations.forEach((animation) => {
@@ -88,7 +98,7 @@ export const EffectChips = React.memo(forwardRef<EffectChipsHandle, EffectChipsP
         })
       })
     },
-  }), [])
+  }), [stepped])
 
   return (
     <div className='effect-chips-box'>
