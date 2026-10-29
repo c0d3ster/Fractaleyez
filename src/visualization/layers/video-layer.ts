@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 
 import { getParticleCrossfadeDurationMs } from '../../config/visualizer.config'
+import { videoStutters } from '../stutter-monitor'
 import { videoFrameSignal } from '../video-frame-signal'
 import { isNearEnd, stepOpacity } from './fade'
 import { Layer } from './layer'
@@ -39,6 +40,8 @@ type VideoSlot = {
   warmed: boolean
   // Media time (ms) of the last frame uploaded, on the clip's timeline.
   lastUploadedMediaMs: number
+  // When the previous frame of this playing clip arrived (null while paused), to time the gap to the next.
+  lastFrameAt: number | null
   resumeAttempts: number
   resumeTimer: ReturnType<typeof setTimeout> | undefined
   onEnded: () => void
@@ -247,6 +250,7 @@ export class VideoLayer implements Layer {
       frameHandle: null,
       warmed: false,
       lastUploadedMediaMs: Number.NEGATIVE_INFINITY,
+      lastFrameAt: null,
       resumeAttempts: 0,
       resumeTimer: undefined,
       onEnded: () => this.onEnded(slot),
@@ -255,7 +259,10 @@ export class VideoLayer implements Layer {
         slot.resumeAttempts = 0
       },
     }
-    const onFrame = (_now: DOMHighResTimeStamp, { mediaTime }: VideoFrameCallbackMetadata): void => {
+    const onFrame = (now: DOMHighResTimeStamp, { mediaTime }: VideoFrameCallbackMetadata): void => {
+      // A long gap between two frames of a playing clip is a stutter the Performance panel counts; a paused clip (one held ready) has none.
+      if (slot.lastFrameAt !== null) videoStutters.record(now, now - slot.lastFrameAt)
+      slot.lastFrameAt = video.paused ? null : now
       const mediaMs = mediaTime * 1000
       // A frame earlier than the last upload means the clip looped or was seeked: upload it.
       if (mediaMs < slot.lastUploadedMediaMs || mediaMs - slot.lastUploadedMediaMs >= this.uploadIntervalMs) {

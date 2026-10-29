@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { AUTO_CLIMB_AFTER_MS, AUTO_EVAL_MS, AUTO_GRACE_MS, AUTO_PROBE_WATCH_MS, AUTO_SLOW_FOR_MS } from '../config/quality.config'
+import { AUTO_CLIMB_AFTER_MS, AUTO_EVAL_MS, AUTO_GRACE_MS, AUTO_PROBE_WATCH_MS, AUTO_RETRY_BASE_MS, AUTO_RETRY_MAX_MS, AUTO_SLOW_FOR_MS } from '../config/quality.config'
 import { GovernorOptions, QualityGovernor } from './quality-governor'
 
 const FAST_MS = 16.7
@@ -11,7 +11,7 @@ type Run = { governor: QualityGovernor; now: number; cost: number }
 
 type Tier = 'saver' | 'balanced' | 'quality' | 'ultra'
 
-// Climbing on clean frames is off unless a test asks for it, so the step-down and probe tests below stay about those.
+// Climbing on clean frames is off unless a test asks for it, so the step-down tests below stay about stepping down.
 const start = (tier: Tier = 'quality', cost = 2, options: GovernorOptions = { climbAfterMs: null }): Run => {
   const governor = new QualityGovernor(tier, options)
   // The first evaluation only records the scene's cost.
@@ -90,53 +90,6 @@ describe('QualityGovernor', () => {
     }
   })
 
-  describe('probing up', () => {
-    const dropOnce = (): Run => {
-      const state = start('quality', 3)
-      run(state, SLOW_MS, windowsFor(AUTO_SLOW_FOR_MS))
-      expect(state.governor.getTier()).toBe('balanced')
-      return state
-    }
-
-    it('steps up once the scene gets clearly cheaper and the grace window has passed', () => {
-      const state = dropOnce()
-      state.cost = 1.5
-      expect(run(state, FAST_MS, windowsFor(AUTO_GRACE_MS) + 1)).toBe('quality')
-    })
-
-    it('keeps climbing while probes hold and the scene stays cheap, and stops at the top', () => {
-      const state = start('quality', 3)
-      run(state, SLOW_MS, 40)
-      expect(state.governor.getTier()).toBe('saver')
-      state.cost = 1
-      expect(run(state, FAST_MS, windowsFor(AUTO_GRACE_MS) + 1)).toBe('balanced')
-      expect(run(state, FAST_MS, windowsFor(AUTO_PROBE_WATCH_MS) + 4)).toBe('quality')
-      expect(run(state, FAST_MS, windowsFor(AUTO_PROBE_WATCH_MS) + 4)).toBe('ultra')
-      expect(run(state, FAST_MS, windowsFor(AUTO_PROBE_WATCH_MS) + 4)).toBe('ultra')
-    })
-
-    it('does not step up for a change that is not cheaper than where it dropped', () => {
-      const state = dropOnce()
-      state.cost = 2.9
-      expect(run(state, FAST_MS, windowsFor(AUTO_GRACE_MS) + 2)).toBe('balanced')
-    })
-
-    it('does not step up when the scene got heavier', () => {
-      const state = dropOnce()
-      state.cost = 5
-      expect(run(state, FAST_MS, windowsFor(AUTO_GRACE_MS) + 2)).toBe('balanced')
-    })
-
-    it('steps back down when the probe is slow, and waits for a cheaper scene before trying again', () => {
-      const state = dropOnce()
-      state.cost = 2.5
-      run(state, FAST_MS, windowsFor(AUTO_GRACE_MS) + 1)
-      expect(state.governor.getTier()).toBe('quality')
-      expect(run(state, SLOW_MS, windowsFor(AUTO_SLOW_FOR_MS) + 4)).toBe('balanced')
-      expect(run(state, FAST_MS, 60)).toBe('balanced')
-    })
-  })
-
   describe('climbing on clean frames', () => {
     const climbing = (tier: Tier, cost = 2, options: GovernorOptions = {}): Run => start(tier, cost, options)
     const cleanWindows = windowsFor(AUTO_CLIMB_AFTER_MS)
@@ -180,35 +133,105 @@ describe('QualityGovernor', () => {
       expect(run(state, FAST_MS, 6)).toBe('quality')
     })
 
-    it('steps back down when the climb turns slow, and does not try that tier again at the same cost', () => {
+    it('steps back down when the climb turns slow', () => {
       const state = climbing('balanced')
       run(state, FAST_MS, cleanWindows)
       expect(state.governor.getTier()).toBe('quality')
       expect(run(state, SLOW_MS, windowsFor(AUTO_SLOW_FOR_MS) + 4)).toBe('balanced')
-      expect(state.governor.getCeiling()).toEqual({ tier: 'balanced', cost: 2 })
-      expect(run(state, FAST_MS, cleanWindows * 4)).toBe('balanced')
-    })
-
-    it('tries the heavier tier again once the scene gets clearly cheaper', () => {
-      const state = climbing('balanced', 3)
-      run(state, FAST_MS, cleanWindows)
-      run(state, SLOW_MS, windowsFor(AUTO_SLOW_FOR_MS) + 4)
-      expect(state.governor.getTier()).toBe('balanced')
-      state.cost = 1.5
-      run(state, FAST_MS, windowsFor(AUTO_GRACE_MS) + 1)
-      expect(state.governor.getCeiling()).toBeNull()
-      expect(state.governor.getTier()).toBe('quality')
-    })
-
-    it('honours a ceiling remembered from an earlier visit', () => {
-      const state = climbing('ultra', 2, { ceiling: { tier: 'quality', cost: 2 } })
-      expect(state.governor.getTier()).toBe('quality')
-      expect(run(state, FAST_MS, cleanWindows * 4)).toBe('quality')
     })
 
     it('never climbs when climbing is off', () => {
       const state = climbing('balanced', 2, { climbAfterMs: null })
       expect(run(state, FAST_MS, cleanWindows * 4)).toBe('balanced')
+    })
+  })
+
+  describe('waiting before stepping up again', () => {
+    const climbing = (tier: Tier): Run => start(tier, 2, {})
+    const cleanWindows = windowsFor(AUTO_CLIMB_AFTER_MS)
+
+    // Runs clean windows until the tier goes up, and returns how long that took.
+    const msUntilClimb = (state: Run, from: string): number => {
+      const began = state.now
+      for (let w = 0; w < windowsFor(AUTO_RETRY_MAX_MS * 2); w++) {
+        if (run(state, FAST_MS, 1) !== from) return state.now - began
+      }
+      return Number.POSITIVE_INFINITY
+    }
+    // A step up that turns slow within its trial and has to be undone.
+    const failClimb = (state: Run): void => {
+      run(state, SLOW_MS, windowsFor(AUTO_SLOW_FOR_MS) + 4)
+    }
+
+    it('does not step up before the wait is over, even with clean frames', () => {
+      const state = climbing('quality')
+      run(state, SLOW_MS, windowsFor(AUTO_SLOW_FOR_MS))
+      expect(state.governor.getTier()).toBe('balanced')
+      expect(run(state, FAST_MS, windowsFor(AUTO_RETRY_BASE_MS) - 6)).toBe('balanced')
+    })
+
+    it('steps up once the base wait and the clean stretch are over', () => {
+      const state = climbing('quality')
+      run(state, SLOW_MS, windowsFor(AUTO_SLOW_FOR_MS))
+      const waited = msUntilClimb(state, 'balanced')
+      expect(waited).toBeGreaterThanOrEqual(AUTO_RETRY_BASE_MS - AUTO_SLOW_FOR_MS)
+      expect(waited).toBeLessThanOrEqual(AUTO_RETRY_BASE_MS + AUTO_CLIMB_AFTER_MS)
+    })
+
+    it('doubles the wait each time a step up has to be undone, up to the maximum', () => {
+      const state = climbing('quality')
+      run(state, SLOW_MS, windowsFor(AUTO_SLOW_FOR_MS))
+      const waits: number[] = []
+      for (let attempt = 0; attempt < 6; attempt++) {
+        waits.push(msUntilClimb(state, 'balanced'))
+        failClimb(state)
+        expect(state.governor.getTier()).toBe('balanced')
+      }
+      // The first wait is the base; each failure doubles the next, and none passes the maximum plus the clean stretch.
+      expect(waits[0]).toBeLessThanOrEqual(AUTO_RETRY_BASE_MS + AUTO_CLIMB_AFTER_MS)
+      expect(waits[1]).toBeGreaterThan(AUTO_RETRY_BASE_MS * 1.5)
+      expect(waits[2]).toBeGreaterThan(AUTO_RETRY_BASE_MS * 3)
+      waits.forEach((wait) => expect(wait).toBeLessThanOrEqual(AUTO_RETRY_MAX_MS + AUTO_CLIMB_AFTER_MS))
+      expect(waits[5]).toBeGreaterThan(AUTO_RETRY_MAX_MS - AUTO_SLOW_FOR_MS)
+    })
+
+    it('goes back to the base wait once a step up holds', () => {
+      const state = climbing('quality')
+      run(state, SLOW_MS, windowsFor(AUTO_SLOW_FOR_MS))
+      msUntilClimb(state, 'balanced')
+      failClimb(state)
+      expect(msUntilClimb(state, 'balanced')).toBeGreaterThan(AUTO_RETRY_BASE_MS * 1.5)
+      // This one holds past its trial.
+      run(state, FAST_MS, windowsFor(AUTO_PROBE_WATCH_MS) + 4)
+      expect(state.governor.getTier()).toBe('quality')
+      run(state, SLOW_MS, windowsFor(AUTO_SLOW_FOR_MS) + 4)
+      expect(msUntilClimb(state, 'balanced')).toBeLessThanOrEqual(AUTO_RETRY_BASE_MS + AUTO_CLIMB_AFTER_MS)
+    })
+
+    it('reports how long is left of the wait', () => {
+      const state = climbing('quality')
+      expect(state.governor.getDiagnostics(state.now).retryInMs).toBe(0)
+      run(state, SLOW_MS, windowsFor(AUTO_SLOW_FOR_MS))
+      const left = state.governor.getDiagnostics(state.now).retryInMs
+      expect(left).toBeGreaterThan(AUTO_RETRY_BASE_MS - 2000)
+      expect(left).toBeLessThanOrEqual(AUTO_RETRY_BASE_MS)
+    })
+
+    it('explains the last move', () => {
+      const state = climbing('quality')
+      expect(state.governor.getDiagnostics(state.now).lastChange).toBeNull()
+      run(state, SLOW_MS, windowsFor(AUTO_SLOW_FOR_MS))
+      const change = state.governor.getDiagnostics(state.now).lastChange
+      expect(change).toMatchObject({ from: 'quality', to: 'balanced' })
+      expect(change?.reason).toMatch(/^slow /)
+      msUntilClimb(state, 'balanced')
+      expect(state.governor.getDiagnostics(state.now).lastChange?.reason).toMatch(/ s clean$/)
+    })
+
+    it('has a clean stretch of its own before the first step up from the start', () => {
+      const state = climbing('balanced')
+      expect(run(state, FAST_MS, cleanWindows - 1)).toBe('balanced')
+      expect(run(state, FAST_MS, 1)).toBe('quality')
     })
   })
 

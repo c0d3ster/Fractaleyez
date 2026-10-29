@@ -41,3 +41,27 @@
   color: #555;
 }
 
+
+/* The title stays centered; the tempo sits to its right. */
+.beat-hud-title-row {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: baseline;
+}
+
+.beat-hud-bpm,
+.beat-hud-confidence {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  color: #888;
+  white-space: nowrap;
+}
+
+.beat-hud-bpm {
+  justify-self: start;
+}
+
+.beat-hud-confidence {
+  justify-self: end;
+}

@@ -37,11 +37,14 @@ export type BeatTimeline = {
 }
 
 const HISTORY_MS = 5000
+// Enough beats to read a tempo from, a few bars at any usual speed.
+const TEMPO_HISTORY_MS = 12000
 
 /** Rolling record of what the detector saw and when it fired, for the audio HUDs. */
 export class BeatMonitor {
   private samples: BeatSample[] = []
   private lastBeatTime: number | null = null
+  private beatTimes: number[] = []
   private readonly listeners = new Set<() => void>()
 
   record = (sample: BeatSample): void => {
@@ -49,6 +52,8 @@ export class BeatMonitor {
     this.trim(this.samples, sample.t)
     if (sample.beatBand === null) return
     this.lastBeatTime = sample.t
+    this.beatTimes.push(sample.t)
+    this.beatTimes = this.beatTimes.filter((time) => sample.t - time <= TEMPO_HISTORY_MS)
     // A listener can belong to a window that has since closed; one that throws is dropped so it never reaches the render loop.
     this.listeners.forEach((listener) => {
       try {
@@ -72,6 +77,9 @@ export class BeatMonitor {
 
   /** When the detector last fired, or null if it has not. A cheap read for anything that only needs to know a beat just landed; the timeline copies every sample. */
   getLastBeatTime = (): number | null => this.lastBeatTime
+
+  /** When each recent beat landed (the last few seconds' worth), oldest first, for reading a tempo from. */
+  getBeatTimes = (): readonly number[] => this.beatTimes
 
   // Trim in batches so a per-frame push is not a per-frame array shift.
   private trim = (items: Array<{ t: number }>, now: number): void => {

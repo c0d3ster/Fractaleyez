@@ -4,10 +4,12 @@ import { AudioAnalyser } from './audioanalysis/audio-analyser'
 import { AudioFeed } from './audioanalysis/audio-feed'
 import { beatMonitor } from './audioanalysis/beat'
 import { LayerKey } from './config/configDefaults'
+import { DialDetail, isDialDetail } from './config/quality.config'
 import { LAYER_REGISTRY } from './config/layers'
 import { createLayerPipeline, LayerPipeline } from './visualization/layers'
 import { shouldDrawForVideoFrame, shouldDrawUnderCap } from './visualization/frame-cap'
 import { qualityController } from './visualization/quality-controller'
+import { displayStutters, videoStutters } from './visualization/stutter-monitor'
 import { videoFrameSignal } from './visualization/video-frame-signal'
 
 // Size of the fft transform performed on audio stream
@@ -45,6 +47,14 @@ document.addEventListener('keydown', (event: KeyboardEvent) => {
 window.getQuality = () => qualityController.getStatus()
 // For the benchmark script (scripts/bench), which picks a tier from outside the settings page.
 window.setQuality = (setting) => qualityController.setSetting(setting)
+
+// How much the pop-out's kaleidoscope dial animates: the tier's, unless picked here (to compare the levels by eye).
+let dialDetailOverride: DialDetail | null = null
+window.getDialDetail = () => dialDetailOverride ?? qualityController.getProfile().dialDetail
+window.getDialDetailPick = () => dialDetailOverride
+window.setDialDetail = (level) => {
+  dialDetailOverride = isDialDetail(level) ? level : null
+}
 
 // Create timing mechanism. A frame is drawn when the tier's frame cap allows; every display frame still goes to Auto,
 // which judges the display's pace, not the drawn one.
@@ -134,15 +144,18 @@ const init = (): void => {
   window.getAudioData = audioFeed.getLatest
   window.getBeatTimeline = beatMonitor.getTimeline
   window.getLastBeatTime = beatMonitor.getLastBeatTime
+  window.getBeatTimes = beatMonitor.getBeatTimes
   window.subscribeBeat = beatMonitor.subscribe
   window.getPerfData = () => {
     const { fps, frameMs } = medianFpsFromDeltas(frameDeltaMs)
+    const now = performance.now()
     return {
       fps,
       frameMs,
       pingMs: getPingMs(),
       estimatedLagMs: getEstimatedAudioVisualLagMs(frameMs),
       quality: qualityController.getStatus(),
+      stutters: { display: displayStutters.summary(now), video: videoStutters.summary(now) },
     }
   }
   refreshHttpPing()
@@ -182,7 +195,10 @@ const analyze = (): void => {
   const now = performance.now()
   const displayGap = now - lastDisplayFrameTime
   lastDisplayFrameTime = now
-  if (displayGap > 0 && displayGap < DISPLAY_GAP_MAX_MS) qualityController.recordFrame(displayGap, now)
+  if (displayGap > 0 && displayGap < DISPLAY_GAP_MAX_MS) {
+    qualityController.recordFrame(displayGap, now)
+    displayStutters.record(now, displayGap)
+  }
 
   // Analysis and drawing share the cap: a skipped frame does neither, so a beat is never detected on a frame that is not drawn.
   // A new video frame is also drawn when it arrives if the cap's next draw is not close, so no frame is shown for longer than another.

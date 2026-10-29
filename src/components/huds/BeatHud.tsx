@@ -1,8 +1,9 @@
-import React, { useRef, useEffect } from 'react'
+import React, { useRef, useEffect, useState } from 'react'
 import './BeatHud.css'
 
 import { BeatSample } from '../../audioanalysis/beat'
 import { DEFAULT_ENABLED_BANDS, ONSET_BANDS } from '../../audioanalysis/onset-bands'
+import { estimateTempo, TempoEstimate } from '../../audioanalysis/tempo'
 import { subscribeUiTick } from '../../utils/uiTicker'
 
 const W = 360
@@ -12,6 +13,11 @@ const WINDOW_MS = 4000
 const MIN_Y_MAX = 4
 const Y_HEADROOM = 1.15
 const LAMP_FADE_MS = 200
+// The tempo moves slowly, so it is re-read twice a second, and only drawn again when the number shown changes.
+const TEMPO_UPDATE_INTERVAL_MS = 500
+
+const sameTempo = (a: TempoEstimate | null, b: TempoEstimate | null): boolean =>
+  a === null || b === null ? a === b : Math.round(a.bpm) === Math.round(b.bpm) && Math.round(a.confidence * 100) === Math.round(b.confidence * 100)
 
 // One look per band, in the order of ONSET_BANDS, spread around the color wheel so neighbors are easy to tell apart.
 type BandLook = { label: string; fill: string; line: string; trigger: string }
@@ -89,6 +95,7 @@ const scaleFor = (samples: readonly BeatSample[], from: number, band: number, no
 
 export const BeatHud = (): React.ReactElement => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const [tempo, setTempo] = useState<TempoEstimate | null>(null)
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -96,10 +103,20 @@ export const BeatHud = (): React.ReactElement => {
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
+    let lastTempoAt = 0
+    const updateTempo = (source: Window): void => {
+      const now = source.performance.now()
+      if (now - lastTempoAt < TEMPO_UPDATE_INTERVAL_MS) return
+      lastTempoAt = now
+      const estimate = estimateTempo(source.getBeatTimes?.() ?? [])
+      setTempo((previous) => (sameTempo(previous, estimate) ? previous : estimate))
+    }
+
     const draw = (): void => {
       ctx.clearRect(0, 0, W, H)
 
       const source = mainWindow()
+      updateTempo(source)
       const timeline = source.getBeatTimeline?.()
       const latest = timeline?.samples[timeline.samples.length - 1]
       if (!timeline || !latest) return
@@ -170,7 +187,15 @@ export const BeatHud = (): React.ReactElement => {
 
   return (
     <div className='beat-hud-wrapper'>
-      <span className='beat-hud-label'>Beat</span>
+      <div className='beat-hud-title-row'>
+        <span className='beat-hud-bpm' title='Tempo read from the last 12 seconds of detected beats'>
+          {tempo ? `${Math.round(tempo.bpm)} BPM` : '— BPM'}
+        </span>
+        <span className='beat-hud-label'>Beat</span>
+        <span className='beat-hud-confidence' title='How steady the detected beats are: the share of gaps between them within 15% of the beat length. Missed or extra beats lower it.'>
+          {tempo ? `${Math.round(tempo.confidence * 100)}% conf` : '—'}
+        </span>
+      </div>
       <div className='beat-hud'>
         <canvas ref={canvasRef} width={W} height={H} className='beat-hud-canvas' />
       </div>
