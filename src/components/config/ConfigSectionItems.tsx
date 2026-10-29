@@ -222,6 +222,7 @@ const ConfigSectionItemsInner = ({ name, only, config, onChange, resetConfigItem
             <ConfigCheckbox
               name={configItem}
               label={label}
+              description={item.description}
               key={configItem}
               checked={value as boolean}
               onChange={handleChange}
@@ -234,6 +235,7 @@ const ConfigSectionItemsInner = ({ name, only, config, onChange, resetConfigItem
             <ConfigSlider
               name={configItem}
               label={label}
+              description={item.description}
               key={configItem}
               value={value as number}
               displayValue={SLIDER_DISPLAY_FORMATTERS[configItem]?.(value as number)}
