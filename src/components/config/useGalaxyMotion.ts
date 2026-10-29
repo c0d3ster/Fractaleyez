@@ -1,5 +1,6 @@
 import { RefObject, useEffect, useRef, useState } from 'react'
 
+import { DialDetail } from '../../config/quality.config'
 import { userConfig } from '../../config/user.config'
 import { RADIUS } from './kaleidoscopeGalaxy'
 
@@ -39,6 +40,29 @@ const decayEasing = (): string => {
 }
 const FALLBACK_KICK_EASING = 'cubic-bezier(0.1, 0.9, 0.2, 1)'
 
+// The stepped dial turns in this many updates a second (more steps a lap the slower it turns, so a slow spin is not a ticking
+// hand), and a kick plays in the few steps below. The popup only has a new frame to draw when a step changes.
+const STEPPED_UPDATES_PER_SEC = 12
+const MIN_STEPS_PER_LAP = 12
+const MAX_STEPS_PER_LAP = 360
+// Where along a kick its stepped version changes value: close together at the start, where the decay is quick.
+const KICK_STEP_OFFSETS: readonly number[] = [0, 0.03, 0.06, 0.1, 0.15, 0.2, 0.3, 0.45, 0.65, 1]
+const RING_STEPS = 6
+// The mini dial turns from a timer this often, and a kick holds for this long.
+const MINI_TICK_MS = 100
+const MINI_KICK_MS = 120
+
+/** The easing of the galaxy's endless turn: even, or in steps so it only repaints when it has moved a visible amount. */
+export const spinEasing = (detail: DialDetail, signedLaps: number): string => {
+  if (detail !== 'stepped') return 'linear'
+  const steps = signedLaps === 0 ? MIN_STEPS_PER_LAP : Math.round(STEPPED_UPDATES_PER_SEC / Math.abs(signedLaps))
+  return `steps(${Math.max(MIN_STEPS_PER_LAP, Math.min(MAX_STEPS_PER_LAP, steps))})`
+}
+
+/** A kick drawn as a handful of held values along the same decay, for `value` given how much of the kick is left (1 down to 0). */
+const steppedKick = (value: (remaining: number) => Keyframe): Keyframe[] =>
+  KICK_STEP_OFFSETS.map((offset) => ({ ...value(Math.exp(-(offset * KICK_SECONDS) / KICK_DECAY_SECONDS)), offset, easing: 'step-end' }))
+
 export type MotionEffects = {
   cyclone: boolean
   wobWob: boolean
@@ -56,6 +80,8 @@ export const EFFECT_KEYS: readonly EffectKey[] = ['cyclone', 'wobWob', 'switcher
 type MotionSettings = {
   rotationSpeed: number
   effects: MotionEffects
+  /** How much to animate (see `DialDetail`); a change rebuilds the motion, so the galaxy starts again from rest. */
+  detail: DialDetail
   /** Called on every beat, for things outside the galaxy that want to react (it does no rendering of its own). */
   onBeat?: () => void
 }
@@ -139,6 +165,7 @@ export const useGalaxyMotion = (settings: MotionSettings): GalaxyMotion => {
         animation.currentTime = (1 - phase) * SPIN_LAP_MS
       }
       const rate = Math.abs(signedLaps)
+      animation.effect?.updateTiming({ easing: spinEasing(latest.current.detail, signedLaps) })
       if (rate > 0) animation.updatePlaybackRate(rate)
       if (moving.current && rate > 0) animation.play()
       else animation.pause()
@@ -156,27 +183,68 @@ export const useGalaxyMotion = (settings: MotionSettings): GalaxyMotion => {
     const motionQuery = view.matchMedia('(prefers-reduced-motion: reduce)')
     const kickEasing = view.CSS?.supports('animation-timing-function', 'linear(0, 1)') ? decayEasing() : FALLBACK_KICK_EASING
 
+    // The mini dial has no animations at all: a timer turns it and a beat sets a transform for a moment.
+    const { detail } = latest.current
+    const mini = detail === 'mini'
+    const stepped = detail === 'stepped'
+
     let onScreen = false
     let unsubscribe: (() => void) | undefined
+    let miniTimer: number | undefined
+    const miniAngle = { inner: 0, outer: 0 }
 
     const startSpin = (element: HTMLDivElement | null): Animation | undefined =>
       element?.animate({ transform: ['rotate(0deg)', 'rotate(360deg)'] }, { duration: SPIN_LAP_MS, iterations: Infinity, easing: 'linear' })
 
     const prepareKicks = (): void => {
-      kicks.current.wob ??= preparedAnimation(wob.current, [{ transform: `scale(${1 - WOB_DEPTH})` }, { transform: 'scale(1)' }], { duration: KICK_SECONDS * 1000, easing: kickEasing })
-      kicks.current.core ??= preparedAnimation(core.current, [{ transform: `scale(${1 + CORE_SWELL})` }, { transform: 'scale(1)' }], { duration: KICK_SECONDS * 1000, easing: kickEasing })
+      // Stepped, a kick is a handful of held values along its decay (a new frame only when one changes) instead of a curve.
+      const wobKeyframes = stepped ? steppedKick((remaining) => ({ transform: `scale(${1 - WOB_DEPTH * remaining})` })) : [{ transform: `scale(${1 - WOB_DEPTH})` }, { transform: 'scale(1)' }]
+      const coreKeyframes = stepped ? steppedKick((remaining) => ({ transform: `scale(${1 + CORE_SWELL * remaining})` })) : [{ transform: `scale(${1 + CORE_SWELL})` }, { transform: 'scale(1)' }]
+      const kickOptions: KeyframeAnimationOptions = { duration: KICK_SECONDS * 1000, easing: stepped ? 'linear' : kickEasing }
+      kicks.current.wob ??= preparedAnimation(wob.current, wobKeyframes, kickOptions)
+      kicks.current.core ??= preparedAnimation(core.current, coreKeyframes, kickOptions)
       // Scale and opacity ease differently, so they are two animations on the same layer.
-      kicks.current.ringScale ??= preparedAnimation(ring.current, [{ transform: `scale(${RING_START_SCALE})` }, { transform: 'scale(1)' }], { duration: RING_SECONDS * 1000, easing: RING_EASING })
-      kicks.current.ringFade ??= preparedAnimation(ring.current, [{ opacity: RING_OPACITY }, { opacity: 0 }], { duration: RING_SECONDS * 1000, easing: 'linear' })
+      kicks.current.ringScale ??= preparedAnimation(ring.current, [{ transform: `scale(${RING_START_SCALE})` }, { transform: 'scale(1)' }], { duration: RING_SECONDS * 1000, easing: stepped ? `steps(${RING_STEPS})` : RING_EASING })
+      kicks.current.ringFade ??= preparedAnimation(ring.current, [{ opacity: RING_OPACITY }, { opacity: 0 }], { duration: RING_SECONDS * 1000, easing: stepped ? `steps(${RING_STEPS})` : 'linear' })
+    }
+
+    const startMiniTimer = (): void => {
+      miniTimer ??= view.setInterval(() => {
+        const { rotationSpeed, effects } = latest.current
+        const turn = 360 * rotationSpeed * LAPS_PER_SEC_PER_UNIT * (MINI_TICK_MS / 1000)
+        miniAngle.inner += turn
+        miniAngle.outer += effects.cyclone ? -turn : turn
+        if (inner.current) inner.current.style.transform = `rotate(${miniAngle.inner}deg)`
+        if (outer.current) outer.current.style.transform = `rotate(${miniAngle.outer}deg)`
+      }, MINI_TICK_MS)
+    }
+    const stopMiniTimer = (): void => {
+      if (miniTimer !== undefined) view.clearInterval(miniTimer)
+      miniTimer = undefined
+    }
+    /** Holds `transform` (or `opacity`) on a layer for a moment, then lets go. */
+    const miniKick = (element: HTMLElement | null, style: { transform?: string, opacity?: string }): void => {
+      if (!element) return
+      Object.assign(element.style, style)
+      view.setTimeout(() => {
+        if (style.transform !== undefined) element.style.transform = ''
+        if (style.opacity !== undefined) element.style.opacity = ''
+      }, MINI_KICK_MS)
     }
 
     const handleBeat = (): void => {
       const { effects, onBeat } = latest.current
-      if (effects.wobWob) replay(kicks.current.wob)
-      if (effects.glow) replay(kicks.current.core)
-      if (effects.shockwave) {
-        replay(kicks.current.ringScale)
-        replay(kicks.current.ringFade)
+      if (mini) {
+        if (effects.wobWob) miniKick(wob.current, { transform: `scale(${1 - WOB_DEPTH})` })
+        if (effects.glow) miniKick(core.current, { transform: `scale(${1 + CORE_SWELL})` })
+        if (effects.shockwave) miniKick(ring.current, { opacity: String(RING_OPACITY) })
+      } else {
+        if (effects.wobWob) replay(kicks.current.wob)
+        if (effects.glow) replay(kicks.current.core)
+        if (effects.shockwave) {
+          replay(kicks.current.ringScale)
+          replay(kicks.current.ringFade)
+        }
       }
       onBeat?.()
       if (effects.colorShift || effects.switcheroo) setBeats((count) => count + 1)
@@ -184,14 +252,19 @@ export const useGalaxyMotion = (settings: MotionSettings): GalaxyMotion => {
 
     const start = (): void => {
       moving.current = true
-      prepareKicks()
-      spinners.current.inner ??= startSpin(inner.current)
-      spinners.current.outer ??= startSpin(outer.current)
-      syncSpin()
+      if (mini) {
+        startMiniTimer()
+      } else {
+        prepareKicks()
+        spinners.current.inner ??= startSpin(inner.current)
+        spinners.current.outer ??= startSpin(outer.current)
+        syncSpin()
+      }
       unsubscribe ??= mainWindow().subscribeBeat?.(handleBeat)
     }
     const stop = (): void => {
       moving.current = false
+      stopMiniTimer()
       unsubscribe?.()
       unsubscribe = undefined
       syncSpin()
@@ -230,8 +303,14 @@ export const useGalaxyMotion = (settings: MotionSettings): GalaxyMotion => {
       spinners.current = {}
       Object.values(kicks.current).forEach((animation) => animation.cancel())
       kicks.current = {}
+      // What the mini dial set by hand; the animations of the other levels put these back on their own.
+      const handSet: readonly RefObject<HTMLDivElement>[] = [inner, outer, wob, ring, core]
+      handSet.forEach((layer) => {
+        if (layer.current) layer.current.style.transform = ''
+      })
+      if (ring.current) ring.current.style.opacity = ''
     }
-  }, [])
+  }, [settings.detail])
 
   return { root, inner, outer, wob, ring, core, beats }
 }

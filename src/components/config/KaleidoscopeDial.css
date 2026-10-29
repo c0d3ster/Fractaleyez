@@ -35,7 +35,7 @@
 }
 
 .kaleidoscope-dial-tile-spin {
-  animation: kaleidoscope-dial-spin var(--spin-lap, 1s) linear infinite;
+  animation: kaleidoscope-dial-spin var(--spin-lap, 1s) var(--spin-ease, linear) infinite;
   animation-direction: var(--spin-dir, normal);
   animation-play-state: var(--spin-state, running);
 }
@@ -145,4 +145,43 @@
 /* Keyboard focus shows on the handle, not as a box around the whole dial. */
 .kaleidoscope-dial:focus-visible .kaleidoscope-dial-handle {
   stroke-width: 2.5;
+}
+
+/* How much the dial animates: four small buttons under it, the picked one lit like the kaleidoscope modes. */
+.dial-detail-switch {
+  display: flex;
+  justify-content: center;
+  gap: .35rem;
+  margin: 0 .5rem .75rem;
+}
+
+.dial-detail-option {
+  flex: 0 1 auto;
+  padding: .2rem .55rem;
+  border: 1px solid transparent;
+  border-radius: .4rem;
+  background: #EEE;
+  color: #555;
+  font-size: .75rem;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.dial-detail-option--on {
+  background: #005500;
+  color: white;
+}
+
+@media (hover: hover) {
+  :where(html:not([data-input='touch'])) .dial-detail-option:hover {
+    background: #004400;
+    border-color: #004400;
+    color: #ccc;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dial-detail-option {
+    transition: none;
+  }
 }
