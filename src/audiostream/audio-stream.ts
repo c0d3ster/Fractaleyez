@@ -6,6 +6,23 @@ import { MAX_BAND_WINDOW_SAMPLES, ONSET_BANDS } from '../audioanalysis/onset-ban
 
 const ANALYSER_SMOOTHING = 0.2
 
+// The test click for the lag soundcheck: a kick-like thump (a falling pitch from about 155 to 45 Hz that dies away), loud enough to be heard as a beat.
+const CLICK_SECONDS = 0.25
+const CLICK_LEVEL = 0.9
+
+const buildClickBuffer = (context: BaseAudioContext): AudioBuffer => {
+  const { sampleRate } = context
+  const buffer = context.createBuffer(1, Math.round(CLICK_SECONDS * sampleRate), sampleRate)
+  const samples = buffer.getChannelData(0)
+  let phase = 0
+  for (let i = 0; i < samples.length; i++) {
+    const seconds = i / sampleRate
+    phase += (2 * Math.PI * (45 + 110 * Math.exp(-seconds * 28))) / sampleRate
+    samples[i] = CLICK_LEVEL * Math.sin(phase) * Math.exp(-seconds * 11)
+  }
+  return buffer
+}
+
 // Onset bands (see onset-bands.ts): the signal is split by band-pass filters so beat detection can hear the kick, snare,
 // hats and so on on their own, then each band is read as a time-domain window (not FFT bins, which are ~94Hz wide at the
 // main analyser's size). A 1024-sample window is ~21ms, longer than a 60fps frame, so consecutive frames cover all of
@@ -22,6 +39,7 @@ export class AudioStream {
   private onsetBands: OnsetBand[]
   private bandBuffer: Float32Array<ArrayBuffer>
   private bufferLength: number
+  private clickBuffer: AudioBuffer | null = null
 
   constructor(audiosource: AudioSource, fftsize: number) {
     this.audioSource = audiosource
@@ -71,6 +89,15 @@ export class AudioStream {
         this.analyserNode.connect(this.audioContext.destination)
       if (UserConfig.showloginfos) console.info('AudioStream class initialized\n------------')
     }
+  }
+
+  /** Starts a silent test click at `contextTime` (audio-clock seconds), entering where the microphone's sound does (before the volume and the band filters). */
+  injectClick = (contextTime: number): void => {
+    this.clickBuffer ??= buildClickBuffer(this.audioContext)
+    const click = this.audioContext.createBufferSource()
+    click.buffer = this.clickBuffer
+    click.connect(this.gainNode)
+    click.start(contextTime)
   }
 
   getAudioData(): AudioData {
