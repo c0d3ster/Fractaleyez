@@ -1,6 +1,8 @@
 import type { AppConfig, LayerKey } from '../config/configDefaults'
 import type { BeatTimeline } from '../audioanalysis/beat'
+import type { DialDetail } from '../config/quality.config'
 import type { QualityStatus } from '../visualization/quality-controller'
+import type { StutterSummary } from '../visualization/stutter-monitor'
 
 // Window Management API — not yet in TypeScript's lib.dom.d.ts.
 // https://developer.mozilla.org/en-US/docs/Web/API/Window_Management_API
@@ -40,6 +42,7 @@ declare global {
     } | null
     getBeatTimeline?: () => BeatTimeline
     getLastBeatTime?: () => number | null
+    getBeatTimes?: () => readonly number[]
     subscribeBeat?: (listener: () => void) => () => void
     enabledFreqBands?: boolean[]
     getPerfData?: () => {
@@ -48,9 +51,15 @@ declare global {
       pingMs: number | null
       estimatedLagMs: number
       quality: QualityStatus
+      stutters: { display: StutterSummary; video: StutterSummary }
     }
     getQuality?: () => QualityStatus
     setQuality?: (setting: string) => void
+    getDialDetail?: () => DialDetail
+    /** The level picked with `setDialDetail`, or null while the tier's is used. */
+    getDialDetailPick?: () => DialDetail | null
+    /** Picks how much the kaleidoscope dial animates; anything that is not a level (null) goes back to the tier's. */
+    setDialDetail?: (level: string | null) => void
     getScreenDetails?: () => Promise<ScreenDetails>
   }
 

@@ -10,7 +10,7 @@ export const QUALITY_SETTINGS: readonly QualitySetting[] = ['auto', ...QUALITY_T
 
 export const QUALITY_SETTING_DEFAULT: QualitySetting = 'auto'
 
-/** The tiers Auto can pick, lightest first. It climbs to Ultra only by trying it (see `AUTO_CLIMB_AFTER_MS`) and falls back if the machine cannot hold it. */
+/** The tiers Auto can pick, lightest first. It climbs to Ultra only by trying it (see `AUTO_CLIMB_AFTER_MS`) and falls back if the machine cannot hold it, then waits (see `AUTO_RETRY_BASE_MS`) before trying again. */
 export const AUTO_TIERS: readonly QualityTier[] = ['saver', 'balanced', 'quality', 'ultra']
 
 /** Where Auto starts on a first visit, and where it falls back to when nothing has been remembered. The first thing a visitor sees should look good, so it steps down from here only if the machine cannot hold it. */
@@ -18,6 +18,20 @@ export const AUTO_START_TIER: QualityTier = 'quality'
 
 /** Auto remembers a tier for the next visit only after it has stayed on it this long, so a dip while the page loads, the window moves or another window covers it is not saved as the starting tier. */
 export const AUTO_HINT_HOLD_MS = 30000
+
+/**
+ * How much the kaleidoscope dial in the pop-out config window animates, lightest first. The popup sharing the GPU with the
+ * video is what makes the video stutter, in proportion to how often the popup has a new frame to draw.
+ * `mini` draws bare dots turned and kicked from a 10 Hz timer, `stepped` is the full galaxy with every animation on stepped
+ * easing (a new frame only when a step changes), and `full` is the galaxy animating on every display frame.
+ * No tier asks for `mini`: the dial falls back to it by itself in the kaleidoscope's strip modes, where stepped still has
+ * dozens of spinning panes to draw (measured at 16 strips: about 100 video stutters a minute against 8 for mini).
+ */
+export const DIAL_DETAILS = ['mini', 'stepped', 'full'] as const
+export type DialDetail = typeof DIAL_DETAILS[number]
+
+export const isDialDetail = (value: unknown): value is DialDetail =>
+  typeof value === 'string' && DIAL_DETAILS.some((detail) => detail === value)
 
 export type QualityProfile = {
   /** Frames drawn per second at most (analysis runs with them); null draws on every display frame. A cap above the display's refresh rate changes nothing. */
@@ -32,6 +46,8 @@ export type QualityProfile = {
   videoUploadFps: number | null
   /** How often the pop-out config window repaints its live widgets. */
   uiTickHz: number
+  /** How much the pop-out's kaleidoscope dial animates. */
+  dialDetail: DialDetail
   /** Logo copies that are enlarged (the endless zoom) are sampled with a bicubic filter instead of the GPU's bilinear one. */
   logoBicubic: boolean
 }
@@ -43,11 +59,12 @@ export const FRACTAL_MAX_ITERATIONS = 192
 export const SUPERSAMPLE_MAX_SIDE_PX = 4096
 
 export const QUALITY_PROFILES: Record<QualityTier, QualityProfile> = {
-  saver: { frameCapFps: 30, fractalScale: 0.5, fractalIterations: 64, bloomScale: 0.25, videoUploadFps: 30, uiTickHz: 10, logoBicubic: false },
-  balanced: { frameCapFps: 60, fractalScale: 0.75, fractalIterations: 96, bloomScale: 0.4, videoUploadFps: 30, uiTickHz: 15, logoBicubic: false },
+  saver: { frameCapFps: 30, fractalScale: 0.5, fractalIterations: 64, bloomScale: 0.25, videoUploadFps: 30, uiTickHz: 10, dialDetail: 'stepped', logoBicubic: false },
+  balanced: { frameCapFps: 60, fractalScale: 0.75, fractalIterations: 96, bloomScale: 0.4, videoUploadFps: 30, uiTickHz: 15, dialDetail: 'stepped', logoBicubic: false },
   // What the app drew before there were tiers, except it stops at 120fps: faster than that only pins an integrated GPU and starves the video.
-  quality: { frameCapFps: 120, fractalScale: 1, fractalIterations: 128, bloomScale: 0.5, videoUploadFps: null, uiTickHz: 20, logoBicubic: false },
-  ultra: { frameCapFps: null, fractalScale: 1.5, fractalIterations: 192, bloomScale: 0.75, videoUploadFps: null, uiTickHz: 20, logoBicubic: true },
+  quality: { frameCapFps: 120, fractalScale: 1, fractalIterations: 128, bloomScale: 0.5, videoUploadFps: null, uiTickHz: 20, dialDetail: 'stepped', logoBicubic: false },
+  // Every tier steps the dial: measured at Ultra, the full dial costs the video about 20 stutters a minute and stepping brings that to baseline. `full` is reachable through the dial's switch.
+  ultra: { frameCapFps: null, fractalScale: 1.5, fractalIterations: 192, bloomScale: 0.75, videoUploadFps: null, uiTickHz: 20, dialDetail: 'stepped', logoBicubic: true },
 }
 
 export const QUALITY_LABELS: Record<QualitySetting, string> = {
@@ -94,10 +111,11 @@ export const AUTO_EVAL_MS = 500
 export const AUTO_GRACE_MS = 5000
 // Switching tier resizes render targets and recompiles nothing but still hitches once, so frames are ignored this long after Auto steps.
 export const AUTO_STEP_SETTLE_MS = 1500
-// A probe that has held this long without a step back down counts as a success, and Auto may probe one tier higher again if the scene still allows.
+// A step up that has held this long without having to step back down counts as a success (and the retry wait goes back to the base).
 export const AUTO_PROBE_WATCH_MS = 8000
-// A scene that costs this much less than the one Auto last stepped down on is worth trying a tier higher.
-export const AUTO_PROBE_COST_RATIO = 0.9
+// After stepping down, Auto waits this long before stepping up again. Each step up that has to be undone doubles the wait, up to the max.
+export const AUTO_RETRY_BASE_MS = 30000
+export const AUTO_RETRY_MAX_MS = 240000
 // A change in the scene's estimated cost smaller than this (as a fraction) is not a scene change.
 export const AUTO_COST_CHANGE_RATIO = 0.1
 // This long with no slow frames and no dropped video frames, and Auto tries the next tier up. It then has `AUTO_PROBE_WATCH_MS` to hold it.

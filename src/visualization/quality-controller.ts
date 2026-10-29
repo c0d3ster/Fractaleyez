@@ -14,12 +14,10 @@ import {
   QualitySetting,
   QualityTier,
 } from '../config/quality.config'
-import { AutoCeiling, QualityGovernor } from './quality-governor'
+import { AutoDiagnostics, QualityGovernor } from './quality-governor'
 
 // Where Auto starts next time: the tier it settled on, so a weak machine does not spend every load stepping down again.
 const AUTO_TIER_HINT_KEY = 'autoQualityTier'
-// A tier Auto stepped down from, with the scene cost it did so at, so a later visit does not retry it from scratch.
-const AUTO_CEILING_KEY = 'autoQualityCeiling'
 
 type TierListener = (tier: QualityTier, profile: QualityProfile) => void
 
@@ -28,6 +26,8 @@ export type QualityStatus = {
   setting: QualitySetting
   tier: QualityTier
   profile: QualityProfile
+  /** What decides Auto's next move and why it last moved; null when a tier is fixed. */
+  auto: AutoDiagnostics | null
 }
 
 const readTierHint = (): QualityTier => {
@@ -38,27 +38,6 @@ const readTierHint = (): QualityTier => {
     // Storage can be blocked; Auto then starts at the top.
   }
   return AUTO_START_TIER
-}
-
-const isCeiling = (value: unknown): value is AutoCeiling =>
-  typeof value === 'object' && value !== null && 'tier' in value && 'cost' in value && isQualityTier(value.tier) && typeof value.cost === 'number'
-
-const readCeiling = (): AutoCeiling | null => {
-  try {
-    const stored: unknown = JSON.parse(window.localStorage.getItem(AUTO_CEILING_KEY) ?? 'null')
-    return isCeiling(stored) && AUTO_TIERS.includes(stored.tier) ? stored : null
-  } catch {
-    return null
-  }
-}
-
-const writeCeiling = (ceiling: AutoCeiling | null): void => {
-  try {
-    if (ceiling) window.localStorage.setItem(AUTO_CEILING_KEY, JSON.stringify(ceiling))
-    else window.localStorage.removeItem(AUTO_CEILING_KEY)
-  } catch {
-    // Not worth failing a frame over.
-  }
 }
 
 const writeTierHint = (tier: QualityTier): void => {
@@ -101,13 +80,11 @@ export class QualityController {
   private readonly listeners = new Set<TierListener>()
   private nextEvalAt = 0
   private videoDropRate: () => number = () => 0
-  private ceiling: AutoCeiling | null
   // The tier Auto last moved to and when; it becomes the saved starting tier once it has held for `AUTO_HINT_HOLD_MS`.
   private hintCandidate: { tier: QualityTier; since: number } | null = null
 
   constructor() {
-    this.ceiling = readCeiling()
-    this.governor = new QualityGovernor(readTierHint(), { ceiling: this.ceiling })
+    this.governor = new QualityGovernor(readTierHint())
     this.tier = this.governor.getTier()
   }
 
@@ -122,7 +99,12 @@ export class QualityController {
 
   getProfile = (): QualityProfile => QUALITY_PROFILES[this.tier]
 
-  getStatus = (): QualityStatus => ({ setting: this.setting, tier: this.tier, profile: this.getProfile() })
+  getStatus = (): QualityStatus => ({
+    setting: this.setting,
+    tier: this.tier,
+    profile: this.getProfile(),
+    auto: this.setting === 'auto' ? this.governor.getDiagnostics(performance.now()) : null,
+  })
 
   /** Calls `listener` now and again whenever the tier changes. Returns the unsubscribe. */
   subscribe = (listener: TierListener): (() => void) => {
@@ -136,9 +118,7 @@ export class QualityController {
     if (!isQualitySetting(setting) || setting === this.setting) return
     this.setting = setting
     if (setting === 'auto') {
-      // Choosing Auto again is a request to try the heavier tiers afresh.
-      this.ceiling = null
-      writeCeiling(null)
+      // Choosing Auto again starts the governor over, with no wait before it may step up.
       this.governor = new QualityGovernor(readTierHint())
       this.governor.disturb(performance.now())
       this.setTier(this.governor.getTier())
@@ -160,7 +140,6 @@ export class QualityController {
     this.nextEvalAt = now + AUTO_EVAL_MS
     const capped = capHidesLoad(QUALITY_PROFILES[this.tier].frameCapFps)
     const next = this.governor.evaluate(now, readSceneCost(window.config), capped, this.videoDropRate())
-    this.rememberCeiling()
     if (next !== this.tier) {
       this.setTier(next)
       this.hintCandidate = { tier: next, since: now }
@@ -174,13 +153,6 @@ export class QualityController {
     if (!candidate || now - candidate.since < AUTO_HINT_HOLD_MS) return
     this.hintCandidate = null
     writeTierHint(candidate.tier)
-  }
-
-  private rememberCeiling = (): void => {
-    const ceiling = this.governor.getCeiling()
-    if (ceiling?.tier === this.ceiling?.tier && ceiling?.cost === this.ceiling?.cost) return
-    this.ceiling = ceiling
-    writeCeiling(ceiling)
   }
 
   private setTier = (tier: QualityTier): void => {

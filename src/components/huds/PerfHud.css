@@ -31,6 +31,8 @@
 .perf-hud-row {
   display: flex;
   flex-wrap: nowrap;
+  white-space: nowrap;
+  overflow: hidden;
   align-items: baseline;
   justify-content: space-between;
   gap: 8px;
@@ -72,3 +74,8 @@
 .perf-hud-value--muted {
   color: #555;
 }
+
+.perf-hud-value--bad {
+  color: #e8944a;
+}
+
