@@ -7,7 +7,7 @@ import { logoConfig } from '../../config/logo.config'
 import { ImageShape, loadImageShape, SQUARE_SHAPE } from '../../utils/opaqueBounds'
 import { getResolvedSpriteUrl } from '../../utils/spriteCache'
 import { loadZoomFocus } from '../../utils/zoomFocus'
-import { focusSpot, frameRect, hitTest, LogoPadState, LogoPadTarget, moveFocus, moveLogo, PadSize } from './logoPadGeometry'
+import { FOCUS_DOT_MAX_PX, FOCUS_DOT_MIN_PX, focusDotFraction, focusSpot, frameRect, hitTest, LogoPadState, LogoPadTarget, moveFocus, moveLogo, PadSize } from './logoPadGeometry'
 import { Pad, PadPoint, screenAspectRatio } from './Pad'
 
 type LogoPadProps = {
@@ -105,6 +105,8 @@ const LogoPadInner = ({ config, updateConfigItem, resetConfigItem }: LogoPadProp
   const spriteUrl = sprite ? getResolvedSpriteUrl(sprite) : ''
   const silhouette = spriteUrl ? { maskImage: `url("${spriteUrl}")`, WebkitMaskImage: `url("${spriteUrl}")` } : undefined
   const dot = focusSpot(state, padSize)
+  // Sized by CSS as a share of the pad's width, so it needs no measuring; the same share and limits decide how close a press must be to grab it.
+  const focusDotWidth = `clamp(${FOCUS_DOT_MIN_PX}px, ${toPercent(focusDotFraction(state, padSize))}, ${FOCUS_DOT_MAX_PX}px)`
   const readouts = [`X ${format(state.x)}`, `Y ${format(state.y)}`, ...(zoomOn ? [`Zoom ${format(state.focusX)}, ${format(state.focusY)}`] : [])]
 
   return (
@@ -114,14 +116,16 @@ const LogoPadInner = ({ config, updateConfigItem, resetConfigItem }: LogoPadProp
       onPick={handlePick}
       onReset={handleReset}
       readouts={readouts}
-      hint={zoomOn ? 'drag the dot to aim the zoom, the logo to move it, double-click to reset (the dot goes back to auto)' : 'drag to move the logo, double-click to reset'}
+      hint={zoomOn
+        ? 'Drag the logo to move it, or the dot to aim the zoom. Double-click the dot to reset the zoom point (back to what the image suggests), the logo to reset its position, or empty space to reset both.'
+        : 'Drag to move the logo. Double-click to put it back in the center.'}
     >
       <div className='logo-pad-crosshair logo-pad-crosshair--h' />
       <div className='logo-pad-crosshair logo-pad-crosshair--v' />
       <div className='logo-pad-shape' style={{ left: toPercent(frame.left), top: toPercent(frame.top), width: toPercent(frame.width), height: toPercent(frame.height) }}>
         <div className='logo-pad-shape-fill' style={silhouette} />
       </div>
-      {zoomOn ? <div className='logo-pad-focus' style={{ left: toPercent(dot.x), top: toPercent(dot.y) }} /> : null}
+      {zoomOn ? <div className='logo-pad-focus' style={{ left: toPercent(dot.x), top: toPercent(dot.y), width: focusDotWidth }} /> : null}
     </Pad>
   )
 }

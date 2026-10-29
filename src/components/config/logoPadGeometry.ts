@@ -16,7 +16,13 @@ export type PadSpot = { x: number, y: number }
 
 export type LogoPadTarget = 'focus' | 'logo' | 'empty'
 
-const FOCUS_HIT_RADIUS_PX = 12
+// The zoom dot is this share of the logo's smaller side on the pad, within a readable range: small on a small logo so the
+// zoom point can be placed precisely, larger on a big one so it is easy to see.
+const FOCUS_DOT_FRACTION = 0.26
+export const FOCUS_DOT_MIN_PX = 6
+export const FOCUS_DOT_MAX_PX = 14
+// How far past the dot's edge a press still grabs it.
+const FOCUS_HIT_SLACK_PX = 7
 
 const clamp = (value: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, value))
 
@@ -25,6 +31,16 @@ const footprint = ({ size, aspect }: LogoPadState, pad: PadSize): { width: numbe
   width: size * aspect * pad.height / pad.width,
   height: size,
 })
+
+/** The zoom dot's size before it is limited to a readable range, as a fraction of the pad's width. */
+export const focusDotFraction = (state: LogoPadState, pad: PadSize): number => {
+  const { width, height } = footprint(state, pad)
+  return FOCUS_DOT_FRACTION * Math.min(width, height * pad.height / pad.width)
+}
+
+/** The zoom dot's diameter in pixels on a pad of `pad` pixels. */
+export const focusDotSize = (state: LogoPadState, pad: PadSize): number =>
+  clamp(focusDotFraction(state, pad) * pad.width, FOCUS_DOT_MIN_PX, FOCUS_DOT_MAX_PX)
 
 /** Where the zoom point sits on the pad, as fractions of it. */
 export const focusSpot = (state: LogoPadState, pad: PadSize): PadSpot => {
@@ -54,7 +70,7 @@ export const visibleRect = (state: LogoPadState, pad: PadSize): { left: number, 
 export const hitTest = (spot: PadSpot, state: LogoPadState, pad: PadSize, zoomOn: boolean): LogoPadTarget => {
   if (zoomOn) {
     const focus = focusSpot(state, pad)
-    if (Math.hypot((spot.x - focus.x) * pad.width, (spot.y - focus.y) * pad.height) <= FOCUS_HIT_RADIUS_PX) return 'focus'
+    if (Math.hypot((spot.x - focus.x) * pad.width, (spot.y - focus.y) * pad.height) <= focusDotSize(state, pad) / 2 + FOCUS_HIT_SLACK_PX) return 'focus'
   }
   const { left, top, width, height } = visibleRect(state, pad)
   const inside = spot.x >= left && spot.x <= left + width && spot.y >= top && spot.y <= top + height
