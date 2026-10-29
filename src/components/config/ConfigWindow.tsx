@@ -10,6 +10,7 @@ import { ConfigVideo } from './ConfigVideo'
 import { copyStyles } from '../../styles/AppStyleCopier'
 import { DISPLAY_ORDER } from '../../config/layers'
 import { connectConfig, ConfigContext, ConfigContextValue } from './context/ConfigProvider'
+import { pickNearestScreen } from './popoutScreen'
 import { UserConfigBody } from './UserConfigBody'
 import { ShapePad } from './ShapePad'
 import { LogConfigButton } from './LogConfigButton'
@@ -50,7 +51,8 @@ const resolveWindowFeatures = async (): Promise<string> => {
   try {
     const screenDetails = await window.getScreenDetails()
     const { currentScreen } = screenDetails
-    const secondScreen = screenDetails.screens.find((s) => s !== currentScreen)
+    // The nearest other screen, not the first the OS lists, so with three monitors the popout lands on the middle one.
+    const secondScreen = pickNearestScreen(currentScreen, screenDetails.screens)
     if (!secondScreen) return DEFAULT_WINDOW_FEATURES
     // A screen narrower than the columns need just scrolls horizontally.
     const popoutWidth = Math.min(POPOUT_WIDTH, secondScreen.availWidth)
