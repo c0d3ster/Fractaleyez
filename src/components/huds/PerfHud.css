@@ -16,6 +16,20 @@
   color: #444;
 }
 
+.perf-hud-label--toggle {
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.perf-hud-label--toggle:hover,
+.perf-hud-label--toggle:focus-visible {
+  color: #888;
+}
+
 .perf-hud-panel {
   box-sizing: border-box;
   width: 100%;

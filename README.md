@@ -72,7 +72,7 @@ Preconfigured effects that change how the visuals respond to a beat. They can af
 
 #### Video
 
-Choose which clips play and how they blend. Enabling, disabling or changing clips fades over the crossfade duration. The performance HUD (FPS, ping and estimated audio-to-visual lag) lives in this section.
+Choose which clips play and how they blend. Enabling, disabling or changing clips fades over the crossfade duration. The performance HUD (FPS, quality tier, video jumps per minute, smoothness and estimated audio-to-visual lag; click its title for the debugging rows) lives in this section.
 
 #### Fractal
 
