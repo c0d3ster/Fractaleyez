@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { ColorState } from '../../config/colorState'
-import { Arm, armOf, colorShiftOffset, coords, dotScaleOf, lighten, paletteRgb, RADIUS, ShapeVariant, starScaleOf, starsPerArm, TAU, toCss, Zone, ZONES } from './kaleidoscopeGalaxy'
+import { Arm, armOf, colorShiftOffset, coords, dotScaleOf, GLOW_ALONG, lighten, paletteRgb, RADIUS, ShapeVariant, starScaleOf, starsPerArm, TAU, toCss } from './kaleidoscopeGalaxy'
 import { EffectChips, EffectChipsHandle } from './EffectChips'
 import { StripCanvas } from './StripCanvas'
 import { StripPlacement, StripScene } from './stripPainting'
@@ -112,11 +112,11 @@ const glowWidthFor = (armCount: number, dotScale: number): number => Math.max(1.
  * The Effects at a glance, drawn as a small galaxy with a switch for each effect under it, and a knob that sets the
  * kaleidoscope's mirror count. With the kaleidoscope on it is one spiral arm per wedge, curling opposite ways on
  * alternate wedges; off, it is a plain galaxy with the mirrored one faintly over it. Whatever the kaleidoscope is
- * doing, Cyclone turns the inside and outside opposite ways, Wob Wob pulls it back on a beat, Glow swells the core,
+ * doing, Cyclone turns the haze and the stars opposite ways, as it does the Orbit layers, Wob Wob pulls it back on a beat, Glow swells the core,
  * Shockwave sends a ring out, Color Shift moves the colors around and Switcheroo swaps the whole galaxy between two
  * shapes, all on real beats.
  *
- * It is built as a stack of separate layers (the sky, the inside of the galaxy, the outside, and the ring, core and
+ * It is built as a stack of separate layers (the sky, the haze, the stars, and the ring, core and
  * handle) so that turning and pulling back are transforms the browser can do without repainting the blurred galaxy.
  */
 export const KaleidoscopeDial = React.memo(({ count, min, max, step, kaleidoscope, mode, source, onSourceChange, onModeChange, palette, scale, particleSize, rotationSpeed, effects, effectLabels, onToggleEffect, kaleidoscopeLabel, onToggleKaleidoscope, onChange, onReset }: KaleidoscopeDialProps): React.ReactElement => {
@@ -196,31 +196,44 @@ export const KaleidoscopeDial = React.memo(({ count, min, max, step, kaleidoscop
   const shiftBeats = effects.colorShift ? motion.beats - (shiftStart ?? motion.beats) : 0
   const colorOf = (along: number, armIndex: number): string => toCss(paletteRgb(palette, along + colorShiftOffset(armIndex, shiftBeats)))
 
-  // One half (inside or outside) of a galaxy, drawn from `layerList`.
-  const zoneSvg = ({ key, glowAlong, includes }: Zone, idPrefix: string, layerList: readonly Layer[], clipRadius: number): React.ReactElement => (
+  // The haze of the galaxy, the glow under each arm and its clouds, blurred together.
+  const hazeSvg = (idPrefix: string, layerList: readonly Layer[], clipRadius: number): React.ReactElement => (
     <svg className='kaleidoscope-dial-pane' viewBox={VIEW_BOX}>
       <defs>
-        <filter id={`${idPrefix}-${key}-haze`} x='-20%' y='-20%' width='140%' height='140%'>
+        <filter id={`${idPrefix}-haze`} x='-20%' y='-20%' width='140%' height='140%'>
           <feGaussianBlur stdDeviation={HAZE_BLUR} />
         </filter>
-        <clipPath id={`${idPrefix}-${key}-disc`}>
+        <clipPath id={`${idPrefix}-disc`}>
           <circle r={clipRadius} />
         </clipPath>
       </defs>
       {layerList.map(({ key: layerKey, arms, opacity: layerOpacity, glowWidth }) => (
         <g key={layerKey} className='kaleidoscope-dial-layer' style={{ opacity: layerOpacity }}>
-          <g clipPath={`url(#${idPrefix}-${key}-disc)`} opacity={effects.glow ? 1 : HAZE_OPACITY_WITHOUT_GLOW}>
-            <g filter={`url(#${idPrefix}-${key}-haze)`}>
+          <g clipPath={`url(#${idPrefix}-disc)`} opacity={effects.glow ? 1 : HAZE_OPACITY_WITHOUT_GLOW}>
+            <g filter={`url(#${idPrefix}-haze)`}>
               {arms.map((arm, i) => (
-                <path key={i} className='kaleidoscope-dial-arm' d={key === 'inner' ? arm.glowInner : arm.glowOuter} stroke={colorOf(glowAlong, i)} strokeWidth={glowWidth} />
+                <React.Fragment key={i}>
+                  <path className='kaleidoscope-dial-arm' d={arm.glowInner} stroke={colorOf(GLOW_ALONG.inner, i)} strokeWidth={glowWidth} />
+                  <path className='kaleidoscope-dial-arm' d={arm.glowOuter} stroke={colorOf(GLOW_ALONG.outer, i)} strokeWidth={glowWidth} />
+                </React.Fragment>
               ))}
               {arms.map((arm, i) => arm.clouds.map(({ x, y, radius, opacity, along }, s) => (
-                includes(along) ? <circle key={`${i}-${s}`} cx={x} cy={y} r={radius} fill={colorOf(along, i)} fillOpacity={opacity} /> : null
+                <circle key={`${i}-${s}`} cx={x} cy={y} r={radius} fill={colorOf(along, i)} fillOpacity={opacity} />
               )))}
             </g>
           </g>
+        </g>
+      ))}
+    </svg>
+  )
+
+  // The sharp stars of the galaxy, which Cyclone turns the other way from the haze.
+  const starsSvg = (layerList: readonly Layer[]): React.ReactElement => (
+    <svg className='kaleidoscope-dial-pane' viewBox={VIEW_BOX}>
+      {layerList.map(({ key: layerKey, arms, opacity: layerOpacity }) => (
+        <g key={layerKey} className='kaleidoscope-dial-layer' style={{ opacity: layerOpacity }}>
           {arms.map((arm, i) => arm.stars.map(({ x, y, radius, opacity, along }, s) => (
-            includes(along) ? <circle key={`${i}-${s}`} cx={x} cy={y} r={radius} fill={colorOf(along, i)} fillOpacity={opacity} /> : null
+            <circle key={`${i}-${s}`} cx={x} cy={y} r={radius} fill={colorOf(along, i)} fillOpacity={opacity} />
           )))}
         </g>
       ))}
@@ -313,11 +326,12 @@ export const KaleidoscopeDial = React.memo(({ count, min, max, step, kaleidoscop
         </svg>
         <div className='kaleidoscope-dial-pane' style={stripped ? { clipPath: squareInset } : undefined}>
           <div ref={motion.wob} className='kaleidoscope-dial-pane kaleidoscope-dial-moving'>
-            {ZONES.map((zone) => (
-              <div key={zone.key} ref={motion[zone.key]} className='kaleidoscope-dial-pane kaleidoscope-dial-moving'>
-                {zoneSvg(zone, uid, layers, stripped ? UNCLIPPED_RADIUS : RADIUS)}
-              </div>
-            ))}
+            <div ref={motion.haze} className='kaleidoscope-dial-pane kaleidoscope-dial-moving'>
+              {hazeSvg(uid, layers, stripped ? UNCLIPPED_RADIUS : RADIUS)}
+            </div>
+            <div ref={motion.stars} className='kaleidoscope-dial-pane kaleidoscope-dial-moving'>
+              {starsSvg(layers)}
+            </div>
             {stripped && (
               <StripCanvas scene={stripScene} lapsPerSecond={lapsPerSecond} cyclone={effects.cyclone} hazeOpacity={hazeOpacity} viewHalf={VIEW_HALF} />
             )}

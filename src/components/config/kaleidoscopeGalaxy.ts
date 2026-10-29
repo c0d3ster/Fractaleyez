@@ -13,8 +13,8 @@ const ARM_MAX_CURL = TAU * (50 / 360)
 const ARM_SAMPLES = 14
 // Moves each plain arm's scatter to its own place; any step that keeps the seeds of neighboring arms apart will do.
 const PLAIN_ARM_SEED_STEP = 131
-// Cyclone turns the inside and the outside of the galaxy opposite ways; this is the distance along an arm where they part.
-export const CYCLONE_SPLIT = 0.5
+// The glow under an arm is drawn in two tones, the core half and the rim half; this is the distance along an arm where they part.
+export const GLOW_SPLIT = 0.5
 // Each arm is a cloud of stars along its curve. The total stays roughly level as arms are added.
 const STAR_BUDGET = 240
 const STARS_PER_ARM_MIN = 6
@@ -51,12 +51,12 @@ export type ArmStar = {
   y: number
   radius: number
   opacity: number
-  /** How far out along the arm (0 at the core, 1 at the rim); the palette and the Cyclone split are read from it. */
+  /** How far out along the arm (0 at the core, 1 at the rim); the palette is read from it. */
   along: number
 }
 
 export type Arm = {
-  /** The faint glow under the arm, cut in two at the Cyclone split. */
+  /** The faint glow under the arm, cut in two at the glow split so each half takes its own color. */
   glowInner: string
   glowOuter: string
   stars: ArmStar[]
@@ -145,7 +145,7 @@ export const armOf = (index: number, wedge: number, starCount: number, { dotScal
     const { t, radius } = centerline((from + s) / ARM_SAMPLES)
     return `${s === 0 ? 'M' : 'L'} ${point(t, radius)}`
   }).join(' ')
-  const splitSample = Math.round(CYCLONE_SPLIT * ARM_SAMPLES)
+  const splitSample = Math.round(GLOW_SPLIT * ARM_SAMPLES)
 
   // Stars crowd toward the core and thin out toward the rim, scattered more widely, smaller and fainter as they go.
   const arm = Array.from({ length: starCount }, (_, s): ArmStar => {
@@ -179,15 +179,5 @@ export const armOf = (index: number, wedge: number, starCount: number, { dotScal
   return { glowInner: glow(0, splitSample), glowOuter: glow(splitSample, ARM_SAMPLES), stars: [...arm, ...strays], clouds }
 }
 
-export type Zone = {
-  key: 'inner' | 'outer'
-  /** Where along an arm the zone's glow is colored from, and whether a star at `along` belongs to it. */
-  glowAlong: number
-  includes: (along: number) => boolean
-}
-
-// Cyclone turns the inside and the outside of the galaxy opposite ways, so they are drawn as two layers.
-export const ZONES: readonly Zone[] = [
-  { key: 'inner', glowAlong: CYCLONE_SPLIT / 2, includes: (along) => along < CYCLONE_SPLIT },
-  { key: 'outer', glowAlong: (1 + CYCLONE_SPLIT) / 2, includes: (along) => along >= CYCLONE_SPLIT },
-]
+/** Where along an arm each tone of its glow is colored from. */
+export const GLOW_ALONG = { inner: GLOW_SPLIT / 2, outer: (1 + GLOW_SPLIT) / 2 } as const

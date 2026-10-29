@@ -74,9 +74,9 @@ type MotionSettings = {
 export type GalaxyMotion = {
   /** The dial itself; the motion pauses while it is off screen. */
   root: RefObject<HTMLDivElement>
-  /** The inside and outside of the galaxy, each its own layer so turning it never repaints it; they turn opposite ways when Cyclone is on. Plain boxes around the drawing, because the browser only animates those off the main thread, never an svg element itself. */
-  inner: RefObject<HTMLDivElement>
-  outer: RefObject<HTMLDivElement>
+  /** The haze and the stars of the galaxy, each its own layer so turning it never repaints it; they turn opposite ways when Cyclone is on. Plain boxes around the drawing, because the browser only animates those off the main thread, never an svg element itself. */
+  haze: RefObject<HTMLDivElement>
+  stars: RefObject<HTMLDivElement>
   /** Wraps both layers; everything that pulls back on a beat when Wob Wob is on. */
   wob: RefObject<HTMLDivElement>
   /** The ring and the core are each a layer of their own for the same reason. */
@@ -104,7 +104,7 @@ const replay = (animation: Animation | undefined): void => {
 }
 
 /**
- * Brings the galaxy to life the way the real effects behave: it turns at the Rotation rate (Cyclone sends the outside
+ * Brings the galaxy to life the way the real effects behave: it turns at the Rotation rate (Cyclone sends the stars
  * the other way), pulls back on a beat (Wob Wob), swells its core (Glow), sends a ring out (Shockwave), and counts beats
  * so the caller can move the colors around (Color Shift) or swap shapes (Switcheroo). Beats come from the same detector the visualizers
  * use. The effects do not depend on the kaleidoscope, so it runs whether that is on or off.
@@ -117,15 +117,15 @@ const replay = (animation: Animation | undefined): void => {
  */
 export const useGalaxyMotion = (settings: MotionSettings): GalaxyMotion => {
   const root = useRef<HTMLDivElement>(null)
-  const inner = useRef<HTMLDivElement>(null)
-  const outer = useRef<HTMLDivElement>(null)
+  const haze = useRef<HTMLDivElement>(null)
+  const stars = useRef<HTMLDivElement>(null)
   const wob = useRef<HTMLDivElement>(null)
   const ring = useRef<HTMLDivElement>(null)
   const core = useRef<HTMLDivElement>(null)
   const [beats, setBeats] = useState(0)
   // The effect reads the latest settings from here, so changing one does not restart it or lose where the galaxy has turned to.
   const latest = useRef(settings)
-  const spinners = useRef<{ inner?: Animation; outer?: Animation }>({})
+  const spinners = useRef<{ haze?: Animation; stars?: Animation }>({})
   // The animations a beat plays, built the first time the dial shows.
   const kicks = useRef<{ wob?: Animation; core?: Animation; ringScale?: Animation; ringFade?: Animation }>({})
   // Whether the dial is showing; the turning waits while it is not, whatever the speed.
@@ -155,8 +155,8 @@ export const useGalaxyMotion = (settings: MotionSettings): GalaxyMotion => {
       if (moving.current && rate > 0) animation.play()
       else animation.pause()
     }
-    apply(spinners.current.inner, lapsPerSecond)
-    apply(spinners.current.outer, effects.cyclone ? -lapsPerSecond : lapsPerSecond)
+    apply(spinners.current.haze, lapsPerSecond)
+    apply(spinners.current.stars, effects.cyclone ? -lapsPerSecond : lapsPerSecond)
   }
   useEffect(syncSpin, [settings.rotationSpeed, settings.effects.cyclone])
 
@@ -200,8 +200,8 @@ export const useGalaxyMotion = (settings: MotionSettings): GalaxyMotion => {
     const start = (): void => {
       moving.current = true
       prepareKicks()
-      spinners.current.inner ??= startSpin(inner.current)
-      spinners.current.outer ??= startSpin(outer.current)
+      spinners.current.haze ??= startSpin(haze.current)
+      spinners.current.stars ??= startSpin(stars.current)
       syncSpin()
       unsubscribe ??= mainWindow().subscribeBeat?.(handleBeat)
     }
@@ -240,13 +240,13 @@ export const useGalaxyMotion = (settings: MotionSettings): GalaxyMotion => {
       motionQuery.removeEventListener('change', sync)
       stop()
       reset()
-      spinners.current.inner?.cancel()
-      spinners.current.outer?.cancel()
+      spinners.current.haze?.cancel()
+      spinners.current.stars?.cancel()
       spinners.current = {}
       Object.values(kicks.current).forEach((animation) => animation.cancel())
       kicks.current = {}
     }
   }, [])
 
-  return { root, inner, outer, wob, ring, core, beats }
+  return { root, haze, stars, wob, ring, core, beats }
 }
