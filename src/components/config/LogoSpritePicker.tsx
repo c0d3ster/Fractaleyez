@@ -1,4 +1,5 @@
 import React, { useCallback } from 'react'
+import { useInfo } from './info/info'
 import '../huds/ParticleSpriteHud.css'
 
 import { connectConfig, ConfigContextValue } from './context/ConfigProvider'
@@ -21,6 +22,7 @@ type LogoSpritePickerProps = {
 }
 
 const LogoSpritePickerInner = ({ config, updateLogoSprite, applyUserReference, releaseUserReference, userReferenceStandIn, userSettings, isAdmin, isSignedIn, getToken }: LogoSpritePickerProps): React.ReactElement => {
+  const info = useInfo()
   const selected = config.logo.sprite.value[0]
 
   const choose = useCallback((src: string): void => {
@@ -60,7 +62,7 @@ const LogoSpritePickerInner = ({ config, updateLogoSprite, applyUserReference, r
       <div className='particle-sprite-hud__upload'>
         <label
           className={`particle-sprite-hud__upload-label${isSignedIn ? '' : ' particle-sprite-hud__upload-label--disabled'}`}
-          title={isSignedIn ? undefined : 'Sign in to upload a custom logo'}
+          {...info(isSignedIn ? undefined : 'Sign in to upload a custom logo')}
         >
           + Add image
           <input type='file' accept='image/*' disabled={!isSignedIn} onChange={onFiles} />

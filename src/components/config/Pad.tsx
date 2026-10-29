@@ -1,4 +1,5 @@
 import React, { useCallback, useRef } from 'react'
+import { useInfo } from './info/info'
 import './Pad.css'
 
 /** Main app window when config runs in a popup; otherwise `window`. */
@@ -45,6 +46,7 @@ type PadProps = {
  * drawn on it and what a pick means is up to each pad. The hint on how to use it is the title's tooltip.
  */
 export const Pad = ({ label, aspectRatio = 3 / 2, onPick, onPickEnd, onReset, readouts, hint, disabled = false, children, footer, wrapperRef }: PadProps): React.ReactElement => {
+  const info = useInfo()
   const dragging = useRef(false)
 
   const pointOf = useCallback((event: React.MouseEvent<HTMLDivElement>): PadPoint => {
@@ -80,8 +82,8 @@ export const Pad = ({ label, aspectRatio = 3 / 2, onPick, onPickEnd, onReset, re
   }, [onReset, pointOf])
 
   return (
-    <div className='pad-wrapper' ref={wrapperRef} style={{ opacity: disabled ? 0.25 : 1, pointerEvents: disabled ? 'none' : undefined }}>
-      <span className='pad-label' title={hint}>{label}</span>
+    <div className='pad-wrapper' ref={wrapperRef} {...info(hint)} style={{ opacity: disabled ? 0.25 : 1, pointerEvents: disabled ? 'none' : undefined }}>
+      <span className='pad-label'>{label}</span>
       <div
         className='pad'
         style={{ aspectRatio }}

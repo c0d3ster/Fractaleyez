@@ -1,10 +1,12 @@
 import React, { useContext } from 'react'
+import { useInfo } from './info/info'
 
 import { toStoredConfig } from '../../config/storedConfig'
 import { ConfigContext } from './context/ConfigProvider'
 
 /** Logs the current config as slim preset JSON (what a saved preset stores) and copies it to the clipboard. */
 export const LogConfigButton = (): React.ReactElement | null => {
+  const info = useInfo()
   const context = useContext(ConfigContext)
   if (!context) return null
   const { config } = context
@@ -18,7 +20,7 @@ export const LogConfigButton = (): React.ReactElement | null => {
   return (
     <button
       className='save-preset-btn'
-      title='Log the current config (slim preset JSON) to the console and copy it'
+      {...info('Log the current config (slim preset JSON) to the console and copy it')}
       onClick={logConfig}
     >
       Log Config

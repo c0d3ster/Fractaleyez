@@ -1,4 +1,5 @@
 import React, { useCallback, useRef } from 'react'
+import { useInfo } from '../config/info/info'
 import './ParticleSpriteHud.css'
 
 import { connectConfig, ConfigContextValue } from '../config/context/ConfigProvider'
@@ -28,6 +29,7 @@ type ParticleSpriteHudProps = {
 }
 
 const ParticleSpriteHudInner = ({ config, updateParticleSprites, applyUserReference, releaseUserReference, userReferenceStandIn, userSettings, isAdmin, isSignedIn, getToken }: ParticleSpriteHudProps): React.ReactElement => {
+  const info = useInfo()
   const sprites = config.particle.sprites.value
   const spritesRef = useRef(sprites)
   spritesRef.current = sprites
@@ -87,7 +89,7 @@ const ParticleSpriteHudInner = ({ config, updateParticleSprites, applyUserRefere
               <div
                 key={`${src.slice(0, 48)}-${index}`}
                 className='particle-sprite-hud__chip particle-sprite-hud__chip--on'
-                title={src === userReferenceStandIn.particle ? USER_REFERENCE : spriteLabel(src)}
+                {...info(src === userReferenceStandIn.particle ? USER_REFERENCE : spriteLabel(src))}
               >
                 {src === userReferenceStandIn.particle ? (
                   <span className='particle-sprite-hud__chip-text'>{USER_REFERENCE}</span>
@@ -118,7 +120,7 @@ const ParticleSpriteHudInner = ({ config, updateParticleSprites, applyUserRefere
                   key={path}
                   type='button'
                   className={`particle-sprite-hud__lib-btn${selected ? ' particle-sprite-hud__lib-btn--selected' : ''}`}
-                  title={path}
+                  {...info(path)}
                   onClick={() => toggleBuiltin(path)}
                   aria-pressed={selected}
                 >
@@ -141,7 +143,7 @@ const ParticleSpriteHudInner = ({ config, updateParticleSprites, applyUserRefere
         <div className='particle-sprite-hud__upload'>
           <label
             className={`particle-sprite-hud__upload-label${uploadDisabled ? ' particle-sprite-hud__upload-label--disabled' : ''}`}
-            title={!isSignedIn ? 'Sign in to upload a custom particle' : atCapacity ? `Max ${maxN} particles reached` : undefined}
+            {...info(!isSignedIn ? 'Sign in to upload a custom particle' : atCapacity ? `Max ${maxN} particles reached` : undefined)}
           >
             + Add image
             <input

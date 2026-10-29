@@ -16,10 +16,6 @@
   color: #444;
 }
 
-.pad-label[title] {
-  cursor: help;
-}
-
 .pad {
   position: relative;
   box-sizing: border-box;

@@ -1,4 +1,5 @@
 import React, { useCallback } from 'react'
+import { useInfo } from './info/info'
 import './Slider.css'
 import { SliderZone } from '../../config/juliaScale.config'
 
@@ -38,6 +39,7 @@ const zoneGradient = (zones: readonly SliderZone[], min: number, max: number): s
 }
 
 export const ConfigSlider = React.memo(({ name, label, value, displayValue, zones, min, max, step, onChange, onReset, onCommit }: ConfigSliderProps) => {
+  const info = useInfo()
   const handleCommit = useCallback((e: React.SyntheticEvent<HTMLInputElement>): void => {
     onCommit?.(Number(e.currentTarget.value))
   }, [onCommit])
@@ -61,7 +63,7 @@ export const ConfigSlider = React.memo(({ name, label, value, displayValue, zone
         style={zoneBackground ? { background: zoneBackground } : undefined}
         onChange={onChange}
         onDoubleClick={onReset}
-        title={onReset ? 'Double-click to reset' : undefined}
+        {...info(onReset ? 'Double-click to reset' : undefined)}
         onPointerDown={e => e.currentTarget.setPointerCapture(e.pointerId)}
         onPointerUp={handleCommit}
         onKeyUp={handleCommit} />
