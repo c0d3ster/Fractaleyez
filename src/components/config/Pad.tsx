@@ -25,8 +25,9 @@ type PadProps = {
   onPickEnd?: () => void
   /** Double-click, with the spot it landed on. */
   onReset?: (point: PadPoint) => void
-  /** Short text under the pad, such as `X +10`. */
+  /** Short values under the pad, such as `X +10`. */
   readouts?: readonly string[]
+  /** How to use the pad, shown as a tooltip on its title so it takes no room under the pad. */
   hint?: string
   /** Dims the pad and ignores the pointer. */
   disabled?: boolean
@@ -41,7 +42,7 @@ type PadProps = {
 /**
  * The frame the config pads share: a labelled, screen-shaped surface that turns a press or drag into 0..1 positions
  * (pointer capture, so a drag keeps going outside the pad and works on touch), plus the readout and hint rows. What is
- * drawn on it and what a pick means is up to each pad.
+ * drawn on it and what a pick means is up to each pad. The hint on how to use it is the title's tooltip.
  */
 export const Pad = ({ label, aspectRatio = 3 / 2, onPick, onPickEnd, onReset, readouts, hint, disabled = false, children, footer, wrapperRef }: PadProps): React.ReactElement => {
   const dragging = useRef(false)
@@ -80,7 +81,7 @@ export const Pad = ({ label, aspectRatio = 3 / 2, onPick, onPickEnd, onReset, re
 
   return (
     <div className='pad-wrapper' ref={wrapperRef} style={{ opacity: disabled ? 0.25 : 1, pointerEvents: disabled ? 'none' : undefined }}>
-      <span className='pad-label'>{label}</span>
+      <span className='pad-label' title={hint}>{label}</span>
       <div
         className='pad'
         style={{ aspectRatio }}
@@ -94,7 +95,6 @@ export const Pad = ({ label, aspectRatio = 3 / 2, onPick, onPickEnd, onReset, re
       </div>
       {readouts?.length ? <div className='pad-values'>{readouts.map((text) => <span key={text.split(' ')[0]}>{text}</span>)}</div> : null}
       {footer}
-      {hint ? <span className='pad-hint'>{hint}</span> : null}
     </div>
   )
 }

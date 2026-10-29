@@ -122,7 +122,7 @@ export const CameraTouchpad = (): React.ReactElement => {
       onPickEnd={handlePickEnd}
       onReset={handleReset}
       readouts={[`X ${pos.x >= 0 ? '+' : ''}${Math.round(pos.x)}`, `Y ${pos.y >= 0 ? '+' : ''}${Math.round(pos.y)}`]}
-      hint='double-click to reset'
+      hint='Drag to place the camera; close to the center it snaps to exactly 0. Double-click to put it back in the center.'
       disabled={disabled}
       wrapperRef={wrapperRef}
     >

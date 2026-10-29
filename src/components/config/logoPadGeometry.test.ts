@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { FULL_BOUNDS } from '../../utils/opaqueBounds'
-import { focusSpot, frameRect, hitTest, LogoPadState, moveFocus, moveLogo, PadSize, visibleRect } from './logoPadGeometry'
+import { FOCUS_DOT_MAX_PX, FOCUS_DOT_MIN_PX, focusDotSize, focusSpot, frameRect, hitTest, LogoPadState, moveFocus, moveLogo, PadSize, visibleRect } from './logoPadGeometry'
 
 const pad: PadSize = { width: 300, height: 200 }
 const state: LogoPadState = { x: 0.5, y: 0.5, focusX: 0.5, focusY: 0.5, size: 0.5, aspect: 1, bounds: FULL_BOUNDS } // 100px square, centered
@@ -93,5 +93,30 @@ describe('moveFocus', () => {
     const banded = { ...state, bounds: { left: 0, top: 0.25, right: 1, bottom: 0.75 } }
     expect(moveFocus({ x: 0.5, y: 0 }, { x: 0, y: 0 }, banded, pad).y).toBe(0.25)
     expect(moveFocus({ x: 0.5, y: 1 }, { x: 0, y: 0 }, banded, pad).y).toBe(0.75)
+  })
+})
+
+describe('focusDotSize', () => {
+  it('is a share of the logo, so a small logo gets a smaller dot', () => {
+    const sizeAt = (size: number): number => focusDotSize({ ...state, size }, pad)
+    expect(sizeAt(0.2)).toBeLessThan(sizeAt(0.3))
+    expect(sizeAt(0.25)).toBeCloseTo(13) // a 50px logo
+  })
+
+  it('stays within a readable range', () => {
+    expect(focusDotSize({ ...state, size: 0.01 }, pad)).toBe(FOCUS_DOT_MIN_PX)
+    expect(focusDotSize({ ...state, size: 1 }, pad)).toBe(FOCUS_DOT_MAX_PX)
+  })
+
+  it('follows the smaller side of the logo', () => {
+    const wide = focusDotSize({ ...state, size: 0.25, aspect: 3 }, pad)
+    expect(wide).toBeCloseTo(focusDotSize({ ...state, size: 0.25, aspect: 1 }, pad))
+  })
+
+  it('shrinks the area that grabs the dot along with it', () => {
+    const elevenPixelsRight = (size: number): 'focus' | 'logo' | 'empty' =>
+      hitTest({ x: 0.5 + 11 / 300, y: 0.5 }, { ...state, size }, pad, true)
+    expect(elevenPixelsRight(0.25)).toBe('focus')
+    expect(elevenPixelsRight(0.1)).not.toBe('focus')
   })
 })

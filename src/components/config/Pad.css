@@ -16,6 +16,10 @@
   color: #444;
 }
 
+.pad-label[title] {
+  cursor: help;
+}
+
 .pad {
   position: relative;
   box-sizing: border-box;
@@ -40,11 +44,4 @@
   color: #333;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.03em;
-}
-
-.pad-hint {
-  font-size: 10px;
-  color: #555;
-  letter-spacing: 0.04em;
-  text-align: center;
 }

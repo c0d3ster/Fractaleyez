@@ -142,9 +142,11 @@ const drawOverlay = (canvas: HTMLCanvasElement, shape: ShapeReadout): void => {
   if (Math.hypot(shape.targetRe - shape.re, shape.targetIm - shape.im) > 0.01) {
     const [targetX, targetY] = toPixel(shape.targetRe, shape.targetIm, width, height)
     context.lineWidth = 1.5
-    context.strokeStyle = shape.manual ? 'rgba(255,93,177,0.7)' : 'rgba(255,255,255,0.6)'
+    context.fillStyle = '#ff5db1'
+    context.strokeStyle = 'rgba(0,0,0,0.6)'
     context.beginPath()
-    context.arc(targetX, targetY, 5, 0, Math.PI * 2)
+    context.arc(targetX, targetY, 6.5, 0, Math.PI * 2)
+    context.fill()
     context.stroke()
   }
 
@@ -240,7 +242,7 @@ export const ShapePad = (): React.ReactElement => {
       onPick={handlePick}
       onReset={handleReset}
       readouts={[`Re ${formatCoordinate(readout.re)}`, `Im ${formatCoordinate(readout.im)}`]}
-      hint='drag to pick a shape, double-click to return to the Tour slider'
+      hint='Drag to pick a shape. The ring is the shape now showing and the pink dot is where it is heading. The dashed line is the Tour and the teal dots are the named shapes, also under the pad. Double-click to go back to the Tour slider.'
       footer={(
         <div className='shape-pad-chips'>
           {JULIA_FAMOUS_SHAPES.map(({ name, re, im }) => (
