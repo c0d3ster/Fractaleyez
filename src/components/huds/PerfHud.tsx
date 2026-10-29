@@ -15,6 +15,24 @@ type PerfData = {
 }
 
 const PERF_UPDATE_INTERVAL_MS = 250
+// The panel shows one stutter count by default; clicking its title switches to the debugging rows, and the choice is kept.
+const DEBUG_STORAGE_KEY = 'perfHudDebug'
+
+const readDebug = (): boolean => {
+  try {
+    return window.localStorage.getItem(DEBUG_STORAGE_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+const writeDebug = (on: boolean): void => {
+  try {
+    window.localStorage.setItem(DEBUG_STORAGE_KEY, on ? '1' : '0')
+  } catch {
+    // Storage can be blocked; the panel still works, it just forgets the choice.
+  }
+}
 
 const perfSourceWindow = (): Window => window.opener ?? window
 
@@ -100,7 +118,15 @@ const AutoRows = ({ auto }: AutoRowsProps): React.ReactElement => {
 
 export const PerfHud = (): React.ReactElement => {
   const [perf, setPerf] = useState<PerfData>({ fps: 0, frameMs: 0, estimatedLagMs: 0 })
+  const [debug, setDebug] = useState(readDebug)
   const wrapperRef = useRef<HTMLDivElement>(null)
+
+  const toggleDebug = (): void => {
+    setDebug((on) => {
+      writeDebug(!on)
+      return !on
+    })
+  }
 
   useEffect(() => {
     let lastUpdateAt = 0
@@ -118,9 +144,17 @@ export const PerfHud = (): React.ReactElement => {
 
   return (
     <div className='perf-hud-wrapper' ref={wrapperRef}>
-      <span className='perf-hud-label'>Performance</span>
+      <button
+        type='button'
+        className='perf-hud-label perf-hud-label--toggle'
+        aria-pressed={debug}
+        title={debug ? 'Back to the short list' : 'Show the debugging rows'}
+        onClick={toggleDebug}
+      >
+        {debug ? 'Performance · debug' : 'Performance'}
+      </button>
       <div className='perf-hud-panel'>
-        <div className='perf-hud-row'>
+        <div className='perf-hud-row' title='Frames drawn per second and the time between them, the median of the last 60. With a frame cap on (the Saver, Balanced and Quality tiers) this is the cap, not the display rate.'>
           <span className='perf-hud-key'>FPS</span>
           <div className='perf-hud-metric'>
             <span className='perf-hud-value'>{perf.fps}</span>
@@ -130,13 +164,20 @@ export const PerfHud = (): React.ReactElement => {
           </div>
         </div>
         {perf.quality ? (
-          <div className='perf-hud-row'>
+          <div className='perf-hud-row' title='The quality tier being drawn. Auto picks it from how smooth the frames are; the tier in brackets is the one it is on now.'>
             <span className='perf-hud-key'>Quality</span>
             <span className='perf-hud-value'>{qualityLabel(perf.quality)}</span>
           </div>
         ) : null}
-        {perf.quality?.auto ? <AutoRows auto={perf.quality.auto} /> : null}
-        {perf.stutters ? (
+        {debug && perf.quality?.auto ? <AutoRows auto={perf.quality.auto} /> : null}
+        {perf.stutters && !debug ? (
+          <StutterRow
+            label={`Jumps >${STUTTER_MS}/m`}
+            summary={perf.stutters.video}
+            hint={`Times the playing video went over ${STUTTER_MS} ms between frames in the last ${windowLabel}, then the worst gap. A video frame arrives every 33 to 42 ms, so one late frame already counts. Click the title for the debugging rows, which add the screen count.`}
+          />
+        ) : null}
+        {perf.stutters && debug ? (
           <>
             <StutterRow
               label={`Video >${STUTTER_MS}`}
@@ -151,7 +192,7 @@ export const PerfHud = (): React.ReactElement => {
           </>
         ) : null}
         {perf.quality ? <SmoothRow quality={perf.quality} /> : null}
-        <div className='perf-hud-row'>
+        <div className='perf-hud-row' title='A rough guess, not a measurement, of the delay from a sound reaching the audio engine to the next drawn frame: the Web Audio latencies, half the analysis window and half a frame. It leaves out the microphone and the display, and how long the beat detector takes to fire, so the real delay is longer.'>
           <span className='perf-hud-key'>Lag</span>
           <span className='perf-hud-value'>{perf.estimatedLagMs} ms</span>
         </div>
