@@ -26,6 +26,15 @@ describe('StutterMonitor', () => {
     expect(monitor.summary(STUTTER_WINDOW_MS + 1)).toEqual({ count: 1, worstMs: 80 })
   })
 
+  it('leaves out gaps the skip rule rejects, such as those while the page loads', () => {
+    let loading = true
+    const monitor = new StutterMonitor(() => loading)
+    monitor.record(1000, 200)
+    loading = false
+    monitor.record(2000, 90)
+    expect(monitor.summary(3000)).toEqual({ count: 1, worstMs: 90 })
+  })
+
   it('has nothing to report at the start', () => {
     expect(new StutterMonitor().summary(0)).toEqual({ count: 0, worstMs: 0 })
   })
