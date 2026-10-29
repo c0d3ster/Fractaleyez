@@ -9,6 +9,8 @@ import { Layer } from './layer'
 import { RedrawGate } from './redraw-gate'
 import { dropShare, PlaybackCounts } from './video-drop'
 
+// A longer gap between two frames of a playing clip is not counted as a stutter.
+const VIDEO_GAP_MAX_MS = 2000
 const VIDEO_RESUME_DELAY_MS = 250
 const VIDEO_RESUME_MAX_ATTEMPTS = 5
 // A clip that was handed over from is paused at once but only torn down (source released, texture freed) this long after, so that work does not land on a frame of the fade it just finished.
@@ -266,7 +268,8 @@ export class VideoLayer implements Layer {
     const onFrame = (now: DOMHighResTimeStamp, { mediaTime }: VideoFrameCallbackMetadata): void => {
       if (this.endLoad && slot === this.current) this.finishLoad()
       // A long gap between two frames of a playing clip is a stutter the Performance panel counts; a paused clip (one held ready) has none.
-      if (slot.lastFrameAt !== null) videoStutters.record(now, now - slot.lastFrameAt)
+      // A gap this long is a background tab or a seek, not a stutter (the display monitor ignores the same).
+      if (slot.lastFrameAt !== null && now - slot.lastFrameAt < VIDEO_GAP_MAX_MS) videoStutters.record(now, now - slot.lastFrameAt)
       slot.lastFrameAt = video.paused ? null : now
       const mediaMs = mediaTime * 1000
       // A frame earlier than the last upload means the clip looped or was seeked: upload it.
