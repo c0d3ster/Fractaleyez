@@ -27,23 +27,10 @@
   will-change: transform;
 }
 
-/* Each strip of a straight mirror turns on its own copy (the hook only drives the main panes), at the pace the dial sets
-   through custom properties. A strip that is flipped turns the other way for it, which is what a mirror does. */
-/* The haze of all the strips together, blurred once rather than once per strip. */
-.kaleidoscope-dial-strip-haze {
-  will-change: filter;
-}
-
-.kaleidoscope-dial-tile-spin {
-  animation: kaleidoscope-dial-spin var(--spin-lap, 1s) var(--spin-ease, linear) infinite;
-  animation-direction: var(--spin-dir, normal);
-  animation-play-state: var(--spin-state, running);
-}
-
-@keyframes kaleidoscope-dial-spin {
-  to {
-    transform: rotate(360deg);
-  }
+/* The strips of a straight mirror are painted on canvases (see StripCanvas). App.css gives every canvas a black background
+   for the visualizer, which would cover the galaxy and the sky under them. */
+.kaleidoscope-dial canvas {
+  background: transparent;
 }
 
 /* The plain galaxy and the mirrored one fade in and out as the kaleidoscope is switched. */
@@ -61,10 +48,6 @@
 @media (prefers-reduced-motion: reduce) {
   .kaleidoscope-dial-layer {
     transition: none;
-    animation: none;
-  }
-
-  .kaleidoscope-dial-tile-spin {
     animation: none;
   }
 }
@@ -145,43 +128,4 @@
 /* Keyboard focus shows on the handle, not as a box around the whole dial. */
 .kaleidoscope-dial:focus-visible .kaleidoscope-dial-handle {
   stroke-width: 2.5;
-}
-
-/* How much the dial animates: four small buttons under it, the picked one lit like the kaleidoscope modes. */
-.dial-detail-switch {
-  display: flex;
-  justify-content: center;
-  gap: .35rem;
-  margin: 0 .5rem .75rem;
-}
-
-.dial-detail-option {
-  flex: 0 1 auto;
-  padding: .2rem .55rem;
-  border: 1px solid transparent;
-  border-radius: .4rem;
-  background: #EEE;
-  color: #555;
-  font-size: .75rem;
-  cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
-}
-
-.dial-detail-option--on {
-  background: #005500;
-  color: white;
-}
-
-@media (hover: hover) {
-  :where(html:not([data-input='touch'])) .dial-detail-option:hover {
-    background: #004400;
-    border-color: #004400;
-    color: #ccc;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .dial-detail-option {
-    transition: none;
-  }
 }

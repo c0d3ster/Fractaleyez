@@ -4,10 +4,8 @@ import {
   AUTO_START_TIER,
   AUTO_TIERS,
   capHidesLoad,
-  DIAL_DETAILS,
   estimateSceneCost,
   FRACTAL_MAX_ITERATIONS,
-  isDialDetail,
   isQualitySetting,
   QUALITY_HINTS,
   QUALITY_LABELS,
@@ -40,18 +38,7 @@ describe('quality profiles', () => {
       expect(heavier.fractalIterations).toBeGreaterThanOrEqual(lighter.fractalIterations)
       expect(heavier.bloomScale).toBeGreaterThanOrEqual(lighter.bloomScale)
       expect(heavier.uiTickHz).toBeGreaterThanOrEqual(lighter.uiTickHz)
-      expect(DIAL_DETAILS.indexOf(heavier.dialDetail)).toBeGreaterThanOrEqual(DIAL_DETAILS.indexOf(lighter.dialDetail))
     })
-  })
-
-  it('keeps the full kaleidoscope dial out of every tier, since it costs the video its smoothness', () => {
-    QUALITY_TIERS.forEach((tier) => expect(QUALITY_PROFILES[tier].dialDetail).not.toBe('full'))
-  })
-
-  it('knows the dial levels by name', () => {
-    DIAL_DETAILS.forEach((level) => expect(isDialDetail(level)).toBe(true))
-    expect(isDialDetail('everything')).toBe(false)
-    expect(isDialDetail(null)).toBe(false)
   })
 
   it('has Quality draw what the app drew before there were tiers, capped at 120fps', () => {

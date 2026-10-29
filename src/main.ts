@@ -4,7 +4,6 @@ import { AudioAnalyser } from './audioanalysis/audio-analyser'
 import { AudioFeed } from './audioanalysis/audio-feed'
 import { beatMonitor } from './audioanalysis/beat'
 import { LayerKey } from './config/configDefaults'
-import { DialDetail, isDialDetail } from './config/quality.config'
 import { LAYER_REGISTRY } from './config/layers'
 import { createLayerPipeline, LayerPipeline } from './visualization/layers'
 import { shouldDrawForVideoFrame, shouldDrawUnderCap } from './visualization/frame-cap'
@@ -47,14 +46,6 @@ document.addEventListener('keydown', (event: KeyboardEvent) => {
 window.getQuality = () => qualityController.getStatus()
 // For the benchmark script (scripts/bench), which picks a tier from outside the settings page.
 window.setQuality = (setting) => qualityController.setSetting(setting)
-
-// How much the pop-out's kaleidoscope dial animates: the tier's, unless picked here (to compare the levels by eye).
-let dialDetailOverride: DialDetail | null = null
-window.getDialDetail = () => dialDetailOverride ?? qualityController.getProfile().dialDetail
-window.getDialDetailPick = () => dialDetailOverride
-window.setDialDetail = (level) => {
-  dialDetailOverride = isDialDetail(level) ? level : null
-}
 
 // Create timing mechanism. A frame is drawn when the tier's frame cap allows; every display frame still goes to Auto,
 // which judges the display's pace, not the drawn one.

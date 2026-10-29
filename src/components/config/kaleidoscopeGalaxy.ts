@@ -178,3 +178,16 @@ export const armOf = (index: number, wedge: number, starCount: number, { dotScal
   })
   return { glowInner: glow(0, splitSample), glowOuter: glow(splitSample, ARM_SAMPLES), stars: [...arm, ...strays], clouds }
 }
+
+export type Zone = {
+  key: 'inner' | 'outer'
+  /** Where along an arm the zone's glow is colored from, and whether a star at `along` belongs to it. */
+  glowAlong: number
+  includes: (along: number) => boolean
+}
+
+// Cyclone turns the inside and the outside of the galaxy opposite ways, so they are drawn as two layers.
+export const ZONES: readonly Zone[] = [
+  { key: 'inner', glowAlong: CYCLONE_SPLIT / 2, includes: (along) => along < CYCLONE_SPLIT },
+  { key: 'outer', glowAlong: (1 + CYCLONE_SPLIT) / 2, includes: (along) => along >= CYCLONE_SPLIT },
+]
