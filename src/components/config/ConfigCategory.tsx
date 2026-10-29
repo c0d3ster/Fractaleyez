@@ -1,4 +1,5 @@
 import React, { useCallback } from 'react'
+import { useInfo } from './info/info'
 import classNames from 'classnames'
 import './ConfigCategory.css'
 
@@ -39,6 +40,7 @@ type ConfigCategoryProps = {
 }
 
 const ConfigCategoryInner = React.memo(({ name, config, isOpen, expanded = false, toggleOpen, onChange, resetConfigSection, resetVideoClips, popup = false, bare = false, children }: ConfigCategoryProps) => {
+  const info = useInfo()
   const handleSectionReset = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
     // In the sidebar the button lives inside the header, whose click toggles the section.
     event.stopPropagation()
@@ -75,7 +77,7 @@ const ConfigCategoryInner = React.memo(({ name, config, isOpen, expanded = false
     <button
       type='button'
       className={classNames('category-reset', { 'category-reset--in-header': !expanded })}
-      title='Reset this section to the preset'
+      {...info('Reset this section to the preset')}
       aria-label={`Reset ${name} config`}
       onClick={handleSectionReset}
     >

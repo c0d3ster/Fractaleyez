@@ -1,4 +1,5 @@
 import React from 'react'
+import { useInfo } from '../config/info/info'
 import './ParticleSpriteHud.css'
 
 import { presetSpriteSrc } from '../../utils/presetSpriteSrc'
@@ -17,6 +18,7 @@ type UserSpriteTilesProps = {
 
 /** "Yours" row shared by the particle and logo pickers: the viewer's current logo, plus `@user` for admins. */
 export const UserSpriteTiles = ({ logoUrl, logoSelected, onPickLogo, isAdmin, referenceSelected, onPickReference, disabled = false }: UserSpriteTilesProps): React.ReactElement | null => {
+  const info = useInfo()
   if (!logoUrl && !isAdmin) return null
   return (
     <div>
@@ -26,7 +28,7 @@ export const UserSpriteTiles = ({ logoUrl, logoSelected, onPickLogo, isAdmin, re
           <button
             type='button'
             className={`particle-sprite-hud__lib-btn${logoSelected ? ' particle-sprite-hud__lib-btn--selected' : ''}`}
-            title='Your logo'
+            {...info('Your logo')}
             onClick={() => onPickLogo(logoUrl)}
             disabled={disabled}
             aria-pressed={logoSelected}
@@ -38,7 +40,7 @@ export const UserSpriteTiles = ({ logoUrl, logoSelected, onPickLogo, isAdmin, re
           <button
             type='button'
             className={`particle-sprite-hud__lib-btn particle-sprite-hud__lib-btn--text${referenceSelected ? ' particle-sprite-hud__lib-btn--selected' : ''}`}
-            title='Adds the @user reference: each viewer sees their own logo'
+            {...info('Adds the @user reference: each viewer sees their own logo')}
             onClick={onPickReference}
             disabled={disabled && !referenceSelected}
             aria-pressed={referenceSelected}

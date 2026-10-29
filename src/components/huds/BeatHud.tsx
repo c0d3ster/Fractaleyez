@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react'
+import { useInfo } from '../config/info/info'
 import './BeatHud.css'
 
 import { BeatSample } from '../../audioanalysis/beat'
@@ -94,6 +95,7 @@ const scaleFor = (samples: readonly BeatSample[], from: number, band: number, no
 }
 
 export const BeatHud = (): React.ReactElement => {
+  const info = useInfo()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [tempo, setTempo] = useState<TempoEstimate | null>(null)
 
@@ -188,11 +190,11 @@ export const BeatHud = (): React.ReactElement => {
   return (
     <div className='beat-hud-wrapper'>
       <div className='beat-hud-title-row'>
-        <span className='beat-hud-bpm' title='Tempo read from the last 12 seconds of detected beats'>
+        <span className='beat-hud-bpm' {...info('Tempo read from the last 12 seconds of detected beats')}>
           {tempo ? `${Math.round(tempo.bpm)} BPM` : '— BPM'}
         </span>
         <span className='beat-hud-label'>Beat</span>
-        <span className='beat-hud-confidence' title='How steady the detected beats are: the share of gaps between them within 15% of the beat length. Missed or extra beats lower it.'>
+        <span className='beat-hud-confidence' {...info('How steady the detected beats are: the share of gaps between them within 15% of the beat length. Missed or extra beats lower it.')}>
           {tempo ? `${Math.round(tempo.confidence * 100)}% conf` : '—'}
         </span>
       </div>

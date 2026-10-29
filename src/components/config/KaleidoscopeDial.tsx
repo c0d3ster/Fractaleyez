@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
+import { useInfo } from './info/info'
 import { ColorState } from '../../config/colorState'
 import { Arm, armOf, colorShiftOffset, coords, dotScaleOf, GLOW_ALONG, lighten, paletteRgb, RADIUS, ShapeVariant, starScaleOf, starsPerArm, TAU, toCss } from './kaleidoscopeGalaxy'
 import { EffectChips, EffectChipsHandle } from './EffectChips'
@@ -120,6 +121,7 @@ const glowWidthFor = (armCount: number, dotScale: number): number => Math.max(1.
  * handle) so that turning and pulling back are transforms the browser can do without repainting the blurred galaxy.
  */
 export const KaleidoscopeDial = React.memo(({ count, min, max, step, kaleidoscope, mode, source, onSourceChange, onModeChange, palette, scale, particleSize, rotationSpeed, effects, effectLabels, onToggleEffect, kaleidoscopeLabel, onToggleKaleidoscope, onChange, onReset }: KaleidoscopeDialProps): React.ReactElement => {
+  const info = useInfo()
   // Unique per dial, since the filter, clip and gradient are referenced by id.
   const uid = useId().replace(/:/g, '')
   const wedge = TAU / count
@@ -309,7 +311,7 @@ export const KaleidoscopeDial = React.memo(({ count, min, max, step, kaleidoscop
         aria-valuemax={max}
         aria-valuenow={count}
         tabIndex={0}
-        title='Drag to set how many mirrors. Double-click to reset.'
+        {...info('Drag to set how many mirrors. Double-click to reset.')}
         onDoubleClick={onReset}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}

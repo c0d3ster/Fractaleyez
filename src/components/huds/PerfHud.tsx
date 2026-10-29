@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
+import { useInfo } from '../config/info/info'
 import './PerfHud.css'
 import { subscribeUiTick } from '../../utils/uiTicker'
 import { copyText } from '../../utils/copyText'
@@ -46,17 +47,25 @@ const qualityLabel = ({ setting, tier }: QualityStatus): string =>
 const seconds = (ms: number): string => (ms / 1000).toFixed(1)
 const oneDecimal = (value: number): string => value.toFixed(1)
 
+type HudRowProps = { text: string; children: React.ReactNode }
+
+// One row of the panel; what it says about itself shows in the info strip (or as a tooltip where there is no strip).
+const HudRow = ({ text, children }: HudRowProps): React.ReactElement => {
+  const info = useInfo()
+  return <div className='perf-hud-row' {...info(text)}>{children}</div>
+}
+
 type StutterRowProps = { label: string; summary: StutterSummary; hint: string }
 
 // How many gaps over the threshold the last minute had, and the worst one: one short line.
 const StutterRow = ({ label, summary, hint }: StutterRowProps): React.ReactElement => (
-  <div className='perf-hud-row' title={hint}>
+  <HudRow text={hint}>
     <span className='perf-hud-key'>{label}</span>
     <div className='perf-hud-metric'>
       <span className={summary.count > 0 ? 'perf-hud-value perf-hud-value--warn' : 'perf-hud-value'}>{summary.count}</span>
       {summary.count > 0 ? <span className='perf-hud-frame-ms'> · {Math.round(summary.worstMs)} ms</span> : null}
     </div>
-  </div>
+  </HudRow>
 )
 
 type LagRowProps = { estimate: LagEstimate; measurement: LagMeasurement | null; setup: string }
@@ -97,27 +106,24 @@ const LagRow = ({ estimate, measurement, setup }: LagRowProps): React.ReactEleme
   }
   const value = `${estimate.calibrated ? '' : '~'}${oneDecimal(estimate.totalMs)} ms`
   return (
-    <div className='perf-hud-row' title={`${text} Click the value to copy this text.`}>
+    <HudRow text={`${text} Click the value to copy this text.`}>
       <span className='perf-hud-key'>Lag</span>
       <button type='button' className='perf-hud-value perf-hud-value--copy' onClick={copy}>
         {copied === null ? value : copied ? 'Copied' : 'Copy failed'}
       </button>
-    </div>
+    </HudRow>
   )
 }
 
 type SoundcheckRowProps = { measuring: boolean; heardNothing: boolean; onMeasure: () => void }
 
 const SoundcheckRow = ({ measuring, heardNothing, onMeasure }: SoundcheckRowProps): React.ReactElement => (
-  <div
-    className='perf-hud-row'
-    title='Sends 10 silent test clicks into the audio engine, where the microphone sound enters, and times how long each takes to come out as a beat on screen. It keeps what is left once the frame parts are taken out, the beat detector delay, for the live Lag figure. Takes about 9 seconds and makes the visuals pulse, so do it in a quiet room, and again after changing the bands or the Threshold.'
-  >
+  <HudRow text='Sends 10 silent test clicks into the audio engine, where the microphone sound enters, and times how long each takes to come out as a beat on screen. It keeps what is left once the frame parts are taken out, the beat detector delay, for the live Lag figure. Takes about 9 seconds and makes the visuals pulse, so do it in a quiet room, and again after changing the bands or the Threshold.'>
     <span className='perf-hud-key'>Lag test</span>
     <button type='button' className='perf-hud-button' disabled={measuring} onClick={onMeasure}>
       {measuring ? 'Listening…' : heardNothing ? 'No beat heard, retry' : 'Calibrate'}
     </button>
-  </div>
+  </HudRow>
 )
 
 type SmoothRowProps = { quality: QualityStatus }
@@ -147,10 +153,10 @@ const SmoothRow = ({ quality }: SmoothRowProps): React.ReactElement => {
     ? loadingHint
     : `How long frames have gone without trouble (slow frames or dropped video), green from ${SMOOTH_GOOD_MS / 1000} s. Negative is how long they have been slow: orange, then red from ${AUTO_SLOW_FOR_MS / 1000} s, where Auto steps down.${climbHint(quality.auto)}`
   return (
-    <div className='perf-hud-row' title={title}>
+    <HudRow text={title}>
       <span className='perf-hud-key'>Smooth</span>
       <span className={`perf-hud-value ${smoothTone(loading, ms)}`.trim()}>{loading ? '—' : `${ms < 0 ? '-' : ''}${seconds(Math.abs(ms))} s`}</span>
-    </div>
+    </HudRow>
   )
 }
 
@@ -161,26 +167,24 @@ const AutoRows = ({ auto }: AutoRowsProps): React.ReactElement => {
   const { frameMs, p95Ms, slowAboveMs, roughAboveMs, lastChange } = auto
   return (
     <>
-      <div
-        className='perf-hud-row'
-        title={`Median and 95th percentile of the display frame times Auto judges. A window is slow when the median is over ${oneDecimal(slowAboveMs)} ms or the 95th percentile is over ${oneDecimal(roughAboveMs)} ms.`}
-      >
+      <HudRow text={`Median and 95th percentile of the display frame times Auto judges. A window is slow when the median is over ${oneDecimal(slowAboveMs)} ms or the 95th percentile is over ${oneDecimal(roughAboveMs)} ms.`}>
         <span className='perf-hud-key'>Frames</span>
         <span className='perf-hud-value'>{frameMs === null || p95Ms === null ? '—' : `${oneDecimal(frameMs)} / ${oneDecimal(p95Ms)} ms`}</span>
-      </div>
-      <div className='perf-hud-row' title='The last time Auto changed tier, and how long ago'>
+      </HudRow>
+      <HudRow text='The last time Auto changed tier, and how long ago'>
         <span className='perf-hud-key'>Last</span>
         <span className='perf-hud-value'>{lastChange ? `${QUALITY_LABELS[lastChange.from]} → ${QUALITY_LABELS[lastChange.to]} · ${Math.round(lastChange.agoMs / 1000)} s` : '—'}</span>
-      </div>
-      <div className='perf-hud-row' title='Why Auto made that change: slow = median / 95th percentile frame time, clean = time with no slow frames or dropped video'>
+      </HudRow>
+      <HudRow text='Why Auto made that change: slow = median / 95th percentile frame time, clean = time with no slow frames or dropped video'>
         <span className='perf-hud-key'>Why</span>
         <span className='perf-hud-value'>{lastChange ? lastChange.reason : '—'}</span>
-      </div>
+      </HudRow>
     </>
   )
 }
 
 export const PerfHud = (): React.ReactElement => {
+  const info = useInfo()
   const [perf, setPerf] = useState<PerfData>({ fps: 0, frameMs: 0 })
   const [debug, setDebug] = useState(readDebug)
   const [asking, setAsking] = useState(false)
@@ -224,13 +228,13 @@ export const PerfHud = (): React.ReactElement => {
         type='button'
         className='perf-hud-label perf-hud-label--toggle'
         aria-pressed={debug}
-        title={debug ? 'Back to the short list' : 'Show the debugging rows'}
+        {...info(debug ? 'Back to the short list' : 'Show the debugging rows')}
         onClick={toggleDebug}
       >
         {debug ? 'Performance · debug' : 'Performance'}
       </button>
       <div className='perf-hud-panel'>
-        <div className='perf-hud-row' title='Frames drawn per second and the time between them, the median of the last 60. With a frame cap on (the Saver, Balanced and Quality tiers) this is the cap, not the display rate.'>
+        <HudRow text='Frames drawn per second and the time between them, the median of the last 60. With a frame cap on (the Saver, Balanced and Quality tiers) this is the cap, not the display rate.'>
           <span className='perf-hud-key'>FPS</span>
           <div className='perf-hud-metric'>
             <span className='perf-hud-value'>{perf.fps}</span>
@@ -238,12 +242,12 @@ export const PerfHud = (): React.ReactElement => {
               <span className='perf-hud-frame-ms'> · {perf.frameMs} ms</span>
             ) : null}
           </div>
-        </div>
+        </HudRow>
         {perf.quality ? (
-          <div className='perf-hud-row' title='The quality tier being drawn. Auto picks it from how smooth the frames are; the tier in brackets is the one it is on now.'>
+          <HudRow text='The quality tier being drawn. Auto picks it from how smooth the frames are; the tier in brackets is the one it is on now.'>
             <span className='perf-hud-key'>Quality</span>
             <span className='perf-hud-value'>{qualityLabel(perf.quality)}</span>
-          </div>
+          </HudRow>
         ) : null}
         {debug && perf.quality?.auto ? <AutoRows auto={perf.quality.auto} /> : null}
         {perf.stutters && !debug ? (

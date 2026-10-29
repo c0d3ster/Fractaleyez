@@ -1,4 +1,5 @@
 import React, { useCallback, useRef } from 'react'
+import { useInfo } from './info/info'
 import './PaletteRange.css'
 
 import { connectConfig, ConfigContextValue } from './context/ConfigProvider'
@@ -35,6 +36,7 @@ const tidy = (value: number): number => Math.round(value * PRECISION) / PRECISIO
 const scaled = (value: number): number => Math.round(value * 100)
 
 const PaletteRangeInner = ({ config, updateConfigItem, resetConfigItem }: PaletteRangeProps): React.ReactElement => {
+  const info = useInfo()
   const { rangeLut, baseLut, phase, cycles, saturation } = resolveColorState(config.color)
   const start = config.color.rangeStart.value
   const end = config.color.rangeEnd.value
@@ -123,7 +125,7 @@ const PaletteRangeInner = ({ config, updateConfigItem, resetConfigItem }: Palett
       </div>
       <div
         className='palette-range__track'
-        title='Drag a handle to crop the palette, or the lit part to slide it. Double-click for the whole palette.'
+        {...info('Drag a handle to crop the palette, or the lit part to slide it. Double-click for the whole palette.')}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}

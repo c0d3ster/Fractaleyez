@@ -1,4 +1,5 @@
 import React, { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
+import { useInfo } from './info/info'
 import { EFFECT_KEYS, EffectKey, MotionEffects } from './useGalaxyMotion'
 import './EffectChips.css'
 
@@ -63,6 +64,7 @@ const PULSE_FLASH_KEYFRAMES: Keyframe[] = [
  * Together with the galaxy above them they show what the effects are doing and let you turn them on and off.
  */
 export const EffectChips = React.memo(forwardRef<EffectChipsHandle, EffectChipsProps>(({ effects, labels, onToggle, kaleidoscope, kaleidoscopeLabel, kaleidoscopeCount, mode, onModeChange, onToggleKaleidoscope }, ref): React.ReactElement => {
+  const info = useInfo()
   const chips = useRef<Partial<Record<EffectKey, HTMLButtonElement | null>>>({})
   // Built the first time a chip flashes and replayed after that; making new animations on every beat is what costs.
   const flashes = useRef<Partial<Record<EffectKey, Animation[]>>>({})
@@ -100,7 +102,7 @@ export const EffectChips = React.memo(forwardRef<EffectChipsHandle, EffectChipsP
             key={label}
             type='button'
             className={`kaleidoscope-mode${mode === index ? ' kaleidoscope-mode--on' : ''}`}
-            title={`${label}: ${description}`}
+            {...info(`${label}: ${description}`)}
             aria-label={label}
             aria-pressed={mode === index}
             onClick={() => onModeChange(index)}
@@ -116,7 +118,7 @@ export const EffectChips = React.memo(forwardRef<EffectChipsHandle, EffectChipsP
           type='button'
           id='kaleidoscope'
           className={`effect-chip effect-chip--lead${kaleidoscope ? ' effect-chip--on' : ''}`}
-          title={`${kaleidoscopeLabel}: ${KALEIDOSCOPE_DESCRIPTION}`}
+          {...info(`${kaleidoscopeLabel}: ${KALEIDOSCOPE_DESCRIPTION}`)}
           aria-pressed={kaleidoscope}
           onClick={() => onToggleKaleidoscope(!kaleidoscope)}
         >
@@ -129,7 +131,7 @@ export const EffectChips = React.memo(forwardRef<EffectChipsHandle, EffectChipsP
             type='button'
             id={key}
             className={`effect-chip${effects[key] ? ' effect-chip--on' : ''}`}
-            title={`${labels[key]}: ${DESCRIPTIONS[key]}`}
+            {...info(`${labels[key]}: ${DESCRIPTIONS[key]}`)}
             aria-pressed={effects[key]}
             onClick={() => onToggle(key, !effects[key])}
           >

@@ -1,4 +1,5 @@
 import React, { useState, useContext, useCallback, useEffect, useMemo, useRef } from 'react'
+import { useInfo } from '../config/info/info'
 import { ConfigContext } from '../config/context/ConfigProvider'
 import { PresetSelection } from './Presets'
 
@@ -8,6 +9,7 @@ type SavePresetProps = {
 }
 
 export const SavePreset = ({ prefill, onSaved }: SavePresetProps): React.ReactElement | null => {
+  const info = useInfo()
   const context = useContext(ConfigContext)
   const packInputRef = useRef<HTMLInputElement>(null)
   const [name, setName] = useState('')
@@ -83,11 +85,11 @@ export const SavePreset = ({ prefill, onSaved }: SavePresetProps): React.ReactEl
           placeholder='Pack'
           value={pack}
           onChange={(e) => setPack(e.target.value)}
+          {...info(packReserved ? 'Built-in presets use this pack name — choose another' : undefined)}
           onFocus={(e) => selectReservedPackText(e.currentTarget)}
           onClick={(e) => selectReservedPackText(e.currentTarget)}
           disabled={status === 'saving'}
           aria-invalid={packReserved}
-          title={packReserved ? 'Built-in presets use this pack name — choose another' : undefined}
           autoComplete='off'
         />
         <input

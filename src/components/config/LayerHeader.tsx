@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef } from 'react'
+import { useInfo } from './info/info'
 import classNames from 'classnames'
 import './LayerHeader.css'
 
@@ -48,6 +49,7 @@ const LayerHeaderInner = ({
   collapsible = false,
   onToggleOpen,
 }: LayerHeaderProps): React.ReactElement => {
+  const info = useInfo()
   const fillRef = useRef<HTMLDivElement>(null)
   const dragRef = useRef<DragState | null>(null)
   const frameRef = useRef<number | null>(null)
@@ -172,7 +174,7 @@ const LayerHeaderInner = ({
         aria-label={`${enabled ? 'Disable' : 'Enable'} ${title}`}
         aria-pressed={enabled}
         disabled={atCap}
-        title={atCap ? `Layer limit reached (${LAYER_CAP}). Turn another layer off first.` : undefined}
+        {...info(atCap ? `Layer limit reached (${LAYER_CAP}). Turn another layer off first.` : undefined)}
         onPointerDown={stop}
         onPointerUp={stop}
         onClick={(event) => {
@@ -189,7 +191,7 @@ const LayerHeaderInner = ({
       <span className='layer-header__percent'>{percent}%</span>
       <span className='layer-header__stepper' onPointerDown={stop} onPointerUp={stop}>
         <button type='button' aria-label={`Move ${title} back`} disabled={index <= 0} onClick={() => move(index - 1)}>-</button>
-        <button type='button' className='layer-header__badge' aria-label={`${title} is layer ${index}; click to move it forward`} title='Layer order' onClick={cycle}>
+        <button type='button' className='layer-header__badge' aria-label={`${title} is layer ${index}; click to move it forward`} {...info('Layer order')} onClick={cycle}>
           {index}
         </button>
         <button type='button' aria-label={`Move ${title} forward`} disabled={index >= order.length - 1} onClick={() => move(index + 1)}>+</button>
@@ -199,7 +201,7 @@ const LayerHeaderInner = ({
         <button
           type='button'
           className='layer-header__reset'
-          title='Reset this section to the preset'
+          {...info('Reset this section to the preset')}
           aria-label={`Reset ${title} config`}
           onPointerDown={stop}
           onPointerUp={stop}
