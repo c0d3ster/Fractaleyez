@@ -75,7 +75,15 @@
   color: #555;
 }
 
-.perf-hud-value--bad {
+.perf-hud-value--good {
+  color: #6fcf7f;
+}
+
+.perf-hud-value--warn {
   color: #e8944a;
+}
+
+.perf-hud-value--bad {
+  color: #e85a4a;
 }
 

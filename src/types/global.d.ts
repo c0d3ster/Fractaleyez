@@ -47,7 +47,6 @@ declare global {
     getPerfData?: () => {
       fps: number
       frameMs: number
-      pingMs: number | null
       estimatedLagMs: number
       quality: QualityStatus
       stutters: { display: StutterSummary; video: StutterSummary }

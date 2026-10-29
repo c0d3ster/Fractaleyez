@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 
 import { getParticleCrossfadeDurationMs } from '../../config/visualizer.config'
+import { loadTracker } from '../load-tracker'
 import { videoStutters } from '../stutter-monitor'
 import { videoFrameSignal } from '../video-frame-signal'
 import { isNearEnd, stepOpacity } from './fade'
@@ -85,6 +86,8 @@ export class VideoLayer implements Layer {
   // The target keeps its pixels, so a frame with no new decoded frame and no crossfade running does not redraw it.
   private readonly redrawGate = new RedrawGate()
   private lastPlayback: { slot: VideoSlot; counts: PlaybackCounts } | null = null
+  // Ends the load Auto is told about from a new current clip being created until its first frame arrives (null when none is going on).
+  private endLoad: (() => void) | null = null
 
   constructor(private readonly renderer: THREE.WebGLRenderer) {
     this.scene.add(new THREE.Mesh(this.geometry, this.currentMaterial))
@@ -205,6 +208,7 @@ export class VideoLayer implements Layer {
     if (first === undefined) return
     window.config.video.index = 0
     this.current = this.createSlot(first)
+    this.endLoad = loadTracker.begin('video')
     this.currentMaterial.map = this.current.texture
     this.currentMaterial.needsUpdate = true
   }
@@ -260,6 +264,7 @@ export class VideoLayer implements Layer {
       },
     }
     const onFrame = (now: DOMHighResTimeStamp, { mediaTime }: VideoFrameCallbackMetadata): void => {
+      if (this.endLoad && slot === this.current) this.finishLoad()
       // A long gap between two frames of a playing clip is a stutter the Performance panel counts; a paused clip (one held ready) has none.
       if (slot.lastFrameAt !== null) videoStutters.record(now, now - slot.lastFrameAt)
       slot.lastFrameAt = video.paused ? null : now
@@ -301,8 +306,14 @@ export class VideoLayer implements Layer {
     else release()
   }
 
+  private finishLoad = (): void => {
+    this.endLoad?.()
+    this.endLoad = null
+  }
+
   private disposeVideo = (): void => {
     this.redrawGate.markDirty()
+    this.finishLoad()
     this.discardPrepared()
     if (this.current) this.disposeSlot(this.current)
     if (this.incoming) this.disposeSlot(this.incoming)

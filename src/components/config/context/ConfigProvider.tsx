@@ -24,6 +24,7 @@ import {
 import { setParticleCrossfadeDurationMs } from '../../../config/visualizer.config'
 import { UserSettings, USER_SETTINGS_SAVE_DEBOUNCE_MS } from '../../../config/userSettings.config'
 import { isValidBandSelection } from '../../../audioanalysis/onset-bands'
+import { QUALITY_SETTING_DEFAULT } from '../../../config/quality.config'
 import { qualityController } from '../../../visualization/quality-controller'
 
 export type PresetRetrieveEvent = {
@@ -390,7 +391,8 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
         setUserSettings(data.settings)
         setDisplayName(data.displayName || null)
         setIsAdmin(data.isAdmin === true)
-        applyUserSettingsSideEffects(data.settings)
+        // A full load without a saved quality is Auto, so a new account does not inherit the tier the last one fixed.
+        applyUserSettingsSideEffects({ ...data.settings, quality: data.settings.quality ?? QUALITY_SETTING_DEFAULT })
 
         // Only when no logo is set yet: persist a sprite-processed copy of the Clerk social photo as the
         // user's logoParticle, so the `@user` resolver's per-user-settings rung already covers it.

@@ -1,12 +1,16 @@
 import {
+  AUTO_BUSY_MAX_MS,
+  AUTO_BUSY_SETTLE_MS,
   AUTO_CLIMB_AFTER_MS,
   AUTO_COST_CHANGE_RATIO,
+  AUTO_DISTURB_MS,
   AUTO_EVAL_MS,
-  AUTO_GRACE_MS,
   AUTO_PROBE_WATCH_MS,
   AUTO_RETRY_BASE_MS,
   AUTO_RETRY_MAX_MS,
   AUTO_ROUGH_FACTOR,
+  AUTO_SEVERE_FACTOR,
+  AUTO_SEVERE_WEIGHT,
   AUTO_SLOW_FACTOR,
   AUTO_SLOW_FOR_MS,
   AUTO_SLOW_MAX_MS,
@@ -54,14 +58,12 @@ export type AutoDiagnostics = {
   /** A window counts as slow when its median is above `slowAboveMs`, or its 95th percentile is above `roughAboveMs`. */
   slowAboveMs: number
   roughAboveMs: number
-  /** How long frames have been slow without a break, against how long it takes to step down. */
-  slowForMs: number
+  /** How long frames must stay slow before Auto steps down. */
   slowLimitMs: number
   /** Share of video frames being dropped (smoothed), against the share at which Auto will not step up. */
   videoDropShare: number
   videoDropLimit: number
-  /** How long frames have been clean, against how long before Auto tries the next tier up (null: never on frames alone). */
-  cleanForMs: number
+  /** How long frames must stay clean before Auto tries the next tier up (null: never on frames alone). */
   climbAfterMs: number | null
   /** Time left on a step up that is on trial (0 when none). */
   probationLeftMs: number
@@ -71,9 +73,18 @@ export type AutoDiagnostics = {
   lastChange: (Omit<AutoChange, 'at'> & { agoMs: number }) | null
 }
 
+/**
+ * How smooth the page has been, for the Performance panel: the time since the last trouble when there has been none (positive), or
+ * minus the time frames have been slow without a break (negative, and at the slow limit Auto steps down). Null while loading,
+ * when frame times say nothing.
+ */
+export type Smoothness = { loading: boolean; ms: number }
+
 export type GovernorOptions = {
   /** How long frames must stay clean before Auto tries the next tier up; null never climbs on frames alone. */
   climbAfterMs?: number | null
+  /** Only measure: never step a tier up or down. For a fixed tier, where the Performance panel still wants to say how smooth it is. */
+  observeOnly?: boolean
 }
 
 /**
@@ -89,6 +100,9 @@ export class QualityGovernor {
   private deltas: number[] = []
   private slowMs = 0
   private graceUntil = 0
+  // When the current run of loading began (null when nothing is loading), and whether frames are being ignored because of it or a disturbance.
+  private busySince: number | null = null
+  private loading = false
   private lastEvalAt: number | null = null
   private lastCost: number | null = null
   // While a step up is on trial: the time it has until it counts as a success (0 when none is).
@@ -102,11 +116,15 @@ export class QualityGovernor {
   private lastWindow: { frameMs: number; p95Ms: number } | null = null
   private lastChange: AutoChange | null = null
   private readonly climbAfterMs: number | null
+  private readonly observeOnly: boolean
 
-  constructor(start: QualityTier, { climbAfterMs = AUTO_CLIMB_AFTER_MS }: GovernorOptions = {}) {
+  constructor(start: QualityTier, { climbAfterMs = AUTO_CLIMB_AFTER_MS, observeOnly = false }: GovernorOptions = {}) {
     const index = AUTO_TIERS.indexOf(start)
     this.tierIndex = index === -1 ? AUTO_TIERS.length - 1 : index
     this.climbAfterMs = climbAfterMs
+    this.observeOnly = observeOnly
+    // Nothing has been seen yet, so there is nothing to call smooth until the first window.
+    this.loading = true
   }
 
   getTier = (): QualityTier => AUTO_TIERS[this.tierIndex]!
@@ -116,16 +134,16 @@ export class QualityGovernor {
     p95Ms: this.lastWindow?.p95Ms ?? null,
     slowAboveMs: this.slowThresholdMs(),
     roughAboveMs: this.refreshMs * AUTO_ROUGH_FACTOR,
-    slowForMs: this.slowMs,
     slowLimitMs: AUTO_SLOW_FOR_MS,
     videoDropShare: this.videoDrop,
     videoDropLimit: AUTO_VIDEO_DROP_LIMIT,
-    cleanForMs: this.cleanMs,
     climbAfterMs: this.climbAfterMs,
     probationLeftMs: this.probationUntil === 0 ? 0 : Math.max(0, this.probationUntil - now),
     retryInMs: Math.max(0, this.retryAt - now),
     lastChange: this.lastChange ? { from: this.lastChange.from, to: this.lastChange.to, reason: this.lastChange.reason, agoMs: now - this.lastChange.at } : null,
   })
+
+  getSmoothness = (): Smoothness => ({ loading: this.loading, ms: this.slowMs > 0 ? -this.slowMs : this.cleanMs })
 
   // A median frame time above this is slow: 1.4 display refreshes, kept between the limits.
   private slowThresholdMs = (): number => clamp(this.refreshMs * AUTO_SLOW_FACTOR, AUTO_SLOW_MIN_MS, AUTO_SLOW_MAX_MS)
@@ -139,9 +157,9 @@ export class QualityGovernor {
     this.deltas.push(frameMs)
   }
 
-  /** The frames so far do not describe the scene any more (a resize, a tab refocus, a manual change). */
-  disturb = (now: number): void => {
-    this.graceUntil = now + AUTO_GRACE_MS
+  /** The frames so far do not describe the scene any more (a resize, a tab refocus, a manual change). Another call before the time is up pushes it back. */
+  disturb = (now: number, forMs = AUTO_DISTURB_MS): void => {
+    this.graceUntil = Math.max(this.graceUntil, now + forMs)
     this.slowMs = 0
     this.cleanMs = 0
     this.deltas = []
@@ -151,17 +169,31 @@ export class QualityGovernor {
    * Call every `AUTO_EVAL_MS` or so with the current time and the scene's estimated cost. Returns the tier to draw at.
    * `capped` says the tier being drawn is frame-capped, so its frame times are the cap's and say nothing about load.
    * `videoDropRate` is the share of video frames dropped since the last call (0 with no video).
+   * `busy` says something is loading (see `LoadTracker`): frames are ignored until it is done and `AUTO_BUSY_SETTLE_MS` has passed, or
+   * `AUTO_BUSY_MAX_MS` has gone by, so a load that never ends cannot stop Auto judging for good.
    */
-  evaluate = (now: number, cost: number, capped: boolean, videoDropRate = 0): QualityTier => {
+  evaluate = (now: number, cost: number, capped: boolean, videoDropRate = 0, busy = false): QualityTier => {
     this.videoDrop += (videoDropRate - this.videoDrop) * VIDEO_DROP_SMOOTHING
     const elapsed = this.lastEvalAt === null ? AUTO_EVAL_MS : now - this.lastEvalAt
     this.lastEvalAt = now
     this.watchCost(now, cost)
-    if (now < this.graceUntil) {
+    if (this.waitOutLoading(now, busy)) {
       this.deltas = []
+      this.slowMs = 0
+      this.cleanMs = 0
       return this.getTier()
     }
     return this.judgeFrames(now, elapsed, capped)
+  }
+
+  // Whether frames should be ignored now: something is loading (within the cap), or a disturbance or a step has not settled.
+  private waitOutLoading = (now: number, busy: boolean): boolean => {
+    if (!busy) this.busySince = null
+    else this.busySince ??= now
+    const loadingNow = busy && this.busySince !== null && now - this.busySince < AUTO_BUSY_MAX_MS
+    if (loadingNow) this.graceUntil = Math.max(this.graceUntil, now + AUTO_BUSY_SETTLE_MS)
+    this.loading = now < this.graceUntil
+    return this.loading
   }
 
   // A change in what the scene draws makes the frames around it unreliable, so they are ignored for a while.
@@ -183,10 +215,13 @@ export class QualityGovernor {
     this.lastWindow = { frameMs, p95Ms }
     // A tier whose cap is slow is drawn at the cap's own pace, so its frames never count as slow.
     const slow = frameMs > this.slowThresholdMs() || p95Ms > this.refreshMs * AUTO_ROUGH_FACTOR
-    this.slowMs = !capped && slow ? this.slowMs + elapsed : 0
+    // A stall (a median frame several times the slow limit) counts double, so a machine that is really struggling steps down sooner.
+    const severe = frameMs > this.slowThresholdMs() * AUTO_SEVERE_FACTOR
+    this.slowMs = !capped && slow ? this.slowMs + elapsed * (severe ? AUTO_SEVERE_WEIGHT : 1) : 0
     // Dropped video frames stop a climb even when the frame times look fine; they do not step a tier down by themselves.
     const struggling = this.slowMs > 0 || this.videoDrop > AUTO_VIDEO_DROP_LIMIT
     this.cleanMs = struggling ? 0 : this.cleanMs + elapsed
+    if (this.observeOnly) return this.getTier()
     if (this.slowMs === 0 && this.probationUntil !== 0 && now >= this.probationUntil) this.passProbation()
     if (this.slowMs >= AUTO_SLOW_FOR_MS && this.tierIndex > 0) return this.stepDown(now)
     return this.climbIfClean(now)
