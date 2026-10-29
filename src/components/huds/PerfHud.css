@@ -85,6 +85,42 @@
   color: #ccc;
 }
 
+.perf-hud-value--copy {
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+}
+
+.perf-hud-value--copy:hover {
+  color: #fff;
+}
+
+.perf-hud-button {
+  appearance: none;
+  background: none;
+  border: 1px solid #333;
+  border-radius: 999px;
+  padding: 1px 8px;
+  font-family: inherit;
+  font-size: 10px;
+  color: #999;
+  cursor: pointer;
+}
+
+.perf-hud-button:hover:not(:disabled) {
+  border-color: #888;
+  color: #ccc;
+}
+
+.perf-hud-button:disabled {
+  cursor: default;
+  color: #555;
+}
+
 .perf-hud-value--muted {
   color: #555;
 }
