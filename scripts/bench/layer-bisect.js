@@ -12,7 +12,7 @@ const conditions = [
 ]
 ;(async () => {
   const browser = await chromium.connectOverCDP(process.env.CDP_URL || 'http://localhost:9222')
-  const page = browser.contexts().flatMap((c) => c.pages()).find((p) => p.url().startsWith('http://localhost:3000'))
+  const page = browser.contexts().flatMap((c) => c.pages()).find((p) => p.url().startsWith('http://localhost:3001'))
   if (!page) throw new Error('no app page found')
   await page.evaluate((tier) => window.setQuality(tier), process.env.TIER || 'quality')
   await page.evaluate(() => {
