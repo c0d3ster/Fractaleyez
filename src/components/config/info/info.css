@@ -1,5 +1,6 @@
 /*
- * Pinned to the bottom of the expanded config (the pop-out's scrolling root), so it stays in view and in the same place. It is
+ * Pinned to the bottom of the expanded config (the pop-out's scrolling root), so it stays in view and in the same place: the grid is a
+ * full-height column and the auto top margin pushes the strip down, with sticky keeping it in view when the content scrolls. It is
  * as wide as the four middle columns (effects, audio, video and fractal) so it never covers the columns at either end.
  */
 .info-strip {
@@ -8,7 +9,7 @@
   z-index: 10;
   box-sizing: border-box;
   width: calc(var(--config-column-width) * 4);
-  margin: 10px 0 0 calc(var(--config-column-width) * 2);
+  margin: auto 0 0 calc(var(--config-column-width) * 2);
   /* Two lines tall always, so the text changing never moves anything. */
   min-height: 4.4em;
   padding: 8px 16px;
