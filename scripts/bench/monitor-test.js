@@ -8,7 +8,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 ;(async () => {
   const browser = await chromium.connectOverCDP(process.env.CDP_URL || 'http://localhost:9222')
   const context = browser.contexts()[0]
-  const page = context.pages().find((p) => p.url().startsWith('http://localhost:3000'))
+  const page = context.pages().find((p) => p.url().startsWith('http://localhost:3001'))
   let crashed = false
   page.on('crash', () => { crashed = true })
   await page.evaluate(() => {

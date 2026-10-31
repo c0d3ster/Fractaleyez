@@ -7,7 +7,7 @@ const OUT = process.env.BENCH_DIR || path.join(__dirname, 'out')
 fs.mkdirSync(OUT, { recursive: true })
 const { chromium } = require(process.env.PLAYWRIGHT_CORE || 'playwright-core')
 const CHROME = process.env.CHROME_PATH
-const BASE_URL = process.env.BENCH_URL || 'http://localhost:3000'
+const BASE_URL = process.env.BENCH_URL || 'http://localhost:3001'
 const JOB = OUT
 const args = process.argv.slice(2)
 const label = args[0], popup = args.includes('--popup'), noshock = args.includes('--noshock')

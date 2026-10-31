@@ -112,7 +112,7 @@ Presets store bare values only, so older presets keep working as new options are
 ## Development
 
 ```sh
-pnpm dev            # client (:3000) and API (:8080) together
+pnpm dev            # client (:3001) and API (:8080) together
 pnpm build          # production build to public/app.js
 pnpm lint
 pnpm typecheck

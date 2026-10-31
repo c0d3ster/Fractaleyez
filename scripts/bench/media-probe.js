@@ -5,7 +5,7 @@ const secs = Number(process.argv[2] || 30)
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 ;(async () => {
   const browser = await chromium.connectOverCDP(process.env.CDP_URL || 'http://localhost:9222')
-  const page = browser.contexts().flatMap((c) => c.pages()).find((p) => p.url().startsWith('http://localhost:3000'))
+  const page = browser.contexts().flatMap((c) => c.pages()).find((p) => p.url().startsWith('http://localhost:3001'))
   if (!page) throw new Error('no app page found')
   const session = await page.context().newCDPSession(page)
   const players = {}

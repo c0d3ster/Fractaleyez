@@ -42,9 +42,26 @@ const OrbitColumnBody = ({ onChange }: OrbitColumnBodyProps): React.ReactElement
 
 // Eight 205px columns (1640) plus the grid's 15px side padding is 1670, which fits a 1920px screen.
 const POPOUT_WIDTH = 1670
-const DEFAULT_WINDOW_FEATURES = `width=${POPOUT_WIDTH},height=860,location=no`
+const POPOUT_START_HEIGHT = 860
+const DEFAULT_WINDOW_FEATURES = `width=${POPOUT_WIDTH},height=${POPOUT_START_HEIGHT},location=no`
+// How long the pop-out gets to render before it is measured and sized to its content.
+const FIT_DELAY_MS = 600
 
-// Positions the popout on a second screen at full available height when the Window Management
+// Resizes the pop-out's height to its content (never taller than its screen). The grid is a full-height column, so its
+// min-height is lifted while measuring to read the content's own height.
+const fitHeightToContent = (popout: Window): void => {
+  const grid = popout.document.querySelector<HTMLElement>('.config-window-grid')
+  if (!grid) return
+  const previous = grid.style.minHeight
+  grid.style.minHeight = '0'
+  const contentHeight = grid.offsetHeight
+  grid.style.minHeight = previous
+  const chromeHeight = popout.outerHeight - popout.innerHeight
+  const maxHeight = popout.screen.availHeight
+  popout.resizeTo(popout.outerWidth, Math.min(contentHeight + chromeHeight, maxHeight))
+}
+
+// Positions the popout on a second screen (content width, resized to its content's height once rendered) when the Window Management
 // API is available and permitted; falls back to the default same-screen size/placement otherwise
 // (unsupported in Firefox/Safari, and requires a permission prompt in Chromium).
 const resolveWindowFeatures = async (): Promise<string> => {
@@ -64,7 +81,7 @@ const resolveWindowFeatures = async (): Promise<string> => {
     const left = secondScreenIsToTheLeft
       ? secondScreen.availLeft + secondScreen.availWidth - popoutWidth
       : secondScreen.availLeft
-    return `width=${popoutWidth},height=${secondScreen.availHeight},left=${left},top=${secondScreen.availTop},location=no`
+    return `width=${popoutWidth},height=${Math.min(POPOUT_START_HEIGHT, secondScreen.availHeight)},left=${left},top=${secondScreen.availTop},location=no`
   } catch {
     return DEFAULT_WINDOW_FEATURES
   }
@@ -247,6 +264,7 @@ const ConfigWindowInner = ({
   useEffect(() => {
     let cancelled = false
     let externalWindow: Window | null = null
+    let fitTimer: number | undefined
 
     const closeExternalWindow = (): void => externalWindow?.close()
 
@@ -291,12 +309,15 @@ const ConfigWindowInner = ({
 
       reactRootRef.current = createRoot(container)
       setExternalRootReady(true)
+      const popout = externalWindow
+      fitTimer = window.setTimeout(() => fitHeightToContent(popout), FIT_DELAY_MS)
     }
 
     void setup()
 
     return () => {
       cancelled = true
+      window.clearTimeout(fitTimer)
       window.setCameraMouseTracking?.(true)
       window.removeEventListener('beforeunload', closeExternalWindow)
       externalWindow?.removeEventListener('beforeunload', onClose)

@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```sh
-pnpm dev            # run client + server together (webpack-dev-server on :3000, express API on :8080, proxied)
+pnpm dev            # run client + server together (webpack-dev-server on :3001, express API on :8080, proxied)
 pnpm client-dev      # webpack-dev-server only
 pnpm server-dev       # express API only (tsx watch: restarts on save, no build step)
 pnpm build            # production webpack build -> public/app.js
