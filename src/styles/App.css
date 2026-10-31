@@ -87,6 +87,15 @@ body {
   box-sizing: border-box;
   width: calc(var(--config-column-width) * var(--config-column-count) + 30px);
   margin: 0 auto;
+  /* At least as tall as the window, so the info strip's auto top margin pins it to the bottom edge in a tall window
+     (sticky alone only holds once the content is taller than the window). */
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.config-window-root .config-columns {
+  margin-bottom: 10px;
 }
 
 .config-columns {
