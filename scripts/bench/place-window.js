@@ -3,7 +3,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_CORE || 'playwright-core')
 const [left, top, width, height] = process.argv.slice(2).map(Number)
 ;(async () => {
   const browser = await chromium.connectOverCDP(process.env.CDP_URL || 'http://localhost:9222')
-  const page = browser.contexts().flatMap((c) => c.pages()).find((p) => p.url().startsWith('http://localhost:3000'))
+  const page = browser.contexts().flatMap((c) => c.pages()).find((p) => p.url().startsWith('http://localhost:3001'))
   if (!page) throw new Error('no app page found')
   const session = await page.context().newCDPSession(page)
   const { windowId } = await session.send('Browser.getWindowForTarget')

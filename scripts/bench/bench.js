@@ -7,7 +7,7 @@ const OUT = process.env.BENCH_DIR || path.join(__dirname, 'out')
 fs.mkdirSync(OUT, { recursive: true })
 const { chromium } = require(process.env.PLAYWRIGHT_CORE || 'playwright-core')
 const CHROME = process.env.CHROME_PATH
-const BASE_URL = process.env.BENCH_URL || 'http://localhost:3000'
+const BASE_URL = process.env.BENCH_URL || 'http://localhost:3001'
 // Extra Chromium flags, space separated (e.g. software GL on a machine without a GPU: "--use-angle=swiftshader --enable-unsafe-swiftshader").
 const EXTRA_ARGS = (process.env.BENCH_CHROME_ARGS || '').split(' ').filter(Boolean)
 

@@ -9,11 +9,11 @@ const secs = Number(secsArg || 30)
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 ;(async () => {
   const browser = await chromium.connectOverCDP(process.env.CDP_URL || 'http://localhost:9222')
-  const page = browser.contexts().flatMap((c) => c.pages()).find((p) => p.url().startsWith('http://localhost:3000'))
+  const page = browser.contexts().flatMap((c) => c.pages()).find((p) => p.url().startsWith('http://localhost:3001'))
   if (!page) throw new Error('no app page found')
   // Permissions a relaunched profile would otherwise ask for: the mic, and Window Management (which lets the app put the popout on the second screen).
   const browserSession = await browser.newBrowserCDPSession()
-  await browserSession.send('Browser.grantPermissions', { origin: 'http://localhost:3000', permissions: ['audioCapture', 'windowManagement'] }).catch((e) => console.log('grantPermissions:', e.message))
+  await browserSession.send('Browser.grantPermissions', { origin: 'http://localhost:3001', permissions: ['audioCapture', 'windowManagement'] }).catch((e) => console.log('grantPermissions:', e.message))
   // PLACE=left,top,width,height moves the window (CDP window bounds), so a relaunch cannot leave it off screen.
   if (process.env.PLACE) {
     const [left, top, width, height] = process.env.PLACE.split(',').map(Number)

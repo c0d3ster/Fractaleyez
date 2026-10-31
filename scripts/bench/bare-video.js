@@ -8,7 +8,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
   const browser = await chromium.connectOverCDP(process.env.CDP_URL || 'http://localhost:9222')
   const context = browser.contexts()[0]
   const page = await context.newPage()
-  await page.goto(`http://localhost:3000/${clip}`)
+  await page.goto(`http://localhost:3001/${clip}`)
   await page.bringToFront()
   await page.evaluate(() => {
     const v = document.querySelector('video')

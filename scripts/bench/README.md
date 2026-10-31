@@ -7,7 +7,7 @@ the main thread with the visualizer).
 ## Setup
 
 ```sh
-pnpm client-dev                                   # app on :3000 (presets fall back to bundled ones, no API needed)
+pnpm client-dev                                   # app on :3001 (presets fall back to bundled ones, no API needed)
 export BENCH_DIR=scripts/bench/out                # wavs, browser profiles, results (git-ignored)
 export CHROME_PATH=/path/to/chrome                # any Chromium/Chrome executable
 export PLAYWRIGHT_CORE=playwright-core            # module to require (optional if it is resolvable)

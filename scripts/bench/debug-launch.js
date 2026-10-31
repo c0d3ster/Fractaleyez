@@ -2,7 +2,7 @@
 // permissions BEFORE the app loads (a grant after load cannot answer a prompt already shown), places and maximizes the window, loads the app,
 // clicks once to start it, opens the config popout and puts video in front of fractal. PLACE=left,top,width,height picks the monitor (default: left one).
 const { chromium } = require(process.env.PLAYWRIGHT_CORE || 'playwright-core')
-const APP = 'http://localhost:3000'
+const APP = 'http://localhost:3001'
 const [left, top, width, height] = (process.env.PLACE || '-1900,300,1800,940').split(',').map(Number)
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 ;(async () => {
