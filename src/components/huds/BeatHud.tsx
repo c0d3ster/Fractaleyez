@@ -18,7 +18,7 @@ const LAMP_FADE_MS = 200
 const TEMPO_UPDATE_INTERVAL_MS = 500
 
 const sameTempo = (a: TempoEstimate | null, b: TempoEstimate | null): boolean =>
-  a === null || b === null ? a === b : Math.round(a.bpm) === Math.round(b.bpm) && Math.round(a.confidence * 100) === Math.round(b.confidence * 100)
+  a === null || b === null ? a === b : Math.round(a.bpm) === Math.round(b.bpm) && Math.round(a.consistency * 100) === Math.round(b.consistency * 100)
 
 // One look per band, in the order of ONSET_BANDS, spread around the color wheel so neighbors are easy to tell apart.
 type BandLook = { label: string; fill: string; line: string; trigger: string }
@@ -194,8 +194,8 @@ export const BeatHud = (): React.ReactElement => {
           {tempo ? `${Math.round(tempo.bpm)} BPM` : '— BPM'}
         </span>
         <span className='beat-hud-label'>Beat</span>
-        <span className='beat-hud-confidence' {...info('How steady the detected beats are: the share of gaps between them within 15% of the beat length. Missed or extra beats lower it.')}>
-          {tempo ? `${Math.round(tempo.confidence * 100)}% conf` : '—'}
+        <span className='beat-hud-consistency' {...info('How steady the detected beats are: the share of gaps between them that are one beat (or one step of the rhythm grid) long, give or take 15%. Missed or extra beats lower it.')}>
+          {tempo ? `${Math.round(tempo.consistency * 100)}% cons` : '—'}
         </span>
       </div>
       <div className='beat-hud' {...info('Colored ticks are beats. The dashed lines are what each band had to pass to count as a hit.')}>
