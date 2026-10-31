@@ -40,7 +40,7 @@
 }
 
 .beat-hud-bpm,
-.beat-hud-confidence {
+.beat-hud-consistency {
   font-size: 11px;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.04em;
@@ -52,6 +52,6 @@
   justify-self: start;
 }
 
-.beat-hud-confidence {
+.beat-hud-consistency {
   justify-self: end;
 }
