@@ -47,13 +47,34 @@ describe('estimateTempo', () => {
     expect(estimate?.consistency).toBe(1)
   })
 
-  it('names the pattern the hits make against the beat', () => {
+  describe('naming the pattern', () => {
     const beat = 60000 / 128
-    const bar = (positions: number[]): number[] => Array.from({ length: 8 }, (_, b) => positions.map((p) => (b * 4 + p) * beat)).flat()
-    expect(estimateTempo(beats(128, 24))?.pattern).toBe('four on the floor')
-    expect(estimateTempo(Array.from({ length: 16 }, (_, i) => i * 2 * beat))?.pattern).toBe('half time')
-    expect(estimateTempo(Array.from({ length: 48 }, (_, i) => (i * beat) / 2))?.pattern).toBe('double time')
-    expect(estimateTempo(bar([0, 2, 2.5, 3]))?.pattern).toBe('syncopated')
+    const bar = (positions: number[], bars: number = 8): number[] => Array.from({ length: bars }, (_, b) => positions.map((p) => (b * 4 + p) * beat)).flat()
+    const pattern = (positions: number[]): string | null | undefined => estimateTempo(bar(positions))?.pattern
+
+    it('names the common patterns', () => {
+      expect(pattern([0, 1, 2, 3])).toBe('four on the floor')
+      expect(pattern([0, 2])).toBe('half time')
+      expect(pattern([0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5])).toBe('double time')
+      expect(pattern(Array.from({ length: 16 }, (_, i) => i / 4))).toBe('sixteenths')
+      expect(pattern([0, 1.5, 3])).toBe('dembow')
+    })
+
+    it('keeps four on the floor when a few stray hits land between the beats', () => {
+      expect(pattern([0, 1, 1.5, 2, 3])).toBe('four on the floor')
+      expect(pattern([0, 0.5, 1, 2, 2.5, 3])).toBe('four on the floor')
+    })
+
+    it('calls hits that miss beats and sit off them syncopated', () => {
+      expect(pattern([0, 1.5, 2.5, 3])).toBe('syncopated')
+      expect(pattern([0, 2, 2.5, 3])).toBe('syncopated')
+    })
+
+    it('reads the tempo the same for each of them', () => {
+      for (const positions of [[0, 1, 2, 3], [0, 2], [0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5], [0, 1.5, 3], [0, 1.5, 2.5, 3]]) {
+        expect(estimateTempo(bar(positions))?.bpm).toBeCloseTo(128, -0.5)
+      }
+    })
   })
 
   it('says nothing from too few onsets', () => {

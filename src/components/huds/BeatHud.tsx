@@ -4,7 +4,7 @@ import './BeatHud.css'
 
 import { BeatSample } from '../../audioanalysis/beat'
 import { DEFAULT_ENABLED_BANDS, ONSET_BANDS } from '../../audioanalysis/onset-bands'
-import { estimateTempo, TempoEstimate } from '../../audioanalysis/tempo'
+import { estimateTempo, TempoEstimate, TempoPattern } from '../../audioanalysis/tempo'
 import { subscribeUiTick } from '../../utils/uiTicker'
 import { bandColor } from './bandColors'
 
@@ -17,9 +17,11 @@ const Y_HEADROOM = 1.15
 const LAMP_FADE_MS = 200
 // The tempo moves slowly, so it is re-read twice a second, and only drawn again when the number shown changes.
 const TEMPO_UPDATE_INTERVAL_MS = 500
+// A different pattern name has to hold for this many readings in a row (about 3 s) before it replaces the one shown, so a song near the line between two names does not flicker.
+const PATTERN_HOLD_READINGS = 6
 
 const sameTempo = (a: TempoEstimate | null, b: TempoEstimate | null): boolean =>
-  a === null || b === null ? a === b : Math.round(a.bpm) === Math.round(b.bpm) && a.pattern === b.pattern && Math.round(a.consistency * 100) === Math.round(b.consistency * 100)
+  a === null || b === null ? a === b : Math.round(a.bpm) === Math.round(b.bpm) && Math.round(a.consistency * 100) === Math.round(b.consistency * 100)
 
 // One look per band, in the order of ONSET_BANDS (the Frequency HUD colors its bars and labels the same way, so there is no legend here).
 type BandLook = { fill: string; line: string; trigger: string }
@@ -95,6 +97,7 @@ export const BeatHud = (): React.ReactElement => {
   const info = useInfo()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [tempo, setTempo] = useState<TempoEstimate | null>(null)
+  const [pattern, setPattern] = useState<TempoPattern | null>(null)
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -103,12 +106,28 @@ export const BeatHud = (): React.ReactElement => {
     if (!ctx) return
 
     let lastTempoAt = 0
+    let shownPattern: TempoPattern | null = null
+    let candidate: TempoPattern | null = null
+    let streak = 0
     const updateTempo = (source: Window): void => {
       const now = source.performance.now()
       if (now - lastTempoAt < TEMPO_UPDATE_INTERVAL_MS) return
       lastTempoAt = now
       const estimate = estimateTempo(source.getBeatTimes?.() ?? [])
       setTempo((previous) => (sameTempo(previous, estimate) ? previous : estimate))
+
+      // The first name shows right away; a change waits until the new name has held for a few readings in a row.
+      const reading = estimate?.pattern ?? null
+      if (reading === shownPattern) {
+        candidate = reading
+        streak = 0
+        return
+      }
+      streak = reading === candidate ? streak + 1 : 1
+      candidate = reading
+      if (shownPattern !== null && streak < PATTERN_HOLD_READINGS) return
+      shownPattern = reading
+      setPattern(reading)
     }
 
     const draw = (): void => {
@@ -187,8 +206,8 @@ export const BeatHud = (): React.ReactElement => {
       <div className='beat-hud' {...info('Colored ticks are beats. The dashed lines are what each band had to pass to count as a hit.')}>
         <canvas ref={canvasRef} width={W} height={H} className='beat-hud-canvas' />
       </div>
-      <span className='beat-hud-feel' {...info('The rhythm the hits make against the beat: on every beat (four on the floor), every second beat (half time), steady eighths (double time), or off-beat hits (syncopated). Blank when no clear beat.')}>
-        {tempo?.pattern ?? ''}
+      <span className='beat-hud-feel' {...info('The rhythm the hits make against the beat: on every beat (four on the floor), every second beat (half time), steady eighths (double time) or sixteenths, a 3+3+2 pattern (dembow), or anything else off the beat (syncopated). Blank when there is no clear beat. A new name shows after it has held for a few seconds.')}>
+        {pattern ?? ''}
       </span>
     </div>
   )
