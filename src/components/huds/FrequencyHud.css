@@ -4,7 +4,8 @@
   align-items: stretch;
   gap: 6px;
   padding: 6px 0 0;
-  margin: 0;
+  /* The same 2rem a slider leaves below itself, so the Beat section below it sits as far off as a pad does from the sliders above. */
+  margin: 0 0 2rem;
   user-select: none;
 }
 
