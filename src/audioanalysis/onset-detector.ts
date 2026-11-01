@@ -20,7 +20,7 @@ const MAX_THRESHOLD_DB = 9
 // Long memory of how loud the band has been (jumps up instantly, forgets slowly). A band has to be a real fraction of
 // it to fire, so wiggles in a quiet passage don't count.
 const LOUDNESS_RELEASE_TAU_MS = 20000
-const MIN_LEVEL_OF_LOUDNESS = 0.3
+const MIN_LEVEL_OF_LOUDNESS = 0.25
 // Digital-silence guard only (% of full scale); far below any real signal, so it never limits a quiet mic.
 const SILENCE_LEVEL = 0.02
 const WARMUP_MS = 1000
