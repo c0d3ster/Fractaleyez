@@ -1,5 +1,5 @@
 /** What the hits are doing against the beat, when that is clear enough to name. */
-export type TempoPattern = 'four on the floor' | 'half time' | 'double time' | 'syncopated'
+export type TempoPattern = 'four on the floor' | 'half time' | 'double time' | 'sixteenths' | 'dembow' | 'syncopated'
 
 /** A tempo guessed from when drum onsets were detected. */
 export type TempoEstimate = {
@@ -19,7 +19,7 @@ const MAX_BPM = 180
 // How far a gap may be from the beat period and still count as one beat.
 const TOLERANCE = 0.15
 // The beat period is searched over a wider range than the reported one, so a pattern living on an eighth or sixteenth grid is found as such and then folded.
-const SEARCH_MIN_PERIOD_MS = 60000 / 360
+const SEARCH_MIN_PERIOD_MS = 60000 / 720
 const SEARCH_MAX_PERIOD_MS = 60000 / 50
 // How sharp the alignment peak is around a period: about P^2 / span wide, where span is the time the onsets cover. The search steps in fractions of it
 // (coarse across the whole range, fine around the best spot), so a short run of onsets costs a few hundred candidates, not thousands.
@@ -27,16 +27,23 @@ const COARSE_STEP = 0.35
 const FINE_STEP = 0.03
 const MIN_COARSE_STEP_MS = 0.5
 const MIN_FINE_STEP_MS = 0.1
-// A longer period counts as the same grid when onsets line up on it about as well, and is preferred: onsets every beat also line up on every half beat.
-const LONGER_PERIOD_SCORE = 0.98
-const LONGER_PERIOD_SPREAD = 0.03
-const LONGER_PERIOD_MULTIPLES = [2, 3]
+// Onsets that line up on a period also line up on every fraction of it (hits every beat sit on every half beat too), so the longest period that
+// aligns about as well as the best one is the real grid. Only peaks within this share of the best score are looked at.
+const SAME_GRID_SCORE = 0.98
+const PEAK_CANDIDATE_SCORE = 0.9
 // A pattern is only named when the onsets line up on the grid at least this well.
 const MIN_PATTERN_ALIGNMENT = 0.75
-// Onsets this close (as a share of a beat) to the beat count as on it.
+// Positions within a beat (0 is on it, 0.5 is halfway to the next), each with how far off still counts.
 const ON_BEAT = 0.15
-const SHARE_ON_BEAT = 0.85
-const SHARE_EVEN_EIGHTHS = 0.8
+// How much of the run a pattern has to explain to be named. Lower than perfect, because the detector adds and misses hits on real music.
+const SHARE_ON_BEAT = 0.65
+const SHARE_BEATS_HIT = 0.8
+const SHARE_SAME_PARITY = 0.9
+const SHARE_EVEN_GAPS = 0.8
+const SHARE_DEMBOW = 0.6
+// Dembow (and the tresillo) is 3+3+2 eighths, repeating.
+const DEMBOW_STEPS = [2, 3, 3]
+const STEP_TOLERANCE = 0.2
 
 const foldIntoRange = (bpm: number): number => {
   if (bpm <= 0) return bpm
@@ -62,41 +69,40 @@ type Peak = { period: number; score: number }
 
 const peakWidth = (period: number, spanMs: number): number => (period * period) / spanMs
 
-// The best period from `from` to `to`, stepping by `stepOf(period)`. The shortest wins a tie.
-const scan = (onsets: readonly number[], from: number, to: number, stepOf: (period: number) => number): Peak => {
-  let best: Peak = { period: from, score: -1 }
-  for (let period = from; period <= to; period += stepOf(period)) {
-    const score = alignment(onsets, period)
-    if (score > best.score + 1e-9) best = { period, score }
-  }
-  return best
+type Candidate = Peak & { index: number }
+
+// Every period from `from` to `to`, stepping by `stepOf(period)`, with its alignment score.
+const sweep = (onsets: readonly number[], from: number, to: number, stepOf: (period: number) => number): Peak[] => {
+  const peaks: Peak[] = []
+  for (let period = from; period <= to; period += stepOf(period)) peaks.push({ period, score: alignment(onsets, period) })
+  return peaks
 }
+
+const highest = (peaks: readonly Peak[]): Peak => peaks.reduce((best, peak) => (peak.score > best.score ? peak : best), { period: 0, score: -1 })
 
 // The period whose grid the onsets line up on best. Neighboring gaps are not used, so syncopated hits between the beats (which make the gaps uneven) do not move it.
 const bestPeriod = (onsets: readonly number[]): Peak => {
   const span = Math.max(onsets[onsets.length - 1] ?? 0, 1)
   const coarseStep = (period: number): number => Math.max(MIN_COARSE_STEP_MS, COARSE_STEP * peakWidth(period, span))
   const fineStep = (period: number): number => Math.max(MIN_FINE_STEP_MS, FINE_STEP * peakWidth(period, span))
-  const coarse = scan(onsets, SEARCH_MIN_PERIOD_MS, SEARCH_MAX_PERIOD_MS, coarseStep)
-  const reach = coarseStep(coarse.period)
-  let best = scan(onsets, Math.max(SEARCH_MIN_PERIOD_MS, coarse.period - reach), Math.min(SEARCH_MAX_PERIOD_MS, coarse.period + reach), fineStep)
-
-  // The shortest period wins a tie, so climb to the longest multiple of it that the onsets line up on just as well.
-  const longerThan = (peak: Peak): Peak | null => {
-    for (const multiple of LONGER_PERIOD_MULTIPLES) {
-      const center = peak.period * multiple
-      if (center * (1 - LONGER_PERIOD_SPREAD) > SEARCH_MAX_PERIOD_MS) continue
-      const longer = scan(onsets, center * (1 - LONGER_PERIOD_SPREAD), Math.min(center * (1 + LONGER_PERIOD_SPREAD), SEARCH_MAX_PERIOD_MS), fineStep)
-      if (longer.score >= best.score * LONGER_PERIOD_SCORE) return longer
-    }
-    return null
-  }
-  for (let next = longerThan(best); next; next = longerThan(best)) best = next
-  return best
+  const coarse = sweep(onsets, SEARCH_MIN_PERIOD_MS, SEARCH_MAX_PERIOD_MS, coarseStep)
+  const top = highest(coarse).score
+  // The tops of the coarse peaks that come close to the best; each is refined, since a coarse step can land a little off its peak.
+  const candidates: Candidate[] = coarse.flatMap((peak, index) => {
+    const before = coarse[index - 1]?.score ?? -1
+    const after = coarse[index + 1]?.score ?? -1
+    return peak.score >= top * PEAK_CANDIDATE_SCORE && peak.score >= before && peak.score >= after ? [{ ...peak, index }] : []
+  })
+  const refined = candidates.map(({ period }) => {
+    const reach = coarseStep(period)
+    return highest(sweep(onsets, Math.max(SEARCH_MIN_PERIOD_MS, period - reach), Math.min(SEARCH_MAX_PERIOD_MS, period + reach), fineStep))
+  })
+  const best = highest(refined)
+  return refined.reduce((longest, peak) => (peak.score >= best.score * SAME_GRID_SCORE && peak.period > longest.period ? peak : longest), best)
 }
 
-// Where each onset falls against the beat: -0.5 to 0.5 of a beat, 0 being on it. The phase comes from the onsets themselves.
-const beatOffsets = (onsets: readonly number[], period: number): number[] => {
+// Where each onset falls against the beat, in beats from the beat grid (the phase comes from the onsets themselves).
+const beatTurns = (onsets: readonly number[], period: number): number[] => {
   let cos = 0
   let sin = 0
   for (const time of onsets) {
@@ -104,20 +110,46 @@ const beatOffsets = (onsets: readonly number[], period: number): number[] => {
     sin += Math.sin((2 * Math.PI * time) / period)
   }
   const phase = Math.atan2(sin, cos) / (2 * Math.PI)
-  return onsets.map((time) => {
-    const turns = time / period - phase
-    return turns - Math.round(turns)
-  })
+  return onsets.map((time) => time / period - phase)
 }
 
-const namePattern = (onsets: readonly number[], gridPeriod: number, period: number): TempoPattern => {
-  const offsets = beatOffsets(onsets, period)
-  const onBeat = offsets.filter((offset) => Math.abs(offset) <= ON_BEAT).length / offsets.length
-  if (onBeat >= SHARE_ON_BEAT) return gridPeriod > period * 1.5 ? 'half time' : 'four on the floor'
-  const gaps = onsets.slice(1).map((time, i) => time - (onsets[i] ?? time))
-  const eighth = period / 2
-  const evenEighths = gaps.filter((gap) => Math.abs(gap - eighth) <= eighth * TOLERANCE).length / Math.max(1, gaps.length)
-  return evenEighths >= SHARE_EVEN_EIGHTHS ? 'double time' : 'syncopated'
+const shareOf = <T>(values: readonly T[], matches: (value: T) => boolean): number =>
+  values.length === 0 ? 0 : values.filter(matches).length / values.length
+
+// How much of the gaps are `length` long, give or take `tolerance` of it.
+const gapShare = (gaps: readonly number[], length: number, tolerance: number = TOLERANCE): number =>
+  shareOf(gaps, (gap) => Math.abs(gap - length) <= length * tolerance)
+
+// The share of runs of three gaps that are 3+3+2 eighths in some order.
+const dembowShare = (gaps: readonly number[], eighth: number): number => {
+  const steps = gaps.map((gap) => (Math.abs(gap - Math.round(gap / eighth) * eighth) <= eighth * STEP_TOLERANCE ? Math.round(gap / eighth) : 0))
+  const runs = steps.slice(2).map((_, i) => [steps[i] ?? 0, steps[i + 1] ?? 0, steps[i + 2] ?? 0].sort((x, y) => x - y))
+  return shareOf(runs, (run) => run.every((step, i) => step === DEMBOW_STEPS[i]))
+}
+
+// The share of the beats in the run that have a hit on them, and the share of those that are all odd or all even beats.
+const beatCoverage = (turns: readonly number[]): { hit: number; sameParity: number; hitBeats: number; beats: number } => {
+  const slots = turns.map(Math.round)
+  const onBeat = new Set(turns.flatMap((turn, i) => (Math.abs(turn - (slots[i] ?? 0)) <= ON_BEAT ? [slots[i] ?? 0] : [])))
+  const beats = Math.max(1, Math.max(...slots) - Math.min(...slots) + 1)
+  const odd = [...onBeat].filter((slot) => Math.abs(slot % 2) === 1).length
+  const sameParity = onBeat.size === 0 ? 0 : Math.max(odd, onBeat.size - odd) / onBeat.size
+  return { hit: onBeat.size / beats, sameParity, hitBeats: onBeat.size, beats }
+}
+
+const namePattern = (onsets: readonly number[], period: number): TempoPattern => {
+  const turns = beatTurns(onsets, period)
+  const onBeat = shareOf(turns, (turn) => Math.abs(turn - Math.round(turn)) <= ON_BEAT)
+  const gaps = onsets.slice(1).map((time, i) => time - (onsets[i] ?? time)).filter((gap) => gap > 0)
+  const coverage = beatCoverage(turns)
+
+  if (gapShare(gaps, period / 4) >= SHARE_EVEN_GAPS) return 'sixteenths'
+  if (gapShare(gaps, period / 2) >= SHARE_EVEN_GAPS) return 'double time'
+  if (onBeat >= SHARE_ON_BEAT && coverage.hit >= SHARE_BEATS_HIT) return 'four on the floor'
+  // Every second beat only: the hits are all odd or all even beats, and they fill those.
+  if (onBeat >= SHARE_ON_BEAT && coverage.sameParity >= SHARE_SAME_PARITY && coverage.hitBeats / Math.ceil(coverage.beats / 2) >= SHARE_BEATS_HIT) return 'half time'
+  if (dembowShare(gaps, period / 2) >= SHARE_DEMBOW) return 'dembow'
+  return 'syncopated'
 }
 
 /**
@@ -137,6 +169,6 @@ export const estimateTempo = (onsetTimesMs: readonly number[]): TempoEstimate | 
   // A gap is steady when it is one beat or one step of the grid the onsets sit on (a half-time or eighth-note pattern has gaps of 2 beats or half a beat).
   const isNear = (gap: number, length: number): boolean => Math.abs(gap - length) <= length * TOLERANCE
   const steady = gaps.filter((gap) => isNear(gap, period) || isNear(gap, gridPeriod)).length
-  const pattern = score >= MIN_PATTERN_ALIGNMENT ? namePattern(onsets, gridPeriod, period) : null
+  const pattern = score >= MIN_PATTERN_ALIGNMENT ? namePattern(onsets, period) : null
   return { bpm, pattern, consistency: steady / gaps.length, onsets: onsetTimesMs.length }
 }
