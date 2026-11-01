@@ -6,6 +6,7 @@ import { useInfo } from '../config/info/info'
 import { UserSettings } from '../../config/userSettings.config'
 import { DEFAULT_ENABLED_BANDS, ONSET_BANDS, isValidBandSelection } from '../../audioanalysis/onset-bands'
 import { subscribeUiTick } from '../../utils/uiTicker'
+import { bandColor } from './bandColors'
 
 const VISIBLE_BANDS = ONSET_BANDS.length
 const LABELS = ONSET_BANDS.map(({ label }) => label)
@@ -133,18 +134,18 @@ const FrequencyHudInner = ({ userSettings, updateUserSettings }: FrequencyHudPro
             grad.addColorStop(1, '#333')
           } else if (hovered) {
             // Hovering a disabled band previews turning it back on: a faded blue.
-            grad.addColorStop(0, 'rgba(68, 170, 255, 0.45)')
-            grad.addColorStop(1, 'rgba(17, 51, 102, 0.45)')
+            grad.addColorStop(0, bandColor(i, 60, 0.45))
+            grad.addColorStop(1, bandColor(i, 18, 0.45))
           } else if (!enabled) {
             grad.addColorStop(0, '#222')
             grad.addColorStop(1, '#111')
           } else if (peakVal > 0.1) {
-            grad.addColorStop(0, `rgba(220, 235, 255, ${0.7 + peakVal * 0.3})`)
-            grad.addColorStop(0.4, `rgba(80, 160, 255, ${0.8 + peakVal * 0.2})`)
-            grad.addColorStop(1, '#0a1a33')
+            grad.addColorStop(0, bandColor(i, 88, 0.7 + peakVal * 0.3))
+            grad.addColorStop(0.4, bandColor(i, 62, 0.8 + peakVal * 0.2))
+            grad.addColorStop(1, bandColor(i, 12))
           } else {
-            grad.addColorStop(0, '#4af')
-            grad.addColorStop(1, '#136')
+            grad.addColorStop(0, bandColor(i, 62))
+            grad.addColorStop(1, bandColor(i, 18))
           }
           ctx.fillStyle = grad
           roundRect(ctx, x, BAR_AREA_H - fillH, BAR_W, fillH, RADIUS)
@@ -172,9 +173,9 @@ const FrequencyHudInner = ({ userSettings, updateUserSettings }: FrequencyHudPro
         if (!enabled) {
           ctx.fillStyle = '#2a2a2a'
         } else if (peakVal > 0.1) {
-          ctx.fillStyle = `rgba(180, 210, 255, ${0.5 + peakVal * 0.5})`
+          ctx.fillStyle = bandColor(i, 80, 0.5 + peakVal * 0.5)
         } else {
-          ctx.fillStyle = '#444'
+          ctx.fillStyle = bandColor(i, 50, 0.75)
         }
         ctx.font = '9px monospace'
         ctx.textAlign = 'center'

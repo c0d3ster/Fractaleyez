@@ -6,6 +6,7 @@ import { BeatSample } from '../../audioanalysis/beat'
 import { DEFAULT_ENABLED_BANDS, ONSET_BANDS } from '../../audioanalysis/onset-bands'
 import { estimateTempo, TempoEstimate } from '../../audioanalysis/tempo'
 import { subscribeUiTick } from '../../utils/uiTicker'
+import { bandColor } from './bandColors'
 
 const W = 360
 const PLOT_H = 90
@@ -18,19 +19,15 @@ const LAMP_FADE_MS = 200
 const TEMPO_UPDATE_INTERVAL_MS = 500
 
 const sameTempo = (a: TempoEstimate | null, b: TempoEstimate | null): boolean =>
-  a === null || b === null ? a === b : Math.round(a.bpm) === Math.round(b.bpm) && Math.round(a.consistency * 100) === Math.round(b.consistency * 100)
+  a === null || b === null ? a === b : Math.round(a.bpm) === Math.round(b.bpm) && a.pattern === b.pattern && Math.round(a.consistency * 100) === Math.round(b.consistency * 100)
 
-// One look per band, in the order of ONSET_BANDS, spread around the color wheel so neighbors are easy to tell apart.
-type BandLook = { label: string; fill: string; line: string; trigger: string }
-const BAND_LOOKS: BandLook[] = ONSET_BANDS.map(({ label }, i) => {
-  const hue = Math.round((i * 360) / ONSET_BANDS.length + 200) % 360
-  return {
-    label,
-    fill: `hsla(${hue}, 80%, 60%, 0.16)`,
-    line: `hsl(${hue}, 80%, 62%)`,
-    trigger: `hsla(${hue}, 80%, 62%, 0.7)`,
-  }
-})
+// One look per band, in the order of ONSET_BANDS (the Frequency HUD colors its bars and labels the same way, so there is no legend here).
+type BandLook = { fill: string; line: string; trigger: string }
+const BAND_LOOKS: BandLook[] = ONSET_BANDS.map((_, i) => ({
+  fill: bandColor(i, 60, 0.16),
+  line: bandColor(i, 62),
+  trigger: bandColor(i, 62, 0.7),
+}))
 
 const COLORS = {
   ignore: 'rgba(255, 255, 255, 0.06)',
@@ -171,17 +168,6 @@ export const BeatHud = (): React.ReactElement => {
       ctx.arc(10, 10, 5, 0, Math.PI * 2)
       ctx.fill()
       ctx.globalAlpha = 1
-
-      // Which line is which band.
-      ctx.font = '13px monospace'
-      ctx.textAlign = 'left'
-      let labelX = 24
-      BAND_LOOKS.forEach(({ label, line }, band) => {
-        if (!enabled[band]) return
-        ctx.fillStyle = line
-        ctx.fillText(label, labelX, 14)
-        labelX += ctx.measureText(label).width + 8
-      })
     }
 
     return subscribeUiTick(draw, canvas)
@@ -201,6 +187,9 @@ export const BeatHud = (): React.ReactElement => {
       <div className='beat-hud' {...info('Colored ticks are beats. The dashed lines are what each band had to pass to count as a hit.')}>
         <canvas ref={canvasRef} width={W} height={H} className='beat-hud-canvas' />
       </div>
+      <span className='beat-hud-feel' {...info('The rhythm the hits make against the beat: on every beat (four on the floor), every second beat (half time), steady eighths (double time), or off-beat hits (syncopated). Blank when no clear beat.')}>
+        {tempo?.pattern ?? ''}
+      </span>
     </div>
   )
 }
