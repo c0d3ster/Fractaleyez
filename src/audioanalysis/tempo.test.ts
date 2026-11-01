@@ -47,6 +47,15 @@ describe('estimateTempo', () => {
     expect(estimate?.consistency).toBe(1)
   })
 
+  it('names the pattern the hits make against the beat', () => {
+    const beat = 60000 / 128
+    const bar = (positions: number[]): number[] => Array.from({ length: 8 }, (_, b) => positions.map((p) => (b * 4 + p) * beat)).flat()
+    expect(estimateTempo(beats(128, 24))?.pattern).toBe('four on the floor')
+    expect(estimateTempo(Array.from({ length: 16 }, (_, i) => i * 2 * beat))?.pattern).toBe('half time')
+    expect(estimateTempo(Array.from({ length: 48 }, (_, i) => (i * beat) / 2))?.pattern).toBe('double time')
+    expect(estimateTempo(bar([0, 2, 2.5, 3]))?.pattern).toBe('syncopated')
+  })
+
   it('says nothing from too few onsets', () => {
     expect(estimateTempo(beats(120, 4))).toBeNull()
     expect(estimateTempo([])).toBeNull()
