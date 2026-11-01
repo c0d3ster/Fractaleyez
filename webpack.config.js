@@ -1,3 +1,4 @@
+const net = require('net')
 const path = require('path')
 const webpack = require('webpack')
 
@@ -7,7 +8,25 @@ require('dotenv').config({ path: path.join(__dirname, '.env'), quiet: true })
 const BUILD_DIR = path.join( __dirname, 'public' )
 const APP_DIR = path.join( __dirname, 'src' )
 
-module.exports = {
+const DEV_PORT = 3000
+const DEV_PORT_TRIES = 20
+
+const isFree = (port) => new Promise((resolve) => {
+  const probe = net.createServer()
+  probe.once('error', () => resolve(false))
+  probe.once('listening', () => probe.close(() => resolve(true)))
+  probe.listen(port)
+})
+
+// 3000 by default; when something else holds it, the next free port (3001, 3002, ...).
+const findDevPort = async () => {
+  for (let port = DEV_PORT; port < DEV_PORT + DEV_PORT_TRIES; port++) {
+    if (await isFree(port)) return port
+  }
+  return DEV_PORT
+}
+
+const createConfig = (devPort) => ({
   entry: ['@babel/polyfill', APP_DIR + '/index.tsx'],
   output:
   {
@@ -76,7 +95,7 @@ module.exports = {
     ]
   },
   devServer: {
-    port: 3001,
+    port: devPort,
     open: false,
     proxy: [
       {
@@ -93,4 +112,7 @@ module.exports = {
     extensions: ['.ts', '.tsx', '.js', '.jsx', '.mjs'],
     modules: ['node_modules'],
   },
-}
+})
+
+// Only a dev-server run needs a port; a plain build skips the probe.
+module.exports = async (env) => createConfig(env && env.WEBPACK_SERVE ? await findDevPort() : DEV_PORT)
