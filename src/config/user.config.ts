@@ -9,6 +9,9 @@ export const userConfig = {
   speed_MIN: 0,
   speed_MAX: 20,
   speed_STEP_SIZE: 0.5,
+  // Z units per second per unit of Speed. Hopalong used to add Speed every frame, so 60 keeps motion identical at
+  // 60fps. A preset tuned at 144Hz now moves about 0.42x as fast (144 -> 60 units/sec).
+  speed_UNITS_PER_SEC_PER_UNIT: 60,
 
   rotationSpeed_DEFAULT: 2,
   rotationSpeed_MIN: -20,
