@@ -116,6 +116,48 @@ Adopt `visibility: 'private' | 'public'` on `Preset` and `Pack`, with `published
 
 Phases 1 and 2 are the minimum to make "private" real. Phase 3 delivers the requested "publish publicly" capability.
 
+## UI direction (owner notes, 2026-11-02)
+
+Product direction for how the model above surfaces in the UI. These are decisions of intent, not tasks yet.
+
+### In the visual: keep it small
+
+The presets and packs UI in the visual exists so the owner can save without copy and paste. It stays a quick-save tool:
+
+- The log config button is removed once publishing ships. A publish/unpublish toggle on the active preset replaces it, and maps directly onto the `visibility` flip in phase 3.
+- Save and load stay as they are. Nothing that needs a form or a multi-step flow lives in the HUD.
+
+### Library page: management lives outside the visual
+
+Pack work is too heavy for the HUD, so it moves to a separate page (working name: Library):
+
+- **Pack membership.** Including and excluding presets in a pack (two lists or drag between them), which also surfaces the member-validation list from the publish flow.
+- **Pack settings.** Visibility, rename, delete, and later price.
+- **Browse tab.** Published presets and packs from other creators sit beside "My library" on the same page. A separate marketplace page waits until there is enough content to justify it.
+- **Pricing and payments come last.** They depend on the Stripe work in `monetization.md`. Publishing and membership do not, so they ship first.
+- **Routing.** The app is a single webpack SPA today, so this needs a path switch or router plus a Vercel rewrite for the new path. The visual stays at `/`.
+
+### Intro overlay on the visual
+
+`/` stays the visual by default. A title shows over it and fades after a few seconds, with two buttons:
+
+- **Explore** fades the buttons and returns to the current experience.
+- **Show me the way** starts a short guided walkthrough (about five steps) that points at real controls: the info strip, the config panel, save and publish, and the link to the Library.
+
+Details:
+
+- The buttons never block the visual. If ignored, they fade on their own.
+- The choice is stored in localStorage so returning visitors skip the overlay.
+- The overlay is a natural place for the microphone permission prompt, since it is a user gesture with context.
+- Walkthrough step text can reuse the per-item descriptions that already live in `configDefaults`.
+
+### Suggested order
+
+1. Publish/unpublish toggle in the visual, log config button removed (phase 3 of the implementation above).
+2. Library page with pack membership.
+3. Intro overlay and walkthrough (cheap, and it makes the app feel finished).
+4. Browse tab, then pricing and payments.
+
 ## Open Questions
 
 - Should new user saves default to `private`? This makes presets stop appearing for others, which is a visible product change for existing community-style use. The backfill keeps old content public, but is it intended that new ones are not?
