@@ -1,5 +1,6 @@
 {
   "nextTaskNumber": 47,
   "tasksCompleted": 21,
-  "tasksBlocked": 0
+  "tasksBlocked": 0,
+  "taskSource": "github"
 }
