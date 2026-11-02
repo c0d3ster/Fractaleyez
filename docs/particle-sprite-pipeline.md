@@ -1,0 +1,17 @@
+# Particle sprite upload pipeline: size contract
+
+Resolves the "256x256 vs 512x512" ambiguity from `#233`. Verified against the code, not changed.
+
+Background removal and resize both exist and run **client-side** before upload, via the `sprite-strip` package's `prepareSprite` (`src/components/huds/useSpriteUpload.ts`).
+
+| Stage | Size contract | Where |
+| --- | --- | --- |
+| Source/input | Any image, max 2 MB file (`MAX_DATA_URL_BYTES`). No pixel-dimension limit client-side. | `useSpriteUpload.ts` |
+| Processed/stored | Downscaled so the longest side is at most **512 px** (`SPRITE_MAX_SIDE_PX`), never upscaled, then centered on a **square** transparent-padded canvas. Output is a PNG, still max 2 MB. Flat neutral edge background is flood-fill stripped to alpha. A 100x60 upload is stored as 100x100, not 512x512. | `prepareSprite(raw, 512)` |
+| Server boundary | Raw bytes, max 2 MB, png/jpg/webp/gif, decoded dimensions at most **4096 px** per side (decompression-bomb ceiling only; the server does not resize or strip). Stored in R2 at `particles/<userId>/<uuid>.<ext>`. | `server/routes/uploadParticleHandler.ts` |
+| Render time | The stored image is loaded as-is by `THREE.TextureLoader` (`src/utils/textureCache.ts`); no 256 px thumbnail or other render-time resize exists. On-screen size comes from the Size slider (`particle.config.ts`, `size_*`), and the GPU samples the texture at that scale. | `textureCache.ts` |
+
+Notes:
+- 256 px appears nowhere in the pipeline; 512 px is the single target for the stored master. Logo uploads (`LOGO_MAX_SIDE_PX`) use the same 512 px cap.
+- The server trusts the client for resize and background removal. A direct API upload up to 4096 px and 2 MB is accepted unprocessed.
+- Built-in text sprites (`userReference.ts`) are drawn at a fixed 512x512 to match.
