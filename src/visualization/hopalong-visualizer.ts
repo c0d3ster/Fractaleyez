@@ -14,6 +14,9 @@ import { getMusicSpeedMultiplier } from './music-speed'
  * Modifications made by Cody Douglass and Conor O'Neill
  */
 
+// Longest frame (ms) that advances Z motion, so a tab stall doesn't launch particles.
+const maxMotionDeltaMs = 100
+
 // Orbit parameters
 let a = 0; let b = 0; let c = 0; let d = 0; let e = 0
 
@@ -248,11 +251,14 @@ export class HopalongVisualizer {
   }
 
   private applyParticleMotion = (obj: ParticleSystem, count: number, musicSpeedMultiplier: number, applyPeakEffects: boolean): void => {
-    obj.position.z += window.config.user.speed.value * musicSpeedMultiplier
+    // Per-second like the rotation below; delta is clamped to maxMotionDeltaMs.
+    const zStep = window.config.user.speed.value * musicSpeedMultiplier * userConfig.speed_UNITS_PER_SEC_PER_UNIT
+      * (Math.min(this.deltaTime, maxMotionDeltaMs) / 1000)
+    obj.position.z += zStep
 
     if (applyPeakEffects) {
       if (window.config.effects.wobWob.value) {
-        obj.position.z -= window.config.user.speed.value * musicSpeedMultiplier * 2
+        obj.position.z -= zStep * 2
       }
 
       if (window.config.effects.colorShift.value) {
