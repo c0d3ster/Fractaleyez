@@ -2,12 +2,16 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { Types } from 'mongoose'
 import { PresetMeta } from '../repositories/PresetRepository'
 import { presetRepository } from '../repositories/PresetRepository'
+import { packRepository, PackMeta } from '../repositories/PackRepository'
 import { IPreset } from '../models/Preset'
 import { defaultFirst, PresetService, toUpdatedAt } from './PresetService'
 import { userService } from './UserService'
 
 vi.mock('../repositories/PresetRepository', () => ({
   presetRepository: { create: vi.fn(), upsert: vi.fn(), findAll: vi.fn() },
+}))
+vi.mock('../repositories/PackRepository', () => ({
+  packRepository: { findAll: vi.fn() },
 }))
 vi.mock('./UserService', () => ({
   userService: { isAdmin: vi.fn() },
@@ -55,8 +59,22 @@ describe('updatedAt', () => {
   it('is listed for every preset, so a client can tell which cached copies are out of date', async () => {
     const stamped = { ...row('pointerz'), updatedAt: new Date('2026-10-19T12:30:00.000Z') }
     vi.mocked(presetRepository.findAll).mockResolvedValue([row('default'), stamped])
+    vi.mocked(packRepository.findAll).mockResolvedValue([])
     const list = await new PresetService().listPresetsForViewer(null)
     expect(list.map((p) => [p.name, p.updatedAt])).toEqual([['default', null], ['pointerz', '2026-10-19T12:30:00.000Z']])
+  })
+})
+
+describe('pack membership', () => {
+  const pack = (name: string, presetIds: Types.ObjectId[]): PackMeta => ({ _id: new Types.ObjectId(), name, slug: name, userId: 'u', isPremium: false, presetIds })
+
+  it('lists a preset under every pack that references it, and falls back to the legacy pack string', async () => {
+    const shared = { ...row('@userSpin'), pack: '@user' }
+    const legacy = { ...row('fire'), pack: 'Elemental' }
+    vi.mocked(presetRepository.findAll).mockResolvedValue([shared, legacy])
+    vi.mocked(packRepository.findAll).mockResolvedValue([pack('Essentials', [shared._id]), pack('@user', [shared._id])])
+    const list = await new PresetService().listPresetsForViewer(null)
+    expect(list.map((p) => [p.name, p.packs])).toEqual([['@userSpin', ['Essentials', '@user']], ['fire', ['Elemental']]])
   })
 })
 

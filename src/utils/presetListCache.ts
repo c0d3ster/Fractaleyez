@@ -3,6 +3,8 @@ export type ApiPreset = {
   id: string
   name: string
   pack: string
+  /** Every pack that includes the preset; absent in a list cached before membership moved to the packs. */
+  packs?: string[]
   sprite: string
   isOwn: boolean
   /** ISO time of the preset's last write; null for a legacy document. A cached copy of its config is current while this is unchanged. */
@@ -40,6 +42,7 @@ const isApiPreset = (value: unknown): value is ApiPreset =>
   typeof value.id === 'string' &&
   typeof value.name === 'string' &&
   typeof value.pack === 'string' &&
+  (value.packs === undefined || (Array.isArray(value.packs) && value.packs.every((name) => typeof name === 'string'))) &&
   typeof value.sprite === 'string' &&
   typeof value.isOwn === 'boolean' &&
   'updatedAt' in value &&

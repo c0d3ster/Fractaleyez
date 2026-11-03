@@ -1,4 +1,4 @@
-import { Schema, model, Document } from 'mongoose'
+import { Schema, model, Document, Types } from 'mongoose'
 
 export interface IPack extends Document {
   name: string
@@ -7,6 +7,7 @@ export interface IPack extends Document {
   description?: string
   isPremium: boolean
   price?: number
+  presetIds: Types.ObjectId[] // membership lives here; a preset can be in many packs
 }
 
 const packSchema = new Schema<IPack>({
@@ -16,6 +17,7 @@ const packSchema = new Schema<IPack>({
   description: { type: String },
   isPremium: { type: Boolean, default: false },
   price: { type: Number },
+  presetIds: { type: [{ type: Schema.Types.ObjectId, ref: 'Preset' }], default: [] },
 })
 
 packSchema.index({ slug: 1 }, { unique: true })

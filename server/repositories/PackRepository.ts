@@ -10,6 +10,7 @@ export type PackMeta = {
   description?: string
   isPremium: boolean
   price?: number
+  presetIds?: Types.ObjectId[] // absent on packs written before membership moved here
 }
 
 export type CreatePackData = {
