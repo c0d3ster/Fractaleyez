@@ -1,4 +1,4 @@
-import { Types } from 'mongoose'
+import { packRepository } from '../repositories/PackRepository'
 import { presetRepository, PresetMeta } from '../repositories/PresetRepository'
 import { IPreset } from '../models/Preset'
 import { userService } from './UserService'
@@ -9,7 +9,6 @@ const USER_REFERENCE = '@user'
 type SavePresetParams = {
   name: string
   pack: string
-  packId?: Types.ObjectId
   config: Record<string, unknown>
   userId: string
   force: boolean
@@ -31,6 +30,7 @@ export type PublicPresetMeta = {
   id: string
   name: string
   pack: string  // always a string; empty when no pack assigned
+  packs: string[] // names of every pack that includes the preset; its legacy `pack` when no pack lists it
   sprite: string
   isOwn: boolean
   updatedAt: string | null // ISO; null for a legacy document that has not been written since timestamps were added
@@ -69,11 +69,19 @@ export const defaultFirst = (rows: PresetMeta[]): PresetMeta[] => [
 
 export class PresetService {
   async listPresetsForViewer(viewerId: string | null): Promise<PublicPresetMeta[]> {
-    const rows = defaultFirst(await presetRepository.findAll())
+    const [found, packs] = await Promise.all([presetRepository.findAll(), packRepository.findAll()])
+    const rows = defaultFirst(found)
+    const packsByPreset = new Map<string, string[]>()
+    for (const pack of packs) {
+      for (const presetId of pack.presetIds ?? []) {
+        packsByPreset.set(String(presetId), [...(packsByPreset.get(String(presetId)) ?? []), pack.name])
+      }
+    }
     return rows.map((p) => ({
       id: String(p._id),
       name: p.name,
       pack: p.pack ?? '',
+      packs: packsByPreset.get(String(p._id)) ?? (p.pack ? [p.pack] : []),
       sprite: p.sprite,
       isOwn: !!viewerId && !!p.userId && p.userId === viewerId,
       updatedAt: toUpdatedAt(p.updatedAt),
@@ -86,12 +94,12 @@ export class PresetService {
     return preset
   }
 
-  async savePreset({ name, pack, packId, config, userId, force }: SavePresetParams): Promise<IPreset> {
+  async savePreset({ name, pack, config, userId, force }: SavePresetParams): Promise<IPreset> {
     if (usesUserReference(config) &&!(await userService.isAdmin(userId))) {
       throw serviceError('Only admins can create presets that use @user', 403)
     }
 
-    const payload = { name, pack, packId, sprite: firstSprite(config), config, userId }
+    const payload = { name, pack, sprite: firstSprite(config), config, userId }
 
     if (!force) {
       try {

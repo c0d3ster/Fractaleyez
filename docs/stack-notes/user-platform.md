@@ -435,3 +435,14 @@ Re-rooted on `main`: the previous `Branch:` line above (`overnight/2026-09-20/04
 - No pre-existing preset contains `@user`, so existing presets render unchanged. `#8` extends `userReference.ts` with name templating.
 - Checks: `yarn typecheck`, `yarn lint`, `yarn build` clean; vitest 127 passed. `server/repositories/UserRepository.test.ts` fails here with or without this change (mongodb-memory-server cannot download its binary in the sandbox).
 - NEEDS HUMAN: in a browser, confirm (1) a Spotify/Google photo is fetchable and persisted (Clerk image CORS), (2) an `@user` preset renders the logo, the photo, and the name text. No preset using `@user` exists until `#6`.
+
+## #250 Recreate Shlump pack presets as @user variants
+
+Branch: overnight/2026-11-03/r1-01-t250-user-pack-presets
+
+- Membership moved to `Pack.presetIds: ObjectId[]`; `Preset.packId` removed (model, repo, service, `savePresetHandler`). The legacy `Preset.pack` string stays. `/api/presets` now returns `packs: string[]` per preset (names of every pack referencing it, falling back to the legacy `pack` when no pack lists it). `ApiPreset`/`PresetMeta` gain optional `packs`; the list cache accepts it.
+- `Presets.tsx`: tabs and filtering use `packs`, so a shared preset shows under each tab. A preset is gated only if every pack it is in is premium and unowned (`lockingPack`); the trial starts on its first pack. Existing `isPremium` + `PremiumTrialModal` reused, no new entitlement infra.
+- Deviation: `src/config/presets.ts` does not exist (preset data lives only in MongoDB), so the four variants are created by `scripts/seed-packs.js` by cloning the Shlump rows (`shlump`, `shlumpSpin`, `shlumpSalad`, `hyperShlump`) from the DB. Config is verbatim except `shlump.png`/`shlumpSkull.png` become `@user` (sprite arrays deduped); stored `sprite` is `@user`; legacy `pack` is `@user`. `shlumpSkull` and the Shlump pack are untouched.
+- `seed-packs.js`: adds the premium `@user` pack, upserts the variants, then re-syncs every pack's `presetIds` by legacy `pack` name (plus `@userSpin` in Essentials). Idempotent. `yarn seed` must run before `yarn seed-packs`.
+- Checks: typecheck, lint, build clean; vitest 365 passed (new membership test). The seed script was not run against a database.
+- NEEDS HUMAN: run `pnpm seed && pnpm seed-packs` against each database, then confirm in the app that `@userSpin` appears under Essentials and `@user`, loads free, and the other three trigger the premium trial.

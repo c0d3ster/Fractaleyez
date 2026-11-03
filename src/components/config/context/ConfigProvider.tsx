@@ -36,6 +36,7 @@ export type PresetMeta = {
   name: string
   label: string
   pack: string
+  packs?: string[]
   sprite: string
   isOwn: boolean
   updatedAt?: string | null
@@ -823,8 +824,8 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
     setPresetList(next)
     // Keep the cached list current, so a reload with the API down still shows what was just saved.
     updatePresetListCache(viewerId, {
-      presets: next.flatMap(({ id, name: presetName, pack: presetPack, sprite: presetSprite, isOwn, updatedAt: presetUpdatedAt }) =>
-        id ? [{ id, name: presetName, pack: presetPack, sprite: presetSprite, isOwn, updatedAt: presetUpdatedAt ?? null }] : []),
+      presets: next.flatMap(({ id, name: presetName, pack: presetPack, packs: presetPacks, sprite: presetSprite, isOwn, updatedAt: presetUpdatedAt }) =>
+        id ? [{ id, name: presetName, pack: presetPack, packs: presetPacks, sprite: presetSprite, isOwn, updatedAt: presetUpdatedAt ?? null }] : []),
     })
   }, [config, getToken, withUserReference, viewerId])
 

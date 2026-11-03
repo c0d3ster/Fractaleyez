@@ -10,6 +10,9 @@ import { PremiumTrialModal } from './PremiumTrialModal'
 
 export type PresetSelection = { name: string; label: string; pack: string; isOwn: boolean }
 
+/** Every pack a preset is listed under; a preset can be in several. */
+const packsOf = ({ pack, packs }: PresetMeta): string[] => (packs?.length ? packs : pack ? [pack] : [])
+
 type PresetsProps = {
   retrieveConfigPreset: (event: PresetRetrieveEvent) => Promise<void>
   revertConfig: (snapshot: AppConfig) => void
@@ -39,9 +42,16 @@ const PresetsInner = ({ retrieveConfigPreset, revertConfig, config, presets, pac
     retrieveConfigPreset,
   })
 
-  const packNames = ['All', ...new Set(presets.map(p => p.pack).filter(Boolean))]
+  // A preset loads if any pack it is in is free or owned; otherwise it is gated behind the first of its (premium) packs.
+  const lockingPack = useCallback((preset: PresetMeta): string | null => {
+    const names = packsOf(preset)
+    if (!names.length || names.some(name => !packMap.get(name)?.isPremium || packMap.get(name)?.isOwn)) return null
+    return names[0] ?? null
+  }, [packMap])
+
+  const packNames = ['All', ...new Set(presets.flatMap(packsOf))]
   const itemsPerPage = expanded ? 18 : 9
-  const filtered = activePack === 'All' ? presets : presets.filter(p => p.pack === activePack)
+  const filtered = activePack === 'All' ? presets : presets.filter(p => packsOf(p).includes(activePack))
   const totalPages = Math.ceil(filtered.length / itemsPerPage)
   const visible = filtered.slice(page * itemsPerPage, (page + 1) * itemsPerPage)
 
@@ -61,17 +71,17 @@ const PresetsInner = ({ retrieveConfigPreset, revertConfig, config, presets, pac
   }
 
   const handlePresetClick = useCallback((preset: PresetMeta, event: PresetRetrieveEvent): void => {
-    const packMeta = packMap.get(preset.pack)
-    if (packMeta?.isPremium && !packMeta.isOwn) {
+    const locked = lockingPack(preset)
+    if (locked) {
       setTrialPresetKey(preset.id ?? preset.name)
-      startTrial(preset.pack, event)
+      startTrial(locked, event)
     } else {
       cancelTrial()
       setTrialPresetKey(null)
       void retrieveConfigPreset(event)
     }
     onSelect?.({ name: preset.name, label: preset.label, pack: preset.pack, isOwn: preset.isOwn })
-  }, [packMap, startTrial, cancelTrial, retrieveConfigPreset, onSelect])
+  }, [lockingPack, startTrial, cancelTrial, retrieveConfigPreset, onSelect])
 
   useEffect(() => {
     // Popped-out config windows render this component into a separate window.open()
@@ -138,8 +148,7 @@ const PresetsInner = ({ retrieveConfigPreset, revertConfig, config, presets, pac
                   currentTarget: { dataset: { name: String(name), id: id ?? '' } },
                 }
                 const isTrialing = trialPresetKey === (id ?? name) && secondsLeft !== null
-                const presetPackMeta = packMap.get(preset.pack)
-                const isPremiumUnowned = presetPackMeta?.isPremium && !presetPackMeta.isOwn
+                const isPremiumUnowned = lockingPack(preset) !== null
                 const hotkey = index < 9 ? index + 1 : null
                 return (
                   <button

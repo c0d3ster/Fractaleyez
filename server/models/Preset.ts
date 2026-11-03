@@ -1,9 +1,8 @@
-import { Schema, model, Document, Types } from 'mongoose'
+import { Schema, model, Document } from 'mongoose'
 
 export interface IPreset extends Document {
   name: string
   pack?: string
-  packId?: Types.ObjectId
   sprite: string
   config: Record<string, unknown>
   userId?: string
@@ -13,7 +12,6 @@ export interface IPreset extends Document {
 const presetSchema = new Schema<IPreset>({
   name: { type: String, required: true },
   pack: { type: String, default: '' },
-  packId: { type: Schema.Types.ObjectId, ref: 'Pack' },
   sprite: { type: String, required: true },
   config: { type: Schema.Types.Mixed, required: true },
   userId: { type: String },
