@@ -110,6 +110,8 @@ export class LogoLayer implements Layer {
   private zoomPhase = 0
   // 0 is the plain logo, 1 is the zoom chain; it follows the Zoom switch over the Crossfade Duration so toggling it fades.
   private zoomMix = 0
+  // The first frame with an image takes the Zoom switch as it is, so a logo that loads zoomed does not start plain and fade.
+  private zoomMixPlaced = false
   private readonly faces: THREE.MeshBasicMaterial[] = this.slices.filter((_, i) => isFace(i))
   private readonly sides: THREE.MeshBasicMaterial[] = this.slices.filter((_, i) => !isFace(i))
   private spriteUrl = ''
@@ -253,6 +255,10 @@ export class LogoLayer implements Layer {
     // Crossfade Duration. The chain starts at the logo's own size, so it takes over from the plain logo without a jump.
     const crossfadeMs = getParticleCrossfadeDurationMs()
     const zoomTarget = logo.zoom.value ? 1 : 0
+    if (!this.zoomMixPlaced) {
+      this.zoomMix = zoomTarget
+      this.zoomMixPlaced = true
+    }
     this.zoomMix = crossfadeMs > 0 ? moveToward(this.zoomMix, zoomTarget, deltaTime / crossfadeMs) : zoomTarget
     const isZooming = this.zoomMix > 0
     if (!isZooming) this.zoomPhase = 0
