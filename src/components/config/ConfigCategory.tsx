@@ -41,11 +41,18 @@ type ConfigCategoryProps = {
 
 const ConfigCategoryInner = React.memo(({ name, config, isOpen, expanded = false, toggleOpen, onChange, resetConfigSection, resetVideoClips, popup = false, bare = false, children }: ConfigCategoryProps) => {
   const info = useInfo()
+  // A layer's primary section resets every section the layer owns (Orbit also restores Particle); a secondary one resets itself.
+  const resetSections = useCallback((): void => {
+    const layer = LAYER_KEYS.some((key) => key === name) ? CATEGORY_LAYER[name] : undefined
+    const names = layer ? Object.keys(CATEGORY_LAYER).filter((key) => CATEGORY_LAYER[key] === layer) : [name]
+    names.filter(isResettableSection).forEach((section) => { void resetConfigSection(section) })
+  }, [name, resetConfigSection])
+
   const handleSectionReset = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
     // In the sidebar the button lives inside the header, whose click toggles the section.
     event.stopPropagation()
-    if (isResettableSection(name)) void resetConfigSection(name)
-  }, [name, resetConfigSection])
+    resetSections()
+  }, [resetSections])
 
   // Video is not a plain config section: its reset restores the preset's clip list (the sidebar renders it through here).
   const hasLayerReset = isResettableSection(name) || name === 'video'
@@ -56,8 +63,8 @@ const ConfigCategoryInner = React.memo(({ name, config, isOpen, expanded = false
       resetVideoClips()
       return
     }
-    if (isResettableSection(name)) void resetConfigSection(name)
-  }, [name, resetConfigSection, resetVideoClips])
+    resetSections()
+  }, [name, resetSections, resetVideoClips])
 
   const handleToggle = useCallback(() => {
     toggleOpen(name)
