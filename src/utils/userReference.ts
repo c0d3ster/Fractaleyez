@@ -100,3 +100,9 @@ export const restoreUserReference = (sprites: string[], reference: UserReference
   if (reference.collapsed) return sprites.includes(USER_REFERENCE) ? sprites : [USER_REFERENCE, ...sprites]
   return sprites.map(s => (s === reference.resolved ? USER_REFERENCE : s))
 }
+
+/** Display-only: swaps every `@user` in a pack or preset name for the viewer's name. Stored names keep the sentinel. */
+export const resolveUserName = (text: string, displayName: string | null | undefined): string => {
+  const name = displayName?.trim()
+  return name ? text.split(USER_REFERENCE).join(name) : text
+}

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { resolveUserParticle, resolveUserSprites, restoreUserReference, swapUserReference } from './userReference'
+import { resolveUserName, resolveUserParticle, resolveUserSprites, restoreUserReference, swapUserReference } from './userReference'
 
 const renderText = (text: string): string => `data:text,${text}`
 
@@ -61,5 +61,22 @@ describe('resolveUserSprites / restoreUserReference', () => {
 
   it('does not rewrite anything when the preset had no reference', () => {
     expect(restoreUserReference(['https://r2/logo.png'], null)).toEqual(['https://r2/logo.png'])
+  })
+})
+
+describe('resolveUserName', () => {
+  it('swaps @user wherever it appears in a name', () => {
+    expect(resolveUserName('@user', 'BeatzMe')).toBe('BeatzMe')
+    expect(resolveUserName('@userSpin', 'BeatzMe')).toBe('BeatzMeSpin')
+    expect(resolveUserName('Hyper@user', 'BeatzMe')).toBe('HyperBeatzMe')
+  })
+
+  it('leaves the name alone with no display name', () => {
+    expect(resolveUserName('@userSpin', null)).toBe('@userSpin')
+    expect(resolveUserName('@userSpin', '  ')).toBe('@userSpin')
+  })
+
+  it('leaves names without the sentinel alone', () => {
+    expect(resolveUserName('Shlump', 'BeatzMe')).toBe('Shlump')
   })
 })

@@ -273,6 +273,8 @@ export type ConfigContextValue = {
   isAdmin: boolean
   /** The viewer's resolved `@user` sprite (logo, else display name, else app default), for preset list thumbnails. */
   userSprite: string
+  /** The viewer's display name, or null (signed out, or none set). Resolves `@user` in pack and preset names for display. */
+  userName: string | null
   updateUserSettings: (patch: Partial<UserSettings>) => void
 }
 
@@ -830,7 +832,7 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
   }, [config, getToken, withUserReference, viewerId])
 
   return (
-    <ConfigContext.Provider value={{ config, updateConfigItem, updateVideoClips, updateParticleSprites, updateLogoSprite, applyUserReference, releaseUserReference, userReferenceStandIn, updateColorList, setLayerEnabled, setLayerOpacity, moveLayer, retrieveConfigPreset, revertConfig, resetConfig, resetConfigItem, resetConfigSection, resetVideoClips, savePreset, isSignedIn: isSignedIn ?? false, currentUserId: user?.id ?? null, getToken, presets: presetList, packs: packList, userSettings, isAdmin: isSignedIn === true && isAdmin, userSprite, updateUserSettings }}>
+    <ConfigContext.Provider value={{ config, updateConfigItem, updateVideoClips, updateParticleSprites, updateLogoSprite, applyUserReference, releaseUserReference, userReferenceStandIn, updateColorList, setLayerEnabled, setLayerOpacity, moveLayer, retrieveConfigPreset, revertConfig, resetConfig, resetConfigItem, resetConfigSection, resetVideoClips, savePreset, isSignedIn: isSignedIn ?? false, currentUserId: user?.id ?? null, getToken, presets: presetList, packs: packList, userSettings, isAdmin: isSignedIn === true && isAdmin, userSprite, userName: displayName, updateUserSettings }}>
       {children}
     </ConfigContext.Provider>
   )
