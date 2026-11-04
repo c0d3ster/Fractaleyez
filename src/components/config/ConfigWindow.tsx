@@ -132,6 +132,7 @@ const ExternalWindowBridge = ({
   userSettings,
   isAdmin,
   userSprite,
+  userName,
   updateUserSettings,
 }: ExternalWindowBridgeProps): React.ReactElement => {
   const [prefill, setPrefill] = useState<PresetSelection | null>(null)
@@ -165,6 +166,7 @@ const ExternalWindowBridge = ({
         userSettings,
         isAdmin,
         userSprite,
+        userName,
         updateUserSettings,
       }}
     >
@@ -252,6 +254,7 @@ const ConfigWindowInner = ({
   userSettings,
   isAdmin,
   userSprite,
+  userName,
   updateUserSettings,
   onClose,
 }: ConfigWindowProps): null => {
@@ -361,6 +364,7 @@ const ConfigWindowInner = ({
         userSettings={userSettings}
         isAdmin={isAdmin}
         userSprite={userSprite}
+        userName={userName}
         updateUserSettings={updateUserSettings}
       />
     )
@@ -391,6 +395,7 @@ const ConfigWindowInner = ({
     userSettings,
     isAdmin,
     userSprite,
+    userName,
     updateUserSettings,
   ])
 

@@ -5,6 +5,7 @@ import { connectConfig } from '../config/context/ConfigProvider'
 import { PresetRetrieveEvent, PresetMeta, PackMeta } from '../config/context/ConfigProvider'
 import { AppConfig } from '../../config/configDefaults'
 import { presetSpriteSrc } from '../../utils/presetSpriteSrc'
+import { resolveUserName } from '../../utils/userReference'
 import { usePremiumTrial } from './usePremiumTrial'
 import { PremiumTrialModal } from './PremiumTrialModal'
 
@@ -20,13 +21,14 @@ type PresetsProps = {
   presets: PresetMeta[]
   packs?: PackMeta[]
   userSprite?: string
+  userName?: string | null
   expanded?: boolean
   onSelect?: (preset: PresetSelection) => void
   onPackSelect?: (pack: string) => void
   headerActions?: React.ReactNode
 }
 
-const PresetsInner = ({ retrieveConfigPreset, revertConfig, config, presets, packs = [], userSprite, expanded = false, onSelect, onPackSelect, headerActions }: PresetsProps): React.ReactElement => {
+const PresetsInner = ({ retrieveConfigPreset, revertConfig, config, presets, packs = [], userSprite, userName = null, expanded = false, onSelect, onPackSelect, headerActions }: PresetsProps): React.ReactElement => {
   const [activePack, setActivePack] = useState('All')
   const [page, setPage] = useState(0)
   const [paging, setPaging] = useState(false)
@@ -124,7 +126,7 @@ const PresetsInner = ({ retrieveConfigPreset, revertConfig, config, presets, pac
                     onClick={() => selectPack(pack)}
                   >
                     {isPremium && <span className='premium-ring' aria-hidden />}
-                    {pack}
+                    {resolveUserName(pack, userName)}
                   </button>
                 )
               })}
@@ -165,7 +167,7 @@ const PresetsInner = ({ retrieveConfigPreset, revertConfig, config, presets, pac
                       </span>
                     )}
                     <img src={presetSpriteSrc(sprite, userSprite)} alt='' className='preset-sprite' />
-                    <span>{label}</span>
+                    <span>{resolveUserName(label, userName)}</span>
                     {isTrialing && <span className='preset-trial-countdown'>{secondsLeft}</span>}
                   </button>
                 )
@@ -190,7 +192,7 @@ const PresetsInner = ({ retrieveConfigPreset, revertConfig, config, presets, pac
         </div>
       </div>
       {modalVisible && (
-        <PremiumTrialModal packName={trialPackName} onDismiss={dismissTrial} />
+        <PremiumTrialModal packName={resolveUserName(trialPackName, userName)} onDismiss={dismissTrial} />
       )}
     </>
   )
