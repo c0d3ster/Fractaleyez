@@ -175,6 +175,8 @@ export class HopalongVisualizer {
     // Switcheroo reshapes once per beat (the frame the peak crosses the threshold), not on every frame the peak stays
     // up: that rebuilt the whole orbit and re-uploaded every buffer for several frames a beat, which doubled the frame
     // time on a slower CPU, and the shape just holds until the next beat anyway.
+    if (audioData.beat.fresh && window.config.effects.colorShift.value) this.rerollColors()
+
     const reshapeOnBeat = audioData.beat.fresh && window.config.effects.switcheroo.value && !this.frozen
 
     this.deltaTime = deltaTime
@@ -239,6 +241,16 @@ export class HopalongVisualizer {
     obj.myMaterial.color.setRGB(luma + (red - luma) * saturation, luma + (green - luma) * saturation, luma + (blue - luma) * saturation)
   }
 
+  // Color Shift: each beat gives every subset a new spot on the palette and recolors the live and fading particles.
+  private rerollColors = (): void => {
+    for (let s = 0; s < this.layers; s++) {
+      this.hueValues[s] = Math.random()
+    }
+    const recolor = (obj: ParticleSystem): void => this.colorize(obj, obj.mySubset)
+    this.objects.forEach(recolor)
+    this.orbitFades.forEach((fade) => fade.outgoing.forEach(recolor))
+  }
+
   // The Color config sits outside the particle diff that rebuilds the system, so a change recolors the existing
   // particles in place.
   private syncColor = (): void => {
@@ -259,10 +271,6 @@ export class HopalongVisualizer {
     if (applyPeakEffects) {
       if (window.config.effects.wobWob.value) {
         obj.position.z -= zStep * 2
-      }
-
-      if (window.config.effects.colorShift.value) {
-        this.colorize(obj, obj.mySubset)
       }
     }
 
