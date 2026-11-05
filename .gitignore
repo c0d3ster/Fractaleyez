@@ -19,6 +19,7 @@ ssl/
 
 # Env
 .env
+.env.production
 
 # Presets exported from the database for seeding (pnpm export-presets)
 scripts/presets.local*.json

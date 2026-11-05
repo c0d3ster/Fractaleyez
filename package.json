@@ -13,8 +13,11 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "seed": "node scripts/seed-presets.js",
+    "seed:prod": "node scripts/seed-presets.js --env=production",
     "export-presets": "node scripts/export-presets.js",
+    "export-presets:prod": "node scripts/export-presets.js --env=production",
     "seed-packs": "node scripts/seed-packs.js",
+    "seed-packs:prod": "node scripts/seed-packs.js --env=production",
     "migrate-particles-to-r2": "node scripts/migrate-particles-to-r2.js"
   },
   "author": "Cody Douglass",

@@ -2,7 +2,7 @@
 // or by a presets file passed as the first argument, e.g. one from `pnpm export-presets`) from public/ up to R2,
 // under the `builtins/` prefix.
 // Idempotent: skips any key that's already present in the bucket.
-require('dotenv').config({ quiet: true })
+require('./loadEnv')
 require('@babel/register')({
   extensions: ['.ts'],
   presets: [

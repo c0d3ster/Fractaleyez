@@ -2,7 +2,7 @@
 //
 // Run `pnpm seed` BEFORE this script: membership is looked up by preset name, so presets that are not in the
 // database yet are left out of their packs. Safe to re-run; each run re-syncs rather than duplicating.
-require('dotenv').config({ quiet: true })
+require('./loadEnv')
 require('@babel/register')({
   extensions: ['.ts'],
   presets: [
