@@ -41,5 +41,6 @@ export default async (req: VercelRequest, res: VercelResponse): Promise<void> =>
     }
     throw err
   }
-  return uploadParticleHandler({ ...req, body } as never, res as never)
+  // Not `{ ...req, body }`: headers lives on IncomingMessage's prototype, so spreading drops it.
+  return uploadParticleHandler(Object.assign(req, { body }) as never, res as never)
 }
