@@ -16,7 +16,10 @@ const { requireEnv } = require('../server/env.ts')
 const { Pack } = require('../server/models/Pack.ts')
 const { Preset } = require('../server/models/Preset.ts')
 
-const OWNER_ID = 'user_3BrYZAMVr6xtgiLURb0XtsjBKQB'
+// Each environment has its own Clerk instance, so the pack owner is that environment's admin account. Stamping the
+// wrong ID makes the admin a stranger to every pack there (isOwn is false and the premium gate shows).
+const OWNER_ID = process.env.SEED_OWNER_ID
+if (!OWNER_ID) throw new Error('SEED_OWNER_ID is required: the Clerk user id of the admin for the database being seeded')
 
 const packs = [
   { name: 'Essentials', isPremium: false },

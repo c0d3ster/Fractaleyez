@@ -13,7 +13,7 @@ pnpm lint             # eslint src --fix
 pnpm typecheck        # tsc --noEmit (src/** only, see tsconfig.json)
 pnpm seed             # seed `default` (generated from configDefaults) into MongoDB; `pnpm seed --file presets.json` adds presets from a file
 pnpm export-presets   # write the global presets from MongoDB to scripts/presets.local.json (git-ignored), for seeding another database
-pnpm seed-packs       # seed pack documents into MongoDB
+pnpm seed-packs       # seed pack documents, @user presets and pack membership into MongoDB; needs SEED_OWNER_ID (the Clerk user id of that database's admin, different for dev and prod)
 ```
 
 There is no `test` script yet — vitest, supertest, and mongodb-memory-server are present as devDependencies but no test files or vitest config exist in the repo currently.

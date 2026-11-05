@@ -48,6 +48,8 @@ export type PackMeta = {
   slug: string
   isPremium: boolean
   isOwn: boolean
+  /** May use the pack's presets (creator, admin, later a subscriber). A premium pack is still marked premium either way. */
+  isEntitled: boolean
 }
 
 type ApiMeResponse = {
