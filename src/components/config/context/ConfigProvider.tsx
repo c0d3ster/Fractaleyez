@@ -457,6 +457,29 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
     }, USER_SETTINGS_SAVE_DEBOUNCE_MS)
   }, [isSignedIn, getToken])
 
+  // Clerk's own "Manage account > Profile" avatar uploader talks to Clerk directly and never touches our settings, so the
+  // saved logoParticle would stay on the old photo. When the Clerk image changes mid-session, run the new one through the
+  // same sprite processing and save it as the logo. The first value seen is only recorded: the load effect above owns the
+  // initial sync, and a custom logo uploaded elsewhere must not be replaced just because the app reloaded.
+  const seenClerkImageRef = useRef<{ userId: string, imageUrl: string } | null>(null)
+  useEffect(() => {
+    if (!isSignedIn || !user) {
+      seenClerkImageRef.current = null
+      return
+    }
+    const seen = seenClerkImageRef.current
+    seenClerkImageRef.current = { userId: user.id, imageUrl: user.imageUrl }
+    if (!seen || seen.userId !== user.id || seen.imageUrl === user.imageUrl || !user.hasImage) return
+
+    const sync = async (): Promise<void> => {
+      const token = await getToken()
+      if (!token) return
+      const url = await persistClerkPhotoAsLogo(user.imageUrl, token)
+      if (url) updateUserSettings({ logoParticle: url })
+    }
+    void sync()
+  }, [isSignedIn, user?.id, user?.imageUrl, user?.hasImage, getToken, updateUserSettings])
+
   const updateConfigItem = useCallback((category: string, item: string, value: string | boolean | number) => {
     const parsed = typeof value === 'string' ? parseFloat(value) : value
     const parsedValue = typeof parsed === 'number' && isNaN(parsed) ? value : parsed
