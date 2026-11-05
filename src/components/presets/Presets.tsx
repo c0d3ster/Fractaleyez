@@ -44,10 +44,16 @@ const PresetsInner = ({ retrieveConfigPreset, revertConfig, config, presets, pac
     retrieveConfigPreset,
   })
 
-  // A preset loads if any pack it is in is free or owned; otherwise it is gated behind the first of its (premium) packs.
+  // Marks a preset premium when every pack it is in is premium. This is only a label: it never decides access.
+  const isPremiumPreset = useCallback((preset: PresetMeta): boolean => {
+    const names = packsOf(preset)
+    return names.length > 0 && names.every(name => packMap.get(name)?.isPremium)
+  }, [packMap])
+
+  // A preset loads if any pack it is in is free or the viewer is entitled to it; otherwise it is gated behind the first of its (premium) packs.
   const lockingPack = useCallback((preset: PresetMeta): string | null => {
     const names = packsOf(preset)
-    if (!names.length || names.some(name => !packMap.get(name)?.isPremium || packMap.get(name)?.isOwn)) return null
+    if (!names.length || names.some(name => !packMap.get(name)?.isPremium || packMap.get(name)?.isEntitled)) return null
     return names[0] ?? null
   }, [packMap])
 
@@ -96,7 +102,7 @@ const PresetsInner = ({ retrieveConfigPreset, revertConfig, config, presets, pac
       if (e.metaKey || e.ctrlKey || e.altKey) return
       if (modalVisible) return
       const activeMeta = packMap.get(activePack)
-      if (activeMeta?.isPremium && !activeMeta.isOwn && !previewMode) return
+      if (activeMeta?.isPremium && !activeMeta.isEntitled && !previewMode) return
       const hotkeyIndex = Number(e.key) - 1
       if (!Number.isInteger(hotkeyIndex) || hotkeyIndex < 0 || hotkeyIndex > 8) return
       const preset = visible[hotkeyIndex]
@@ -136,7 +142,7 @@ const PresetsInner = ({ retrieveConfigPreset, revertConfig, config, presets, pac
           <div className='presets-grid-wrap'>
             {(() => {
               const activeMeta = packMap.get(activePack)
-              return activeMeta?.isPremium && !activeMeta.isOwn && !previewMode ? (
+              return activeMeta?.isPremium && !activeMeta.isEntitled && !previewMode ? (
                 <div className='pack-premium-overlay'>
                   <span className='pack-premium-overlay-label'>✦ Premium</span>
                   <button className='pack-premium-overlay-btn' onClick={() => setPreviewMode(true)}>Preview</button>
@@ -150,17 +156,17 @@ const PresetsInner = ({ retrieveConfigPreset, revertConfig, config, presets, pac
                   currentTarget: { dataset: { name: String(name), id: id ?? '' } },
                 }
                 const isTrialing = trialPresetKey === (id ?? name) && secondsLeft !== null
-                const isPremiumUnowned = lockingPack(preset) !== null
+                const isPremium = isPremiumPreset(preset)
                 const hotkey = index < 9 ? index + 1 : null
                 return (
                   <button
                     key={id ?? name}
-                    className={`preset-item${isPremiumUnowned ? ' preset-item--premium' : ''}`}
+                    className={`preset-item${isPremium ? ' preset-item--premium' : ''}`}
                     data-name={name}
                     data-id={id ?? ''}
                     onClick={() => handlePresetClick(preset, event)}
                   >
-                    {isPremiumUnowned && <span className='premium-ring' aria-hidden />}
+                    {isPremium && <span className='premium-ring' aria-hidden />}
                     {hotkey !== null && (
                       <span className='preset-hotkey-badge'>
                         <span className='preset-hotkey-badge-num'>{hotkey}</span>

@@ -16,7 +16,7 @@ const makeStorage = (initial: Record<string, string> = {}): Pick<Storage, 'getIt
 }
 
 const preset: ApiPreset = { id: 'p1', name: 'fire', pack: 'Elemental', sprite: 'fire.png', isOwn: false, updatedAt: '2026-10-19T12:00:00.000Z' }
-const pack: ApiPack = { id: 'k1', name: 'Elemental', slug: 'elemental', isPremium: false, isOwn: false }
+const pack: ApiPack = { id: 'k1', name: 'Elemental', slug: 'elemental', isPremium: false, isOwn: false, isEntitled: false }
 
 describe('presetListCache', () => {
   it('reads back what was written for the same viewer', () => {

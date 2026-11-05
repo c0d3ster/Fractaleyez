@@ -18,6 +18,7 @@ export type ApiPack = {
   slug: string
   isPremium: boolean
   isOwn: boolean
+  isEntitled: boolean
 }
 
 /**
@@ -54,7 +55,8 @@ const isApiPack = (value: unknown): value is ApiPack =>
   typeof value.name === 'string' &&
   typeof value.slug === 'string' &&
   typeof value.isPremium === 'boolean' &&
-  typeof value.isOwn === 'boolean'
+  typeof value.isOwn === 'boolean' &&
+  typeof value.isEntitled === 'boolean'
 
 const isPresetListCache = (value: unknown): value is PresetListCache =>
   isRecord(value) &&

@@ -13,8 +13,10 @@ pnpm lint             # eslint src --fix
 pnpm typecheck        # tsc --noEmit (src/** only, see tsconfig.json)
 pnpm seed             # seed `default` (generated from configDefaults) into MongoDB; `pnpm seed --file presets.json` adds presets from a file
 pnpm export-presets   # write the global presets from MongoDB to scripts/presets.local.json (git-ignored), for seeding another database
-pnpm seed-packs       # seed pack documents into MongoDB
+pnpm seed-packs       # seed pack documents, @user presets and pack membership into MongoDB; needs SEED_OWNER_ID (the Clerk user id of that database's admin, different for dev and prod)
 ```
+
+Scripts that touch the database (`seed`, `seed-packs`, `export-presets`, and the others in `scripts/`) read `.env` (dev). Append `:prod` (`pnpm seed:prod`, `pnpm seed-packs:prod`, `pnpm export-presets:prod`), or pass `--env=production` to a script directly, to layer `.env.production` on top of `.env` instead of swapping values. `.env.production` is git-ignored and only needs what differs (`MONGO_URI` for the `/prod` database, `SEED_OWNER_ID` as the prod admin's Clerk id). `scripts/loadEnv.js` fails if the file is missing or if the database name does not match the mode, so a prod URI in `.env` cannot be seeded by accident.
 
 There is no `test` script yet — vitest, supertest, and mongodb-memory-server are present as devDependencies but no test files or vitest config exist in the repo currently.
 

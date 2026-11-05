@@ -5,7 +5,7 @@
 //   pnpm seed --file presets.json fire ice limits the run to the named presets
 //
 // The file is not committed: `pnpm export-presets` writes one from the database (scripts/presets.local.json).
-require('dotenv').config({ quiet: true })
+require('./loadEnv')
 require('@babel/register')({
   extensions: ['.ts'],
   presets: [

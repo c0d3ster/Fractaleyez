@@ -1,5 +1,6 @@
 import { packRepository } from '../repositories/PackRepository'
 import { IPack } from '../models/Pack'
+import { userService } from './UserService'
 
 type CreatePackParams = {
   name: string
@@ -30,21 +31,30 @@ export type PublicPackMeta = {
   description?: string
   isPremium: boolean
   price?: number
+  /** Who made the pack. Says nothing about access; that is `isEntitled`. */
   isOwn: boolean
+  /** Whether the viewer may use the pack's presets. The only access rule: premium packs are marked, never hidden. */
+  isEntitled: boolean
 }
 
 export class PackService {
   async listPacks(viewerId: string | null): Promise<PublicPackMeta[]> {
     const rows = await packRepository.findAll()
-    return rows.map((p) => ({
-      id: String(p._id),
-      name: p.name,
-      slug: p.slug,
-      description: p.description,
-      isPremium: p.isPremium,
-      price: p.price,
-      isOwn: !!viewerId && p.userId === viewerId,
-    }))
+    const isAdmin = viewerId ? await userService.isAdmin(viewerId) : false
+    return rows.map((p) => {
+      const isOwn = !!viewerId && p.userId === viewerId
+      return {
+        id: String(p._id),
+        name: p.name,
+        slug: p.slug,
+        description: p.description,
+        isPremium: p.isPremium,
+        price: p.price,
+        isOwn,
+        // Admins can use everything. When subscriptions land, an active one joins this expression and nothing else changes.
+        isEntitled: isOwn || isAdmin,
+      }
+    })
   }
 
   async listMyPacks(userId: string): Promise<PublicPackMeta[]> {
@@ -57,6 +67,7 @@ export class PackService {
       isPremium: p.isPremium,
       price: p.price,
       isOwn: true,
+      isEntitled: true,
     }))
   }
 
