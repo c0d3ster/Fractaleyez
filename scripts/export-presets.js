@@ -3,7 +3,7 @@
 //
 //   pnpm export-presets                 writes scripts/presets.local.json (git-ignored)
 //   pnpm export-presets out/presets.json
-require('dotenv').config({ quiet: true })
+require('./loadEnv')
 require('@babel/register')({
   extensions: ['.ts'],
   presets: [
