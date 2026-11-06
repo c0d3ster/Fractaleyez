@@ -1,5 +1,5 @@
 // Labels the current part of a song (quiet, groove, buildup, break, drop) from slow features of the band levels.
-// Everything is judged against the song's own recent baseline, never absolute levels, so a quiet mic and a loud
+// Everything is judged against the song's own recent loudness, never absolute levels, so a quiet mic and a loud
 // feed behave the same. The clock comes in with each sample, so the tracker is pure and testable.
 
 export type SongSection = 'quiet' | 'groove' | 'buildup' | 'break' | 'drop'
@@ -35,52 +35,75 @@ export type SectionSlot = {
 const SLOT_MS = 250
 const HISTORY_MS = 120000
 const PEAK_WINDOW_MS = 60000
-// The baseline is what the song has been doing, leaving out the last few seconds so a change is not part of its own reference.
-const BASE_FROM_MS = 4000
-const BASE_TO_MS = 34000
-// Needs this much history before it says anything but groove.
-const MIN_HISTORY_MS = 8000
+// The song's loudness memory: it jumps up at once and forgets slowly, so a long break is still judged against how loud the song was before it.
+const REFERENCE_RELEASE_TAU_MS = 45000
+// Needs this much song before it says anything but groove: the first stretch is mostly an intro ramping up from silence, which is not a buildup.
+const MIN_HISTORY_MS = 20000
 const RECENT_MS = 2000
-const FINE_MS = 500
+// Long enough to hold a few kicks, so a single hit against a quieter average does not read as the low end coming back.
+const FINE_MS = 1000
 const BEFORE_FROM_MS = 1500
 const BEFORE_TO_MS = 5000
 const RATE_RECENT_MS = 3000
 const RATE_PRIOR_TO_MS = 9000
 
 const QUIET_ENTER_DB = -14
-const QUIET_LEAVE_DB = -10
+const QUIET_LEAVE_DB = -8
+const QUIET_ENTER_SLOTS = 4
+const QUIET_MIN_MS = 3000
 const BREAK_LOW_DB = -8
 const BREAK_TOTAL_DB = -2.5
+const BREAK_LEAVE_LOW_DB = -5.5
+const BREAK_LEAVE_TOTAL_DB = -1
+const BREAK_ENTER_SLOTS = 4
+const BREAK_MIN_MS = 2000
 const RISE_RATE_RATIO = 1.4
 const RISE_RATE_MIN_DELTA = 0.75
 const RISE_HIGH_DB = 3
-const BUILDUP_HOLDS_ABOVE_BASE_DB = -4.5
+const BUILDUP_HOLDS_ABOVE_REF_DB = -4.5
+// A rise only counts when what came before it was audible: coming back up from silence is a song starting again, not a buildup.
+const BUILDUP_PRIOR_ABOVE_REF_DB = -12
 const BUILDUP_ENTER_SLOTS = 6
 const BUILDUP_LOST_MS = 4000
-const BUILDUP_MAX_MS = 48000
+const BUILDUP_MAX_MS = 40000
 const BUILDUP_TYPICAL_MS = 12000
 const DROP_LOW_JUMP_DB = 6
-const DROP_MIN_LOW_OF_BASE_DB = -3
+const DROP_MIN_LOW_OF_REF_DB = -3.5
 const DROP_HOLD_MS = 4000
-// A drop can follow a buildup or break that ended just before.
+// A drop can follow a buildup or break that ended just before, and only a real one: a buildup or break that lasted a moment is not a setup.
 const DROP_LOOKBACK_MS = 2500
+const DROP_AFTER_BUILDUP_MIN_MS = 2500
+const DROP_AFTER_BREAK_MIN_MS = 3000
+const DROP_AFTER_QUIET_MIN_MS = 2000
 
 const FLOOR = 1e-3
 const toDb = (value: number): number => 20 * Math.log10(Math.max(value, FLOOR))
 const clamp01 = (value: number): number => Math.min(1, Math.max(0, value))
+
+const SETUP_MIN_MS: Record<'buildup' | 'break' | 'quiet', number> = {
+  buildup: DROP_AFTER_BUILDUP_MIN_MS,
+  break: DROP_AFTER_BREAK_MIN_MS,
+  quiet: DROP_AFTER_QUIET_MIN_MS,
+}
 
 type Pick = 'total' | 'low' | 'high'
 
 export class SectionTracker {
   private readonly slots: SectionSlot[] = []
   private slotStart: number | null = null
+  private firstSlotAt: number | null = null
   private sums = { total: 0, low: 0, high: 0 }
   private frames = 0
   private beats = 0
+  private reference = { total: 0, low: 0 }
   private section: SongSection = 'groove'
   private sectionStart = 0
-  private lastActiveEnd = -Infinity
+  private lastSetupEnd = -Infinity
+  private lastQuietEnd = -Infinity
+  private lastSetupLongEnough = false
   private risingSlots = 0
+  private breakSlots = 0
+  private quietSlots = 0
   private buildupStartRate = 0
   private buildupStartHigh = 0
   private buildupLostAt: number | null = null
@@ -114,14 +137,20 @@ export class SectionTracker {
   reset = (): void => {
     this.slots.length = 0
     this.slotStart = null
+    this.firstSlotAt = null
     this.sums = { total: 0, low: 0, high: 0 }
     this.frames = 0
     this.beats = 0
+    this.reference = { total: 0, low: 0 }
     this.section = 'groove'
     this.sectionStart = 0
     this.risingSlots = 0
+    this.breakSlots = 0
+    this.quietSlots = 0
     this.buildupLostAt = null
-    this.lastActiveEnd = -Infinity
+    this.lastSetupEnd = -Infinity
+    this.lastQuietEnd = -Infinity
+    this.lastSetupLongEnough = false
     this.state = { section: 'groove', intensity: 0, buildupProgress: 0, sinceMs: 0 }
   }
 
@@ -139,9 +168,20 @@ export class SectionTracker {
     this.frames = 0
     this.beats = 0
     this.slotStart = t
+
+    // A long gap between samples (the tab was in the background) is a fresh start, not a song that went quiet.
+    const previous = this.slots[this.slots.length - 1]
+    if (!previous || t - previous.t > HISTORY_MS) {
+      this.firstSlotAt = t
+      this.reference = { total: 0, low: 0 }
+      this.section = 'groove'
+      this.sectionStart = t
+      slot.section = 'groove'
+    }
     this.slots.push(slot)
     const oldest = this.slots.findIndex((s) => t - s.t <= HISTORY_MS)
     if (oldest > 0) this.slots.splice(0, oldest)
+    this.updateReference(slot)
 
     this.evaluate(t)
     slot.section = this.section
@@ -151,6 +191,12 @@ export class SectionTracker {
       buildupProgress: this.section === 'buildup' ? clamp01((t - this.sectionStart) / BUILDUP_TYPICAL_MS) : 0,
       sinceMs: t - this.sectionStart,
     }
+  }
+
+  private updateReference = (slot: SectionSlot): void => {
+    const release = 1 - Math.exp(-SLOT_MS / REFERENCE_RELEASE_TAU_MS)
+    const follow = (reference: number, value: number): number => (value >= reference ? value : reference + (value - reference) * release)
+    this.reference = { total: follow(this.reference.total, slot.total), low: follow(this.reference.low, slot.low) }
   }
 
   // Mean of a feature over slots whose age is between `fromAge` and `toAge` (ms before `now`), or null if there are none.
@@ -192,31 +238,42 @@ export class SectionTracker {
 
   private enter = (section: SongSection, t: number): void => {
     if (section === this.section) return
-    if (this.section === 'buildup' || this.section === 'break') this.lastActiveEnd = t
+    if (this.section === 'quiet') this.lastQuietEnd = t
+    if (this.section === 'buildup' || this.section === 'break' || this.section === 'quiet') {
+      this.lastSetupEnd = t
+      this.lastSetupLongEnough = t - this.sectionStart >= SETUP_MIN_MS[this.section]
+    }
     this.section = section
     this.sectionStart = t
     this.risingSlots = 0
+    this.breakSlots = 0
+    this.quietSlots = 0
     this.buildupLostAt = null
   }
 
+  // True when a buildup, break or quiet stretch is on, or just ended, and ran long enough to be the setup for a drop.
+  private setsUpDrop = (t: number): boolean => {
+    if (this.section === 'buildup' || this.section === 'break' || this.section === 'quiet') return t - this.sectionStart >= SETUP_MIN_MS[this.section]
+    return this.lastSetupLongEnough && t - this.lastSetupEnd <= DROP_LOOKBACK_MS
+  }
+
   private evaluate = (t: number): void => {
-    const first = this.slots[0]
-    if (!first || t - first.t < MIN_HISTORY_MS) return
+    if (this.firstSlotAt === null || t - this.firstSlotAt < MIN_HISTORY_MS) return
 
     const totalRecent = this.mean(t, 0, RECENT_MS, 'total')
-    const totalBase = this.mean(t, BASE_FROM_MS, BASE_TO_MS, 'total')
     const lowRecent = this.mean(t, 0, RECENT_MS, 'low')
-    const lowBase = this.mean(t, BASE_FROM_MS, BASE_TO_MS, 'low')
-    if (totalRecent === null || totalBase === null || lowRecent === null || lowBase === null) return
-    const totalDb = toDb(totalRecent) - toDb(totalBase)
-    const lowDb = toDb(lowRecent) - toDb(lowBase)
+    if (totalRecent === null || lowRecent === null) return
+    const totalDb = toDb(totalRecent) - toDb(this.reference.total)
+    const lowDb = toDb(lowRecent) - toDb(this.reference.low)
 
     // Quiet, with hysteresis: it takes a smaller dip to stay quiet than to become it.
     if (this.section === 'quiet') {
-      if (totalDb > QUIET_LEAVE_DB) this.enter('groove', t)
+      if (totalDb > QUIET_LEAVE_DB && t - this.sectionStart >= QUIET_MIN_MS) this.enter('groove', t)
       return
     }
-    if (totalDb < QUIET_ENTER_DB) {
+    // It takes a second below the line to go quiet, so one dip between hits does not.
+    this.quietSlots = totalDb < QUIET_ENTER_DB ? this.quietSlots + 1 : 0
+    if (this.quietSlots >= QUIET_ENTER_SLOTS) {
       this.enter('quiet', t)
       return
     }
@@ -224,11 +281,10 @@ export class SectionTracker {
     // A drop: the low end comes back hard right after a buildup or break.
     const lowFine = this.mean(t, 0, FINE_MS, 'low')
     const lowBefore = this.mean(t, BEFORE_FROM_MS, BEFORE_TO_MS, 'low')
-    const wasActive = this.section === 'buildup' || this.section === 'break' || t - this.lastActiveEnd <= DROP_LOOKBACK_MS
-    if (this.section !== 'drop' && wasActive && lowFine !== null && lowBefore !== null) {
+    if (this.section !== 'drop' && this.setsUpDrop(t) && lowFine !== null && lowBefore !== null) {
       const jump = toDb(lowFine) - toDb(lowBefore)
-      const backToBase = toDb(lowFine) - toDb(lowBase) >= DROP_MIN_LOW_OF_BASE_DB
-      if (jump >= DROP_LOW_JUMP_DB && backToBase) {
+      const backToLoud = toDb(lowFine) - toDb(this.reference.low) >= DROP_MIN_LOW_OF_REF_DB
+      if (jump >= DROP_LOW_JUMP_DB && backToLoud) {
         this.enter('drop', t)
         return
       }
@@ -245,7 +301,11 @@ export class SectionTracker {
     const highPrior = this.mean(t, RATE_RECENT_MS, RATE_PRIOR_TO_MS, 'high')
     const denser = rateRecent !== null && ratePrior !== null && rateRecent > ratePrior * RISE_RATE_RATIO && rateRecent - ratePrior >= RISE_RATE_MIN_DELTA
     const brighter = highRecent !== null && highPrior !== null && toDb(highRecent) - toDb(highPrior) >= RISE_HIGH_DB
-    const rising = (denser || brighter) && totalDb >= BUILDUP_HOLDS_ABOVE_BASE_DB
+    const totalPrior = this.mean(t, RATE_RECENT_MS, RATE_PRIOR_TO_MS, 'total')
+    const priorAudible = totalPrior !== null && toDb(totalPrior) - toDb(this.reference.total) >= BUILDUP_PRIOR_ABOVE_REF_DB
+    // The windows it compares must not reach back into a quiet stretch, or the song coming back up looks like a rise.
+    const clearOfQuiet = t - this.lastQuietEnd > RATE_PRIOR_TO_MS
+    const rising = (denser || brighter) && totalDb >= BUILDUP_HOLDS_ABOVE_REF_DB && priorAudible && clearOfQuiet
 
     if (this.section === 'buildup') {
       const sinceStart = t - this.sectionStart
@@ -259,6 +319,13 @@ export class SectionTracker {
       return
     }
 
+    // A break takes a second of low end gone to start and a couple of seconds to end, so a dip in a groove does not flicker it.
+    if (this.section === 'break') {
+      const stillBroken = lowDb < BREAK_LEAVE_LOW_DB && totalDb < BREAK_LEAVE_TOTAL_DB
+      if (!stillBroken && t - this.sectionStart >= BREAK_MIN_MS) this.enter('groove', t)
+      if (!rising) return
+    }
+
     this.risingSlots = rising ? this.risingSlots + 1 : 0
     if (this.risingSlots >= BUILDUP_ENTER_SLOTS) {
       this.buildupStartRate = ratePrior ?? 0
@@ -267,8 +334,10 @@ export class SectionTracker {
       return
     }
 
-    if (lowDb < BREAK_LOW_DB && totalDb < BREAK_TOTAL_DB) this.enter('break', t)
-    else if (this.section === 'break') this.enter('groove', t)
+    if (this.section === 'groove') {
+      this.breakSlots = lowDb < BREAK_LOW_DB && totalDb < BREAK_TOTAL_DB ? this.breakSlots + 1 : 0
+      if (this.breakSlots >= BREAK_ENTER_SLOTS) this.enter('break', t)
+    }
   }
 }
 

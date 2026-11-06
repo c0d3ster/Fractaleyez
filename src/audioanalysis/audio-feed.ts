@@ -16,6 +16,8 @@ import { DEFAULT_ENABLED_BANDS, ONSET_BANDS } from './onset-bands'
 export class AudioFeed {
   private latest: AudioAnalysedDataForVisualization | null = null
   private readonly onsetDetector = new OnsetDetector(ONSET_BANDS.length)
+  // Reused every frame, so feeding the section tracker allocates nothing.
+  private readonly sectionLevels: number[] = ONSET_BANDS.map(() => 0)
 
   constructor(
     private readonly stream: AudioStream,
@@ -37,7 +39,10 @@ export class AudioFeed {
     snapshot.beat = onset.beat
     const now = performance.now()
     beatMonitor.record({ t: now, bands: onset.bands, beatBand: onset.beatBand })
-    sectionTracker.push({ t: now, levels: onset.bands.map(({ level }) => level), beat: onset.beatBand !== null })
+    onset.bands.forEach(({ level }, i) => {
+      this.sectionLevels[i] = level
+    })
+    sectionTracker.push({ t: now, levels: this.sectionLevels, beat: onset.beatBand !== null })
 
     this.latest = snapshot
     return snapshot
