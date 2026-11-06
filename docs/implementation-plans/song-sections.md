@@ -27,7 +27,7 @@ The first test case is the simplest one: a buildup (hits getting denser, commonl
 
 | Section | Signature |
 | --- | --- |
-| quiet | Total level far below the song's recent baseline (about -14 dB), with hysteresis on the way out |
+| quiet | Total level far below the song's recent loudness (about -14 dB), with hysteresis on the way out |
 | groove | Steady level and beat, the default state |
 | buildup | Beat density rising, or high band energy rising by a few dB, while the total level holds. Needs to persist about 1.5 s to enter |
 | break | Low end drops well below baseline while the total falls, with no rising signs |
@@ -44,6 +44,21 @@ The first test case is the simplest one: a buildup (hits getting denser, commonl
 3. **Add intro, outro and song change.** Song change is the hardest piece (crossfades blur it), so the BPM jump is the main cue.
 
 Auto mode work starts after step 2 at the earliest, since it needs labels that can be trusted.
+
+## First offline check on real audio
+
+Before any listening session, two of the user's own 2-minute tracks were run through the real onset detector and the tracker offline (a band-pass filter bank matching the app's, 60 fps frames). The first pass flickered between break and groove, called the intro ramp a buildup, and fired drops off single kicks. What changed as a result:
+
+- **A slow loudness memory** (jumps up at once, forgets over about 45 s) replaces a 30 s rolling baseline for break, quiet and drop. A long break stays a break instead of becoming the new normal.
+- **No labels for the first 20 s** of a song, since that stretch is an intro ramping up from silence.
+- **Minimum durations and entry counts**: a break needs about a second to start and 2 s to end, quiet needs a second to start and 3 s to end, and a drop only counts after a buildup of 2.5 s, a break of 3 s or a quiet stretch of 2 s.
+- **A 1 s window for the low end coming back**, so one kick against a quiet average is not a drop.
+- **Coming back up from silence is not a buildup**, and a rise cannot start within 9 s of a quiet stretch.
+- A gap of more than 2 minutes between samples (a background tab) restarts the tracker.
+
+Result on both tracks: one long break from about 0:47, a short quiet bridge, one drop where the low end returns around 1:14, and a second break at the end. Left to tune: a short break in the intro near 0:21, and outro handling (the final fade currently reads as break or quiet).
+
+The tracker costs about 1.3 microseconds per frame, so performance is not a concern.
 
 ## Limits
 
