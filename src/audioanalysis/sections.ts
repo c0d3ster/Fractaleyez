@@ -1,8 +1,9 @@
-// Labels the current part of a song (quiet, groove, buildup, break, drop) from slow features of the band levels.
+// Labels the current part of a song (intro, groove, buildup, break, drop, outro, quiet) from slow features of the band levels.
 // Everything is judged against the song's own recent loudness, never absolute levels, so a quiet mic and a loud
 // feed behave the same. The clock comes in with each sample, so the tracker is pure and testable.
+import { estimateTempo } from './tempo'
 
-export type SongSection = 'quiet' | 'groove' | 'buildup' | 'break' | 'drop'
+export type SongSection = 'intro' | 'quiet' | 'groove' | 'buildup' | 'break' | 'drop' | 'outro'
 
 export type SectionState = {
   section: SongSection
@@ -12,6 +13,10 @@ export type SectionState = {
   buildupProgress: number
   /** How long the current section has lasted. */
   sinceMs: number
+  /** How many songs the tracker has seen start since it began (1 for the first). Goes up on every song change. */
+  songIndex: number
+  /** How long the current song has been going (an estimate: it is counted from when the tracker thinks the song began), or null until it looks like a song is playing. */
+  songMs: number | null
 }
 
 export type SectionSample = {
@@ -37,7 +42,7 @@ const HISTORY_MS = 120000
 const PEAK_WINDOW_MS = 60000
 // The song's loudness memory: it jumps up at once and forgets slowly, so a long break is still judged against how loud the song was before it.
 const REFERENCE_RELEASE_TAU_MS = 45000
-// Needs this much song before it says anything but groove: the first stretch is mostly an intro ramping up from silence, which is not a buildup.
+// Needs this much song before it says anything but groove or intro: the first stretch is mostly an intro ramping up from silence, which is not a buildup.
 const MIN_HISTORY_MS = 20000
 const RECENT_MS = 2000
 // Long enough to hold a few kicks, so a single hit against a quieter average does not read as the low end coming back.
@@ -47,10 +52,39 @@ const BEFORE_TO_MS = 5000
 const RATE_RECENT_MS = 3000
 const RATE_PRIOR_TO_MS = 9000
 
+// It takes this long, with a beat going, to believe a song is playing. Silence and random spurts of noise do not get a song time.
+const SONG_CONFIRM_MS = 10000
+const SONG_CONFIRM_BEATS = 6
+const SONG_CONFIRM_WINDOW_MS = 8000
+
+// A song that opens from near silence: once the level has climbed this far over where it began, that start was an intro.
+const START_CHECK_FROM_MS = 6000
+const START_RISE_RATIO = 3
+const START_WINDOW_MS = 2000
+// An intro ends when the level has stopped climbing and is close to the loudest it has been, or after this long.
+const INTRO_MIN_MS = 4000
+const INTRO_MAX_MS = 30000
+const INTRO_STABLE_DB = 3
+const INTRO_DONE_OF_REF_DB = -6
+
 const QUIET_ENTER_DB = -14
 const QUIET_LEAVE_DB = -8
 const QUIET_ENTER_SLOTS = 4
 const QUIET_MIN_MS = 3000
+// Coming out of a quiet stretch this long is a new song, not a bridge.
+const NEW_SONG_AFTER_QUIET_MS = 10000
+
+// An outro fades everything: the whole level and the highs fall together, unlike a break, which cuts the low end and leaves the highs.
+const OUTRO_TOTAL_DB = -5
+const OUTRO_HIGH_DB = -6
+// Real outros are long, and a pause before a drop is a few seconds: it takes about 5 s of everything fading to call it an outro.
+const OUTRO_ENTER_SLOTS = 20
+// A fade that comes back up within this long was a pause after all, and the song goes on; later than that, the next song has started.
+const OUTRO_FALSE_ALARM_MS = 8000
+const OUTRO_LEAVE_DB = -3
+// During an outro, a climb this far over its quietest point means the next song is starting even if it opens quietly.
+const OUTRO_NEXT_SONG_RISE_RATIO = 2.5
+
 const BREAK_LOW_DB = -8
 const BREAK_TOTAL_DB = -2.5
 const BREAK_LEAVE_LOW_DB = -5.5
@@ -75,39 +109,69 @@ const DROP_LOOKBACK_MS = 2500
 const DROP_AFTER_BUILDUP_MIN_MS = 2500
 const DROP_AFTER_BREAK_MIN_MS = 3000
 const DROP_AFTER_QUIET_MIN_MS = 2000
+const DROP_AFTER_OUTRO_MIN_MS = 2000
+
+// A tempo that stays different from the one this song has held, over a few readings, means a different song, even with no outro (a blend, a cut).
+// One estimate per check costs about a millisecond, so it is read every few seconds, never every frame.
+const TEMPO_CHECK_SLOTS = 16
+const BEAT_MEMORY_MS = 30000
+const TEMPO_RECENT_MS = 12000
+const TEMPO_CHANGE = 0.08
+const TEMPO_CHANGE_CHECKS = 2
+const TEMPO_MIN_CONSISTENCY = 0.6
+// Half time, double time and triplet feel read as the same tempo.
+const TEMPO_SAME_RATIOS = [0.5, 2 / 3, 1, 1.5, 2]
+// A song change from tempo needs a song that has been going this long, so the first readings are not compared with a previous song's beats.
+const TEMPO_MIN_SONG_MS = 40000
 
 const FLOOR = 1e-3
 const toDb = (value: number): number => 20 * Math.log10(Math.max(value, FLOOR))
 const clamp01 = (value: number): number => Math.min(1, Math.max(0, value))
 
-const SETUP_MIN_MS: Record<'buildup' | 'break' | 'quiet', number> = {
+type SetupSection = 'buildup' | 'break' | 'quiet' | 'outro'
+const SETUP_MIN_MS: Record<SetupSection, number> = {
   buildup: DROP_AFTER_BUILDUP_MIN_MS,
   break: DROP_AFTER_BREAK_MIN_MS,
   quiet: DROP_AFTER_QUIET_MIN_MS,
+  outro: DROP_AFTER_OUTRO_MIN_MS,
 }
+const isSetup = (section: SongSection): section is SetupSection => section === 'buildup' || section === 'break' || section === 'quiet' || section === 'outro'
 
 type Pick = 'total' | 'low' | 'high'
+type Levels = { total: number; low: number; high: number }
+
+const sameTempo = (a: number, b: number): boolean => TEMPO_SAME_RATIOS.some((ratio) => Math.abs(b / a / ratio - 1) <= TEMPO_CHANGE)
 
 export class SectionTracker {
   private readonly slots: SectionSlot[] = []
+  private beatTimes: number[] = []
   private slotStart: number | null = null
-  private firstSlotAt: number | null = null
-  private sums = { total: 0, low: 0, high: 0 }
+  private songStart: number | null = null
+  private sums: Levels = { total: 0, low: 0, high: 0 }
   private frames = 0
   private beats = 0
-  private reference = { total: 0, low: 0 }
+  private reference: Levels = { total: 0, low: 0, high: 0 }
   private section: SongSection = 'groove'
   private sectionStart = 0
+  private songIndex = 1
+  private songConfirmed = false
+  private startChecked = false
+  private outroSeen = false
+  private outroFloor = Infinity
   private lastSetupEnd = -Infinity
-  private lastQuietEnd = -Infinity
   private lastSetupLongEnough = false
+  private lastQuietEnd = -Infinity
   private risingSlots = 0
   private breakSlots = 0
   private quietSlots = 0
+  private outroSlots = 0
+  private tempoSlots = 0
+  private tempoChanges = 0
+  private songTempo: number | null = null
   private buildupStartRate = 0
   private buildupStartHigh = 0
   private buildupLostAt: number | null = null
-  private state: SectionState = { section: 'groove', intensity: 0, buildupProgress: 0, sinceMs: 0 }
+  private state: SectionState = { section: 'groove', intensity: 0, buildupProgress: 0, sinceMs: 0, songIndex: 1, songMs: null }
 
   push = ({ t, levels, beat }: SectionSample): void => {
     if (this.slotStart === null) {
@@ -123,7 +187,10 @@ export class SectionTracker {
     this.sums.high += (hi + air) / 2
     this.sums.total += (bass + lo + mid + hi + air) / 5
     this.frames++
-    if (beat) this.beats++
+    if (beat) {
+      this.beats++
+      this.beatTimes.push(t)
+    }
 
     if (t - this.slotStart < SLOT_MS) return
     this.closeSlot(t)
@@ -136,22 +203,32 @@ export class SectionTracker {
 
   reset = (): void => {
     this.slots.length = 0
+    this.beatTimes = []
     this.slotStart = null
-    this.firstSlotAt = null
+    this.songStart = null
     this.sums = { total: 0, low: 0, high: 0 }
     this.frames = 0
     this.beats = 0
-    this.reference = { total: 0, low: 0 }
+    this.reference = { total: 0, low: 0, high: 0 }
     this.section = 'groove'
     this.sectionStart = 0
+    this.songIndex = 1
+    this.songConfirmed = false
+    this.startChecked = false
+    this.outroSeen = false
+    this.outroFloor = Infinity
     this.risingSlots = 0
     this.breakSlots = 0
     this.quietSlots = 0
+    this.outroSlots = 0
+    this.tempoSlots = 0
+    this.tempoChanges = 0
+    this.songTempo = null
     this.buildupLostAt = null
     this.lastSetupEnd = -Infinity
     this.lastQuietEnd = -Infinity
     this.lastSetupLongEnough = false
-    this.state = { section: 'groove', intensity: 0, buildupProgress: 0, sinceMs: 0 }
+    this.state = { section: 'groove', intensity: 0, buildupProgress: 0, sinceMs: 0, songIndex: 1, songMs: null }
   }
 
   private closeSlot = (t: number): void => {
@@ -172,15 +249,16 @@ export class SectionTracker {
     // A long gap between samples (the tab was in the background) is a fresh start, not a song that went quiet.
     const previous = this.slots[this.slots.length - 1]
     if (!previous || t - previous.t > HISTORY_MS) {
-      this.firstSlotAt = t
-      this.reference = { total: 0, low: 0 }
-      this.section = 'groove'
-      this.sectionStart = t
+      this.beginSong(t, { total: 0, low: 0, high: 0 }, 'groove')
+      this.songIndex = previous ? this.songIndex + 1 : 1
       slot.section = 'groove'
     }
     this.slots.push(slot)
     const oldest = this.slots.findIndex((s) => t - s.t <= HISTORY_MS)
     if (oldest > 0) this.slots.splice(0, oldest)
+    const oldestBeat = this.beatTimes.findIndex((time) => t - time <= BEAT_MEMORY_MS)
+    if (oldestBeat > 0) this.beatTimes.splice(0, oldestBeat)
+    else if (oldestBeat < 0) this.beatTimes = []
     this.updateReference(slot)
 
     this.evaluate(t)
@@ -190,13 +268,31 @@ export class SectionTracker {
       intensity: this.intensity(t),
       buildupProgress: this.section === 'buildup' ? clamp01((t - this.sectionStart) / BUILDUP_TYPICAL_MS) : 0,
       sinceMs: t - this.sectionStart,
+      songIndex: this.songIndex,
+      songMs: this.songMs(t),
     }
+  }
+
+  // Counted from where the song is thought to have started. Hidden until beats have been going for a while, and again whenever it goes quiet.
+  private songMs = (t: number): number | null => {
+    if (this.songStart === null) return null
+    const songAge = t - this.songStart
+    if (this.section === 'quiet') this.songConfirmed = false
+    else if (!this.songConfirmed && songAge >= SONG_CONFIRM_MS) {
+      const recentBeats = this.beatTimes.filter((time) => t - time <= SONG_CONFIRM_WINDOW_MS).length
+      this.songConfirmed = recentBeats >= SONG_CONFIRM_BEATS
+    }
+    return this.songConfirmed ? songAge : null
   }
 
   private updateReference = (slot: SectionSlot): void => {
     const release = 1 - Math.exp(-SLOT_MS / REFERENCE_RELEASE_TAU_MS)
     const follow = (reference: number, value: number): number => (value >= reference ? value : reference + (value - reference) * release)
-    this.reference = { total: follow(this.reference.total, slot.total), low: follow(this.reference.low, slot.low) }
+    this.reference = {
+      total: follow(this.reference.total, slot.total),
+      low: follow(this.reference.low, slot.low),
+      high: follow(this.reference.high, slot.high),
+    }
   }
 
   // Mean of a feature over slots whose age is between `fromAge` and `toAge` (ms before `now`), or null if there are none.
@@ -239,42 +335,162 @@ export class SectionTracker {
   private enter = (section: SongSection, t: number): void => {
     if (section === this.section) return
     if (this.section === 'quiet') this.lastQuietEnd = t
-    if (this.section === 'buildup' || this.section === 'break' || this.section === 'quiet') {
+    if (isSetup(this.section)) {
       this.lastSetupEnd = t
       this.lastSetupLongEnough = t - this.sectionStart >= SETUP_MIN_MS[this.section]
     }
+    if (section === 'outro') {
+      this.outroSeen = true
+      this.outroFloor = Infinity
+    }
+    if (section === 'groove' && this.section === 'outro') this.outroSeen = false
     this.section = section
     this.sectionStart = t
     this.risingSlots = 0
     this.breakSlots = 0
     this.quietSlots = 0
+    this.outroSlots = 0
     this.buildupLostAt = null
+  }
+
+  // A song starts: the loudness memory is reset to where it is now (the old song's levels say nothing about the new one), and nothing
+  // is compared across the boundary until it has some history of its own.
+  private beginSong = (t: number, levels: Levels, section: SongSection): void => {
+    this.songStart = t
+    this.songConfirmed = false
+    this.reference = { ...levels }
+    this.startChecked = false
+    this.outroSeen = false
+    this.outroFloor = Infinity
+    this.lastSetupEnd = -Infinity
+    this.lastSetupLongEnough = false
+    this.lastQuietEnd = -Infinity
+    this.tempoSlots = 0
+    this.tempoChanges = 0
+    this.songTempo = null
+    this.section = section
+    this.sectionStart = t
+    this.risingSlots = 0
+    this.breakSlots = 0
+    this.quietSlots = 0
+    this.outroSlots = 0
+    this.buildupLostAt = null
+  }
+
+  private startNextSong = (t: number): void => {
+    this.songIndex++
+    this.beginSong(
+      t,
+      {
+        total: this.mean(t, 0, RECENT_MS, 'total') ?? 0,
+        low: this.mean(t, 0, RECENT_MS, 'low') ?? 0,
+        high: this.mean(t, 0, RECENT_MS, 'high') ?? 0,
+      },
+      'intro',
+    )
   }
 
   // True when a buildup, break or quiet stretch is on, or just ended, and ran long enough to be the setup for a drop.
   private setsUpDrop = (t: number): boolean => {
-    if (this.section === 'buildup' || this.section === 'break' || this.section === 'quiet') return t - this.sectionStart >= SETUP_MIN_MS[this.section]
+    if (isSetup(this.section)) return t - this.sectionStart >= SETUP_MIN_MS[this.section]
     return this.lastSetupLongEnough && t - this.lastSetupEnd <= DROP_LOOKBACK_MS
   }
 
+  // Where the first seconds of the song sat against where it is now: a song that opened from near silence started with an intro.
+  private checkOpenedWithIntro = (t: number, songAge: number): void => {
+    if (this.startChecked || songAge < START_CHECK_FROM_MS || this.songStart === null) return
+    const opening = this.mean(t, t - this.songStart - START_WINDOW_MS, t - this.songStart + SLOT_MS, 'total')
+    const now = this.mean(t, 0, RECENT_MS, 'total')
+    if (opening === null || now === null) return
+    if (now > opening * START_RISE_RATIO) {
+      this.startChecked = true
+      this.enter('intro', t)
+      this.sectionStart = this.songStart
+    }
+  }
+
+  private updateIntro = (t: number, totalDb: number, totalRecent: number | null): void => {
+    const introAge = t - this.sectionStart
+    const earlier = this.mean(t, RECENT_MS, RECENT_MS + 4000, 'total')
+    const stable = totalRecent !== null && earlier !== null && Math.abs(toDb(totalRecent) - toDb(earlier)) <= INTRO_STABLE_DB
+    if ((introAge >= INTRO_MIN_MS && stable && totalDb >= INTRO_DONE_OF_REF_DB) || introAge >= INTRO_MAX_MS) this.enter('groove', t)
+  }
+
+  // The song's held tempo follows readings that agree with it; readings that stay different from it for a couple of checks in a row are a new song.
+  private tempoChanged = (t: number): boolean => {
+    this.tempoSlots++
+    if (this.tempoSlots < TEMPO_CHECK_SLOTS) return false
+    this.tempoSlots = 0
+    const reading = estimateTempo(this.beatTimes.filter((time) => t - time <= TEMPO_RECENT_MS))
+    // A mixed window (part of it from before the change) reads as an unsteady beat, and says nothing either way.
+    if (!reading || reading.consistency < TEMPO_MIN_CONSISTENCY) return false
+    if (this.songTempo === null || sameTempo(this.songTempo, reading.bpm)) {
+      this.songTempo = reading.bpm
+      this.tempoChanges = 0
+      return false
+    }
+    this.tempoChanges++
+    return this.tempoChanges >= TEMPO_CHANGE_CHECKS
+  }
+
   private evaluate = (t: number): void => {
-    if (this.firstSlotAt === null || t - this.firstSlotAt < MIN_HISTORY_MS) return
+    if (this.songStart === null) this.songStart = t
+    const songAge = t - this.songStart
 
     const totalRecent = this.mean(t, 0, RECENT_MS, 'total')
     const lowRecent = this.mean(t, 0, RECENT_MS, 'low')
-    if (totalRecent === null || lowRecent === null) return
+    const highRecent2s = this.mean(t, 0, RECENT_MS, 'high')
+    if (totalRecent === null || lowRecent === null || highRecent2s === null) return
     const totalDb = toDb(totalRecent) - toDb(this.reference.total)
     const lowDb = toDb(lowRecent) - toDb(this.reference.low)
+    const highDb = toDb(highRecent2s) - toDb(this.reference.high)
 
-    // Quiet, with hysteresis: it takes a smaller dip to stay quiet than to become it.
-    if (this.section === 'quiet') {
-      if (totalDb > QUIET_LEAVE_DB && t - this.sectionStart >= QUIET_MIN_MS) this.enter('groove', t)
+    if (this.section === 'intro') {
+      this.updateIntro(t, totalDb, totalRecent)
       return
     }
-    // It takes a second below the line to go quiet, so one dip between hits does not.
+    if (songAge < MIN_HISTORY_MS) {
+      this.checkOpenedWithIntro(t, songAge)
+      return
+    }
+
+    // Quiet, with hysteresis: it takes a smaller dip to stay quiet than to become it. Coming out of a long one, or one after an outro, is the next song.
+    if (this.section === 'quiet') {
+      if (totalDb > QUIET_LEAVE_DB && t - this.sectionStart >= QUIET_MIN_MS) {
+        if (this.outroSeen || t - this.sectionStart >= NEW_SONG_AFTER_QUIET_MS) this.startNextSong(t)
+        else this.enter('groove', t)
+      }
+      return
+    }
     this.quietSlots = totalDb < QUIET_ENTER_DB ? this.quietSlots + 1 : 0
     if (this.quietSlots >= QUIET_ENTER_SLOTS) {
       this.enter('quiet', t)
+      return
+    }
+
+    // An outro: everything fades together. It ends when the level comes back: soon after it began that was a long break, later it is the next song.
+    if (this.section === 'outro') {
+      this.outroFloor = Math.min(this.outroFloor, totalRecent)
+      const longEnough = t - this.sectionStart >= OUTRO_FALSE_ALARM_MS
+      if (totalDb > OUTRO_LEAVE_DB) {
+        if (longEnough) this.startNextSong(t)
+        else this.enter('groove', t)
+      } else if (longEnough && totalRecent > this.outroFloor * OUTRO_NEXT_SONG_RISE_RATIO) {
+        this.startNextSong(t)
+      }
+      return
+    }
+    if (this.section !== 'drop') {
+      this.outroSlots = totalDb < OUTRO_TOTAL_DB && highDb < OUTRO_HIGH_DB ? this.outroSlots + 1 : 0
+      if (this.outroSlots >= OUTRO_ENTER_SLOTS) {
+        this.enter('outro', t)
+        return
+      }
+    }
+
+    // A different tempo from a few seconds ago is a different song, even with no outro to mark it.
+    if (songAge >= TEMPO_MIN_SONG_MS && this.tempoChanged(t)) {
+      this.startNextSong(t)
       return
     }
 
