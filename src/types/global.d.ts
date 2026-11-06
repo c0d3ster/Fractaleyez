@@ -47,6 +47,8 @@ declare global {
     getBeatTimes?: () => readonly number[]
     getSongSection?: () => SectionState
     getSectionHistory?: () => readonly SectionSlot[]
+    /** Downloads everything the section tracker saw this session as a JSON file, to be replayed offline. Run it from the console. */
+    exportSectionLog?: () => void
     subscribeBeat?: (listener: () => void) => () => void
     measureBeatLag?: (save?: boolean) => Promise<LagMeasurement | null>
     enabledFreqBands?: boolean[]

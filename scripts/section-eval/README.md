@@ -22,6 +22,10 @@ python render.py song.json song.png
 
 Audio is not committed. The set used so far is 11 tracks from *Most Wanted* by Starfrosch (CC BY-NC-ND 3.0, on archive.org as `starfrosch-mostwanted`): trap, dubstep, house and EDM with real builds and drops. They are only decoded and analyzed locally. ccMixter would also be a fit but blocks non-browser downloads (403), so archive.org was used.
 
+## Replaying a live session
+
+In the running app's console, `exportSectionLog()` downloads everything the tracker saw this session (up to 40 minutes of 250 ms slots) as a JSON file. `replay-log.mts <log.json> <out.json>` feeds it back through the current tracker (each slot becomes 15 frames of its low, mid and high levels, with the beats spread across them), and `render.py` charts the result. Use it to reproduce a bad moment heard in the app, then tune against it.
+
 ## Other tools
 
 - `summarize.py <dir>`: one line per song listing every section run of 1.5 s or more (except groove), the number of songs detected, and the total seconds per label. Quick way to scan many songs after a change. Each file in the test set is one song, so `songs=` should always be 1.

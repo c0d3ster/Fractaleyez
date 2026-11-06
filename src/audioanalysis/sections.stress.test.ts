@@ -87,7 +87,8 @@ describe('SectionTracker under realistic conditions', () => {
   })
 
   it('does not call a drop without a buildup or break before it', () => {
-    const script = (s: number): Frame => (s < 40 ? { levels: [4, 3, 3, 4, 2], beat: beatEvery(500, s) } : { levels: [14, 9, 4, 4, 2], beat: beatEvery(500, s) })
+    // A step up in the low end of about 7 dB: a louder section, not a drop (a drop is a step back up after a buildup, break or quiet stretch, or a very big one).
+    const script = (s: number): Frame => (s < 40 ? { levels: [4, 3, 3, 4, 2], beat: beatEvery(500, s) } : { levels: [10, 6, 3, 4, 2], beat: beatEvery(500, s) })
     const names = run(script, 55).map(({ section }) => section)
     expect(names).not.toContain('drop')
   })
@@ -394,3 +395,72 @@ const scaledGroove = (s: number, factor: number): Frame => {
   const frame = groove(s)
   return { levels: frame.levels.map((level) => level * factor), beat: frame.beat }
 }
+
+describe('SectionTracker: an intro that climbs into a buildup and then a drop', () => {
+  // 0-10 s: the song fades in. 10-24 s: a loop at a modest level. 24-38 s: the highs and the hit density climb. A short gap (the turnaround), then the drop.
+  const build = (dropAt: number): ((s: number) => Frame) => (s) => {
+    if (s < 10) {
+      const climb = 0.1 + 0.4 * (s / 10)
+      return { levels: [10 * climb, 6 * climb, 3 * climb, 4 * climb, 2 * climb], beat: beatEvery(500, s) && s > 3 }
+    }
+    if (s < 24) return { levels: [5, 3, 1.5, 2, 1], beat: beatEvery(500, s) }
+    if (s < dropAt - 1.2) {
+      const p = (s - 24) / (dropAt - 1.2 - 24)
+      return { levels: [3, 2, 1.5 + 5 * p, 2 + 12 * p, 1 + 10 * p], beat: beatEvery(500 - 330 * p, s) }
+    }
+    // The turnaround: a beat of near silence before the slam.
+    if (s < dropAt) return { levels: [0.3, 0.3, 0.5, 1, 0.5], beat: false }
+    return { levels: [12, 8, 3, 4, 2], beat: beatEvery(500, s) }
+  }
+
+  it('labels the drop, not groove, and does not flicker buildup and groove through it', () => {
+    const dropAt = 40
+    const seen = run(build(dropAt), 70)
+    const names = seen.map(({ section }) => section)
+    const drop = seen.find(({ section }) => section === 'drop')
+    expect(drop).toBeDefined()
+    expect(drop!.at).toBeGreaterThanOrEqual(dropAt - 0.5)
+    expect(drop!.at).toBeLessThan(dropAt + 3)
+    expect(names).toContain('buildup')
+    // After the drop there is no second or third buildup.
+    const afterDrop = seen.filter(({ at }) => at >= drop!.at).map(({ section }) => section)
+    expect(afterDrop).not.toContain('buildup')
+  })
+
+  it('still finds the drop when the buildup label has lapsed by the time it lands', () => {
+    // A longer turnaround: the climb stops for several seconds before the drop.
+    const script = (s: number): Frame => {
+      const frame = build(48)(s)
+      return s >= 41 && s < 48 ? { levels: [0.4, 0.4, 0.6, 1.2, 0.6], beat: false } : frame
+    }
+    const names = run(script, 75).map(({ section }) => section)
+    expect(names).toContain('drop')
+  })
+})
+
+describe('SectionTracker through a drop with a wobbling bass', () => {
+  // The first 20 s are a groove, then a break, then a drop whose bass wobbles (a 2 s or 1 s LFO of about 12 dB peak to peak).
+  const wobbleSong = (periodS: number): ((s: number) => Frame) => (s) => {
+    if (s < 30) return { levels: [10, 6, 3, 4, 2], beat: beatEvery(500, s) }
+    if (s < 40) return { levels: [1.5, 1.5, 2.5, 3.5, 2], beat: beatEvery(500, s) }
+    const wob = 0.5 + 0.5 * Math.sin((2 * Math.PI * (s - 40)) / periodS)
+    const bass = 3 + 12 * wob
+    return { levels: [bass, bass * 0.6, 3, 4, 2], beat: beatEvery(500, s) }
+  }
+
+  it.each([['2 s', 2], ['1 s', 1]])('gives one drop and no break, buildup or second drop inside it (%s wobble)', (_name, period) => {
+    const seen = run(wobbleSong(period), 100)
+    const drop = seen.find(({ section }) => section === 'drop')
+    expect(drop).toBeDefined()
+    const after = seen.filter(({ at }) => at > drop!.at + 0.5).map(({ section }) => section)
+    expect(after).not.toContain('break')
+    expect(after).not.toContain('buildup')
+    expect(after).not.toContain('drop')
+  })
+
+  it('keeps a real break and drop pair apart from the wobble before it', () => {
+    const names = run(wobbleSong(2), 100).map(({ section }) => section)
+    expect(names).toContain('break')
+    expect(names.filter((n) => n === 'drop')).toHaveLength(1)
+  })
+})
