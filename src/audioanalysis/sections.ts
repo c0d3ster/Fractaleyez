@@ -67,6 +67,17 @@ const INTRO_MAX_MS = 30000
 const INTRO_STABLE_DB = 3
 const INTRO_DONE_OF_REF_DB = -6
 
+// Silence is much deeper than quiet: a paused player or a gap between songs, not a soft bridge. It is judged from its real start (not from when it
+// was noticed), works from the first seconds of a song, and any stretch of it this long separates two songs.
+const SILENCE_DB = -24
+// Mean level (% of full scale) under which it is silence whatever the song was doing, for a feed that is digitally silent.
+const SILENCE_ABS = 0.05
+const SILENCE_NEW_SONG_MS = 5000
+// A moment of sound, not a click, before the silence is over.
+const SILENCE_RETURN_SLOTS = 2
+// A "song" with fewer beats than this was never really a song (the app opened on silence or stray noise), so the next one is not a second song.
+const SONG_MIN_BEATS = 6
+
 const QUIET_ENTER_DB = -14
 const QUIET_LEAVE_DB = -8
 const QUIET_ENTER_SLOTS = 4
@@ -155,6 +166,10 @@ export class SectionTracker {
   private sectionStart = 0
   private songIndex = 1
   private songConfirmed = false
+  private beatsThisSong = 0
+  private silentSince: number | null = null
+  private silenceBoundary = false
+  private soundSlots = 0
   private startChecked = false
   private outroSeen = false
   private outroFloor = Infinity
@@ -189,6 +204,7 @@ export class SectionTracker {
     this.frames++
     if (beat) {
       this.beats++
+      this.beatsThisSong++
       this.beatTimes.push(t)
     }
 
@@ -214,6 +230,10 @@ export class SectionTracker {
     this.sectionStart = 0
     this.songIndex = 1
     this.songConfirmed = false
+    this.beatsThisSong = 0
+    this.silentSince = null
+    this.silenceBoundary = false
+    this.soundSlots = 0
     this.startChecked = false
     this.outroSeen = false
     this.outroFloor = Infinity
@@ -261,7 +281,7 @@ export class SectionTracker {
     else if (oldestBeat < 0) this.beatTimes = []
     this.updateReference(slot)
 
-    this.evaluate(t)
+    if (!this.handleSilence(t, slot)) this.evaluate(t)
     slot.section = this.section
     this.state = {
       section: this.section,
@@ -358,6 +378,10 @@ export class SectionTracker {
   private beginSong = (t: number, levels: Levels, section: SongSection): void => {
     this.songStart = t
     this.songConfirmed = false
+    this.beatsThisSong = 0
+    this.silentSince = null
+    this.silenceBoundary = false
+    this.soundSlots = 0
     this.reference = { ...levels }
     this.startChecked = false
     this.outroSeen = false
@@ -377,17 +401,42 @@ export class SectionTracker {
     this.buildupLostAt = null
   }
 
-  private startNextSong = (t: number): void => {
-    this.songIndex++
+  private startNextSong = (t: number, levels?: Levels): void => {
+    // The app opening on silence and then music is the first song, not the second.
+    if (this.beatsThisSong >= SONG_MIN_BEATS) this.songIndex++
     this.beginSong(
       t,
-      {
+      levels ?? {
         total: this.mean(t, 0, RECENT_MS, 'total') ?? 0,
         low: this.mean(t, 0, RECENT_MS, 'low') ?? 0,
         high: this.mean(t, 0, RECENT_MS, 'high') ?? 0,
       },
       'intro',
     )
+  }
+
+  // Silence long enough to separate songs. Returns true while it holds the tracker (nothing else is judged in silence, or on the slot that ends it).
+  private handleSilence = (t: number, slot: SectionSlot): boolean => {
+    const silent = slot.total < SILENCE_ABS || toDb(slot.total) - toDb(this.reference.total) < SILENCE_DB
+    if (silent) {
+      this.soundSlots = 0
+      this.silentSince ??= t - SLOT_MS
+      if (!this.silenceBoundary && t - this.silentSince >= SILENCE_NEW_SONG_MS) {
+        this.silenceBoundary = true
+        this.enter('quiet', t)
+        this.sectionStart = this.silentSince
+      }
+      return this.silenceBoundary
+    }
+    if (this.silentSince === null) return false
+    if (!this.silenceBoundary) {
+      this.silentSince = null
+      return false
+    }
+    this.soundSlots++
+    if (this.soundSlots < SILENCE_RETURN_SLOTS) return true
+    this.startNextSong(t, { total: slot.total, low: slot.low, high: slot.high })
+    return true
   }
 
   // True when a buildup, break or quiet stretch is on, or just ended, and ran long enough to be the setup for a drop.

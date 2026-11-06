@@ -39,8 +39,11 @@ The first test case is the simplest one: a buildup (hits getting denser, commonl
 
 - the level comes back after an outro lasting 8 s or more (a fade that comes back sooner was a pause, and the song goes on),
 - the level climbs well over an outro's quietest point, even if the next song opens quietly,
+- **silence of about 5 s or more** ends and sound returns (see below),
 - the level comes back after a quiet stretch of 10 s or more, or any quiet stretch that followed an outro, or
 - the tempo stays different from the one the song held (not counting half time, double time or triplet feel) for two readings in a row.
+
+**Silence** is separate from quiet. Quiet is a soft bridge, about -14 dB under the song's loudness. Silence is a paused player or the gap between songs: more than 24 dB under it (or digitally silent), which also covers a mic noise floor of a few percent of the music's level. It is timed from when the sound actually stopped, it works from the first seconds of a song (the 20 s warm-up does not apply to it), and when sound has been back for half a second the next song begins. A pause of a few seconds before a drop is not long enough to count. A feed that opens on silence and then music is the first song, not the second (a song needs at least 6 beats to count).
 
 The Section strip shows a clock in its top left: about how long the current song has been going. It appears once a beat has been going for 10 s, and goes away in quiet, so silence and stray noise do not get one.
 
@@ -77,6 +80,10 @@ A listening session turned up the gap: an outro that fell to about 40% loudness 
 - **Intro vs drop**: a drop is the low end returning inside the same song after a setup. A return after an outro, a long quiet stretch or a tempo change is a new song, so it opens with an intro and the loudness memory restarts.
 - **Tempo change**: one tempo estimate every 4 s is compared with the tempo the song has held. Readings from a window that mixes two songs read as an unsteady beat and are ignored, so only clean readings count.
 - Checked by playing the two real tracks back to back offline: each opens with an intro and ends in an outro, the first track's outro leads into the second track's start as song 2, and the pause before the drop stays in the song.
+
+### Silence fix
+
+A listening session with 20 s of silence at 10 s and again at 40 s did not reset the song clock. The first silence fell inside the 20 s warm-up where nothing was judged, and a quiet stretch was timed from when it was noticed, not from when the sound stopped, so 20 s of silence measured as 9.8 s and stayed in the same song. Fixed with the silence rule above. Checked with synthetic silences (digital zero, and mic noise floors of 1% and 3%) and with 20 s of silence cut into a real track at 10 s and 40 s: three songs, with the clock restarting each time.
 
 ## Limits
 

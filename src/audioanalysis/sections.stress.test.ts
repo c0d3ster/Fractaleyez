@@ -124,8 +124,9 @@ describe('SectionTracker drop accuracy', () => {
     expect(names).not.toContain('drop')
   })
 
-  it('calls the low end returning after a quiet gap a drop', () => {
-    const script = (s: number): Frame => (s > 30 && s < 36 ? { levels: [0.05, 0.05, 0.05, 0.05, 0.05], beat: false } : kickGroove(s))
+  it('calls the low end returning after a short pause a drop', () => {
+    // A few seconds of near silence before the drop is a pause, not the end of the song.
+    const script = (s: number): Frame => (s > 30 && s < 33.5 ? { levels: [0.05, 0.05, 0.05, 0.05, 0.05], beat: false } : kickGroove(s))
     const names = run(script, 50).map(({ section }) => section)
     expect(names).toContain('quiet')
     expect(names).toContain('drop')
@@ -283,5 +284,55 @@ describe('SectionTracker song time', () => {
     const ms = timeAt(script, 120)
     expect(ms).not.toBeNull()
     expect(ms!).toBeLessThan(60000)
+  })
+})
+
+describe('SectionTracker silences between songs', () => {
+  const silent = (floor: number): Frame => ({ levels: [10 * floor, 6 * floor, 3 * floor, 4 * floor, 2 * floor], beat: false })
+
+  // Music, 20 s of silence from 10 s, music again, 20 s of silence from 40 s, music again.
+  const withSilences = (floor: number): ((s: number) => Frame) => (s) => ((s >= 10 && s < 30) || (s >= 40 && s < 60) ? silent(floor) : groove(s))
+
+  const finish = (script: (s: number) => Frame, seconds: number): ReturnType<SectionTracker['getState']> => {
+    const tracker = new SectionTracker()
+    for (let t = 0; t <= seconds * 1000; t += FRAME_MS) {
+      const frame = script(t / 1000)
+      tracker.push({ t, levels: frame.levels, beat: frame.beat })
+    }
+    return tracker.getState()
+  }
+
+  it.each([
+    ['digital silence', 0],
+    ['a mic noise floor at 1% of the music', 0.01],
+    ['a mic noise floor at 3% of the music', 0.03],
+  ])('treats each of two 20 s silences as a new song (%s)', (_name, floor) => {
+    const state = finish(withSilences(floor), 100)
+    expect(state.songIndex).toBe(3)
+  })
+
+  it('restarts the song clock after a silence', () => {
+    const state = finish(withSilences(0), 75)
+    expect(state.songIndex).toBe(3)
+    // The third song began around 60 s, so 15 s later its clock cannot read more than that.
+    expect(state.songMs === null || state.songMs < 16000).toBe(true)
+  })
+
+  it('treats a silence at the very start of a song, inside the warm-up, as a boundary too', () => {
+    const script = (s: number): Frame => (s >= 2 && s < 22 ? silent(0) : groove(s))
+    // 2 s of music is under the minimum for a song, so this is still the first song, restarted.
+    expect(finish(script, 50).songIndex).toBe(1)
+    const longer = (s: number): Frame => (s >= 12 && s < 32 ? silent(0) : groove(s))
+    expect(finish(longer, 60).songIndex).toBe(2)
+  })
+
+  it('does not call the app opening on silence and then music a second song', () => {
+    const script = (s: number): Frame => (s < 25 ? silent(0) : groove(s))
+    expect(finish(script, 60).songIndex).toBe(1)
+  })
+
+  it('does not call a short gap in the sound a new song', () => {
+    const script = (s: number): Frame => (s >= 30 && s < 33 ? silent(0) : groove(s))
+    expect(finish(script, 60).songIndex).toBe(1)
   })
 })
