@@ -25,12 +25,20 @@ const run = (script: Script, seconds: number): { tracker: SectionTracker; seen: 
 // A beat every `periodMs`, as a function of time, so a script can speed it up.
 const beatEvery = (periodMs: number) => (seconds: number): boolean => Math.round(seconds * 1000) % Math.max(1, Math.round(periodMs / FRAME_MS) * FRAME_MS) < FRAME_MS
 
+// The labels shown from `seconds` on: every change after that, plus the one that was already showing. Before a regular beat has been going for a
+// while there is no song to label, so the start of a run is quiet.
+const labelsAfter = (seen: Array<{ section: SongSection; at: number }>, seconds: number): SongSection[] => {
+  const before = seen.filter(({ at }) => at < seconds)
+  const active = before[before.length - 1]
+  return [...(active ? [active] : []), ...seen.filter(({ at }) => at >= seconds)].map(({ section }) => section)
+}
+
 const groove = (seconds: number): Frame => ({ levels: [10, 6, 3, 4, 2], beat: beatEvery(500)(seconds) })
 
 describe('SectionTracker', () => {
   it('stays on groove through a steady beat', () => {
     const { seen } = run(groove, 60)
-    expect(seen.map(({ section }) => section)).toEqual(['groove'])
+    expect(labelsAfter(seen, 16)).toEqual(['groove'])
   })
 
   it('calls a quiet passage quiet and comes back to groove', () => {
@@ -77,8 +85,9 @@ describe('SectionTracker', () => {
     expect(state.intensity).toBeGreaterThan(0.5)
   })
 
-  it('says nothing but groove until it has some history', () => {
-    const { seen } = run(() => ({ levels: [0.1, 0.1, 0.1, 0.1, 0.1], beat: false }), 6)
-    expect(seen.map(({ section }) => section)).toEqual(['groove'])
+  it('has no parts to label when there is no beat: it shows quiet', () => {
+    const { seen } = run(() => ({ levels: [0.1, 0.1, 0.1, 0.1, 0.1], beat: false }), 40)
+    expect(seen.every(({ section }) => section === 'groove' || section === 'quiet')).toBe(true)
+    expect(seen[seen.length - 1]!.section).toBe('quiet')
   })
 })
