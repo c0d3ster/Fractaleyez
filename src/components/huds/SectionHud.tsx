@@ -12,11 +12,13 @@ const WINDOW_MS = 120000
 const STATE_UPDATE_INTERVAL_MS = 250
 
 const SECTION_COLORS: Record<SongSection, string> = {
+  intro: 'rgba(80, 190, 210, 0.30)',
   quiet: 'rgba(120, 130, 150, 0.22)',
   groove: 'rgba(90, 160, 120, 0.16)',
   buildup: 'rgba(240, 190, 60, 0.38)',
   break: 'rgba(90, 140, 220, 0.30)',
   drop: 'rgba(235, 80, 110, 0.48)',
+  outro: 'rgba(160, 110, 210, 0.34)',
 }
 
 const LINE_COLOR = 'rgba(255, 255, 255, 0.75)'
@@ -24,8 +26,18 @@ const LINE_COLOR = 'rgba(255, 255, 255, 0.75)'
 // The visualizer lives in the main window; a popped-out config window reads it through window.opener.
 const mainWindow = (): Window => window.opener ?? window
 
+// Whole seconds, so the readout is not drawn again between ticks of the clock.
+const songSeconds = (state: SectionState): number | null => (state.songMs === null ? null : Math.floor(state.songMs / 1000))
+
+const formatSongTime = (ms: number): string => {
+  const seconds = Math.floor(ms / 1000)
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
+}
+
 const sameState = (a: SectionState | null, b: SectionState | null): boolean =>
-  a === null || b === null ? a === b : a.section === b.section && Math.round(a.intensity * 100) === Math.round(b.intensity * 100)
+  a === null || b === null
+    ? a === b
+    : a.section === b.section && Math.round(a.intensity * 100) === Math.round(b.intensity * 100) && songSeconds(a) === songSeconds(b)
 
 const drawStrip = (ctx: CanvasRenderingContext2D, slots: readonly SectionSlot[], now: number): void => {
   const toX = (t: number): number => W - ((now - t) / WINDOW_MS) * W
@@ -88,17 +100,20 @@ export const SectionHud = (): React.ReactElement => {
   return (
     <div className='section-hud-wrapper'>
       <div className='section-hud-title-row'>
-        <span className='section-hud-name' {...info('The part of the song this looks like: quiet, groove, buildup (hits getting denser, highs climbing), break (low end cut) or drop (the low end coming back hard after a buildup or break).')}>
-          {state?.section ?? '—'}
+        <span className='section-hud-time' {...info('About how long the current song has been going. It shows once a song looks like it is playing, so not in silence or on stray noise, and it starts over when the next song does.')}>
+          {state?.songMs != null ? formatSongTime(state.songMs) : ''}
         </span>
         <span className='section-hud-label'>Section</span>
         <span className='section-hud-intensity' {...info('How loud the song is now against its own recent peak.')}>
-          {state ? `${Math.round(state.intensity * 100)}%` : '—'}
+          {state ? `${Math.round(state.intensity * 100)}%` : '�'}
         </span>
       </div>
-      <div className='section-hud' {...info('The last two minutes. The line is the song\'s level against its loudest moment, the colors are the sections: green groove, yellow buildup, blue break, red drop, grey quiet.')}>
+      <div className='section-hud' {...info('The last two minutes. The line is the level of the song against its loudest moment, the colors are the sections: cyan intro, green groove, yellow buildup, blue break, red drop, purple outro, grey quiet.')}>
         <canvas ref={canvasRef} width={W} height={H} className='section-hud-canvas' />
       </div>
+      <span className='section-hud-name' {...info('The part of the song this looks like: intro (a song starting, the level still climbing), groove, buildup (hits getting denser, highs climbing), break (low end cut, highs stay), drop (the low end coming back hard after a buildup or break), outro (everything fading together) or quiet. After an outro, or a change of tempo, the next section is an intro.')}>
+        {state?.section ?? ''}
+      </span>
     </div>
   )
 }

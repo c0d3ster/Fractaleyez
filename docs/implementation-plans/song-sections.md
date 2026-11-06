@@ -27,13 +27,22 @@ The first test case is the simplest one: a buildup (hits getting denser, commonl
 
 | Section | Signature |
 | --- | --- |
-| quiet | Total level far below the song's recent loudness (about -14 dB), with hysteresis on the way out |
+| intro | A song that opened from near silence and is still climbing, or the stretch right after a song change. Ends when the level stops climbing and is close to its peak, or after 30 s |
+| quiet | Total level far below the song's recent loudness (about -14 dB) for a second, with hysteresis on the way out |
 | groove | Steady level and beat, the default state |
 | buildup | Beat density rising, or high band energy rising by a few dB, while the total level holds. Needs to persist about 1.5 s to enter |
-| break | Low end drops well below baseline while the total falls, with no rising signs |
-| drop | Low band jumps back (about +6 dB over the previous few seconds) right after a buildup or break. Held for 4 s |
-| intro / outro (later) | Level ramps up from silence at song start, or fades toward silence at the end |
-| song change (later) | BPM estimate jumps by more than about 8% and the energy profile resets |
+| break | Low end drops well below the loudness memory while the total falls, but the highs stay. Needs about a second to enter, 2 s minimum |
+| drop | Low band jumps back (about +6 dB over the previous few seconds, measured over 1 s) right after a buildup, break, quiet stretch or short outro that lasted long enough. Held for 4 s |
+| outro | Everything fades together: total about -5 dB and the highs about -6 dB under the song's loudness, for about 5 s. Unlike a break, the highs go too |
+
+**Song change** starts a new song, which opens with an intro and resets the loudness memory. It happens when:
+
+- the level comes back after an outro lasting 8 s or more (a fade that comes back sooner was a pause, and the song goes on),
+- the level climbs well over an outro's quietest point, even if the next song opens quietly,
+- the level comes back after a quiet stretch of 10 s or more, or any quiet stretch that followed an outro, or
+- the tempo stays different from the one the song held (not counting half time, double time or triplet feel) for two readings in a row.
+
+The Section strip shows a clock in its top left: about how long the current song has been going. It appears once a beat has been going for 10 s, and goes away in quiet, so silence and stray noise do not get one.
 
 `buildupProgress` is time based for now (elapsed over a typical 12 s ramp, clamped). It can be sharpened later once real tracks show how long builds run.
 
@@ -41,7 +50,7 @@ The first test case is the simplest one: a buildup (hits getting denser, commonl
 
 1. **Recorder and debug strip** (this PR). `SectionTracker` with slot recording and the state machine, `window.getSongSection` / `getSectionHistory`, a `SectionHud` strip under the Beat HUD, unit tests with synthetic buildup, drop, break and quiet curves.
 2. **Tune buildup and drop** on a handful of real tracks the user picks. Adjust constants, add a test per failure found.
-3. **Add intro, outro and song change.** Song change is the hardest piece (crossfades blur it), so the BPM jump is the main cue.
+3. **Intro, outro and song change** (done in this pass, see below). Still to tune on live audio.
 
 Auto mode work starts after step 2 at the earliest, since it needs labels that can be trusted.
 
@@ -56,9 +65,18 @@ Before any listening session, two of the user's own 2-minute tracks were run thr
 - **Coming back up from silence is not a buildup**, and a rise cannot start within 9 s of a quiet stretch.
 - A gap of more than 2 minutes between samples (a background tab) restarts the tracker.
 
-Result on both tracks: one long break from about 0:47, a short quiet bridge, one drop where the low end returns around 1:14, and a second break at the end. Left to tune: a short break in the intro near 0:21, and outro handling (the final fade currently reads as break or quiet).
+Result on both tracks: one long break from about 0:47, a short quiet bridge, one drop where the low end returns around 1:14, and a second break at the end. Left to tune: a short break in the intro near 0:21.
 
 The tracker costs about 1.3 microseconds per frame, so performance is not a concern.
+
+## Intros, outros and song changes
+
+A listening session turned up the gap: an outro that fell to about 40% loudness was labeled a break, and the next song starting was never noticed. Added in response:
+
+- **Outro vs break**: a break cuts the low end and leaves the highs; an outro takes everything down together, for several seconds. Real outros are long and a pause before a drop is a few seconds, so an outro needs about 5 s of fade, and a fade that comes back within 8 s of starting counts as a pause (and can set up a drop).
+- **Intro vs drop**: a drop is the low end returning inside the same song after a setup. A return after an outro, a long quiet stretch or a tempo change is a new song, so it opens with an intro and the loudness memory restarts.
+- **Tempo change**: one tempo estimate every 4 s is compared with the tempo the song has held. Readings from a window that mixes two songs read as an unsteady beat and are ignored, so only clean readings count.
+- Checked by playing the two real tracks back to back offline: each opens with an intro and ends in an outro, the first track's outro leads into the second track's start as song 2, and the pause before the drop stays in the song.
 
 ## Limits
 

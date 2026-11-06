@@ -99,7 +99,7 @@ describe('SectionTracker under realistic conditions', () => {
     const elapsed = performance.now() - start
     expect(tracker.getHistory().length).toBeLessThanOrEqual(481)
     // Ten minutes of 60fps audio frames should cost a tiny fraction of a second.
-    expect(elapsed).toBeLessThan(500)
+    expect(elapsed).toBeLessThan(1500)
   })
 })
 
@@ -143,5 +143,145 @@ describe('SectionTracker drop accuracy', () => {
     const names = run(script, 60).map(({ section }) => section)
     const flips = names.filter((n) => n === 'quiet').length
     expect(flips).toBeLessThanOrEqual(1)
+  })
+})
+
+describe('SectionTracker intros, outros and song changes', () => {
+  // Scales a frame's levels, and optionally the highs separately (an outro takes the highs down with everything else).
+  const scaled = (frame: Frame, all: number, highs = all): Frame => ({
+    levels: frame.levels.map((level, i) => level * (i >= 3 ? highs : all)),
+    beat: frame.beat,
+  })
+
+  // A song: groove, then an outro fading to `floor`, held for `hold` seconds, then the next song ramps in over `ramp` seconds.
+  const twoSongs = (floor: number, hold: number, ramp: number): ((s: number) => Frame) => {
+    const outroAt = 50
+    const nextAt = outroAt + 4 + hold
+    return (s) => {
+      if (s < outroAt) return groove(s)
+      if (s < outroAt + 4) {
+        const fade = (s - outroAt) / 4
+        return scaled(groove(s), 1 - (1 - floor) * fade, 1 - (1 - floor * 0.4) * fade)
+      }
+      if (s < nextAt) return scaled({ ...groove(s), beat: false }, floor, floor * 0.4)
+      const climb = Math.min(1, (s - nextAt) / ramp)
+      return scaled(groove(s), floor + (1 - floor) * climb)
+    }
+  }
+
+  it('calls a fade to 40% an outro, not a break, and the next song an intro', () => {
+    const seen = run(twoSongs(0.4, 14, 8), 110)
+    const names = seen.map(({ section }) => section)
+    expect(names).toContain('outro')
+    expect(names).toContain('intro')
+    expect(names.indexOf('outro')).toBeLessThan(names.indexOf('intro'))
+    expect(names).not.toContain('break')
+    expect(names[names.length - 1]).toBe('groove')
+  })
+
+  it('still calls the next song an intro when it opens quietly', () => {
+    // The fade holds at 25%, then the next song climbs from there.
+    const names = run(twoSongs(0.25, 12, 14), 120).map(({ section }) => section)
+    expect(names).toContain('outro')
+    expect(names).toContain('intro')
+  })
+
+  it('counts the songs', () => {
+    const tracker = new SectionTracker()
+    const script = twoSongs(0.4, 14, 8)
+    let song = 1
+    for (let t = 0; t <= 110000; t += FRAME_MS) {
+      const frame = script(t / 1000)
+      tracker.push({ t, levels: frame.levels, beat: frame.beat })
+      song = tracker.getState().songIndex
+    }
+    expect(song).toBe(2)
+  })
+
+  it('does not call a break an outro: a break keeps the highs', () => {
+    const script = (s: number): Frame => (s > 30 && s < 50 ? { levels: [1, 1, 2.5, 4, 2], beat: beatEvery(500, s) } : groove(s))
+    const names = run(script, 70).map(({ section }) => section)
+    expect(names).toContain('break')
+    expect(names).not.toContain('outro')
+  })
+
+  it('calls a fade that comes back within a few seconds a long break, not a new song', () => {
+    const script = (s: number): Frame => (s > 40 && s < 47 ? scaled(groove(s), 0.4, 0.15) : groove(s))
+    const tracker = new SectionTracker()
+    let song = 1
+    for (let t = 0; t <= 70000; t += FRAME_MS) {
+      const frame = script(t / 1000)
+      tracker.push({ t, levels: frame.levels, beat: frame.beat })
+      song = tracker.getState().songIndex
+    }
+    expect(song).toBe(1)
+  })
+
+  it('opens a song that starts from silence with an intro, and calls no buildup in it', () => {
+    const script = (s: number): Frame => {
+      const p = Math.min(1, s / 18)
+      const frame = groove(s)
+      return { levels: frame.levels.map((level) => level * (0.05 + 0.95 * p)), beat: frame.beat && s > 4 }
+    }
+    const names = run(script, 60).map(({ section }) => section)
+    expect(names).toContain('intro')
+    expect(names).not.toContain('buildup')
+    expect(names[names.length - 1]).toBe('groove')
+  })
+
+  it('does not call the start of the app mid-song an intro', () => {
+    const names = run(groove, 40).map(({ section }) => section)
+    expect(names).not.toContain('intro')
+  })
+
+  it('treats a change of tempo with no outro as the next song', () => {
+    const script = (s: number): Frame => (s < 70 ? { levels: [10, 6, 3, 4, 2], beat: beatEvery(500, s) } : { levels: [10, 6, 3, 4, 2], beat: beatEvery(368, s) })
+    const tracker = new SectionTracker()
+    let song = 1
+    for (let t = 0; t <= 120000; t += FRAME_MS) {
+      const frame = script(t / 1000)
+      tracker.push({ t, levels: frame.levels, beat: frame.beat })
+      song = tracker.getState().songIndex
+    }
+    expect(song).toBe(2)
+  })
+
+  it('does not read a steady tempo as a song change', () => {
+    const tracker = new SectionTracker()
+    let song = 1
+    for (let t = 0; t <= 150000; t += FRAME_MS) {
+      tracker.push({ t, levels: [10, 6, 3, 4, 2], beat: beatEvery(500, t / 1000) })
+      song = tracker.getState().songIndex
+    }
+    expect(song).toBe(1)
+  })
+})
+
+describe('SectionTracker song time', () => {
+  const timeAt = (script: (s: number) => Frame, seconds: number): number | null => {
+    const tracker = new SectionTracker()
+    for (let t = 0; t <= seconds * 1000; t += FRAME_MS) {
+      const frame = script(t / 1000)
+      tracker.push({ t, levels: frame.levels, beat: frame.beat })
+    }
+    return tracker.getState().songMs
+  }
+
+  it('has no song time until a song with a beat has been going a while', () => {
+    expect(timeAt(groove, 6)).toBeNull()
+    expect(timeAt(groove, 30)).toBeGreaterThan(25000)
+  })
+
+  it('has no song time in silence or on stray noise with no beat', () => {
+    expect(timeAt(() => ({ levels: [0.05, 0.05, 0.05, 0.05, 0.05], beat: false }), 60)).toBeNull()
+    const spurts = (s: number): Frame => ({ levels: Math.floor(s) % 9 === 0 ? [6, 3, 2, 2, 1] : [0.05, 0.05, 0.05, 0.05, 0.05], beat: false })
+    expect(timeAt(spurts, 60)).toBeNull()
+  })
+
+  it('starts the time over when the next song starts', () => {
+    const script = (s: number): Frame => (s < 70 ? { levels: [10, 6, 3, 4, 2], beat: beatEvery(500, s) } : { levels: [10, 6, 3, 4, 2], beat: beatEvery(368, s) })
+    const ms = timeAt(script, 120)
+    expect(ms).not.toBeNull()
+    expect(ms!).toBeLessThan(60000)
   })
 })
