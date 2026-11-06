@@ -47,6 +47,9 @@ export type SectionSlot = {
 
 const SLOT_MS = 250
 const HISTORY_MS = 120000
+// Every closed slot is also kept for this long (40 minutes, about 9600 slots), so a listening session can be exported and replayed offline.
+const RECORDING_SLOTS = 9600
+const RECORDING_TRIM = 1200
 const PEAK_WINDOW_MS = 60000
 // The song's loudness memory: it jumps up at once and forgets slowly. Used for silence and quiet, which are about the whole level.
 const REFERENCE_RELEASE_TAU_MS = 45000
@@ -67,15 +70,21 @@ const TREND_MIN_SONG_MS = 8000
 const TREND_SLOPE_DB_S = 0.45
 const TREND_MIN_FIT = 0.6
 const TREND_MIN_DB = 3
+// A ramp spreads its rise over the window; a step (the drop itself, a cut) puts most of it into one second and is not a climb.
+const CLIMB_MAX_STEP_SHARE = 0.5
 // A buildup is a longer and bigger climb than the ones a groove makes coming back from a dip (those last a few seconds, builds last bars).
 const BUILDUP_SECONDS = 9
 const BUILDUP_MIN_DB = 6
+// A very straight 6 s climb is a buildup too, found earlier than the 9 s one: a dip recovering is not that straight.
+const BUILDUP_QUICK_MIN_DB = 5
+const BUILDUP_QUICK_FIT = 0.88
 
 // An intro is a climb at the start of a song, and a big one: a few dB of drift in the first seconds is not an intro.
 const INTRO_WINDOW_MS = 45000
 const INTRO_MIN_DB = 6
 const INTRO_LAPSE_SLOTS = 8
-const INTRO_MAX_MS = 45000
+// An intro that is still climbing past this is the song's first buildup, and the intro was the part before it.
+const INTRO_MAX_MS = 30000
 
 // It takes this long, with a regular beat going, to believe a song is playing. Silence, stray noise and typing do not get a song time.
 const SONG_CONFIRM_MS = 10000
@@ -119,6 +128,11 @@ const OUTRO_NEXT_SONG_RISE_RATIO = 2.5
 const BREAK_LOW_DB = -4
 const BREAK_TOTAL_DB = -3.5
 const BREAK_ENTER_SLOTS = 16
+// The low end of a wobbling bass dips 4 to 6 dB for a second or two inside a drop. A break is judged on this longer mean, so a wobble cannot start one,
+// and a drop is followed by a stretch where no break can start (and no second drop), which is what stops the break, drop, groove, break, drop loop.
+const BREAK_MEAN_MS = 4000
+const BREAK_AFTER_DROP_MS = 10000
+const DROP_REFRACTORY_MS = 8000
 const BREAK_LEAVE_LOW_DB = -2.5
 const BREAK_LEAVE_TOTAL_DB = -2
 const BREAK_LEAVE_SLOTS = 8
@@ -126,7 +140,8 @@ const BREAK_MIN_MS = 3000
 
 // A buildup: a climb in the mids, highs or the whole, held for about a second. It ends when the climb has gone for a few seconds, or after this long.
 const BUILDUP_ENTER_SLOTS = 4
-const BUILDUP_LOST_SLOTS = 10
+// The turnaround before a drop (a stop, a rest) ends the climb a few seconds early, so the buildup lingers a bit after it.
+const BUILDUP_LOST_SLOTS = 16
 const BUILDUP_MAX_MS = 30000
 const BUILDUP_TYPICAL_MS = 12000
 // Right after a drop the song settles; a climb then is not a new buildup.
@@ -136,9 +151,11 @@ const DROP_LOW_JUMP_DB = 6
 const DROP_TOTAL_JUMP_DB = 4
 const DROP_HIGH_JUMP_DB = 8
 const DROP_MIN_REL_DB = -3.5
+// A step this big is a drop whether or not a buildup or break was labelled first (the label may have lapsed in the turnaround, or been an intro).
+const DROP_STRONG_EXTRA_DB = 3
 const DROP_HOLD_MS = 4000
 // A drop can follow a buildup, break, quiet stretch or fade that ended just before, and only a real one: one that lasted a moment is not a setup.
-const DROP_LOOKBACK_MS = 2500
+const DROP_LOOKBACK_MS = 6000
 const DROP_AFTER_BUILDUP_MIN_MS = 2500
 const DROP_AFTER_BREAK_MIN_MS = 3000
 const DROP_AFTER_QUIET_MIN_MS = 2000
@@ -175,18 +192,23 @@ const isSetup = (section: SongSection): section is SetupSection =>
 
 type Group = 'total' | 'low' | 'mid' | 'high'
 type Levels = { total: number; low: number; high: number }
-type Trend = { slope: number; fit: number; rise: number }
+type Trend = { slope: number; fit: number; rise: number; /** The biggest rise between two neighbouring seconds: a step puts most of the total into one. */ maxStep: number }
 
 const sameTempo = (a: number, b: number): boolean => TEMPO_SAME_RATIOS.some((ratio) => Math.abs(b / a / ratio - 1) <= TEMPO_CHANGE)
 
-const isClimb = (trend: Trend | null, minDb: number = TREND_MIN_DB): boolean =>
-  trend !== null && trend.slope >= TREND_SLOPE_DB_S && trend.fit >= TREND_MIN_FIT && trend.rise >= minDb
+const isClimb = (trend: Trend | null, minDb: number = TREND_MIN_DB, minFit: number = TREND_MIN_FIT): boolean =>
+  trend !== null &&
+  trend.slope >= TREND_SLOPE_DB_S &&
+  trend.fit >= minFit &&
+  trend.rise >= minDb &&
+  trend.maxStep <= trend.rise * CLIMB_MAX_STEP_SHARE
 
 const isFall = (trend: Trend | null): boolean =>
   trend !== null && trend.slope <= -TREND_SLOPE_DB_S && trend.fit >= TREND_MIN_FIT && trend.rise <= -TREND_MIN_DB
 
 export class SectionTracker {
   private readonly slots: SectionSlot[] = []
+  private recording: SectionSlot[] = []
   private beatTimes: number[] = []
   private slotStart: number | null = null
   private songStart: number | null = null
@@ -210,6 +232,7 @@ export class SectionTracker {
   private lastSetupEnd = -Infinity
   private lastSetupLongEnough = false
   private lastDropEnd = -Infinity
+  private lastDropStart = -Infinity
   private risingSlots = 0
   private lostSlots = 0
   private breakSlots = 0
@@ -247,11 +270,15 @@ export class SectionTracker {
 
   getState = (): SectionState => this.state
 
+  /** Every slot since the tracker started (the last 40 minutes at most), with the section that was shown for it. Not a copy: read it where it is called. */
+  getRecording = (): readonly SectionSlot[] => this.recording
+
   /** The closed slots, oldest first. Not a copy: read it where it is called. */
   getHistory = (): readonly SectionSlot[] => this.slots
 
   reset = (): void => {
     this.slots.length = 0
+    this.recording = []
     this.beatTimes = []
     this.slotStart = null
     this.songStart = null
@@ -275,6 +302,7 @@ export class SectionTracker {
     this.lastSetupEnd = -Infinity
     this.lastSetupLongEnough = false
     this.lastDropEnd = -Infinity
+    this.lastDropStart = -Infinity
     this.risingSlots = 0
     this.lostSlots = 0
     this.breakSlots = 0
@@ -320,6 +348,8 @@ export class SectionTracker {
     if (!this.handleSilence(t, slot)) this.evaluate(t)
     this.checkSongPlaying(t)
     slot.section = this.shown()
+    this.recording.push(slot)
+    if (this.recording.length > RECORDING_SLOTS) this.recording.splice(0, RECORDING_TRIM)
     this.state = {
       section: this.shown(),
       intensity: this.intensity(t),
@@ -384,7 +414,9 @@ export class SectionTracker {
     })
     const slope = sxy / sxx
     const fit = syy === 0 ? 0 : (sxy * sxy) / (sxx * syy)
-    return { slope, fit, rise: slope * (n - 1) }
+    let maxStep = 0
+    for (let i = 1; i < n; i++) maxStep = Math.max(maxStep, bins[i]! - bins[i - 1]!)
+    return { slope, fit, rise: slope * (n - 1), maxStep }
   }
 
   // The 90th percentile of a group's level over this song's last 90 s, in dB: the level the song is "at" when it is full. It is taken over 2 s means
@@ -410,8 +442,8 @@ export class SectionTracker {
   }
 
   // Where a group's level is now (the last 2 s) against the song's own top level, in dB: 0 at the top, negative below it.
-  private relative = (now: number, pick: Group): number | null => {
-    const recent = this.meanDb(now, 0, RECENT_MS, pick)
+  private relative = (now: number, pick: Group, windowMs: number = RECENT_MS): number | null => {
+    const recent = this.meanDb(now, 0, windowMs, pick)
     const peak = this.peakDb(now, pick)
     return recent === null || peak === null ? null : recent - peak
   }
@@ -427,6 +459,7 @@ export class SectionTracker {
   private enter = (section: SongSection, t: number): void => {
     if (section === this.section) return
     if (this.section === 'drop') this.lastDropEnd = t
+    if (section === 'drop') this.lastDropStart = t
     if (isSetup(this.section)) {
       this.lastSetupEnd = t
       this.lastSetupLongEnough = t - this.sectionStart >= SETUP_MIN_MS[this.section]
@@ -464,6 +497,7 @@ export class SectionTracker {
     this.lastSetupEnd = -Infinity
     this.lastSetupLongEnough = false
     this.lastDropEnd = -Infinity
+    this.lastDropStart = -Infinity
     this.tempoSlots = 0
     this.tempoChanges = 0
     this.songTempo = null
@@ -558,11 +592,13 @@ export class SectionTracker {
   }
 
   // The step back up: the low end, the whole or the highs jump well over where they were a moment ago, to near the song's top level.
-  private isDropStep = (t: number): boolean => {
+  private isDropStep = (t: number, strong: boolean = false): boolean => {
+    const extra = strong ? DROP_STRONG_EXTRA_DB : 0
+    // The highs alone dropping out for a few seconds and coming back is a fill, not a drop, so they only count with a labelled setup before them.
     const groups: Array<[Group, number]> = [
-      ['low', DROP_LOW_JUMP_DB],
-      ['total', DROP_TOTAL_JUMP_DB],
-      ['high', DROP_HIGH_JUMP_DB],
+      ['low', DROP_LOW_JUMP_DB + extra],
+      ['total', DROP_TOTAL_JUMP_DB + extra],
+      ...(strong ? [] : [['high', DROP_HIGH_JUMP_DB] as [Group, number]]),
     ]
     return groups.some(([group, jump]) => {
       const now = this.meanDb(t, 0, FINE_MS, group)
@@ -589,10 +625,18 @@ export class SectionTracker {
     const buildingUp =
       isClimb(this.trend(t, 'total', BUILDUP_SECONDS), BUILDUP_MIN_DB) ||
       isClimb(this.trend(t, 'mid', BUILDUP_SECONDS), BUILDUP_MIN_DB) ||
-      isClimb(this.trend(t, 'high', BUILDUP_SECONDS), BUILDUP_MIN_DB)
+      isClimb(this.trend(t, 'high', BUILDUP_SECONDS), BUILDUP_MIN_DB) ||
+      isClimb(trendTotal, BUILDUP_QUICK_MIN_DB, BUILDUP_QUICK_FIT) ||
+      isClimb(trendMid, BUILDUP_QUICK_MIN_DB, BUILDUP_QUICK_FIT) ||
+      isClimb(trendHigh, BUILDUP_QUICK_MIN_DB, BUILDUP_QUICK_FIT)
 
     // An intro is a big climb in the first seconds of a song, and it lasts while the climb does.
     if (this.section === 'intro') {
+      if (songAge >= MIN_HISTORY_MS && this.isDropStep(t, true)) {
+        this.introDone = true
+        this.enter('drop', t)
+        return
+      }
       this.introLapse = climbing ? 0 : this.introLapse + 1
       if (this.introLapse >= INTRO_LAPSE_SLOTS || t - this.sectionStart >= INTRO_MAX_MS) {
         this.introDone = true
@@ -629,7 +673,7 @@ export class SectionTracker {
     if (this.section === 'outro') {
       this.outroFloor = Math.min(this.outroFloor, totalRecent)
       const longEnough = t - this.sectionStart >= OUTRO_FALSE_ALARM_MS
-      if (!longEnough && this.setsUpDrop(t) && this.isDropStep(t)) {
+      if (!longEnough && t - this.lastDropStart >= DROP_REFRACTORY_MS && ((this.setsUpDrop(t) && this.isDropStep(t)) || this.isDropStep(t, true))) {
         this.enter('drop', t)
       } else if (totalDb > OUTRO_LEAVE_DB) {
         if (longEnough) this.startNextSong(t)
@@ -654,7 +698,7 @@ export class SectionTracker {
     }
 
     // A drop: the step back up after a buildup, break or quiet stretch.
-    if (this.section !== 'drop' && this.setsUpDrop(t) && this.isDropStep(t)) {
+    if (this.section !== 'drop' && t - this.lastDropStart >= DROP_REFRACTORY_MS && ((this.setsUpDrop(t) && this.isDropStep(t)) || this.isDropStep(t, true))) {
       this.enter('drop', t)
       return
     }
@@ -678,7 +722,10 @@ export class SectionTracker {
     }
 
     // A break takes a few seconds of the low end (or everything) well under its peak to start, and a couple of seconds back up to end.
-    const low = relLow <= BREAK_LOW_DB || relTotal <= BREAK_TOTAL_DB
+    const relLowLong = this.relative(t, 'low', BREAK_MEAN_MS)
+    const relTotalLong = this.relative(t, 'total', BREAK_MEAN_MS)
+    const low = (relLowLong ?? 0) <= BREAK_LOW_DB || (relTotalLong ?? 0) <= BREAK_TOTAL_DB
+    const afterDrop = t - this.lastDropStart < BREAK_AFTER_DROP_MS
     if (this.section === 'break') {
       const recovered = relLow >= BREAK_LEAVE_LOW_DB && relTotal >= BREAK_LEAVE_TOTAL_DB
       this.breakLeaveSlots = recovered ? this.breakLeaveSlots + 1 : 0
@@ -686,7 +733,7 @@ export class SectionTracker {
       return
     }
     // Leaky, not reset: the pumping of a kick lifts a low stretch over the line for a slot now and then, and that should not start the count over.
-    this.breakSlots = low ? this.breakSlots + 1 : Math.max(0, this.breakSlots - 1)
+    this.breakSlots = low && !afterDrop ? this.breakSlots + 1 : Math.max(0, this.breakSlots - 1)
     if (this.breakSlots >= BREAK_ENTER_SLOTS) this.enter('break', t)
   }
 }

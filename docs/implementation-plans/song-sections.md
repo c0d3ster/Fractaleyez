@@ -29,11 +29,11 @@ Building blocks:
 | Section | Signature |
 | --- | --- |
 | quiet | Shown whenever no song is confirmed (no regular beat: silence, a fan, typing). Also the whole level about 14 dB under the song's slow loudness memory, for a second |
-| intro | A big climb (6 dB or more over 6 s, in the whole level) in the first 45 s of a song, and the stretch after a song change; ends 2 s after the climb stops |
+| intro | A big climb (6 dB or more over 6 s, in the whole level, spread over the window and not a single step) in the first 45 s of a song, and the stretch after a song change; ends 2 s after the climb stops or after 30 s. While it is on it still watches for a big step up, which is a drop |
 | groove | The default once a song is confirmed |
-| buildup | A sustained 9 s climb of at least 6 dB in the mids, highs or the whole, held for about a second. Ends when no climb has been seen for 2.5 s, or after 30 s. Not within 8 s after a drop |
-| break | The low end 4 dB or more under its own peak, or the whole 3.5 dB under, for about 4 s (a leaky counter, so kick pumping does not reset it). Ends after 2 s back near the peak |
-| drop | The low end (+6 dB), the whole (+4 dB) or the highs (+8 dB) step up over the previous 1.5 to 5 s, to within 3.5 dB of the peak, right after a buildup of 2.5 s or more, a break of 3 s or more, a quiet stretch of 2 s or more, or a fade. Held for 4 s |
+| buildup | A sustained climb in the mids, highs or the whole: 6 dB or more over 9 s, or 5 dB over 6 s if very straight (fit 0.88). A climb must be spread over the window, not a step, or the drop itself would read as one. Held for about a second to enter; ends when no climb has been seen for 4 s (so it lingers through the turnaround), or after 30 s. Not within 8 s after a drop |
+| break | The low end 4 dB or more under its own peak, or the whole 3.5 dB under, judged on a 4 s mean (so a wobbling bass cannot start one), for about 4 s (a leaky counter, so kick pumping does not reset it). Cannot start within 10 s after a drop starts. Ends after 2 s back near the peak |
+| drop | The low end (+6 dB), the whole (+4 dB) or the highs (+8 dB) step up over the previous 1.5 to 5 s, to within 3.5 dB of the peak, after a buildup of 2.5 s or more, a break of 3 s or more, a quiet stretch of 2 s or more or a fade that ended in the last 6 s. A bigger step (low +9 dB or whole +7 dB) is a drop with no labelled setup (the buildup label may have lapsed in the turnaround, or been an intro). No second drop within 8 s of the last. Held for 4 s |
 | outro | A fall (6 s fit) late in a song (150 s or more) to 12 dB or more under the peak. Shallower falls stay breaks. If the level comes back within 8 s it was a pause and a drop can fire straight out of it |
 
 **A song is playing** once a regular beat has been going: at least 8 beats in 8 s with tempo consistency 0.5 or more, after 10 s. Until then everything shows as quiet. This is also what gates the song clock. It is lost after 25 s with almost no beats.
@@ -46,6 +46,12 @@ Building blocks:
 - the tempo, read cleanly (consistency 0.75 or more), stays different from the one the song held for three checks in a row. This is weak: the tempo estimator wobbles on real music (a steady 128 BPM track reads 96, 127, 160 and 176 along the way), so this rule is deliberately hard to trigger.
 
 The Section strip shows the section name below the graph, the intensity at the top right and a song clock at the top left (shown once a song is confirmed, hidden in silence and on stray noise).
+
+## Live reports and the session export
+
+Listening tests on a real Spotify song found more problems the 11-song set did not show: the drop swallowed by an intro that climbed into the buildup, a buildup label firing on the drop's own step up (a step inside a 9 s window fits a line), and a loop of break, drop, groove, break, drop inside one loud section (a wobbling bass dips 4 to 6 dB, which read as a break, and its return read as a drop). Fixes: a climb must be spread over its window (the biggest one-second rise is at most half the total), the intro keeps watching for a drop and ends after 30 s, a strong step is a drop without a labelled setup, a break is judged on a 4 s mean and cannot start within 10 s of a drop, and there is no second drop within 8 s.
+
+Without the audio, none of that could be replayed, so the tracker now keeps every slot of a session (40 minutes at most) and `exportSectionLog()`, run from the console of the running app, downloads it as `section-log-<time>.json`. `scripts/section-eval/replay-log.mts` replays such a log through the current tracker and `render.py` charts it, so a bad moment in a live session can be reproduced offline and tuned against.
 
 ## Steps
 
