@@ -32,6 +32,14 @@ const run = (script: (s: number) => Frame, seconds: number, gain = 1, noise = 0)
   return seen
 }
 
+// The labels shown from `seconds` on: every change after that, plus the one that was already showing. Before a regular beat has been going for a
+// while there is no song to label, so the start of a run is quiet.
+const labelsAfter = (seen: Array<{ section: SongSection; at: number }>, seconds: number): SongSection[] => {
+  const before = seen.filter(({ at }) => at < seconds)
+  const active = before[before.length - 1]
+  return [...(active ? [active] : []), ...seen.filter(({ at }) => at >= seconds)].map(({ section }) => section)
+}
+
 const beatEvery = (periodMs: number, s: number): boolean => {
   const step = Math.max(1, Math.round(periodMs / FRAME_MS))
   return Math.round((s * 1000) / FRAME_MS) % step === 0
@@ -61,8 +69,8 @@ describe('SectionTracker under realistic conditions', () => {
   })
 
   it('stays groove with noise and no structure', () => {
-    const names = run(groove, 90, 1, 0.3).map(({ section }) => section)
-    expect(names).toEqual(['groove'])
+    const seen = run(groove, 90, 1, 0.3)
+    expect(labelsAfter(seen, 16)).toEqual(['groove'])
   })
 
   it('finds a short, 6 second buildup', () => {
@@ -88,7 +96,8 @@ describe('SectionTracker under realistic conditions', () => {
     const tracker = new SectionTracker()
     for (let t = 0; t <= 40000; t += FRAME_MS) tracker.push({ t, levels: [10, 6, 3, 4, 2], beat: beatEvery(500, t / 1000) })
     for (let t = 400000; t <= 405000; t += FRAME_MS) tracker.push({ t, levels: [0.1, 0.1, 0.1, 0.1, 0.1], beat: false })
-    expect(tracker.getState().section).toBe('groove')
+    // Five seconds of faint sound with no beat is no song, so there is nothing to label.
+    expect(tracker.getState().section).toBe('quiet')
     expect(tracker.getHistory().every((slot) => slot.t >= 400000)).toBe(true)
   })
 
@@ -141,7 +150,7 @@ describe('SectionTracker drop accuracy', () => {
       }
       return groove(s)
     }
-    const names = run(script, 60).map(({ section }) => section)
+    const names = labelsAfter(run(script, 60), 16)
     const flips = names.filter((n) => n === 'quiet').length
     expect(flips).toBeLessThanOrEqual(1)
   })
@@ -156,7 +165,7 @@ describe('SectionTracker intros, outros and song changes', () => {
 
   // A song: groove, then an outro fading to `floor`, held for `hold` seconds, then the next song ramps in over `ramp` seconds.
   const twoSongs = (floor: number, hold: number, ramp: number): ((s: number) => Frame) => {
-    const outroAt = 50
+    const outroAt = 160
     const nextAt = outroAt + 4 + hold
     return (s) => {
       if (s < outroAt) return groove(s)
@@ -170,8 +179,8 @@ describe('SectionTracker intros, outros and song changes', () => {
     }
   }
 
-  it('calls a fade to 40% an outro, not a break, and the next song an intro', () => {
-    const seen = run(twoSongs(0.4, 14, 8), 110)
+  it('calls a deep fade late in a song an outro, not a break, and the next song an intro', () => {
+    const seen = run(twoSongs(0.2, 14, 8), 225)
     const names = seen.map(({ section }) => section)
     expect(names).toContain('outro')
     expect(names).toContain('intro')
@@ -182,16 +191,16 @@ describe('SectionTracker intros, outros and song changes', () => {
 
   it('still calls the next song an intro when it opens quietly', () => {
     // The fade holds at 25%, then the next song climbs from there.
-    const names = run(twoSongs(0.25, 12, 14), 120).map(({ section }) => section)
+    const names = run(twoSongs(0.15, 12, 14), 230).map(({ section }) => section)
     expect(names).toContain('outro')
     expect(names).toContain('intro')
   })
 
   it('counts the songs', () => {
     const tracker = new SectionTracker()
-    const script = twoSongs(0.4, 14, 8)
+    const script = twoSongs(0.2, 14, 8)
     let song = 1
-    for (let t = 0; t <= 110000; t += FRAME_MS) {
+    for (let t = 0; t <= 225000; t += FRAME_MS) {
       const frame = script(t / 1000)
       tracker.push({ t, levels: frame.levels, beat: frame.beat })
       song = tracker.getState().songIndex
@@ -336,3 +345,52 @@ describe('SectionTracker silences between songs', () => {
     expect(finish(script, 60).songIndex).toBe(1)
   })
 })
+
+describe('SectionTracker with no music, and with dips that are not parts', () => {
+  it('shows quiet, not groove, for typing on a keyboard (irregular bursts, no steady beat)', () => {
+    const random = makeRandom(11)
+    const tracker = new SectionTracker()
+    let section = 'quiet'
+    const seen = new Set<string>()
+    let burstUntil = 0
+    for (let t = 0; t <= 90000; t += FRAME_MS) {
+      // A burst of key noise every second or so, at random times, with the odd "beat" flagged inside it.
+      if (t > burstUntil && random() < 0.02) burstUntil = t + 80 + random() * 120
+      const loud = t < burstUntil
+      const level = loud ? 2 + random() * 3 : 0.15
+      tracker.push({ t, levels: [level * 0.4, level * 0.6, level, level * 1.2, level * 0.8], beat: loud && random() < 0.1 })
+      section = tracker.getState().section
+      seen.add(section)
+    }
+    expect([...seen]).toEqual(['quiet'])
+    expect(section).toBe('quiet')
+    expect(tracker.getState().songMs).toBeNull()
+  })
+
+  it('does not call a quick recovery from a dip a buildup', () => {
+    // A dip of about 8 dB for 2 seconds, then back: that climb is over in a couple of seconds, a buildup lasts bars.
+    const script = (s: number): Frame => (s > 45 && s < 47 ? scaledGroove(s, 0.4) : groove(s))
+    const names = run(script, 80).map(({ section }) => section)
+    expect(names).not.toContain('buildup')
+  })
+
+  it('calls a low end held well under its peak a break, even with kick pumping in it', () => {
+    const pumping = (s: number): Frame => {
+      const phase = (s % 0.5) / 0.5
+      const kick = Math.exp(-phase * 6)
+      const low = s > 40 && s < 70 ? 0.5 : 1
+      return { levels: [(3 + 12 * kick) * low, (3 + 5 * kick) * low, 3, 4, 2], beat: beatEvery(500, s) }
+    }
+    const seen = run(pumping, 90)
+    const names = seen.map(({ section }) => section)
+    expect(names).toContain('break')
+    const brk = seen.find(({ section }) => section === 'break')!
+    expect(brk.at).toBeGreaterThan(40)
+    expect(brk.at).toBeLessThan(50)
+  })
+})
+
+const scaledGroove = (s: number, factor: number): Frame => {
+  const frame = groove(s)
+  return { levels: frame.levels.map((level) => level * factor), beat: frame.beat }
+}

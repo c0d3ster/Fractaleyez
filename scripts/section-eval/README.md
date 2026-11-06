@@ -22,13 +22,12 @@ python render.py song.json song.png
 
 Audio is not committed. The set used so far is 11 tracks from *Most Wanted* by Starfrosch (CC BY-NC-ND 3.0, on archive.org as `starfrosch-mostwanted`): trap, dubstep, house and EDM with real builds and drops. They are only decoded and analyzed locally. ccMixter would also be a fit but blocks non-browser downloads (403), so archive.org was used.
 
-## Status (when this was written)
+## Other tools
 
-The tracker was tuned on two short synthetic-ish tracks and then checked on real songs for the first time. It does badly:
+- `summarize.py <dir>`: one line per song listing every section run of 1.5 s or more (except groove), the number of songs detected, and the total seconds per label. Quick way to scan many songs after a change. Each file in the test set is one song, so `songs=` should always be 1.
+- `probe.mts <frames.json> <from s> <to s> <step s>`: prints the tracker's internals (relative levels and the climb/fall fits) while replaying, to see why a label fired. It reaches into private members, so it is a debugging aid only.
+- `tempoprobe.mts <frames.json> <from s> <to s>`: prints the tempo estimate every 4 s, which is how the tempo estimator's wobble on real music was found.
 
-- It labels long steady, loud stretches as **buildup** for up to 40 s (the "holding" rule is trivially true in a loud song, and the "rising" test fires on sidechain pumping and beat-count noise).
-- A real buildup into a drop is often missed, and the drop is not marked.
-- Bridges read as outro and the start of a build reads as intro.
-- Keyboard noise with no music reads as groove (the default label is groove, with no "no song" state).
+## Status
 
-Next steps that were planned: mark the true sections on each chart, score the tracker against them (drop within a few seconds, overlap for buildup, break, intro and outro, and false positives in steady stretches), and redesign the rising/buildup detection around sustained trends (slope of the high band, low-end removal) rather than a recent-vs-prior comparison.
+See `docs/implementation-plans/song-sections.md`. In short: after a rebuild guided by these charts, breaks and the drops that end them are found on most test songs and each song reads as one song, but there is no ground-truth annotation yet (the charts are read by eye), buildup recall on real songs is unproven (the test set has few classic riser builds), and outro and intro are the weakest labels. Marking true sections per song and scoring the tracker against them is the next step.
