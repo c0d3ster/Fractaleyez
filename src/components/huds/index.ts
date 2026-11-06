@@ -1,4 +1,5 @@
 export { BeatHud } from './BeatHud'
+export { SectionHud } from './SectionHud'
 export { FrequencyHud } from './FrequencyHud'
 export { PerfHud } from './PerfHud'
 export { ParticleSpriteHud } from './ParticleSpriteHud'

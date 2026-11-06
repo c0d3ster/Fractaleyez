@@ -3,6 +3,7 @@ import { analyserConfig as AnalyserConfig } from '../config/analyser.config'
 import { AudioAnalyser } from './audio-analyser'
 import { AudioAnalysedDataForVisualization } from './audio-analysed-data'
 import { beatMonitor } from './beat'
+import { sectionTracker } from './sections'
 import { OnsetDetector } from './onset-detector'
 import { DEFAULT_ENABLED_BANDS, ONSET_BANDS } from './onset-bands'
 
@@ -34,7 +35,9 @@ export class AudioFeed {
       decayMs: AnalyserConfig.options.peakDetection.options.peakPersistency,
     })
     snapshot.beat = onset.beat
-    beatMonitor.record({ t: performance.now(), bands: onset.bands, beatBand: onset.beatBand })
+    const now = performance.now()
+    beatMonitor.record({ t: now, bands: onset.bands, beatBand: onset.beatBand })
+    sectionTracker.push({ t: now, levels: onset.bands.map(({ level }) => level), beat: onset.beatBand !== null })
 
     this.latest = snapshot
     return snapshot
