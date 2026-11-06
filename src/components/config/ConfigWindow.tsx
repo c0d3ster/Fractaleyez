@@ -17,7 +17,7 @@ import { ShapePad } from './ShapePad'
 import { LogConfigButton } from './LogConfigButton'
 import { ColorConfigBody } from './ColorConfigBody'
 import { LogoConfigBody } from './LogoConfigBody'
-import { BeatHud, FrequencyHud, ParticleSpriteHud } from '../huds'
+import { BeatHud, FrequencyHud, ParticleSpriteHud, SectionHud } from '../huds'
 
 type OrbitColumnBodyProps = {
   onChange: ConfigContextValue['updateConfigItem']
@@ -209,7 +209,7 @@ const ExternalWindowBridge = ({
                 ) : null}
                 {entry === 'effects' || entry === 'audio' ? (
                   <ConfigCategory name={entry} onChange={updateConfigItem} isOpen={true} toggleOpen={() => null} expanded popup>
-                    {entry === 'audio' ? <><FrequencyHud /><BeatHud /></> : null}
+                    {entry === 'audio' ? <><FrequencyHud /><BeatHud /><SectionHud /></> : null}
                   </ConfigCategory>
                 ) : null}
               </div>

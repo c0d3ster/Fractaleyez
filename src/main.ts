@@ -3,6 +3,8 @@ import { AudioStream } from './audiostream/audio-stream'
 import { AudioAnalyser } from './audioanalysis/audio-analyser'
 import { AudioFeed } from './audioanalysis/audio-feed'
 import { beatMonitor } from './audioanalysis/beat'
+import { sectionTracker } from './audioanalysis/sections'
+import { exportSectionLog } from './audioanalysis/section-export'
 import { DEFAULT_DETECTOR_MS, detectorCalibration, estimateLag, LagEstimate, median } from './audioanalysis/lag-estimate'
 import { LagProbe } from './audioanalysis/lag-probe'
 import { DEFAULT_ENABLED_BANDS } from './audioanalysis/onset-bands'
@@ -139,6 +141,9 @@ const init = (): void => {
   window.getBeatTimeline = beatMonitor.getTimeline
   window.getLastBeatTime = beatMonitor.getLastBeatTime
   window.getBeatTimes = beatMonitor.getBeatTimes
+  window.getSongSection = sectionTracker.getState
+  window.getSectionHistory = sectionTracker.getHistory
+  window.exportSectionLog = (): void => exportSectionLog(sectionTracker.getRecording())
   window.subscribeBeat = beatMonitor.subscribe
   window.measureBeatLag = lagProbe.measure
   window.getPerfData = () => {

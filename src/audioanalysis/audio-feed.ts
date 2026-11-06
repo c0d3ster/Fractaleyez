@@ -3,6 +3,7 @@ import { analyserConfig as AnalyserConfig } from '../config/analyser.config'
 import { AudioAnalyser } from './audio-analyser'
 import { AudioAnalysedDataForVisualization } from './audio-analysed-data'
 import { beatMonitor } from './beat'
+import { sectionTracker } from './sections'
 import { OnsetDetector } from './onset-detector'
 import { DEFAULT_ENABLED_BANDS, ONSET_BANDS } from './onset-bands'
 
@@ -15,6 +16,8 @@ import { DEFAULT_ENABLED_BANDS, ONSET_BANDS } from './onset-bands'
 export class AudioFeed {
   private latest: AudioAnalysedDataForVisualization | null = null
   private readonly onsetDetector = new OnsetDetector(ONSET_BANDS.length)
+  // Reused every frame, so feeding the section tracker allocates nothing.
+  private readonly sectionLevels: number[] = ONSET_BANDS.map(() => 0)
 
   constructor(
     private readonly stream: AudioStream,
@@ -34,7 +37,12 @@ export class AudioFeed {
       decayMs: AnalyserConfig.options.peakDetection.options.peakPersistency,
     })
     snapshot.beat = onset.beat
-    beatMonitor.record({ t: performance.now(), bands: onset.bands, beatBand: onset.beatBand })
+    const now = performance.now()
+    beatMonitor.record({ t: now, bands: onset.bands, beatBand: onset.beatBand })
+    onset.bands.forEach(({ level }, i) => {
+      this.sectionLevels[i] = level
+    })
+    sectionTracker.push({ t: now, levels: this.sectionLevels, beat: onset.beatBand !== null })
 
     this.latest = snapshot
     return snapshot

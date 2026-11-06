@@ -1,5 +1,6 @@
 import type { AppConfig, LayerKey } from '../config/configDefaults'
 import type { BeatTimeline } from '../audioanalysis/beat'
+import type { SectionSlot, SectionState } from '../audioanalysis/sections'
 import type { LagEstimate } from '../audioanalysis/lag-estimate'
 import type { LagMeasurement } from '../audioanalysis/lag-probe'
 import type { QualityStatus } from '../visualization/quality-controller'
@@ -44,6 +45,10 @@ declare global {
     getBeatTimeline?: () => BeatTimeline
     getLastBeatTime?: () => number | null
     getBeatTimes?: () => readonly number[]
+    getSongSection?: () => SectionState
+    getSectionHistory?: () => readonly SectionSlot[]
+    /** Downloads everything the section tracker saw this session as a JSON file, to be replayed offline. Run it from the console. */
+    exportSectionLog?: () => void
     subscribeBeat?: (listener: () => void) => () => void
     measureBeatLag?: (save?: boolean) => Promise<LagMeasurement | null>
     enabledFreqBands?: boolean[]
