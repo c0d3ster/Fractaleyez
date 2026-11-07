@@ -46,4 +46,31 @@ describe('OnsetDetector', () => {
     }
     expect(countBeats(40, 21000, (time, _, since) => (time < 20000 ? 1 + kick(since, 40) : 1 + 2 * wobble()))).toBe(0)
   })
+
+  it('ignores steady noise in the bass band while no rhythm is heard, and still catches a kick with its body', () => {
+    // A fan's rumble: the bass band level wandering by a few dB from one window to the next, the band above it steady.
+    let seed = 3
+    const random = (): number => {
+      seed = (seed * 1664525 + 1013904223) % 4294967296
+      return seed / 4294967296
+    }
+    const run = (rhythm: boolean | undefined, withKicks: boolean): number => {
+      const detector = new OnsetDetector(5)
+      let beats = 0
+      let wander = 0
+      for (let time = 0; time < 30000; time += FRAME_MS) {
+        wander = wander * 0.5 + (random() - 0.5) * 8
+        const since = time % KICK_GAP_MS
+        const k = withKicks ? kick(since, 30) : 0
+        const levels = [4 * 10 ** (wander / 20) + k, 2 + k / 4, 1, 1, 1]
+        const { beat } = detector.update(levels, FRAME_MS, 0, { enabledBands: [true, false, false, false, false], sensitivity: 2, ignoreMs: 250, decayMs: 300, rhythm })
+        if (beat.fresh && time > 2000) beats++
+      }
+      return beats
+    }
+    const ungated = run(undefined, false)
+    expect(ungated).toBeGreaterThan(5)
+    expect(run(false, false)).toBeLessThanOrEqual(2)
+    expect(run(false, true)).toBeGreaterThanOrEqual(kicksAfter(30, 2000) - 2)
+  })
 })
