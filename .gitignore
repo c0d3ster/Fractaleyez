@@ -27,3 +27,4 @@ scripts/presets.local*.json
 # Claude Code
 .claude/
 drive-download-*
+scripts/section-eval/__pycache__/
