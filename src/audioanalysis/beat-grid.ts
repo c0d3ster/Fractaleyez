@@ -8,11 +8,14 @@
 //  1. Beat clock. The tempo tracker gives the period. Every 250 ms the last 8 s of onset strength (on a 5 ms grid, lightly smoothed) is
 //     scored against every phase of that period; the clock is nudged toward the best one (a small error) or re-anchored on it (a large one
 //     that persists). A beat event fires on the frame the clock passes a beat.
-//  2. Downbeat. At each beat: where the claps and snares land (beats 2 and 4 in dance music), how much the sound changed across the beat
-//     (bar lines change most: a new bass note, a crash, a new loop) and how heavy the kick is. Each is kept per position in the bar with a
-//     slow decay; the downbeat is the position whose evidence wins, and it moves only after winning for a while.
-//  3. Phrase. At each bar line, how much the sound changed from the bar before to the bar after, kept per position in an 8-bar cycle;
-//     the phrase line is the position with the most change.
+//  2. Downbeat. Once a beat is two beats past: how far each band rose on it (kick, clap, crash) and how much each band's level changed
+//     across it, over one beat and over two (bar lines change most: a new bass note, a new loop). Kept per position in the bar with a slow
+//     decay. Each hypothesis "this position is beat 1" weighs every position's cues by where it sits relative to that beat (claps count for
+//     beats 2 and 4, changes for beat 1), with weights fitted on Raveform's marked beats (scripts/section-eval/grid-train.py); the downbeat
+//     is the hypothesis that wins, and it moves only after winning for a while.
+//  3. Phrase. The same at bar level, four bars after each bar line: the rise on its first beat and how much the level changed across it
+//     over one, two and four bars, kept per position in an 8-bar cycle and weighed per hypothesis with fitted weights.
+import model from './beat-grid-model.json'
 import { TempoTracker } from './tempo-tracker'
 
 export type GridState = {
@@ -41,9 +44,6 @@ export type BeatGridOptions = {
   /** Memory of the downbeat and phrase evidence, in bars. */
   downbeatMemoryBars: number
   phraseMemoryBars: number
-  clapWeight: number
-  changeWeight: number
-  kickWeight: number
   /** A different downbeat or phrase line takes over once it has led for this many bars. */
   switchBars: number
   /** How late the onsets arrive after the sound that makes them (band filters and level windows), taken off the beat times. */
@@ -58,9 +58,6 @@ export const DEFAULT_GRID_OPTIONS: BeatGridOptions = {
   phaseJumpUpdates: 4,
   downbeatMemoryBars: 8,
   phraseMemoryBars: 24,
-  clapWeight: 1,
-  changeWeight: 1,
-  kickWeight: 0.5,
   switchBars: 2,
   latencyMs: 25,
 }
@@ -74,30 +71,55 @@ const BEATS_PER_BAR = 4
 const BARS_PER_PHRASE = 8
 const FLOOR_DB = -60
 
+// The fitted weights: per hypothesis slot (the position d + r for hypothesis d), per cue. Beat cues: rise, 1-beat change, 2-beat change,
+// each per band. Bar cues: rise on the first beat, 1-, 2- and 4-bar change, each per band.
+const DOWNBEAT_WEIGHTS: readonly (readonly number[])[] = model.downbeat
+const PHRASE_WEIGHTS: readonly (readonly number[])[] = model.phrase
+const BEAT_CUES = BANDS * 3
+const BAR_CUES = BANDS * 4
+
 const toDb = (level: number): number => Math.max(FLOOR_DB, 20 * Math.log10(Math.max(level, 1e-6)))
 const wrap = (value: number, period: number): number => ((value % period) + period) % period
 
-/** Evidence per position in a cycle (beats in a bar, bars in a phrase), each slot decaying on its own as it comes round. */
+/**
+ * Cues per position in a cycle (beats in a bar, bars in a phrase), each position decaying on its own as it comes round, and which
+ * position the fitted weights say is the line.
+ */
 class Accumulator {
-  private readonly values: Float64Array
+  private readonly values: Float64Array[]
+  private readonly scores: Float64Array
   private leader = 0
   private challenger = -1
   private challengerRuns = 0
 
-  constructor(readonly size: number) {
-    this.values = new Float64Array(size)
+  constructor(readonly size: number, private readonly cues: number, private readonly weights: readonly (readonly number[])[]) {
+    this.values = Array.from({ length: size }, () => new Float64Array(cues))
+    this.scores = new Float64Array(size)
   }
 
-  add = (position: number, value: number, decay: number): void => {
-    this.values[position] = this.values[position]! * decay + value
+  add = (position: number, cues: ArrayLike<number>, decay: number): void => {
+    const values = this.values[wrap(position, this.size)]!
+    for (let c = 0; c < this.cues; c++) values[c] = values[c]! * decay + cues[c]!
   }
 
-  score = (position: number): number => this.values[wrap(position, this.size)]!
+  // Each hypothesis d ("position d is the line") from every position's cues, each cue taken relative to its mean over the positions.
+  private score = (): void => {
+    this.scores.fill(0)
+    for (let c = 0; c < this.cues; c++) {
+      let mean = 0
+      for (let p = 0; p < this.size; p++) mean += this.values[p]![c]! / this.size
+      if (mean <= 1e-6) continue
+      for (let d = 0; d < this.size; d++) {
+        for (let r = 0; r < this.size; r++) this.scores[d]! += this.weights[r]![c]! * (this.values[(d + r) % this.size]![c]! / mean)
+      }
+    }
+  }
 
   /** The position that leads, kept until another has led for `runs` calls in a row. */
-  lead = (scoreOf: (position: number) => number, runs: number): number => {
+  lead = (runs: number): number => {
+    this.score()
     let best = 0
-    for (let p = 1; p < this.size; p++) if (scoreOf(p) > scoreOf(best)) best = p
+    for (let p = 1; p < this.size; p++) if (this.scores[p]! > this.scores[best]!) best = p
     if (best === this.leader) {
       this.challengerRuns = 0
       return this.leader
@@ -111,15 +133,14 @@ class Accumulator {
     return this.leader
   }
 
-  confidence = (scoreOf: (at: number) => number, position: number): number => {
-    let mean = 0
-    for (let p = 0; p < this.size; p++) mean += scoreOf(p) / this.size
-    const top = scoreOf(position)
-    return top > 0 ? Math.max(0, Math.min(1, (top - mean) / top)) : 0
-  }
-
-  shift = (by: number): void => {
-    this.leader = wrap(this.leader + by, this.size)
+  /** How far the leader's share of the evidence (a softmax over the hypotheses) is above chance, 0 to 1. */
+  confidence = (): number => {
+    let top = -Infinity
+    for (let p = 0; p < this.size; p++) top = Math.max(top, this.scores[p]!)
+    let sum = 0
+    for (let p = 0; p < this.size; p++) sum += Math.exp(this.scores[p]! - top)
+    const share = Math.exp(this.scores[this.leader]! - top) / sum
+    return Math.max(0, Math.min(1, (share - 1 / this.size) / (1 - 1 / this.size)))
   }
 }
 
@@ -135,19 +156,25 @@ export class BeatGrid {
   private readonly bandSums = new Float64Array(BANDS)
   private frames = 0
   private readonly lastDb = new Float64Array(BANDS)
-  // The last couple of seconds of frames (time, clap rise, kick rise), so each beat's own hits can be read from a window around it.
-  private readonly recent: Array<[number, number, number]> = []
+  // The last couple of seconds of frames (time, then each band's rise), so each beat's own hits can be read from a window around it.
+  private readonly recent: Float64Array[] = []
   private lastBeatMs: number | null = null
   private readonly followers = new Float64Array(BANDS).fill(FLOOR_DB)
+  // The last four beats' level profiles and the last two beats' rises, oldest first, for the cues of the beat two back.
   private readonly beatProfiles: Float64Array[] = []
-  private readonly downbeat = new Accumulator(BEATS_PER_BAR)
-  private readonly clap = new Accumulator(BEATS_PER_BAR)
-  private readonly kick = new Accumulator(BEATS_PER_BAR)
-  private readonly phrase = new Accumulator(BARS_PER_PHRASE)
+  private readonly beatRises: Float64Array[] = []
+  private readonly beatCues = new Float64Array(BEAT_CUES)
+  private readonly downbeat = new Accumulator(BEATS_PER_BAR, BEAT_CUES, DOWNBEAT_WEIGHTS)
+  private readonly phrase = new Accumulator(BARS_PER_PHRASE, BAR_CUES, PHRASE_WEIGHTS)
   private downbeatPosition = 0
   private phrasePosition = 0
   private barCount = 0
+  private lastBeatInBar = 0
+  private barStartRise = new Float64Array(BANDS)
+  // The last eight bars' level profiles and the rises on their first beats, oldest first, for the cues of the bar line four back.
   private readonly barProfiles: Float64Array[] = []
+  private readonly barRises: Float64Array[] = []
+  private readonly barCues = new Float64Array(BAR_CUES)
   private readonly barSum = new Float64Array(BANDS)
   private barBeats = 0
   private state: GridState | null = null
@@ -165,8 +192,11 @@ export class BeatGrid {
       this.lastDb[b] = db
     }
     this.frames++
-    this.recent.push([t, this.rise(3, levels), this.rise(0, levels)])
-    if (this.recent.length > 0 && this.recent[0]![0] < t - RECENT_MS) this.recent.splice(0, this.recent.findIndex(([time]) => time >= t - RECENT_MS / 2))
+    const frame = new Float64Array(BANDS + 1)
+    frame[0] = t
+    for (let b = 0; b < BANDS; b++) frame[b + 1] = this.rise(b, levels)
+    this.recent.push(frame)
+    if (this.recent[0]![0]! < t - RECENT_MS) this.recent.splice(0, this.recent.findIndex((f) => f[0]! >= t - RECENT_MS / 2))
     const period = this.tempo.getPeriodMs()
     if (period === null) {
       this.anchor = null
@@ -250,50 +280,47 @@ export class BeatGrid {
     this.nextBeat = this.scheduleNext(period, t)
   }
 
-  // A beat lands: the evidence for the beat just finished, then the downbeat and phrase decisions.
+  // A beat lands: the cues for the beat two back (now that the two beats after it are known), then the downbeat and phrase decisions.
   private onBeat = (beatMs: number, period: number): void => {
-    const { downbeatMemoryBars, phraseMemoryBars, clapWeight, changeWeight, kickWeight, switchBars } = this.options
+    const { downbeatMemoryBars, phraseMemoryBars, switchBars } = this.options
     const profile = Float64Array.from(this.bandSums, (sum) => sum / Math.max(this.frames, 1))
     this.bandSums.fill(0)
     this.frames = 0
     // If the clock moved by whole beats (a re-anchor), the beats in between still happened: count them, so the place in the bar stays put.
     if (this.lastBeatMs !== null) this.beatCount += Math.max(0, Math.round((beatMs - this.lastBeatMs) / period) - 1)
     const position = this.beatCount % BEATS_PER_BAR
-    const decay = Math.exp(-1 / downbeatMemoryBars)
-    // The clap and kick of the beat before this one, from a window around it (a quarter beat before to half a beat after), now all past.
-    const ended = wrap(position - 1, BEATS_PER_BAR)
+    // The hits of the beat before this one, from a window around it (a quarter beat before to half a beat after), now all past.
     if (this.lastBeatMs !== null) {
-      let clap = 0
-      let kick = 0
-      for (const [time, clapRise, kickRise] of this.recent) {
+      const rise = new Float64Array(BANDS)
+      for (const frame of this.recent) {
+        const time = frame[0]!
         if (time < this.lastBeatMs - period / 4 || time > this.lastBeatMs + period / 2) continue
-        clap = Math.max(clap, clapRise)
-        kick = Math.max(kick, kickRise)
+        for (let b = 0; b < BANDS; b++) rise[b] = Math.max(rise[b]!, frame[b + 1]!)
       }
-      this.clap.add(ended, clap, decay)
-      this.kick.add(ended, kick, decay)
+      this.beatRises.push(rise)
+      if (this.beatRises.length > 2) this.beatRises.shift()
+      if (this.lastBeatInBar === 1) this.barStartRise = rise
     }
     this.lastBeatMs = beatMs
-    // How much the sound changed across the beat before last: the interval after it against the interval before it.
+    // The profile is the interval that just ended, from the beat before to this one. With four of them, the beat two back has an interval
+    // on each side for the 1-beat change and two on each side for the 2-beat change.
     this.beatProfiles.push(profile)
-    if (this.beatProfiles.length > 2) this.beatProfiles.shift()
-    if (this.beatProfiles.length === 2) {
-      const [before, after] = this.beatProfiles as [Float64Array, Float64Array]
-      let change = 0
-      for (let b = 0; b < BANDS; b++) change += Math.abs(after[b]! - before[b]!)
-      this.downbeat.add(ended, change, decay)
+    if (this.beatProfiles.length > 4) this.beatProfiles.shift()
+    if (this.beatProfiles.length === 4 && this.beatRises.length === 2) {
+      const [i0, i1, i2, i3] = this.beatProfiles as [Float64Array, Float64Array, Float64Array, Float64Array]
+      const rise = this.beatRises[0]!
+      for (let b = 0; b < BANDS; b++) {
+        this.beatCues[b] = rise[b]!
+        this.beatCues[BANDS + b] = Math.abs(i2[b]! - i1[b]!)
+        this.beatCues[2 * BANDS + b] = Math.abs((i2[b]! + i3[b]!) / 2 - (i0[b]! + i1[b]!) / 2)
+      }
+      this.downbeat.add(position - 2, this.beatCues, Math.exp(-1 / downbeatMemoryBars))
     }
     this.beatCount++
-    const clapMean = (this.clap.score(0) + this.clap.score(1) + this.clap.score(2) + this.clap.score(3)) / 4 || 1
-    const changeMean = (this.downbeat.score(0) + this.downbeat.score(1) + this.downbeat.score(2) + this.downbeat.score(3)) / 4 || 1
-    const kickMean = (this.kick.score(0) + this.kick.score(1) + this.kick.score(2) + this.kick.score(3)) / 4 || 1
-    const scoreOf = (d: number): number =>
-      changeWeight * (this.downbeat.score(d) / changeMean) +
-      clapWeight * ((this.clap.score(d + 1) + this.clap.score(d + 3) - this.clap.score(d) - this.clap.score(d + 2)) / clapMean) +
-      kickWeight * (this.kick.score(d) / kickMean)
     // Decided once a bar, on its last beat, so a change of mind moves the bar line, not a beat in the middle of it.
-    if (position === BEATS_PER_BAR - 1) this.downbeatPosition = this.downbeat.lead(scoreOf, switchBars)
+    if (position === BEATS_PER_BAR - 1) this.downbeatPosition = this.downbeat.lead(switchBars)
     const beatInBar = wrap(this.beatCount - 1 - this.downbeatPosition, BEATS_PER_BAR) + 1
+    this.lastBeatInBar = beatInBar
     // The beat that just ended belongs to the bar now closing; a new bar starts on beat 1.
     for (let b = 0; b < BANDS; b++) this.barSum[b]! += profile[b]!
     this.barBeats++
@@ -311,24 +338,37 @@ export class BeatGrid {
       periodMs: period,
       lastBeatMs: beatMs,
       nextBeatMs: beatMs + period,
-      downbeatConfidence: this.downbeat.confidence(scoreOf, this.downbeatPosition),
-      phraseConfidence: this.phrase.confidence((p) => this.phrase.score(p), this.phrasePosition),
+      downbeatConfidence: this.downbeat.confidence(),
+      phraseConfidence: this.phrase.confidence(),
     }
   }
 
-  // A bar line: how much the bar just finished differs from the one before, as evidence for where the phrase lines are.
+  // A bar line: the bar that just finished, and with eight of them the cues of the bar line four back (four bars on each side of it).
   private onBar = (bar: Float64Array, decay: number, switchBars: number): void => {
     this.barProfiles.push(bar)
-    if (this.barProfiles.length > 2) this.barProfiles.shift()
-    const position = this.barCount % BARS_PER_PHRASE
-    if (this.barProfiles.length === 2) {
-      const [before, after] = this.barProfiles as [Float64Array, Float64Array]
-      let change = 0
-      for (let b = 0; b < BANDS; b++) change += Math.abs(after[b]! - before[b]!)
-      // The change is across the bar line that started the bar now ending (one bar back).
-      this.phrase.add(wrap(position - 1, BARS_PER_PHRASE), change, decay)
+    this.barRises.push(this.barStartRise)
+    if (this.barProfiles.length > 8) {
+      this.barProfiles.shift()
+      this.barRises.shift()
+    }
+    if (this.barProfiles.length === 8) {
+      const bars = this.barProfiles
+      const rise = this.barRises[4]!
+      const mean = (from: number, to: number, b: number): number => {
+        let sum = 0
+        for (let i = from; i < to; i++) sum += bars[i]![b]!
+        return sum / (to - from)
+      }
+      for (let b = 0; b < BANDS; b++) {
+        this.barCues[b] = rise[b]!
+        this.barCues[BANDS + b] = Math.abs(bars[4]![b]! - bars[3]![b]!)
+        this.barCues[2 * BANDS + b] = Math.abs(mean(4, 6, b) - mean(2, 4, b))
+        this.barCues[3 * BANDS + b] = Math.abs(mean(4, 8, b) - mean(0, 4, b))
+      }
+      // The bar just finished started at line barCount - 1; the one four back at barCount - 4.
+      this.phrase.add(this.barCount - 4, this.barCues, decay)
     }
     this.barCount++
-    this.phrasePosition = this.phrase.lead((p) => this.phrase.score(p), switchBars)
+    this.phrasePosition = this.phrase.lead(switchBars)
   }
 }
