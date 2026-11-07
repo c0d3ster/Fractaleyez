@@ -19,10 +19,15 @@ Progress goes in `docs/overnight/status.md` (append, never rewrite).
 - Downloaded data goes under a scratch directory, never into the repo. Training audio is never committed.
 - Append to `docs/overnight/status.md` when the stage starts, at each checkpoint (one line, with the key numbers) and when it ends
   (finished, or blocked and why), and commit it with the checkpoint.
+- Usage limits: the account has a 5-hour usage window. If a turn stops because the limit was hit, nothing needs doing: an hourly
+  supervisor (a scheduled task named "Overnight pipeline supervisor") sends "continue" once the limit resets, or starts a fresh session for the
+  stage. When you are resumed, or start on a stage someone else began: `git pull`, read status.md and `git log`, and carry on from the last
+  checkpoint. Never redo finished work, and never start the next stage twice (check status.md and the session list, tag `overnight-pipeline`).
+  Commit and push often, so an interruption loses little.
 - If you cannot finish, push what works, write in status.md exactly where you stopped and why, and still start the next stage if its
   inputs exist; otherwise stop and say so in status.md.
 - At the end: start the next stage with the claude-code-remote `create_session` tool: `source_url` https://github.com/c0d3ster/Fractaleyez,
-  `source_revision` feat/bar-grid, `outcome_branch` feat/bar-grid, prompt "Run stage <N+1> of docs/overnight/pipeline.md". If that tool is
+  `source_revision` feat/bar-grid, `outcome_branch` feat/bar-grid, prompt "Run stage <N+1> of docs/overnight/pipeline.md", `tags` ["overnight-pipeline"]. Then write "stage N finished" in status.md. If that tool is
   not available, write that in status.md. Stage 3 starts nothing.
 
 Setup each session needs: `pnpm install --frozen-lockfile`, `pip install numpy scipy scikit-learn matplotlib`, ffmpeg (installed).
