@@ -3,6 +3,7 @@ import { analyserConfig as AnalyserConfig } from '../config/analyser.config'
 import { AudioAnalyser } from './audio-analyser'
 import { AudioAnalysedDataForVisualization } from './audio-analysed-data'
 import { beatMonitor } from './beat'
+import { beatGrid } from './beat-grid'
 import { sectionTracker } from './sections'
 import { tempoTracker } from './tempo-tracker'
 import { OnsetDetector } from './onset-detector'
@@ -42,6 +43,8 @@ export class AudioFeed {
     const now = performance.now()
     beatMonitor.record({ t: now, bands: onset.bands, beatBand: onset.beatBand })
     tempoTracker.push(now, levels)
+    // After the tracker, so the grid reads this frame's tempo.
+    beatGrid.push(now, levels)
     // The raw band levels, as the section model was trained and scored on (the onset detector's followed levels blur its tick features), and
     // the BPM now shown, for the tempo-change song cue.
     sectionTracker.push({ t: now, levels, beat: onset.beatBand !== null, bpm: tempoTracker.getBpm() })

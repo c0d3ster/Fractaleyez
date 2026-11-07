@@ -16,7 +16,7 @@
 //  3. Phrase. The same at bar level, four bars after each bar line: the rise on its first beat and how much the level changed across it
 //     over one, two and four bars, kept per position in an 8-bar cycle and weighed per hypothesis with fitted weights.
 import model from './beat-grid-model.json'
-import { TempoTracker } from './tempo-tracker'
+import { TempoTracker, tempoTracker } from './tempo-tracker'
 
 export type GridState = {
   /** Beats since the grid locked, counting the current one. */
@@ -379,3 +379,6 @@ export class BeatGrid {
     this.phrasePosition = this.phrase.lead(switchBars)
   }
 }
+
+/** The app's grid, on the app's tempo tracker. AudioFeed pushes it each frame, right after the tracker. */
+export const beatGrid = new BeatGrid(tempoTracker)
