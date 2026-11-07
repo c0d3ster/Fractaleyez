@@ -78,6 +78,9 @@ const TRIM_SLACK_MS = 1000
 const HARMONIC_LIMIT = 4
 const FIRST_LOCK_READINGS = 6
 const FIRST_LOCK_STRENGTH = 0.7
+// The total weight of a period's score terms (itself, its harmonics, its subdivision) when minStrength and FIRST_LOCK_STRENGTH were set
+// against noise. Scores are scaled to it, so more weight on a term changes which period wins but not how strong a rhythm has to be.
+const REFERENCE_SCORE_WEIGHT = 3.5
 
 const toDb = (level: number): number => Math.max(FLOOR_DB, 20 * Math.log10(Math.max(level, 1e-6)))
 
@@ -101,6 +104,7 @@ export class TempoTracker {
   private readonly running = new Float64Array(MAX_LAG + 1)
   private runningReady = false
   private readonly prior = new Float64Array(MAX_LAG + 1)
+  private readonly scoreScale: number
   private shownLag: number | null = null
   private challengerLag: number | null = null
   private challengerReadings = 0
@@ -114,7 +118,8 @@ export class TempoTracker {
     this.options = { ...DEFAULT_TEMPO_OPTIONS, ...options }
     if (this.options.harmonics.length > HARMONIC_LIMIT - 1) throw new Error(`tempo tracker: at most ${HARMONIC_LIMIT - 1} harmonics`)
     this.grid = new Float64Array(Math.ceil(this.options.windowMs / GRID_MS))
-    const { priorBpm, priorOctaves } = this.options
+    const { priorBpm, priorOctaves, harmonics, subdivision } = this.options
+    this.scoreScale = REFERENCE_SCORE_WEIGHT / (1 + harmonics.reduce((sum, weight) => sum + weight, 0) + subdivision)
     for (let lag = MIN_LAG; lag <= MAX_LAG; lag++) {
       const octaves = Math.log2(60000 / (lag * GRID_MS) / priorBpm)
       this.prior[lag] = Math.exp(-0.5 * (octaves / priorOctaves) ** 2)
@@ -213,7 +218,7 @@ export class TempoTracker {
         if (at <= maxLag) score += weight * Math.max(0, acf[at]! / zero)
       })
       if (this.options.subdivision > 0) score += this.options.subdivision * Math.max(0, acf[Math.round(lag / 2)]! / zero)
-      this.running[lag]! += (score - this.running[lag]!) * alpha
+      this.running[lag]! += (score * this.scoreScale - this.running[lag]!) * alpha
       total += this.running[lag]!
     }
     this.runningReady = true
