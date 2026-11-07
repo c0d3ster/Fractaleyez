@@ -1,8 +1,10 @@
-# Overnight pipeline: grid on real EDM, then sections, then rhythm patterns
+# Overnight pipeline: grid on real EDM, sections, rhythm patterns, then improvement loops
 
-Three stages, run in order, each in its own fresh Claude Code cloud session on c0d3ster/Fractaleyez. A session is started with
+Six stages, run in order (1 to 4 always; 5 and 6 are optional, see the switch below), each in its own fresh Claude Code cloud session on c0d3ster/Fractaleyez. A session is started with
 "Run stage N of docs/overnight/pipeline.md". It reads this file, does its stage, and at the end starts the next stage's session.
-Progress goes in `docs/overnight/status.md` (append, never rewrite).
+Progress goes in `docs/overnight/status.md` (append, never rewrite). Results and cost go in `docs/overnight/report.md` (see "Report").
+
+**Optional stages 5 and 6: ON.** (The user can change this line to OFF before stage 4 ends; then stage 4 is the last stage.)
 
 ## Rules for every stage
 
@@ -26,12 +28,13 @@ Progress goes in `docs/overnight/status.md` (append, never rewrite).
   Commit and push often, so an interruption loses little.
 - If you cannot finish, push what works, write in status.md exactly where you stopped and why, and still start the next stage if its
   inputs exist; otherwise stop and say so in status.md.
-- At the end: start the next stage with the claude-code-remote `create_session` tool: `source_url` https://github.com/c0d3ster/Fractaleyez,
+- At the end, before starting the next stage, write your stage's entry in `docs/overnight/report.md` (see "Report"), then start the next stage with the claude-code-remote `create_session` tool: `source_url` https://github.com/c0d3ster/Fractaleyez,
   `source_revision` feat/bar-grid, `outcome_branch` feat/bar-grid, prompt "Run stage <N+1> of docs/overnight/pipeline.md", `tags` ["overnight-pipeline"]. Then write "stage N finished" in status.md. If `create_session` is
   not available, use `create_trigger` instead: `create_new_session_on_fire` true, `run_once_at` two minutes from now, name "Overnight stage
   <N+1>", prompt "Attach c0d3ster/Fractaleyez with add_repo (access push), clone it, check out feat/bar-grid, then run stage <N+1> of
-  docs/overnight/pipeline.md (tag nothing; title your work Overnight <N+1>/3)." Write which way you started it in status.md. Stage 3 starts
-  nothing.
+  docs/overnight/pipeline.md (tag nothing; title your work Overnight <N+1>/3)." Write which way you started it in status.md. Stage 4 starts stage 5
+  only if the optional stages are ON; the last stage that runs (6, or 4 when they are OFF) starts nothing, writes the final summary (see
+  "Report") and then the line "pipeline complete" in status.md.
 
 Setup each session needs: `pnpm install --frozen-lockfile`, `pip install numpy scipy scikit-learn matplotlib`, ffmpeg (installed).
 
@@ -91,5 +94,56 @@ half time, double time, sixteenths, dembow, syncopated).
 2. Test naming from the onset bands (kick against snare) and `BeatGrid` bar positions instead of only beat gaps; add refined names (two-step,
    breakbeat, shuffle) only if they can be detected reliably. Tune on half the tracks, score on the other half. Checkpoint 2, `tempo.md`
    updated.
-3. Write a short morning summary at the top of status.md: what each stage changed, the key before and after numbers, what is left, and what
-   the user should review first.
+3. Your report entry (see "Report"), then start stage 4.
+
+## Stages 4 to 6: improvement loops
+
+Each is an automated loop: propose one change, run the frozen evaluation, keep the change only if one number improves enough without the
+check set getting worse, otherwise revert, log every attempt, repeat. Rules for all three:
+
+- Before the first iteration, fix the data split by a stable hash of the track id and write it to `docs/experiments/<loop>-split.json`:
+  60% tune, 20% check, 20% hidden. The loop never sees the hidden 20% until the very end. The evaluation scripts, the data and the split
+  are read-only for the loop (commit them first; any change to them during the loop voids the run).
+- Fixed seeds. Keep a change only if the metric improves by at least the stated margin and the check set does not get worse. Each kept change
+  is its own commit (message: the change and the before and after metric); a rejected one is reverted. Every attempt, kept or not, goes in
+  `docs/experiments/<loop>.md` as one table row: iteration, change, metric, check score, kept.
+- Stop after 40 iterations or 4 hours, whichever is first. Then score the hidden set once with the starting code and once with the final code,
+  and write both in the report. A loop that does not beat the start on the hidden set is reported as such (no change shipped).
+- Tests must still pass (`pnpm test`), and do not change public APIs (`TempoReading`, `GridState`, `SectionState`).
+
+### Stage 4: BPM loop
+
+Branch `exp/bpm-loop` off feat/bar-grid; merge it back into feat/bar-grid at the end only if the hidden set improved. GiantSteps tempo set
+(see the README), levels clean and `--mic laptop`. Edit surface: `src/audioanalysis/tempo-tracker.ts`. Metric (`bpm-eval.mts`,
+`bpm-score.py`, 60 fps): tuning-set acc1 + 0.5 x track - 0.05 x jumps per minute, averaged over clean and laptop. Margin 0.005. Every 10
+iterations also check 30 and 144 fps have not got worse, and that the noise files from `noise.py` still show no tempo.
+
+### Stage 5 (optional): beat grid loop
+
+Branch `exp/grid-loop` off feat/bar-grid. Raveform levels and marks; split by Raveform's own folds instead of the hash: folds 0 to 4 tune,
+fold 5 check, folds 6 and 7 hidden. Edit surface: `src/audioanalysis/beat-grid.ts` (not `GridState`). Metric (stage 1's Raveform scorer):
+downbeat F + 8-bar F + 0.5 x beat F on the tuning folds. Margin 0.005. Also keep Ballroom beat F from getting worse.
+
+### Stage 6 (optional): section model loop
+
+Branch `exp/section-loop` off feat/bar-grid. Hidden first: SSME tracks with id mod 5 == 4 and Raveform folds 6 and 7. The loop's metric is
+out-of-fold mean F1 (drop, buildup, break, from `score.py` on the TypeScript tracker) over the remaining SSME tracks with 4-fold
+cross-validation, averaged over clean and laptop; check set: Raveform folds 0 to 5 scored by models trained on SSME alone. Edit surface:
+features (`section-features.ts`), training settings (`train.py`), the decoder (`sections.ts`, mirrored in `decode.py`). Margin 0.003.
+Retraining takes minutes, so expect fewer iterations; 4 hours still caps it. Ship a new `section-model.json` only if the hidden set improved.
+
+## Report
+
+`docs/overnight/report.md` has one section per stage, written by that stage at its end:
+
+- **What changed**: one or two sentences, and the commits.
+- **Before and after**: a table of the stage's key numbers, before the stage and after, on the same data and scoring (out of sample; for the
+  loops, the hidden set).
+- **Cost**: call the claude-code-remote `get_session` tool with no session id (it describes your own session) and copy
+  `external_metadata.usage`: `cost_usd`, input, output, cache read and cache write tokens, plus the session's wall time (created to now).
+  If a stage was resumed in more than one session, add each session's numbers and list the session ids. If `get_session` is not available,
+  write the session id and "cost: see the session" instead.
+
+The final summary (written by the last stage that runs) goes at the top of report.md: a table with one row per stage (headline before and
+after number, cost in USD, wall time), the total cost, what the user should review first, and what is left.
+
