@@ -4,7 +4,20 @@ Six stages, run in order (1 to 4 always; 5 and 6 are optional, see the switch be
 "Run stage N of docs/overnight/pipeline.md". It reads this file, does its stage, and at the end starts the next stage's session.
 Progress goes in `docs/overnight/status.md` (append, never rewrite). Results and cost go in `docs/overnight/report.md` (see "Report").
 
-**Optional stages 5 and 6: ON.** (The user can change this line to OFF before stage 4 ends; then stage 4 is the last stage.)
+**Optional stages 5 and 6: AUTO** (OFF skips them, ON runs them regardless). On AUTO, each runs only if both gates pass, checked by the
+stage before it just before starting it, with the reasons written in status.md:
+
+- **Budget.** The user's rule: run everything while at least 20% of their weekly usage limit remains (Max plan, no extra usage credits; at
+  08:15 UTC about 15% of the week was used, with the week resetting the next night). Sessions cannot read that percentage, so use two
+  proxies. (1) Call `get_session` with no id and read `external_metadata.rate_limit_info`: if it names a weekly limit (anything other than
+  `five_hour`), or its status is not `allowed`, do not start. (2) Add up the stage costs in report.md: stage 5 starts only if stages 1 to 4
+  cost under $200 in total, stage 6 only if stages 1 to 5 cost under $250. Rough basis: stage 0's $58 was at most 15% of the week, so about
+  $250 more keeps 20% in hand. These are estimates; when in doubt, skip.
+- **Evidence.** Stage 5 only if the grid has room to improve (stage 1's tuned downbeat F under 0.85 or 8-bar F under 0.6 on the held-out
+  folds) and stage 4's loop worked as a method (it ran without voiding, whether or not it improved the hidden set). Stage 6 only if stage 2
+  reproduced the baseline and finished.
+
+A skipped optional stage is written in status.md and report.md with the reason; the last stage that did run writes the final summary.
 
 ## Rules for every stage
 
@@ -32,8 +45,8 @@ Progress goes in `docs/overnight/status.md` (append, never rewrite). Results and
   `source_revision` feat/bar-grid, `outcome_branch` feat/bar-grid, prompt "Run stage <N+1> of docs/overnight/pipeline.md", `tags` ["overnight-pipeline"]. Then write "stage N finished" in status.md. If `create_session` is
   not available, use `create_trigger` instead: `create_new_session_on_fire` true, `run_once_at` two minutes from now, name "Overnight stage
   <N+1>", prompt "Attach c0d3ster/Fractaleyez with add_repo (access push), clone it, check out feat/bar-grid, then run stage <N+1> of
-  docs/overnight/pipeline.md (tag nothing; title your work Overnight <N+1>/3)." Write which way you started it in status.md. Stage 4 starts stage 5
-  only if the optional stages are ON; the last stage that runs (6, or 4 when they are OFF) starts nothing, writes the final summary (see
+  docs/overnight/pipeline.md (tag nothing; title your work Overnight <N+1>/3)." Write which way you started it in status.md. Stage 4 starts stage 5,
+  and stage 5 starts stage 6, only if that stage passes its gates (see the switch at the top); the last stage that runs (6, or 4 when they are OFF) starts nothing, writes the final summary (see
   "Report") and then the line "pipeline complete" in status.md.
 
 Setup each session needs: `pnpm install --frozen-lockfile`, `pip install numpy scipy scikit-learn matplotlib`, ffmpeg (installed).
