@@ -11,7 +11,7 @@ const recorder = (): { ctx: WaveformContext; rects: Rect[]; strokes: () => numbe
   let strokes = 0
   const noop = (): void => {}
   const ctx: WaveformContext = {
-    clearRect: noop, beginPath: noop, rect: noop, fill: noop, moveTo: noop, lineTo: noop, closePath: noop, arc: noop, fillText: noop, setLineDash: noop,
+    clearRect: noop, beginPath: noop, rect: noop, fill: noop, moveTo: noop, lineTo: noop, closePath: noop, fillText: noop, setLineDash: noop,
     fillStyle: '', strokeStyle: '', lineWidth: 1, globalAlpha: 1, font: '', textBaseline: 'alphabetic',
     stroke: (): void => {
       strokes++
@@ -35,8 +35,8 @@ const sample = (t: number, beatBand: number | null = null): BeatSample => ({
   beatBand,
 })
 
-// Everything the grid draws below the ruler is a full-height line from its bottom edge to the plot's bottom.
-const gridLines = (rects: Rect[]): Rect[] => rects.filter(({ y, h, fill }) => fill === '#fff' && y > 0 && y + h === WAVEFORM_H)
+// Everything the grid draws below the ruler is a line from the ruler's bottom edge down through the plot.
+const gridLines = (rects: Rect[]): Rect[] => rects.filter(({ y, h, fill }) => fill === '#fff' && y > 0 && h > WAVEFORM_H / 2)
 
 describe('WaveformTrack', () => {
   it('draws a sure phrase line wide, a sure bar line thin, and an unsure one as a plain beat', () => {
@@ -48,7 +48,7 @@ describe('WaveformTrack', () => {
     track.draw(ctx, view(6000))
     expect(gridLines(rects).map(({ w }) => w).sort()).toEqual([1, 2])
     // Every beat has its tick on the ruler, confident or not.
-    expect(rects.filter(({ y, h, w }) => y === 0 && h === 4 && w === 1)).toHaveLength(3)
+    expect(rects.filter(({ y, h, w }) => y === 0 && h === 8 && w === 1)).toHaveLength(3)
   })
 
   it('records each beat once, however many ticks see it', () => {
@@ -56,7 +56,7 @@ describe('WaveformTrack', () => {
     for (let i = 0; i < 5; i++) track.recordGrid(state(1000, 2, 1, 0.9))
     const { ctx, rects } = recorder()
     track.draw(ctx, view(2000))
-    expect(rects.filter(({ y, h }) => y === 0 && h === 4)).toHaveLength(1)
+    expect(rects.filter(({ y, h }) => y === 0 && h === 8)).toHaveLength(1)
   })
 
   it('draws each hit once in its band color, and thresholds only for the bands that can trigger', () => {
@@ -67,9 +67,14 @@ describe('WaveformTrack', () => {
     track.ingest(samples)
     const { ctx, rects, strokes } = recorder()
     track.draw(ctx, view(1100))
-    const hits = rects.filter(({ w, fill }) => w === 1.5 && fill.startsWith('hsla'))
+    // A hit is a mark on the strip along the bottom, not a line through the waveform.
+    const hits = rects.filter(({ w, fill }) => w === 3 && fill.startsWith('hsla'))
     expect(hits).toHaveLength(1)
-    // Two enabled bands, each a dark edge and the dashed line over it.
-    expect(strokes()).toBe(4)
+    expect(hits[0]!.y + hits[0]!.h).toBe(WAVEFORM_H)
+    expect(hits[0]!.h).toBeLessThan(WAVEFORM_H / 4)
+    expect(track.glow(1016)).toBe(1)
+    expect(track.glowBand()).toBe(3)
+    // One dashed threshold per enabled band.
+    expect(strokes()).toBe(2)
   })
 })

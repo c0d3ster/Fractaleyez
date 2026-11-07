@@ -48,7 +48,7 @@ const UI_TICK_MS = 50
 const HUD_HISTORY_MS = 5000
 const noop = (): void => {}
 const nullContext: WaveformContext = {
-  clearRect: noop, fillRect: noop, beginPath: noop, rect: noop, fill: noop, moveTo: noop, lineTo: noop, closePath: noop, stroke: noop, arc: noop, fillText: noop, setLineDash: noop,
+  clearRect: noop, fillRect: noop, beginPath: noop, rect: noop, fill: noop, moveTo: noop, lineTo: noop, closePath: noop, stroke: noop, fillText: noop, setLineDash: noop,
   fillStyle: '', strokeStyle: '', lineWidth: 1, globalAlpha: 1, font: '', textBaseline: 'alphabetic',
 }
 const view: WaveformView = { now: 0, viewMs: Number(option('view-ms', String(DEFAULT_VIEW_MS))), enabled: DEFAULT_ENABLED_BANDS, ignoreMs: 250, mirrored: args.includes('--mirrored') }
