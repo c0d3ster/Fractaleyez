@@ -156,3 +156,63 @@ yet), and breakdowns (the beat right 63% of the time). New tools: `scripts/secti
 Session `session_01D1Q35fX2qXdaHm8xqch76R`, wall time 07:49 to 09:22 UTC (1 h 33 min, of which about 12 min waiting for the data).
 `get_session` `external_metadata.usage`: cost_usd 0.96, input 525, output 2,567, cache read 901,005, cache write 90,995 tokens. These
 figures look like the latest turn only, not the whole session; the session's own page has the full cost.
+
+## Stage 2: the section model with the grid and Raveform's tracks
+
+### What changed
+
+Nothing in the shipped model. Three ideas for making the section tracker better at drops were built and measured: the beat grid as model
+features, a rule that drops land on 8-bar lines, and Raveform's 1,370 tracks added to the training labels. None of them beat the
+current model on SSME's expert labels without losing on the laptop mic, which was the rule for shipping, so `section-model.json` is
+unchanged and the grid is not wired into `AudioFeed` yet. The plumbing stays, off by default, so a better grid can be retried in
+minutes: `SectionFeatures` reads a `GridState`, `SectionTuning` has the phrase-line prior, and the training tools take Raveform. Commits
+`28e9c20` (plumbing), the stage 2 status and docs commits after it. Details: `docs/implementation-plans/song-sections.md`, "Beat grid and
+Raveform".
+
+### Before and after
+
+First the current model was rebuilt from scratch and scored again, to check the measurement before changing anything. It reproduces the
+documented numbers within noise (laptop drop F1 came out 0.04 higher than documented; the simulated mic's random seeds differ).
+
+SSME's 339 tracks, out of fold (each track scored by a model that never saw it), through the TypeScript tracker the app runs. F1 balances
+precision and recall, 1 is perfect:
+
+| | Current model (clean / room / laptop) | With the grid as features |
+| --- | --- | --- |
+| Drop F1 | 0.407 / 0.412 / 0.394 | 0.393 / 0.390 / 0.366 |
+| Buildup F1 | 0.435 / 0.426 / 0.392 | 0.432 / 0.425 / 0.397 |
+| Break F1 | 0.523 / 0.524 / 0.522 | 0.526 / 0.525 / 0.522 |
+
+Adding Raveform (its sections mapped: buildup to build, breakdown and cooldown to break, a drop after a non-drop to a drop), out of fold
+on both sets (Python decoder for SSME, TypeScript tracker for Raveform; Raveform has clean levels only, so no laptop column):
+
+| | SSME mean F1 | SSME laptop drop F1 | SSME buildup F1 | Raveform mean F1 (drop F1) |
+| --- | --- | --- | --- | --- |
+| Current model (SSME only) | 0.463 | 0.386 | 0.427 | 0.254 (0.328) |
+| Trained on both | 0.410 | 0.339 | 0.319 | 0.624 (0.679) |
+| Raveform for drops only | 0.455 | 0.327 | 0.427 | 0.383 (0.666), Python |
+| Raveform at a tenth of the weight | 0.449 | 0.368 | 0.403 | 0.506 (0.527), Python |
+
+What the numbers say:
+
+- **The grid as features** helps a model trained on the clean feed alone (drop F1 0.367 to 0.394), which is what the first test in stage
+  0 saw. But the shipped model trains on clean, room and laptop audio together and is already at 0.40 without the grid; on top of that,
+  the grid costs drops, most on the laptop mic (0.394 to 0.366). The grid finds the 8-bar line only part of the time (stage 1's 8-bar F
+  is 0.37), less with the bass gone, so what the trees learn about line positions does not carry to new songs.
+- **A drop prior on the 8-bar line** (a lower threshold near the line, a higher one elsewhere), tuned on SSME folds 0 to 2: no setting of
+  36 helped. 40% of SSME's drops fall within 2 beats of the grid's line, 3.8 times chance, but the other 60% are lost when the threshold
+  rises off the line.
+- **Raveform** labels the same music differently. It calls most of the rise before a drop a breakdown and marks a drop at every return to
+  full energy; SSME's experts mark a build and a drop only where the music builds to a moment. Trained on both, the model gets much better
+  at Raveform's labels and worse at SSME's, mostly buildups (shown before 66% of drops instead of 84%). Which convention the visuals
+  should follow is a design choice for you, not something the data can settle; SSME's is closer to what Auto mode needs (a warning before
+  the drop).
+
+Left: the grid needs to find the 8-bar line much more reliably, on a laptop mic too, before it can help the sections; Raveform's labels
+would need a closer mapping (its breakdowns split into break and build by how the level moves) before they can be pooled with SSME's.
+
+### Cost
+
+Session `session_01D1Q35iqnHvET3EWnJGkpaE`, wall time 09:20 to about 12:05 UTC (2 h 45 min, most of it computing levels, features and
+models). `get_session` `external_metadata.usage` read at 12:03: cost_usd 6.15, input 3,210, output 54,120, cache read 17,756,372, cache
+write 187,114 tokens.
