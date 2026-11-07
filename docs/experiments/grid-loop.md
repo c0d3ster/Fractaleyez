@@ -17,3 +17,10 @@ Automated improvement loop on `BeatGrid` (`src/audioanalysis/beat-grid.ts`), sta
 | Iteration | Change | Tune metric | Check metric | Ballroom beat F | Kept |
 | --- | --- | --- | --- | --- | --- |
 | 0 | Start (feat/bar-grid at 856dc39): downbeat F 0.567, 8-bar F 0.344, beat F 0.784 on tune | 1.3036 | 1.2956 | 0.6088 | start |
+| 1 | switchBars 2 to 1 | 1.2997 | 1.3014 | 0.6088 | no (downbeat F up 0.003, 8-bar F down 0.007) |
+| 2 | switchBars 1, phrase switch kept at 2 (new phraseSwitchBars option) | 1.3043 | | | no (+0.0007) |
+| 3 | switchBars 1, phraseSwitchBars 3 | 1.3003 | | | no |
+| 4 | phraseSwitchBars 2 to 3 | 1.2994 | | | no |
+| 5 | downbeatMemoryBars 16 to 24 | 1.3049 | | | no (+0.0013) |
+| 6 | phraseMemoryBars 24 to 32 | 1.3039 | | | no (+0.0003) |
+| 7 | phaseJumpUpdates 16 to 24 (re-anchor after 6 s instead of 4 s) | 1.3243 | 1.3246 | 0.6101 | yes |
