@@ -48,6 +48,8 @@ python score.py out/pl.json x --playlist
 - `score.py`: drop P/R/F1 (a drop counts within 1 s before to 3 s after a labelled one), build and break agreement slot by slot, how many drops had a buildup shown in the 10 s before, false song changes, and playlist boundary recall.
 - `chart.py`: one song's band levels with the expert labels and each tracker's sections underneath.
 - `replay-log.mts`: replays a session exported from the app (`exportSectionLog()` in the console, 50 ms ticks) through the current tracker, exactly as it ran.
+- `bpm-eval.mts`, `bpm-score.py`: the BPM the Beat HUD would show every 500 ms, old estimator or `TempoTracker` (`--opts` for variants, `--fps` for the frame rate), scored against labelled tempos (the GiantSteps tempo set: https://github.com/GiantSteps/giantsteps-tempo-dataset, audio from the JKU research mirror its `audio_dl.sh` points at).
+- `bench-cpu.mts`: CPU time of each per-frame piece (onset detector, section tracker, tempo) on real songs at 60 fps: average per second of audio, slowest frame, frames over 2, 4 and 8 ms per hour. `--old <file>` adds the old rule-based tracker for comparison (`git show 5e81479:src/audioanalysis/sections.ts > src/audioanalysis/sections-old.tmp.ts`).
 - `spectrum.py`: emulates the app's 512-point FFT analyser. Used to test whether spectral (timbre) features help; they did not (see the plan doc), so the model does not use them.
 
 ## Results

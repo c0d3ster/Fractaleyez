@@ -42,7 +42,8 @@ export type TempoTrackerOptions = {
   holdMs: number
 }
 
-// Tuned on 116 GiantSteps excerpts (scripts/section-eval/bpm-eval.mts) and checked on the other 546, clean and through a laptop mic.
+// Tuned on 116 GiantSteps excerpts (scripts/section-eval/bpm-eval.mts) and checked on the other 546, clean and through a laptop mic; the
+// bass weight was then set by 2-fold cross-validation over all 661 (both halves chose 2, and each gained about 2 points on the other).
 export const DEFAULT_TEMPO_OPTIONS: TempoTrackerOptions = {
   onsetTauMs: 20,
   windowMs: 12000,
@@ -50,7 +51,7 @@ export const DEFAULT_TEMPO_OPTIONS: TempoTrackerOptions = {
   memoryMs: 8000,
   priorBpm: 145,
   priorOctaves: 0.5,
-  bandWeights: [3, 1, 0.5, 0.5, 0.25],
+  bandWeights: [2, 1, 0.5, 0.5, 0.25],
   // Two and four beats, not three: crediting three made dotted patterns (three quarters of a beat) win.
   harmonics: [0.5, 0, 0.5],
   subdivision: 1.5,
