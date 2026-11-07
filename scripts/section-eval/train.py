@@ -1,7 +1,7 @@
 """Trains the section model on expert labels, with track-level cross-validation, and exports it for section-model.ts.
 
     python train.py <features dir>[,<features dir>...] <gt.json>[,<gt.json>...] <out dir> [--export model.json] [--export-folds]
-        [--folds folds.json] [--no-grid] [--dir-weights 1,1,1,0.5[/1,1,1,0.5]]
+        [--folds folds.json] [--no-grid] [--dir-weights 1,1,1,0.5[/1,1,1,0.5]] [--n-folds 5]
 
 Stage 1, per 250 ms slot: other / build / break, from the features alone.
 Stage 2, per slot: "a drop just happened" (within the last second or so), from the features plus a short memory of stage 1
@@ -12,7 +12,7 @@ saved to <out dir>/oof.npz for tuning the decoder (decode.py).
 Several feature dirs (clean, room, laptop) are pooled for training, each track's copies kept in the same fold.
 A track's fold is its id mod 5, or its entry in --folds ({ id: fold }, how Raveform's tracks join SSME's five folds). Several label files
 are merged (SSME's and Raveform's mapped ones, raveform-sections.py). --no-grid trains on the features before the grid columns (the model
-before the grid); --dir-weights weighs each feature dir's slots in training (to balance a large set against a small one); a second list after a slash
+before the grid); --n-folds sets how many folds (4 when the tracks of fold 4 are held out, as the stage 6 loop does); --dir-weights weighs each feature dir's slots in training (to balance a large set against a small one); a second list after a slash
 weighs stage 2 separately (0 in the first list and more in the second trains stage 1 without that set and stage 2 with it).
 """
 import json
@@ -129,9 +129,10 @@ def main() -> None:
     print(f"{len(data['ids'])} track copies, {len(X)} slots, classes {np.bincount(y)}")
 
     # The fold of a track is its id mod 5, the same everywhere (the song change detector's playlists and the TypeScript check use it too).
+    n_folds = int(sys.argv[sys.argv.index('--n-folds') + 1]) if '--n-folds' in sys.argv else FOLDS
     track_fold = np.array([fold_of.get(k, int(k) % FOLDS if k.isdigit() else 0) for k in data['ids']])
     slot_fold = track_fold[groups_to_track(data)]
-    folds = [(np.where(slot_fold != f)[0], np.where(slot_fold == f)[0]) for f in range(FOLDS)]
+    folds = [(np.where(slot_fold != f)[0], np.where(slot_fold == f)[0]) for f in range(n_folds)]
     export_folds = '--export-folds' in sys.argv
     fold_models: list[dict] = [{} for _ in folds]
     p1 = np.zeros((len(X), 3))
@@ -163,7 +164,7 @@ def main() -> None:
 
     if export_folds:
         # One model per fold and which fold each track was held out in, so the TypeScript port can be scored out of fold too.
-        for f in range(FOLDS):
+        for f in range(n_folds):
             json.dump(bundle(fold_models[f]['stage1'], fold_models[f]['stage2']), open(os.path.join(out, f'fold{f}.json'), 'w'), separators=(',', ':'))
         print('exported fold models')
 
