@@ -40,3 +40,5 @@ Automated improvement loop on `TempoTracker` (`src/audioanalysis/tempo-tracker.t
 | 22 | bandWeights: lo 1 to 1.5 (on 13) | 1.2936 | 1.2204 | passed, not taken (21 was better) |
 | 23 | harmonics: four beats 0.75 to 1 (on 13) | 1.2953 | 1.2359 | no (passes the margin, but breaks tempo-tracker.test.ts) |
 | 24 | memoryMs 8000 to 12000 (on 13) | 1.2818 | 1.2169 | no |
+| check | After 24: 30 fps 1.2680, 144 fps 1.2972 (start 1.2179, 1.2560): fine. Noise: the fan now shows a tempo (82% of readings clean at 60 fps). Cause: 13's extra harmonic weight raises every period's score, noise too, past minStrength. So 13 and 21 were never valid states; 25 is judged against the start, the last state that passed. | | | |
+| 25 | Period scores scaled to the total weight of their terms (3.5, what minStrength was set against), on 13 and 21 | 1.2954 | 1.2302 | yes (against the start's 1.2591 and 1.1943; noise shows no tempo at 30, 60 and 144 fps) |
