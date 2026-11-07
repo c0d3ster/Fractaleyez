@@ -115,3 +115,44 @@ ballroom.
 Session `session_01D1Q35feAxbgydgMeXfVb4u`, read at 2026-11-07T08:12Z (before the pipeline started; the session stayed open afterwards):
 $58.35. Tokens: 264,016 input, 505,034 output, 174,148,853 cache read, 1,882,736 cache write. About 9 h 50 min of wall time, much of it
 waiting on downloads, feature extraction and training.
+
+## Stage 1: the beat grid on real EDM
+
+### What changed
+
+The beat grid (`BeatGrid`, which says where beat 1 of the bar and the 8-bar phrase line fall) was scored for the first time on real EDM:
+Raveform's 1,370 fetchable tracks, against beats marked by experts. The beat itself was already good, but beat 1 and the phrase line were
+often wrong. The hand-weighted cues that picked beat 1 were replaced by small models fitted on Raveform's marked beats, and the grid now
+keeps a longer memory and waits longer before re-anchoring the beat clock. Commits `3b72124` (the Raveform scorer and baseline), `c8aa641`
+(the fitted cues), `f92c045` (memory and re-anchor, docs). Details: `docs/implementation-plans/bar-grid.md`, "Measured on Raveform".
+
+### Before and after
+
+Raveform folds 6 and 7 (343 tracks, held out of every fit and tuning step), within 70 ms, from 10 s into each track:
+
+| | Before | After |
+| --- | --- | --- |
+| Beat F (1 is perfect) | 0.806 | 0.810 |
+| Downbeat F | 0.421 | 0.577 |
+| 8-bar line F | 0.228 | 0.367 |
+| Tracks with the bar right most of the time | 40% | 63% |
+| Tracks with the phrase right too | 13% | 34% |
+| Section starts on the grid's 8-bar line (ceiling: 75%, Raveform's own phrasing) | 23% | 40% |
+| Ballroom (523 excerpts in 4/4): beat F, downbeat F | 0.59, 0.22 | 0.59, 0.22 |
+
+Why it was weak: the old clap cue scored beat 1 and beat 3 the same, so telling them apart was left to one weak cue. At Raveform's own
+beats the old cues picked beat 1 in 56% of 8-bar windows; the fitted ones in 66% (and 83% over 32 bars). Folds 0 to 5, step by step
+(downbeat F): fitted cues 0.440 to 0.552, a 16-bar memory 0.568, re-anchoring after 4 s instead of 1 s 0.582.
+
+Tried and not kept: a 32-bar downbeat memory, a 48-bar phrase memory, slower switching, gentler phase correction, a different latency
+constant (none helped); a 12 s phase window (helped Raveform by 0.006 but cost Ballroom 0.01 beat F); re-anchoring after 8 s (+0.009, but
+it would re-lock slowly after a song change in a DJ set, which single tracks do not measure).
+
+Left: drum and bass did not improve (beat F 0.59: its tempo is wrong, a tempo tracker problem), the first minute of a track (no evidence
+yet), and breakdowns (the beat right 63% of the time). New tools: `scripts/section-eval/grid-score-raveform.py`, `grid-train.py`.
+
+### Cost
+
+Session `session_01D1Q35fX2qXdaHm8xqch76R`, wall time 07:49 to 09:22 UTC (1 h 33 min, of which about 12 min waiting for the data).
+`get_session` `external_metadata.usage`: cost_usd 0.96, input 525, output 2,567, cache read 901,005, cache write 90,995 tokens. These
+figures look like the latest turn only, not the whole session; the session's own page has the full cost.
