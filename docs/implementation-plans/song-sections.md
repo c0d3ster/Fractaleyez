@@ -57,6 +57,7 @@ Looking back over whole songs, a stop after a buildup that comes back up lands o
 - **More model capacity** (deeper trees, more of them) and class balancing: no gain out of fold. Stage 1 is limited by information, not fit.
 - **Spectral features** from the app's 512-point FFT (14-band shape, spectral novelty over 1 and 4 s, `spectrum.py`): break +0.004, drop -0.03 F1. Not used, so the audio pipeline is unchanged.
 - **Lagged copies of the features** (2 and 4 s back): +0.002. Not used.
+- **Waiting before calling a drop** (`exp_delay.py`): a detector trained on "a drop landed 1, 1.5, 2 or 3 s ago", with the features at the drop moment next to the current ones, scored 0.35, 0.32, 0.30 and 0.29 drop F1 against 0.39 for the one that answers at once. Two seconds after it fires, real drops and false alarms look the same (bass still full in 79% against 69%, same level and beat rate): most false alarms are the music really coming back to full (the end of a fill, the next phrase) where the labels have no drop. What tells them apart is where it falls in the song's phrasing, not what follows, which points at a bar and phrase grid.
 - **Looser drop threshold after a buildup**: worse (see the decoder note above; the opposite helps).
 
 ## Limits
@@ -68,12 +69,26 @@ Looking back over whole songs, a stop after a buildup that comes back up lands o
 - Trained on EDM. Other genres are untested.
 - The mic conditions are simulations. Real sessions can be checked with `exportSectionLog()` (50 ms ticks, replayed exactly by `replay-log.mts`).
 
+## More labels
+
+Learning curve (`exp_curve.py`, out of fold, each fold trained on a share of the other folds' songs):
+
+| Training songs | Drop F1 | Buildup F1 | Break F1 | Mean |
+| --- | --- | --- | --- | --- |
+| about 68 | 0.31 | 0.39 | 0.53 | 0.41 |
+| about 136 | 0.36 | 0.42 | 0.55 | 0.44 |
+| about 203 | 0.36 | 0.43 | 0.57 | 0.45 |
+| about 271 (all) | 0.41 | 0.45 | 0.58 | 0.48 |
+
+Still rising, about 0.03 of mean F1 per doubling: twice the songs would be worth roughly 0.51. Worth collecting, especially sessions through a real mic, but more labels alone will not take it far past 50%.
+
 ## Next
 
-1. Label a handful of real mic sessions (export, mark sections) and score them, to confirm the simulations.
-2. Crossfade boundaries: a detector trained on more blended playlists, or a tempo-change cue.
-3. Auto mode (`auto-mode.md`).
-4. Optional: load `section-model.json` lazily (about 100 KB gzipped) to keep it off the first paint.
+1. A steady BPM and a beat, bar and phrase grid (EDM sections change on 8, 16 or 32 bars, and drops land on a phrase's first beat), as features and as a prior on when a drop can land.
+2. Label a handful of real mic sessions (export, mark sections) and score them, to confirm the simulations.
+3. Crossfade boundaries: a detector trained on more blended playlists, or a tempo-change cue.
+4. Auto mode (`auto-mode.md`).
+5. Optional: load `section-model.json` lazily (about 100 KB gzipped) to keep it off the first paint.
 
 ## Verification
 
