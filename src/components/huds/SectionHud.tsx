@@ -39,7 +39,6 @@ const sameState = (a: SectionState | null, b: SectionState | null): boolean =>
   a === null || b === null
     ? a === b
     : a.section === b.section &&
-      a.dropCount === b.dropCount &&
       Math.round(a.intensity * 100) === Math.round(b.intensity * 100) &&
       songSeconds(a) === songSeconds(b)
 
@@ -104,8 +103,8 @@ export const SectionHud = (): React.ReactElement => {
   return (
     <div className='section-hud-wrapper'>
       <div className='section-hud-title-row'>
-        <span className='section-hud-time' {...info('About how long the current song has been going, and how many drops it has had. It shows once a song looks like it is playing, so not in silence or on stray noise, and it starts over when the next song does.')}>
-          {state?.songMs != null ? `${formatSongTime(state.songMs)}${state.dropCount > 0 ? ` · ${state.dropCount} drop${state.dropCount > 1 ? 's' : ''}` : ''}` : ''}
+        <span className='section-hud-time' {...info('About how long the current song has been going. It shows once a song looks like it is playing, so not in silence or on stray noise, and it starts over when the next song does.')}>
+          {state?.songMs != null ? formatSongTime(state.songMs) : ''}
         </span>
         <span className='section-hud-label'>Section</span>
         <span className='section-hud-intensity' {...info('How loud the song is now against its own recent peak.')}>
