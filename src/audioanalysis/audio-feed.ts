@@ -35,6 +35,8 @@ export class AudioFeed {
       sensitivity: soundThreshold.value,
       ignoreMs: ignoreTime.value,
       decayMs: AnalyserConfig.options.peakDetection.options.peakPersistency,
+      // With no steady rhythm (no music, or a fan), the detector's noise gates come on; see OnsetDetectorOptions.
+      rhythm: tempoTracker.getReading() !== null,
     })
     snapshot.beat = onset.beat
     const now = performance.now()
