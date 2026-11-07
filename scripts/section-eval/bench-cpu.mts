@@ -1,8 +1,8 @@
 // Times each piece of the per-frame audio work on real songs, one frame at a time at 60 fps, the way the app runs it.
 //
-//   tsx bench-cpu.mts <levels dir> [--songs 20] [--old <old sections module>]
+//   tsx bench-cpu.mts <levels dir> [--songs 20] [--old <old sections module>] [--view-ms 8000] [--mirrored]
 //
-// The waveform HUD is timed on its UI tick (20 Hz): folding in the new samples, recording the grid's beat and issuing its draw calls to a
+// The Beat HUD's plot (the band waveform, see waveformTrack.ts) is timed on its UI tick (20 Hz): folding in the new samples, recording the grid's beat and issuing its draw calls to a
 // context that does nothing, so it is the JavaScript side only. The canvas's own work happens in the browser; time that there.
 //
 // Reports, per piece: the average CPU time per second of audio, the same as a share of a 60 fps frame's 16.7 ms, and the slowest single
@@ -18,7 +18,7 @@ import { SectionTracker } from '../../src/audioanalysis/sections.ts'
 import { TempoTracker } from '../../src/audioanalysis/tempo-tracker.ts'
 import { BeatGrid } from '../../src/audioanalysis/beat-grid.ts'
 import type { BeatSample } from '../../src/audioanalysis/beat.ts'
-import { WaveformTrack, type WaveformContext } from '../../src/components/huds/waveformTrack.ts'
+import { DEFAULT_VIEW_MS, WaveformTrack, type WaveformContext, type WaveformView } from '../../src/components/huds/waveformTrack.ts'
 import { BANDS, loadLevels } from './stream.mts'
 
 const args = process.argv.slice(2)
@@ -32,7 +32,7 @@ const oldPath = option('old', null)
 const OldTracker = oldPath ? ((await import(pathToFileURL(resolve(oldPath)).href)) as { SectionTracker: new () => { push: SectionTracker['push'] } }).SectionTracker : null
 
 type Timer = { name: string; total: number; max: number; calls: number; samples: number[] }
-const timers: Timer[] = ['onset detector', 'old section tracker', 'new section tracker', 'old tempo (HUD, every 500 ms)', 'new tempo tracker', 'beat grid', 'waveform HUD (every 50 ms)'].map((name) => ({ name, total: 0, max: 0, calls: 0, samples: [] }))
+const timers: Timer[] = ['onset detector', 'old section tracker', 'new section tracker', 'old tempo (HUD, every 500 ms)', 'new tempo tracker', 'beat grid', 'Beat HUD plot (every 50 ms)'].map((name) => ({ name, total: 0, max: 0, calls: 0, samples: [] }))
 const time = (timer: Timer, work: () => void): void => {
   const start = performance.now()
   work()
@@ -47,7 +47,11 @@ const FRAME_MS = 1000 / 60
 const UI_TICK_MS = 50
 const HUD_HISTORY_MS = 5000
 const noop = (): void => {}
-const nullContext: WaveformContext = { clearRect: noop, fillRect: noop, beginPath: noop, rect: noop, fill: noop, moveTo: noop, lineTo: noop, closePath: noop, fillStyle: '', globalAlpha: 1 }
+const nullContext: WaveformContext = {
+  clearRect: noop, fillRect: noop, beginPath: noop, rect: noop, fill: noop, moveTo: noop, lineTo: noop, closePath: noop, stroke: noop, arc: noop, fillText: noop, setLineDash: noop,
+  fillStyle: '', strokeStyle: '', lineWidth: 1, globalAlpha: 1, font: '', textBaseline: 'alphabetic',
+}
+const view: WaveformView = { now: 0, viewMs: Number(option('view-ms', String(DEFAULT_VIEW_MS))), enabled: DEFAULT_ENABLED_BANDS, ignoreMs: 250, mirrored: args.includes('--mirrored') }
 let audioSeconds = 0
 const ids = readdirSync(dir).filter((name) => name.endsWith('.f32')).map((name) => name.slice(0, -4)).sort().slice(0, songs)
 // A warm-up song first, so the JIT has compiled everything before anything is timed.
@@ -95,7 +99,8 @@ for (const [round, list] of [[0, ids.slice(0, 1)], [1, ids]] as const) {
         run(6, () => {
           track.ingest(history)
           track.recordGrid(grid.getState())
-          track.draw(nullContext, t, DEFAULT_ENABLED_BANDS)
+          view.now = t
+          track.draw(nullContext, view)
         })
       }
     }

@@ -3,52 +3,94 @@ import type { GridState } from '../../audioanalysis/beat-grid'
 import { ONSET_BANDS } from '../../audioanalysis/onset-bands'
 import { bandColor } from './bandColors'
 
-// The scrolling band waveform and the beat grid laid over it, kept apart from the React component so the bench can time it on its own
+// The Beat HUD's plot: a scrolling waveform of the five onset bands, with what each band had to pass to count as a hit, the hits
+// themselves, and the beat grid along a ruler on top. Kept apart from the React component so the bench can time it on its own
 // (scripts/section-eval/bench-cpu.mts). Everything is allocated once: a tick only writes into typed arrays and issues draw calls.
 
 export const WAVEFORM_W = 360
-export const WAVEFORM_H = 80
-// Long enough for a whole 8-bar phrase at any usual dance tempo (15 s at 128 BPM), so phrase lines come round on screen.
-export const WAVEFORM_WINDOW_MS = 16000
+export const WAVEFORM_H = 150
+// How much is kept, and how much is shown unless the view is zoomed: 8 s is about four bars at dance tempos.
+export const WAVEFORM_HISTORY_MS = 16000
+export const DEFAULT_VIEW_MS = 8000
 
 const BANDS = ONSET_BANDS.length
-const COLUMN_PX = 2
-const COLUMNS = WAVEFORM_W / COLUMN_PX
-const COLUMN_MS = WAVEFORM_WINDOW_MS / COLUMNS
-const MID = WAVEFORM_H / 2
-// The top and bottom margins are left clear for the beat ticks.
-const BEAT_TICK_PX = 7
-const HALF = MID - BEAT_TICK_PX - 2
+// Fine enough that a 4 s view still has more than one column per pixel.
+const COLUMN_MS = 10
+const COLUMNS = WAVEFORM_HISTORY_MS / COLUMN_MS
+// A gap between samples longer than this is a real gap (the HUD was off screen, the tab was hidden), so it is left empty. A shorter one is
+// a slow frame, and the sample is held across it so the waveform has no holes.
+const HOLD_MS = 250
+const RULER_H = 12
+const PLOT_TOP = RULER_H + 2
+const PLOT_H = WAVEFORM_H - PLOT_TOP
+const MID = PLOT_TOP + PLOT_H / 2
 // A column is the band's level against its own recent loudness (as the Frequency HUD's bars are), so every band uses the full height.
 const HEADROOM = 1.1
 // The higher bands are drawn smaller and on top of the lower ones, so each band's color shows as its own layer rather than one hiding another.
 const BAND_SCALE = ONSET_BANDS.map((_, band) => 1 - band * 0.11)
 const ENABLED_FILLS = ONSET_BANDS.map((_, band) => bandColor(band, 58, 0.9))
 const DISABLED_FILLS = ONSET_BANDS.map((_, band) => bandColor(band, 30, 0.35))
+// Hits are lighter than the fills and sit on a dark edge, so a bass hit still shows over the bass waveform.
+const HIT_COLORS = ONSET_BANDS.map((_, band) => bandColor(band, 78))
+const HIT_EDGE = 'rgba(0, 0, 0, 0.75)'
+// A threshold line is drawn light over a dark edge, so it shows over its own band's fill as well as over the black.
+const TRIGGER_COLORS = ONSET_BANDS.map((_, band) => bandColor(band, 85))
+const TRIGGER_EDGE = 'rgba(0, 0, 0, 0.7)'
+const DASH = [4, 3]
+const NO_DASH: number[] = []
+const IGNORE_FILL = 'rgba(255, 255, 255, 0.07)'
+const RULER_FILL = 'rgba(255, 255, 255, 0.05)'
+const LINE_COLOR = '#fff'
+const LABEL_COLOR = '#999'
+const LABEL_FONT = '11px sans-serif'
+const LAMP_FADE_MS = 200
+const HIT_CAPACITY = 256
 
 // The grid's lines are only drawn once the grid is fairly sure of them: below LOW they are not drawn as bar or phrase lines at all, and they
 // fade in up to HIGH. Measured on synthetic 4/4 tracks, both confidences sit under 0.3 for the first bars and above 0.8 once locked.
 const CONFIDENCE_LOW = 0.2
 const CONFIDENCE_HIGH = 0.5
 const BEAT_CAPACITY = 128
+const BEAT_TICK_PX = 4
 const PHRASE_MARK_PX = 5
-
-const LINE_COLOR = '#fff'
 
 export const confidenceAlpha = (confidence: number): number =>
   Math.max(0, Math.min(1, (confidence - CONFIDENCE_LOW) / (CONFIDENCE_HIGH - CONFIDENCE_LOW)))
 
-/** The few canvas calls the track makes, so the bench can count and time them without a browser. */
+// Bar of the phrase, then beat of the bar ("3.2"), made once: "?" while the phrase line is unsure, and nothing while beat 1 is.
+const PLACE_LABELS = Array.from({ length: 8 }, (_, bar) => Array.from({ length: 4 }, (__, beat) => `${bar + 1}.${beat + 1}`))
+const BEAT_ONLY_LABELS = Array.from({ length: 4 }, (_, beat) => `?.${beat + 1}`)
+
+/** The canvas calls the track makes, so the bench can time them without a browser. */
 export type WaveformContext = Pick<
   CanvasRenderingContext2D,
-  'clearRect' | 'fillRect' | 'beginPath' | 'rect' | 'fill' | 'moveTo' | 'lineTo' | 'closePath' | 'fillStyle' | 'globalAlpha'
+  | 'clearRect' | 'fillRect' | 'beginPath' | 'rect' | 'fill' | 'moveTo' | 'lineTo' | 'closePath' | 'stroke' | 'arc' | 'fillText'
+  | 'setLineDash' | 'fillStyle' | 'strokeStyle' | 'lineWidth' | 'globalAlpha' | 'font' | 'textBaseline'
 >
 
+export type WaveformView = {
+  now: number
+  /** How much of the history is shown, ms. */
+  viewMs: number
+  /** Which bands can set off a beat: drawn in full color with their thresholds; the rest dimmed. */
+  enabled: readonly boolean[]
+  ignoreMs: number
+  /** Mirrored around the middle, or growing up from the bottom (twice the height for the same level). */
+  mirrored: boolean
+}
+
 export class WaveformTrack {
-  // Each column's peak per band (0 to 1), a ring indexed by the column's absolute number (time / COLUMN_MS).
+  // Per column and band (a ring indexed by the column's absolute number, time / COLUMN_MS): the level's peak and the threshold, both 0 to 1
+  // of the band's loudness. A threshold of -1 is a column with no sample.
   private readonly peaks = new Float32Array(COLUMNS * BANDS)
+  private readonly triggers = new Float32Array(COLUMNS * BANDS).fill(-1)
   private newestColumn = -1
   private readUpTo = -Infinity
+  // The detector's hits: when, and which band set each off.
+  private readonly hitTimes = new Float64Array(HIT_CAPACITY)
+  private readonly hitBands = new Uint8Array(HIT_CAPACITY)
+  private hitHead = 0
+  private hitCount = 0
   // The beats the grid fired, as it saw them then: a ring of the last BEAT_CAPACITY.
   private readonly beatTimes = new Float64Array(BEAT_CAPACITY)
   private readonly beatInBar = new Uint8Array(BEAT_CAPACITY)
@@ -58,32 +100,31 @@ export class WaveformTrack {
   private beatHead = 0
   private beatCount = 0
   private lastBeatMs = -Infinity
+  private gridLocked = false
 
   /** Folds in the timeline's samples newer than the last call. The samples are the monitor's own history, oldest first. */
   ingest = (samples: readonly BeatSample[]): void => {
     let from = samples.length
     while (from > 0 && samples[from - 1]!.t > this.readUpTo) from--
     for (let i = from; i < samples.length; i++) {
-      const { t, bands } = samples[i]!
-      const column = Math.floor(t / COLUMN_MS)
+      const sample = samples[i]!
+      const column = Math.floor(sample.t / COLUMN_MS)
+      let fillFrom = column
       if (column > this.newestColumn) {
-        // Columns skipped (the HUD was off screen, or the frame rate dropped) are cleared, so a gap reads as a gap and not as stale audio.
-        for (let c = Math.max(this.newestColumn + 1, column - COLUMNS + 1); c <= column; c++) this.peaks.fill(0, (c % COLUMNS) * BANDS, (c % COLUMNS) * BANDS + BANDS)
+        const start = Math.max(this.newestColumn + 1, column - COLUMNS + 1)
+        for (let c = start; c <= column; c++) this.clearColumn(c)
+        if (this.newestColumn >= 0 && (column - this.newestColumn) * COLUMN_MS <= HOLD_MS) fillFrom = start
         this.newestColumn = column
       } else if (column <= this.newestColumn - COLUMNS) continue
-      const base = (column % COLUMNS) * BANDS
-      for (let b = 0; b < BANDS; b++) {
-        const band = bands[b]
-        if (!band || band.loudness <= 0) continue
-        const value = Math.min(1, band.level / (band.loudness * HEADROOM))
-        if (value > this.peaks[base + b]!) this.peaks[base + b] = value
-      }
-      this.readUpTo = t
+      for (let c = fillFrom; c <= column; c++) this.writeColumn(c, sample)
+      if (sample.beatBand !== null) this.recordHit(sample.t, sample.beatBand)
+      this.readUpTo = sample.t
     }
   }
 
   /** Records the grid's latest beat, once. The grid's state changes only when a beat lands, so a tick that sees the same beat again adds nothing. */
   recordGrid = (state: GridState | null): void => {
+    this.gridLocked = state !== null
     if (!state || state.lastBeatMs === this.lastBeatMs) return
     this.lastBeatMs = state.lastBeatMs
     const at = this.beatHead
@@ -96,61 +137,204 @@ export class WaveformTrack {
     this.beatCount = Math.min(BEAT_CAPACITY, this.beatCount + 1)
   }
 
-  draw = (ctx: WaveformContext, now: number, enabled: readonly boolean[]): void => {
+  draw = (ctx: WaveformContext, view: WaveformView): void => {
     ctx.clearRect(0, 0, WAVEFORM_W, WAVEFORM_H)
-    this.drawBands(ctx, now, enabled)
-    this.drawGrid(ctx, now)
+    this.drawIgnore(ctx, view)
+    this.drawBands(ctx, view)
+    this.drawTriggers(ctx, view)
+    this.drawHits(ctx, view)
+    this.drawGrid(ctx, view)
+    this.drawLamp(ctx, view)
   }
 
-  private drawBands = (ctx: WaveformContext, now: number, enabled: readonly boolean[]): void => {
-    if (this.newestColumn < 0) return
-    // Column c covers [c, c + 1) * COLUMN_MS; its left edge sits where that time is on screen, so the strip scrolls smoothly between columns.
-    const nowColumns = now / COLUMN_MS
-    const oldest = Math.max(0, Math.ceil(nowColumns) - COLUMNS, this.newestColumn - COLUMNS + 1)
+  private clearColumn = (column: number): void => {
+    const base = (column % COLUMNS) * BANDS
+    this.peaks.fill(0, base, base + BANDS)
+    this.triggers.fill(-1, base, base + BANDS)
+  }
+
+  private writeColumn = (column: number, { bands }: BeatSample): void => {
+    const base = (column % COLUMNS) * BANDS
     for (let b = 0; b < BANDS; b++) {
-      const scale = HALF * BAND_SCALE[b]!
-      ctx.fillStyle = enabled[b] ? ENABLED_FILLS[b]! : DISABLED_FILLS[b]!
+      const band = bands[b]
+      if (!band || band.loudness <= 0) continue
+      const scale = band.loudness * HEADROOM
+      const value = Math.min(1, band.level / scale)
+      if (value > this.peaks[base + b]!) this.peaks[base + b] = value
+      this.triggers[base + b] = Math.min(1, band.trigger / scale)
+    }
+  }
+
+  private recordHit = (t: number, band: number): void => {
+    this.hitTimes[this.hitHead] = t
+    this.hitBands[this.hitHead] = band
+    this.hitHead = (this.hitHead + 1) % HIT_CAPACITY
+    this.hitCount = Math.min(HIT_CAPACITY, this.hitCount + 1)
+  }
+
+  // The newest hit is k = 0. Returns its ring slot, or -1 once past the visible stretch.
+  private hitSlot = (k: number, now: number, viewMs: number): number => {
+    if (k >= this.hitCount) return -1
+    const at = (this.hitHead - 1 - k + HIT_CAPACITY) % HIT_CAPACITY
+    return now - this.hitTimes[at]! > viewMs ? -1 : at
+  }
+
+  private toX = (t: number, { now, viewMs }: WaveformView): number => WAVEFORM_W - ((now - t) / viewMs) * WAVEFORM_W
+
+  // How many columns are merged into one drawn bar, so a wide view never draws more bars than there are pixels.
+  private step = ({ viewMs }: WaveformView): number => Math.max(1, Math.ceil(viewMs / WAVEFORM_W / COLUMN_MS))
+
+  // The first drawn group, aligned to a multiple of the step so the groups do not shimmer as the strip scrolls.
+  private firstGroup = (view: WaveformView, step: number): number => {
+    const first = Math.max(this.newestColumn - COLUMNS + 1, Math.floor((view.now - view.viewMs) / COLUMN_MS), 0)
+    return first - (first % step)
+  }
+
+  // Ignore Time after each hit: the detector is blind in this stretch, so a hit that lands in it is dropped.
+  private drawIgnore = (ctx: WaveformContext, view: WaveformView): void => {
+    const width = (view.ignoreMs / view.viewMs) * WAVEFORM_W
+    ctx.fillStyle = IGNORE_FILL
+    for (let k = 0, at = this.hitSlot(0, view.now, view.viewMs); at >= 0; at = this.hitSlot(++k, view.now, view.viewMs)) {
+      const x = this.toX(this.hitTimes[at]!, view)
+      ctx.fillRect(x, PLOT_TOP, Math.min(WAVEFORM_W - x, width), PLOT_H)
+    }
+  }
+
+  private drawBands = (ctx: WaveformContext, view: WaveformView): void => {
+    if (this.newestColumn < 0) return
+    const step = this.step(view)
+    const first = this.firstGroup(view, step)
+    const width = ((step * COLUMN_MS) / view.viewMs) * WAVEFORM_W
+    const full = view.mirrored ? PLOT_H / 2 : PLOT_H
+    for (let b = 0; b < BANDS; b++) {
+      const scale = full * BAND_SCALE[b]!
+      ctx.fillStyle = view.enabled[b] ? ENABLED_FILLS[b]! : DISABLED_FILLS[b]!
       ctx.beginPath()
-      for (let c = oldest; c <= this.newestColumn; c++) {
-        const h = this.peaks[(c % COLUMNS) * BANDS + b]! * scale
+      for (let g = first; g <= this.newestColumn; g += step) {
+        let peak = 0
+        for (let c = g; c < g + step && c <= this.newestColumn; c++) peak = Math.max(peak, this.peaks[(c % COLUMNS) * BANDS + b]!)
+        const h = peak * scale
         if (h < 0.5) continue
-        const x = WAVEFORM_W - (nowColumns - c) * COLUMN_PX
-        ctx.rect(x, MID - h, COLUMN_PX, h * 2)
+        const x = this.toX(g * COLUMN_MS, view)
+        if (view.mirrored) ctx.rect(x, MID - h, width, h * 2)
+        else ctx.rect(x, WAVEFORM_H - h, width, h)
       }
       ctx.fill()
     }
   }
 
-  // Beats are short ticks in the clear margins at the top and bottom, bars a thin line through the waveform, and 8-bar phrase lines a line twice as wide
-  // with a marker on top. A bar or phrase line fades with the grid's confidence in it when it fired; below CONFIDENCE_LOW it is drawn as a
-  // plain beat, so an unsure grid shows only where the beats fall.
-  private drawGrid = (ctx: WaveformContext, now: number): void => {
+  // The dashed line is what each band that can set off a beat had to pass to count as a hit, on the same scale as its waveform.
+  private drawTriggers = (ctx: WaveformContext, view: WaveformView): void => {
+    if (this.newestColumn < 0) return
+    const step = this.step(view)
+    const first = this.firstGroup(view, step)
+    const full = view.mirrored ? PLOT_H / 2 : PLOT_H
+    const halfStep = ((step * COLUMN_MS) / view.viewMs) * WAVEFORM_W * 0.5
+    for (let b = 0; b < BANDS; b++) {
+      if (!view.enabled[b]) continue
+      const scale = full * BAND_SCALE[b]!
+      ctx.beginPath()
+      for (let side = 0; side < (view.mirrored ? 2 : 1); side++) {
+        let drawing = false
+        for (let g = first; g <= this.newestColumn; g += step) {
+          const trigger = this.triggers[(Math.min(g + step - 1, this.newestColumn) % COLUMNS) * BANDS + b]!
+          if (trigger < 0) {
+            drawing = false
+            continue
+          }
+          const h = trigger * scale
+          const y = view.mirrored ? (side === 0 ? MID - h : MID + h) : WAVEFORM_H - h
+          const x = this.toX(g * COLUMN_MS, view) + halfStep
+          if (drawing) ctx.lineTo(x, y)
+          else ctx.moveTo(x, y)
+          drawing = true
+        }
+      }
+      ctx.setLineDash(NO_DASH)
+      ctx.strokeStyle = TRIGGER_EDGE
+      ctx.lineWidth = 3
+      ctx.stroke()
+      ctx.setLineDash(DASH)
+      ctx.strokeStyle = TRIGGER_COLORS[b]!
+      ctx.lineWidth = 1.25
+      ctx.stroke()
+    }
+    ctx.setLineDash(NO_DASH)
+  }
+
+  // A hit is a line through the plot in the color of the band that set it off.
+  private drawHits = (ctx: WaveformContext, view: WaveformView): void => {
+    for (let k = 0, at = this.hitSlot(0, view.now, view.viewMs); at >= 0; at = this.hitSlot(++k, view.now, view.viewMs)) {
+      const x = Math.round(this.toX(this.hitTimes[at]!, view))
+      ctx.fillStyle = HIT_EDGE
+      ctx.fillRect(x - 2, PLOT_TOP, 4, PLOT_H)
+      ctx.fillStyle = HIT_COLORS[this.hitBands[at]!]!
+      ctx.fillRect(x - 0.75, PLOT_TOP, 1.5, PLOT_H)
+    }
+  }
+
+  // The grid lives on the ruler along the top, so it never reads as a hit: beats are short ticks, bar lines tick the ruler's whole height with
+  // a faint line down through the plot, and 8-bar phrase lines add a marker and a stronger line. A bar or phrase line fades with the grid's
+  // confidence in it when it fired; below CONFIDENCE_LOW it is drawn as a plain beat, so an unsure grid only shows where the beats fall.
+  private drawGrid = (ctx: WaveformContext, view: WaveformView): void => {
+    ctx.fillStyle = RULER_FILL
+    ctx.fillRect(0, 0, WAVEFORM_W, RULER_H)
     ctx.fillStyle = LINE_COLOR
     for (let k = 0; k < this.beatCount; k++) {
       const at = (this.beatHead - 1 - k + BEAT_CAPACITY) % BEAT_CAPACITY
-      const age = now - this.beatTimes[at]!
-      if (age > WAVEFORM_WINDOW_MS) break
+      const age = view.now - this.beatTimes[at]!
+      if (age > view.viewMs) break
       if (age < 0) continue
-      const x = Math.round(WAVEFORM_W - (age / WAVEFORM_WINDOW_MS) * WAVEFORM_W)
+      const x = Math.round(this.toX(this.beatTimes[at]!, view))
       const bar = this.beatInBar[at] === 1 ? confidenceAlpha(this.downbeatConfidence[at]!) : 0
       const phrase = bar > 0 && this.barInPhrase[at] === 1 ? Math.min(bar, confidenceAlpha(this.phraseConfidence[at]!)) : 0
-      ctx.globalAlpha = 0.5
+      ctx.globalAlpha = 0.55
       ctx.fillRect(x, 0, 1, BEAT_TICK_PX)
-      ctx.fillRect(x, WAVEFORM_H - BEAT_TICK_PX, 1, BEAT_TICK_PX)
       if (phrase > 0) {
         ctx.globalAlpha = phrase
-        ctx.fillRect(x - 1, 0, 2, WAVEFORM_H)
         ctx.beginPath()
         ctx.moveTo(x - PHRASE_MARK_PX, 0)
         ctx.lineTo(x + PHRASE_MARK_PX, 0)
-        ctx.lineTo(x, PHRASE_MARK_PX + 1)
+        ctx.lineTo(x, RULER_H)
         ctx.closePath()
         ctx.fill()
+        ctx.globalAlpha = 0.6 * phrase
+        ctx.fillRect(x - 1, RULER_H, 2, WAVEFORM_H - RULER_H)
       } else if (bar > 0) {
-        ctx.globalAlpha = 0.75 * bar
-        ctx.fillRect(x, 0, 1, WAVEFORM_H)
+        ctx.globalAlpha = 0.85 * bar
+        ctx.fillRect(x, 0, 1, RULER_H)
+        ctx.globalAlpha = 0.22 * bar
+        ctx.fillRect(x, RULER_H, 1, WAVEFORM_H - RULER_H)
       }
     }
     ctx.globalAlpha = 1
+  }
+
+  // Beat lamp, colored by the band that last fired, and where the grid has the music: bar of the phrase, then beat of the bar.
+  private drawLamp = (ctx: WaveformContext, view: WaveformView): void => {
+    const last = this.hitCount > 0 ? (this.hitHead - 1 + HIT_CAPACITY) % HIT_CAPACITY : -1
+    const lamp = last >= 0 ? Math.max(0, 1 - (view.now - this.hitTimes[last]!) / LAMP_FADE_MS) : 0
+    ctx.globalAlpha = 0.15 + lamp * 0.85
+    ctx.fillStyle = HIT_COLORS[last >= 0 ? this.hitBands[last]! : 0]!
+    ctx.beginPath()
+    ctx.arc(10, PLOT_TOP + 9, 5, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.globalAlpha = 1
+
+    const label = this.placeLabel()
+    if (label === null) return
+    ctx.fillStyle = LABEL_COLOR
+    ctx.font = LABEL_FONT
+    ctx.textBaseline = 'middle'
+    ctx.fillText(label, 20, PLOT_TOP + 9)
+  }
+
+  private placeLabel = (): string | null => {
+    if (!this.gridLocked || this.beatCount === 0) return null
+    const at = (this.beatHead - 1 + BEAT_CAPACITY) % BEAT_CAPACITY
+    const beat = this.beatInBar[at]! - 1
+    if (confidenceAlpha(this.downbeatConfidence[at]!) <= 0) return null
+    if (confidenceAlpha(this.phraseConfidence[at]!) <= 0) return BEAT_ONLY_LABELS[beat] ?? null
+    return PLACE_LABELS[this.barInPhrase[at]! - 1]?.[beat] ?? null
   }
 }
