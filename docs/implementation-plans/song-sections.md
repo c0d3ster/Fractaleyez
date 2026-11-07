@@ -2,84 +2,73 @@
 
 ## Context
 
-The Beat HUD names the rhythm pattern (four on the floor, half time, and so on) from the last 12 seconds of beats. That window is far too short to say anything about song structure. A buildup lasts 8 to 32 bars (roughly 15 to 60 seconds), and a drop only means something relative to what came before it.
+The Beat HUD names the rhythm pattern from the last 12 seconds of beats, far too short to say anything about song structure. This plan adds a long-memory layer that labels the current part of a song (intro, groove, buildup, break, drop, outro, quiet) and notices when one song ends and the next begins. It is the signal Auto mode reads (`auto-mode.md`). Nothing here changes how the visuals look.
 
-This plan adds a long-memory layer that labels the current part of a song (intro, groove, buildup, break, drop, outro, quiet) and notices when one song ends and the next begins. It is a separate effort from Auto mode and a prerequisite for it: see `auto-mode.md`, which consumes the signal this plan produces. Nothing in this plan changes how the visuals look.
+Code: `src/audioanalysis/section-features.ts` (features), `section-model.ts` and `section-model.json` (the trained model), `sections.ts` (`SectionTracker`: decoding and the song-level rules), fed by `AudioFeed` every frame, exposed as `window.getSongSection` / `getSectionHistory`, drawn by `SectionHud`. Training and evaluation: `scripts/section-eval/` (see its README).
 
-Code: `src/audioanalysis/sections.ts` (`SectionTracker`, pure, clock injected), fed by `AudioFeed` every frame, exposed as `window.getSongSection` / `getSectionHistory`, drawn by `SectionHud` under the Beat HUD. Evaluation tools: `scripts/section-eval/`.
+## How it works
 
-## Status
+1. **Features** (every 250 ms, causal). The five onset-band levels the app already measures are pooled into 50 ms ticks (so the frame rate does not matter) and 250 ms slots. 85 numbers describe the last couple of minutes, every level in dB against the song's own top level (the 90th percentile of its 2 s means over the last 90 s), so a quiet mic and a loud feed read the same. Per band: level now and over 8 s, the step from a few seconds ago, 8 and 16 s trends, how much it pumps tick to tick (a kick, sidechain), how often it jumps (snare rolls), the lowest it went lately, and the last half second against the 2 s before (a drop often lands straight out of a short stop). Plus beat rate, song age, how long the bass has been out or in, brightness tilt, silence and quiet runs, and how different the band shape is from the song's usual shape.
+2. **Model** (gradient-boosted trees, about a thousand tree walks per slot, well under a millisecond). Stage 1: how much the last stretch looks like a buildup or a break. Stage 2: whether a drop just landed, from the features plus a 4, 10 and 20 s memory of stage 1. Boundary: whether a new song just started.
+3. **Decoder** (`sections.ts`, mirrored in `decode.py`, every threshold tuned on out-of-fold output). Stage 1 is smoothed (0.5 s), buildup and break are entered at 0.3 held for two slots and left under 0.2 / 0.25. A drop fires at 0.3 (0.5 while a buildup or break is still showing, because the end of a build already looks like a drop is coming and an early one would hold off the real one), at most every 6 s. After a drop the section is **drop** (the full-energy part) until the next buildup or break, for 64 s at most.
+4. **Song rules.** Nothing is labelled (quiet) until a regular beat is confirmed; that also gates the song clock. Intro is the start of a song until its first buildup or drop (60 s at most). Outro is a fade late in a song that has had a drop (10 dB under, falling, after 150 s; tuned against where songs actually end). A new song starts on the boundary model (0.9, never within 45 s of the last change) or after 6 s of silence; features, decoder and clock start over.
 
-The first version was tuned on synthetic curves and two short tracks and was **bad on real songs** (long false buildups on steady loud stretches, drops missed, bridges read as outro, typing on a keyboard read as groove). The detection was rebuilt around what a section looks like in the band levels, and checked against 11 real Creative Commons tracks with a chart renderer. Current state:
+`SectionState` carries `section`, `intensity`, `buildupProgress`, `sinceMs`, `songIndex`, `songMs`, plus `dropCount` (a change in it is the drop event), `sinceDropMs` and `confidence`.
 
-- Real breaks and the drops that end them are found on most of the tracks that have them. Each of the 11 tracks (single songs) reads as exactly one song.
-- False buildups from steady loud stretches are mostly gone; real, classic riser buildups are rare in the test set, so **buildup recall on real songs is not yet validated** (only on synthetic builds).
-- Outro is conservative: only a deep, long fade late in a song. Late breaks and outros look alike while they happen.
-- There is no ground-truth annotation yet. Quality so far was judged by reading the charts, which is subjective. Marking true sections on each chart and scoring the tracker against them is the obvious next step.
+## Data and method
 
-## What a section looks like
+The **Socially Significant Music Events** dataset (Yadati et al., IEEE TMM 2018): 402 Creative Commons EDM tracks with drop times and build and break intervals marked by experts (339 tracks carry labels: 435 drops, 595 builds, 371 breaks). Every number below is **out of fold**: 5 folds by track (id mod 5), and each track is scored by models that never saw it, through the real TypeScript tracker (`run.mts --fold-models`). Listening through a microphone is simulated (`levels.py --mic`): *room* (good speakers, reverb, -48 dB noise floor) and *laptop* (laptop speakers into the laptop mic: almost no bass under 200 Hz, more reverb, -40 dB noise). The model is trained on all three conditions together.
 
-Modern tracks are nearly flat in overall loudness, so structure shows up as **changes in band balance and sustained trends**, not as loudness swings. The tracker works on 250 ms slots (total, low = bass+lo, mid, high = hi+air, and the beat count), keeps 2 minutes, and judges everything against the song's own levels, never absolute ones.
+Scoring (`score.py`): a drop counts when it fires within 1 s before to 3 s after a labelled drop; buildup and break are compared slot by slot; "buildup before drop" is the share of labelled drops with buildup shown at some point in the 10 s before; a false reset is a song change inside a single song. Song changes are scored on playlists of 5 songs back to back (gap 0 or 2 s) or crossfaded (6 s): found within -5 s to +25 s of the real change, and invented changes per hour.
 
-Building blocks:
+## Results
 
-- **Climb or fall**: a line fitted to one-second means of a group's level in dB (6 s for most things, 9 s for buildups). It has to be steep enough (0.45 dB/s), straight enough (fit R squared 0.6 or more) and big enough (3 dB, 6 dB for buildups and 6 dB for an intro).
-- **Relative level**: where a group is now (last 2 s) against the 90th percentile of that group's 2 s means over the song's last 90 s. 0 dB is "full", negative is under it. Using 2 s means (not raw slots) matters: the pumping of a sidechained kick otherwise lifts the top and makes every groove look low.
+The rule-based tracker this replaces (tuned by eye on 11 songs) against the current one, same tracks, same scoring:
 
-| Section | Signature |
-| --- | --- |
-| quiet | Shown whenever no song is confirmed (no regular beat: silence, a fan, typing). Also the whole level about 14 dB under the song's slow loudness memory, for a second |
-| intro | A big climb (6 dB or more over 6 s, in the whole level, spread over the window and not a single step) in the first 45 s of a song, and the stretch after a song change; ends 2 s after the climb stops or after 30 s. While it is on it still watches for a big step up, which is a drop |
-| groove | The default once a song is confirmed |
-| buildup | A sustained climb in the mids, highs or the whole: 6 dB or more over 9 s, or 5 dB over 6 s if very straight (fit 0.88). A climb must be spread over the window, not a step, or the drop itself would read as one. Held for about a second to enter; ends when no climb has been seen for 4 s (so it lingers through the turnaround), or after 30 s. Not within 8 s after a drop |
-| break | The low end 4 dB or more under its own peak, or the whole 3.5 dB under, judged on a 4 s mean (so a wobbling bass cannot start one), for about 4 s (a leaky counter, so kick pumping does not reset it). Cannot start within 10 s after a drop starts. Ends after 2 s back near the peak |
-| drop | The low end (+6 dB), the whole (+4 dB) or the highs (+8 dB) step up over the previous 1.5 to 5 s, to within 3.5 dB of the peak, after a buildup of 2.5 s or more, a break of 3 s or more, a quiet stretch of 2 s or more or a fade that ended in the last 6 s. A bigger step (low +9 dB or whole +7 dB) is a drop with no labelled setup (the buildup label may have lapsed in the turnaround, or been an intro). No second drop within 8 s of the last. Held for 4 s |
-| outro | A fall (6 s fit) late in a song (150 s or more) to 12 dB or more under the peak. Shallower falls stay breaks. If the level comes back within 8 s it was a pause and a drop can fire straight out of it |
+| | Old, clean | New, clean | New, room | New, laptop | Old, laptop |
+| --- | --- | --- | --- | --- | --- |
+| Drop F1 (precision / recall) | 0.20 (0.15 / 0.28) | 0.39 (0.43 / 0.36) | 0.41 | 0.35 | 0.06 |
+| Drops fired per real drop | 1.88 | 0.85 | 0.83 | 0.73 | 1.80 |
+| Buildup F1 | 0.09 | 0.44 | 0.43 | 0.39 | 0.09 |
+| Break F1 | 0.28 | 0.52 | 0.53 | 0.53 | 0.16 |
+| Buildup shown before a drop | 22% | 84% | 83% | 81% | 22% |
+| False song resets per song | 0.41 | 0.06 | 0.03 | 0.03 | 0.39 |
+| Median drop latency | 1.0 s | 1.0 s | 1.0 s | 0.75 s | 1.1 s |
 
-**A song is playing** once a regular beat has been going: at least 8 beats in 8 s with tempo consistency 0.5 or more, after 10 s. Until then everything shows as quiet. This is also what gates the song clock. It is lost after 25 s with almost no beats.
+Song changes (clean feed; laptop is within a few points):
 
-**Song change** starts a new song (intro, reset loudness memory, clock restarts, `songIndex` goes up). It happens when:
+| Join | Old found / invented per hour | New found / invented per hour |
+| --- | --- | --- |
+| Back to back | 80% / 3.9 | 78% / 0.7 |
+| 2 s gap | 82% / 6.7 | 98% / 0.5 |
+| 6 s crossfade | 63% / 6.4 | 38% / 0.3 |
 
-- **silence** (more than 24 dB under the song's loudness, or digitally silent, so a mic noise floor of a few percent of the music counts) lasts about 5 s or more and sound returns for half a second. It is timed from when the sound actually stopped and works from the first seconds of a song. A song needs at least 6 beats to count, so the app opening on silence then music is the first song,
-- the level comes back after an outro lasting 8 s or more, or climbs well over an outro's quietest point,
-- the level comes back after a quiet stretch of 10 s or more, or any quiet stretch that followed an outro,
-- the tempo, read cleanly (consistency 0.75 or more), stays different from the one the song held for three checks in a row. This is weak: the tempo estimator wobbles on real music (a steady 128 BPM track reads 96, 127, 160 and 176 along the way), so this rule is deliberately hard to trigger.
+The crossfade row is a real regression: the old tracker reset often enough (about every 10 minutes) that some resets landed on blends. The new one almost never invents a change, so the song clock is trustworthy, but it misses most crossfaded transitions.
 
-The Section strip shows the section name below the graph, the intensity at the top right and a song clock at the top left (shown once a song is confirmed, hidden in silence and on stray noise).
+## What was tried and did not help
 
-## Live reports and the session export
-
-Listening tests on a real Spotify song found more problems the 11-song set did not show: the drop swallowed by an intro that climbed into the buildup, a buildup label firing on the drop's own step up (a step inside a 9 s window fits a line), and a loop of break, drop, groove, break, drop inside one loud section (a wobbling bass dips 4 to 6 dB, which read as a break, and its return read as a drop). Fixes: a climb must be spread over its window (the biggest one-second rise is at most half the total), the intro keeps watching for a drop and ends after 30 s, a strong step is a drop without a labelled setup, a break is judged on a 4 s mean and cannot start within 10 s of a drop, and there is no second drop within 8 s.
-
-Without the audio, none of that could be replayed, so the tracker now keeps every slot of a session (40 minutes at most) and `exportSectionLog()`, run from the console of the running app, downloads it as `section-log-<time>.json`. `scripts/section-eval/replay-log.mts` replays such a log through the current tracker and `render.py` charts it, so a bad moment in a live session can be reproduced offline and tuned against.
-
-## Steps
-
-1. **Recorder and debug strip** (done).
-2. **Tune on real songs** (in progress): the rebuild above. Next: mark the true sections on each chart, score against them, and add more tracks with classic riser builds.
-3. **Intro, outro and song change** (done in a first form, see above). Intro and outro are still the weakest.
-4. Auto mode starts only after the labels can be trusted. See `auto-mode.md`.
-
-## Offline evaluation on real songs
-
-`scripts/section-eval/` decodes a song, runs the real band filters and `OnsetDetector` once, saves the per-frame levels and beats, and replays them through the current tracker in seconds. A chart renderer draws level lines (low red, high blue, overall white), the five bands as a heatmap, beat density and the tracker's sections as a colored strip, so the labels can be compared with the song the way a streaming app's chart is.
-
-Things learned from it:
-
-- A recent-versus-earlier comparison (the first buildup rule) fires on kick pumping and beat-count noise in loud, flat masters, and a "holding" rule then keeps it on for the maximum time. A regression slope with a fit check over 6 to 9 s does not.
-- Dips recover quickly; real buildups last bars. A 9 s window with a 6 dB minimum rise tells them apart.
-- A late break and an outro are not separable by shape alone while they happen. Only a deep fade is called an outro.
-- The tempo estimator is not reliable enough to call song changes on its own.
+- **More model capacity** (deeper trees, more of them) and class balancing: no gain out of fold. Stage 1 is limited by information, not fit.
+- **Spectral features** from the app's 512-point FFT (14-band shape, spectral novelty over 1 and 4 s, `spectrum.py`): break +0.004, drop -0.03 F1. Not used, so the audio pipeline is unchanged.
+- **Lagged copies of the features** (2 and 4 s back): +0.002. Not used.
+- **Looser drop threshold after a buildup**: worse (see the decoder note above; the opposite helps).
 
 ## Limits
 
-- Works best on electronic music with clear structure. Weaker on rock, jazz and live music.
-- A drop is detected by reacting to it, so it lands a beat or two late unless the buildup was seen first.
-- Mic capture of a room is noisier than a clean feed, which is why every threshold is relative to the song's own levels.
-- The song clock counts from when the tracker thinks the song began, so it is an estimate.
-- Not tuned on live mic audio yet.
+- The labels are subjective at the edges (when a build starts), and some builds and drops are marked by feel with no change in the band levels at all; about 16% of labelled drops have no clear level step. That caps slot-level agreement.
+- A drop is detected by reacting to it, about a second late. Auto mode should prefer the buildup (shown before 84% of drops) to get ready, and treat a single drop event as a cue that is right about 4 times in 10.
+- Outro and a late break look alike while they happen; outro is shown only on a deep, falling fade after 150 s.
+- Crossfades and DJ mixes: most song changes in a blend are missed (sections still work across them).
+- Trained on EDM. Other genres are untested.
+- The mic conditions are simulations. Real sessions can be checked with `exportSectionLog()` (50 ms ticks, replayed exactly by `replay-log.mts`).
+
+## Next
+
+1. Label a handful of real mic sessions (export, mark sections) and score them, to confirm the simulations.
+2. Crossfade boundaries: a detector trained on more blended playlists, or a tempo-change cue.
+3. Auto mode (`auto-mode.md`).
+4. Optional: load `section-model.json` lazily (about 100 KB gzipped) to keep it off the first paint.
 
 ## Verification
 
-- Unit tests (`sections.test.ts`, `sections.stress.test.ts`) with synthetic curves: noise, a quiet mic, builds and drops, breaks with kick pumping, quick dips, fades and the next song, silences of 20 s (digital and with a mic noise floor), tempo changes, the song clock, and typing on a keyboard.
-- The 11-track real-song check above (each reads as one song; breaks, drops and outros listed in the section summaries).
+- `pnpm test`: `sections.test.ts` pins what must hold for any model (quiet and no clock without a regular beat, the clock, a new song after a long silence but not on a short stop, the same labels at a tenth of the level, a replayed recording giving the same states, bounded memory and speed) and the tree inference.
+- The out-of-fold evaluation above, reproducible with `scripts/section-eval/`.
