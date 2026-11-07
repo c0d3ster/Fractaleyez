@@ -1,33 +1,32 @@
-// Replays a log exported from the running app (`exportSectionLog()` in the console) through the current SectionTracker, and writes the same
-// per-slot JSON that replay.mts does, so render.py and summarize.py work on it. The log holds 250 ms slots, not frames, so each slot is fed back as
-// 15 identical frames of its low, mid and high levels (the tracker only uses those three groups) with its beats spread across them.
+// Replays a log exported from the running app (`exportSectionLog()` in the console) through the current SectionTracker, tick by tick,
+// exactly as it ran live, and writes the same per-slot JSON as run.mts (one stream), so chart.py and score.py can read it.
+//
+//   tsx replay-log.mts <section-log.json> <out.json>
 import { readFileSync, writeFileSync } from 'node:fs'
-import { SectionTracker } from '../../src/audioanalysis/sections.ts'
-
-type LogSlot = { t: number; total: number; low: number; mid: number; high: number; beats: number }
+import { SectionTick, SectionTracker } from '../../src/audioanalysis/sections.ts'
 
 const [input, output] = [process.argv[2]!, process.argv[3]!]
-const log = JSON.parse(readFileSync(input, 'utf8')) as { slots: LogSlot[] }
-const first = log.slots[0]?.t ?? 0
+const log = JSON.parse(readFileSync(input, 'utf8')) as { version: number; ticks?: SectionTick[] }
+if (log.version !== 2 || !log.ticks) throw new Error('only version 2 logs (50 ms ticks) can be replayed; version 1 held 250 ms slots')
+const first = log.ticks[0]?.t ?? 0
 const tracker = new SectionTracker()
-const FRAMES = 15
-const slots: Array<{ t: number; bands: number[]; beats: number; section: string; song: number; clock: number | null; intensity: number }> = []
-for (const slot of log.slots) {
-  const start = slot.t - 250
-  for (let i = 0; i < FRAMES; i++) {
-    const beat = slot.beats > 0 && i % Math.max(1, Math.floor(FRAMES / slot.beats)) === 0 && i / Math.max(1, Math.floor(FRAMES / slot.beats)) < slot.beats
-    tracker.push({ t: start + ((i + 1) * 250) / FRAMES, levels: [slot.low, slot.low, slot.mid, slot.high, slot.high], beat })
-  }
-  const st = tracker.getState()
-  slots.push({
-    t: (slot.t - first) / 1000,
-    bands: [slot.low, slot.low, slot.mid, slot.high, slot.high].map((v) => +v.toFixed(3)),
-    beats: slot.beats,
-    section: st.section,
-    song: st.songIndex,
-    clock: st.songMs === null ? null : Math.floor(st.songMs / 1000),
-    intensity: +st.intensity.toFixed(2),
-  })
+const run = { id: 'log', seconds: 0, starts: [0], sections: [] as string[], songs: [] as number[], clock: [] as Array<number | null>, intensity: [] as number[], drops: [] as number[] }
+let slots = 0
+let lastDrops = 0
+for (const tick of log.ticks) {
+  tracker.pushTick(tick)
+  if (tracker.getHistory().length === 0) continue
+  const closed = tracker.getHistory()[tracker.getHistory().length - 1]!
+  if (closed.t !== tick.t) continue
+  const state = tracker.getState()
+  slots++
+  run.sections.push(state.section)
+  run.songs.push(state.songIndex)
+  run.clock.push(state.songMs === null ? null : Math.round(state.songMs / 100) / 10)
+  run.intensity.push(Math.round(state.intensity * 100) / 100)
+  if (state.dropCount > lastDrops) run.drops.push((tick.t - first) / 1000)
+  lastDrops = state.dropCount
 }
-writeFileSync(output, JSON.stringify({ file: input, seconds: slots.length / 4, slots }))
-console.log(input.split('/').pop(), `${(slots.length / 4).toFixed(0)}s`, slots.length, 'slots replayed')
+run.seconds = slots / 4
+writeFileSync(output, JSON.stringify({ tracker: 'sections.ts', runs: [run] }))
+console.log(input.split('/').pop(), `${run.seconds.toFixed(0)} s replayed, ${run.drops.length} drops, ${Math.max(...run.songs)} songs`)
