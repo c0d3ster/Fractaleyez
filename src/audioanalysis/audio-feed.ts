@@ -4,6 +4,7 @@ import { AudioAnalyser } from './audio-analyser'
 import { AudioAnalysedDataForVisualization } from './audio-analysed-data'
 import { beatMonitor } from './beat'
 import { sectionTracker } from './sections'
+import { tempoTracker } from './tempo-tracker'
 import { OnsetDetector } from './onset-detector'
 import { DEFAULT_ENABLED_BANDS, ONSET_BANDS } from './onset-bands'
 
@@ -34,12 +35,15 @@ export class AudioFeed {
       sensitivity: soundThreshold.value,
       ignoreMs: ignoreTime.value,
       decayMs: AnalyserConfig.options.peakDetection.options.peakPersistency,
+      // With no steady rhythm (no music, or a fan), the detector's noise gates come on; see OnsetDetectorOptions.
+      rhythm: tempoTracker.getReading() !== null,
     })
     snapshot.beat = onset.beat
     const now = performance.now()
     beatMonitor.record({ t: now, bands: onset.bands, beatBand: onset.beatBand })
     // The raw band levels, as the section model was trained and scored on (the onset detector's followed levels blur its tick features).
     sectionTracker.push({ t: now, levels, beat: onset.beatBand !== null })
+    tempoTracker.push(now, levels)
 
     this.latest = snapshot
     return snapshot

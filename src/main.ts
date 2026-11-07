@@ -4,6 +4,7 @@ import { AudioAnalyser } from './audioanalysis/audio-analyser'
 import { AudioFeed } from './audioanalysis/audio-feed'
 import { beatMonitor } from './audioanalysis/beat'
 import { sectionTracker } from './audioanalysis/sections'
+import { tempoTracker } from './audioanalysis/tempo-tracker'
 import { exportSectionLog } from './audioanalysis/section-export'
 import { DEFAULT_DETECTOR_MS, detectorCalibration, estimateLag, LagEstimate, median } from './audioanalysis/lag-estimate'
 import { LagProbe } from './audioanalysis/lag-probe'
@@ -142,6 +143,7 @@ const init = (): void => {
   window.getLastBeatTime = beatMonitor.getLastBeatTime
   window.getBeatTimes = beatMonitor.getBeatTimes
   window.getSongSection = sectionTracker.getState
+  window.getTempo = tempoTracker.getReading
   window.getSectionHistory = sectionTracker.getHistory
   window.exportSectionLog = (): void => exportSectionLog(sectionTracker.getRecording())
   window.subscribeBeat = beatMonitor.subscribe
