@@ -14,6 +14,7 @@ import { FEATURE_COUNT, FEATURE_NAMES, SLOT_MS, SectionFeatures } from './sectio
 import { SectionModelData, boosterScores, sigmoid, softmaxInPlace } from './section-model'
 import modelData from './section-model.json'
 import { TickRecorder } from './tick-recorder'
+import type { GridState } from './beat-grid'
 
 export type SongSection = 'intro' | 'quiet' | 'groove' | 'buildup' | 'turnaround' | 'break' | 'drop' | 'outro'
 
@@ -43,6 +44,8 @@ export type SectionSample = {
   levels: readonly number[]
   /** True on the frame a beat was detected. */
   beat: boolean
+  /** The beat grid's state on this frame (beat-grid.ts), when the app runs one. The model reads where the moment sits in the bar and phrase. */
+  grid?: GridState | null
 }
 
 /** One closed slot of the history, with the section that was shown for it. */
@@ -83,6 +86,14 @@ export type SectionTuning = {
   turnaroundMaxMs: number
   /** The music is back once the whole mix is over this. */
   turnaroundLeaveDb: number
+  /**
+   * The phrase-line prior: while the beat grid is locked and its phrase confidence is at least phraseLineMinConfidence, the drop threshold
+   * moves by phraseLineDropOffset within phraseLineBeats beats of an 8-bar line and by offPhraseDropOffset elsewhere (decode.py tunes them).
+   */
+  phraseLineBeats: number
+  phraseLineDropOffset: number
+  offPhraseDropOffset: number
+  phraseLineMinConfidence: number
 }
 
 const DEFAULT_TUNING: SectionTuning = {
@@ -97,6 +108,10 @@ const DEFAULT_TUNING: SectionTuning = {
   turnaroundAfterBuildupMs: 250,
   turnaroundMaxMs: 6000,
   turnaroundLeaveDb: -6,
+  phraseLineBeats: 2,
+  phraseLineDropOffset: 0,
+  offPhraseDropOffset: 0,
+  phraseLineMinConfidence: 0,
 }
 
 /** One recorded 50 ms tick: when it closed, the mean power of each band and the beats in it. Enough to replay a session exactly. */
@@ -160,9 +175,14 @@ const F_REL_TOTAL = feature('relTotal')
 const F_SLOPE16_MID = feature('slope16_mid')
 const F_SLOPE16_LO = feature('slope16_lo')
 const F_SILENCE_NOW = feature('silenceNow')
+const F_GRID_LOCKED = feature('gridLocked')
+const F_INTO_PHRASE = feature('beatsIntoPhrase')
+const F_PHRASE_CONFIDENCE = feature('phraseConfidence')
+const BEATS_PER_PHRASE = 32
 
+// A model reads the first `features.length` features, so one trained before the grid columns were added still runs.
 const checkModel = (model: SectionModelData): SectionModelData => {
-  if (model.features.length !== FEATURE_COUNT || model.features.some((name, i) => name !== FEATURE_NAMES[i])) {
+  if (model.features.length > FEATURE_COUNT || model.features.some((name, i) => name !== FEATURE_NAMES[i])) {
     throw new Error('section model: trained on different features than section-features.ts computes; retrain it')
   }
   return model
@@ -207,6 +227,7 @@ export class SectionTracker {
   private lastTurnaroundEnd = -Infinity
   private lastFillEnd = -Infinity
   private stopRun = 0
+  private phraseOffset = 0
   private dropCount = 0
   private hadBuildupOrDrop = false
   private outro = false
@@ -224,14 +245,14 @@ export class SectionTracker {
   constructor(model: SectionModelData = DEFAULT_MODEL, tuning: Partial<SectionTuning> = {}) {
     this.model = checkModel(model)
     this.tuning = { ...DEFAULT_TUNING, ...tuning }
-    this.stage2Input = new Float64Array(FEATURE_COUNT + 3 + model.memorySeconds.length * 4)
+    this.stage2Input = new Float64Array(model.features.length + 3 + model.memorySeconds.length * 4)
   }
 
   private static emptyState = (): SectionState => ({
     section: 'quiet', intensity: 0, buildupProgress: 0, sinceMs: 0, songIndex: 1, songMs: null, dropCount: 0, sinceDropMs: null, confidence: 1,
   })
 
-  push = ({ t, levels, beat }: SectionSample): void => {
+  push = ({ t, levels, beat, grid = null }: SectionSample): void => {
     // A long gap between samples (the tab was in the background) is a fresh start, not a song that went quiet.
     if (this.lastT !== null && t - this.lastT > HISTORY_MS) this.startSong(t, this.beatsThisSong >= SONG_MIN_BEATS, false)
     this.lastT = t
@@ -252,7 +273,7 @@ export class SectionTracker {
     }
     const features = this.features
     const ticks = features.ticks
-    const row = features.push(t, levels, beat)
+    const row = features.push(t, levels, beat, grid)
     if (features.ticks !== ticks) {
       const { power, beats } = features.getLastTick()
       this.record(t, power, beats)
@@ -338,6 +359,7 @@ export class SectionTracker {
       this.startSong(t, this.beatsThisSong >= SONG_MIN_BEATS, true)
     } else {
       this.trackStop(t)
+      this.phraseOffset = this.phraseLineOffset(row)
       this.decode(t, pBuild, pBreak, pDrop)
     }
     this.checkSongPlaying(t)
@@ -380,11 +402,12 @@ export class SectionTracker {
       this.memoryBreak.shift()
     }
     const input = this.stage2Input
-    input.set(row, 0)
-    input[FEATURE_COUNT] = pOther
-    input[FEATURE_COUNT + 1] = pBuild
-    input[FEATURE_COUNT + 2] = pBreak
-    let at = FEATURE_COUNT + 3
+    const count = this.model.features.length
+    input.set(row.subarray(0, count), 0)
+    input[count] = pOther
+    input[count + 1] = pBuild
+    input[count + 2] = pBreak
+    let at = count + 3
     this.model.memorySeconds.forEach((seconds) => {
       const window = seconds * 4
       for (const memory of [this.memoryBuild, this.memoryBreak]) {
@@ -427,7 +450,17 @@ export class SectionTracker {
     }
   }
 
-  private dropThreshold = (t: number): number => {
+  // How much the drop threshold moves for where the grid puts this slot in the 8-bar phrase (0 with no locked grid).
+  private phraseLineOffset = (row: Float64Array): number => {
+    const tune = this.tuning
+    if (row[F_GRID_LOCKED]! <= 0 || row[F_PHRASE_CONFIDENCE]! < tune.phraseLineMinConfidence) return 0
+    const into = row[F_INTO_PHRASE]!
+    return Math.min(into, BEATS_PER_PHRASE - into) <= tune.phraseLineBeats ? tune.phraseLineDropOffset : tune.offPhraseDropOffset
+  }
+
+  private dropThreshold = (t: number): number => this.baseDropThreshold(t) + this.phraseOffset
+
+  private baseDropThreshold = (t: number): number => {
     const tune = this.tuning
     const turnaround = this.turnaroundStart !== null || t - this.lastTurnaroundEnd <= tune.turnaroundDropWindowMs
     if (turnaround && tune.turnaroundDropThreshold !== null) return tune.turnaroundDropThreshold
