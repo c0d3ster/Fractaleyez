@@ -4,7 +4,9 @@
 
 Single songs:
   drop       a predicted drop (the label turning to drop) counts when it is within DROP_EARLY s before to DROP_LATE s after a labelled drop
-  build      slot by slot: buildup shown against inside a labelled build
+  build      slot by slot: buildup (or turnaround, the stop at its end) shown against inside a labelled build
+  turnaround an episode is right when a labelled drop lands from just before it to 3 s after it ends; a labelled drop is warned when an
+             episode overlaps the 4 s before it; lead is how long before the drop the episode began
   anticip.   share of labelled drops that had buildup shown at some point in the 10 s before them (what auto mode needs to get ready)
   break      slot by slot: break shown against inside a labelled break
   resets     song changes inside one song (each file is one song, so every one is wrong)
@@ -30,6 +32,18 @@ def mask(intervals: list[tuple[float, float]], n: int) -> np.ndarray:
 
 def onsets(sections: list[str], label: str) -> list[float]:
     return [(i + 1) * SLOT for i, s in enumerate(sections) if s == label and (i == 0 or sections[i - 1] != label)]
+
+
+def runs_of(sections: list[str], label: str) -> list[tuple[float, float]]:
+    """(start, end) in seconds of each run of a label."""
+    out, start = [], None
+    for i, s in enumerate(sections + ['']):
+        if s == label and start is None:
+            start = i * SLOT
+        elif s != label and start is not None:
+            out.append((start, i * SLOT))
+            start = None
+    return out
 
 
 def match(pred: list[float], truth: list[float]) -> tuple[int, list[float]]:
@@ -61,6 +75,8 @@ def score_songs(runs: list[dict], gt: dict, per_song: bool) -> dict:
     unconfirmed = 0
     slots_total = 0
     scored = 0
+    ta_episodes = ta_right = ta_warned = 0
+    ta_lead: list[float] = []
     for run in runs:
         truth = gt.get(run['id'])
         # Tracks with no labels at all (63 of the 402) were not annotated, so they say nothing either way.
@@ -79,13 +95,20 @@ def score_songs(runs: list[dict], gt: dict, per_song: bool) -> dict:
         song_scores = {}
         for key, label in (('build', 'buildup'), ('break', 'break')):
             m_true = mask(list(zip(truth[f'{key}_start'], truth[f'{key}_end'])), n)
-            m_pred = sec == label
+            m_pred = (sec == label) | (sec == 'turnaround') if key == 'build' else sec == label
             agg[key][0] += int(np.sum(m_true & m_pred))
             agg[key][1] += int(np.sum(m_pred))
             agg[key][2] += int(np.sum(m_true))
             song_scores[key] = (int(np.sum(m_true & m_pred)), int(np.sum(m_pred)), int(np.sum(m_true)))
-        build = sec == 'buildup'
+        build = (sec == 'buildup') | (sec == 'turnaround')
+        episodes = runs_of(sections, 'turnaround')
+        ta_episodes += len(episodes)
+        ta_right += sum(1 for a, b in episodes if any(a - 0.5 <= d <= b + 3 for d in truth['drop']))
         for d in truth['drop']:
+            warned = [a for a, b in episodes if a <= d + 0.5 and b >= d - 4]
+            ta_warned += bool(warned)
+            if warned:
+                ta_lead.append(d - warned[0])
             lo, hi = int(max(0, d - ANTICIPATION_S) / SLOT), int(d / SLOT) + 2
             if hi <= n:
                 anticipation_total += 1
@@ -118,6 +141,10 @@ def score_songs(runs: list[dict], gt: dict, per_song: bool) -> dict:
     out['false_resets_per_song'] = resets / max(1, scored)
     out['unconfirmed_after_30s'] = unconfirmed / max(1, slots_total)
     out['mean_F1'] = (out['drop_F1'] + out['build_F1'] + out['break_F1']) / 3
+    out['turnarounds'] = ta_episodes
+    out['turnaround_P'] = ta_right / max(1, ta_episodes)
+    out['turnaround_warns'] = ta_warned / max(1, n_true)
+    out['turnaround_lead_median'] = float(np.median(ta_lead)) if ta_lead else None
     return out
 
 

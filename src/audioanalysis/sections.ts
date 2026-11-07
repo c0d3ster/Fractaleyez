@@ -14,7 +14,7 @@ import { FEATURE_COUNT, FEATURE_NAMES, SLOT_MS, SectionFeatures } from './sectio
 import { SectionModelData, boosterScores, sigmoid, softmaxInPlace } from './section-model'
 import modelData from './section-model.json'
 
-export type SongSection = 'intro' | 'quiet' | 'groove' | 'buildup' | 'break' | 'drop' | 'outro'
+export type SongSection = 'intro' | 'quiet' | 'groove' | 'buildup' | 'turnaround' | 'break' | 'drop' | 'outro'
 
 export type SectionState = {
   section: SongSection
@@ -55,6 +55,49 @@ export type SectionSlot = {
   section: SongSection
 }
 
+/**
+ * Decoder settings that can be overridden, for testing variants offline (scripts/section-eval/run.mts --tuning). The app uses the defaults.
+ *
+ * A turnaround is the music cutting out during a buildup: the whole mix far under the song's top level with the bass gone, for a moment. It is
+ * a real, visible moment, but not a drop forecast: measured live and out of fold, about 1 in 4 is followed by a drop (with about 2 s of
+ * warning); the rest are stops inside a build that carries on, or builds that turn into a break. Lowering the drop threshold around one made
+ * drop detection slightly worse, so it does not (turnaroundDropThreshold and fillDropThreshold stay null). Looking back at whole songs, a stop
+ * after a buildup that comes back up lands on a drop about 6 times in 10, but whether it comes back is exactly what is not known yet live.
+ */
+export type SectionTuning = {
+  /** Drop threshold, and the stricter one while a buildup or break is still showing. */
+  dropThreshold: number
+  dropContextThreshold: number
+  /** Drop threshold during a turnaround and for a moment after the music comes back (null: no special threshold). */
+  turnaroundDropThreshold: number | null
+  turnaroundDropWindowMs: number
+  /** Drop threshold for a moment after a stop that was not a turnaround (a fill), or null for none. */
+  fillDropThreshold: number | null
+  /** What counts as a stop: the whole mix and the bass this far under the song's top level, for this many slots. */
+  stopTotalDb: number
+  stopBassDb: number
+  stopSlots: number
+  /** A stop counts as a turnaround while a buildup is showing (or this soon after), and for at most this long. */
+  turnaroundAfterBuildupMs: number
+  turnaroundMaxMs: number
+  /** The music is back once the whole mix is over this. */
+  turnaroundLeaveDb: number
+}
+
+const DEFAULT_TUNING: SectionTuning = {
+  dropThreshold: 0.3,
+  dropContextThreshold: 0.5,
+  turnaroundDropThreshold: null,
+  turnaroundDropWindowMs: 2000,
+  fillDropThreshold: null,
+  stopTotalDb: -10,
+  stopBassDb: -15,
+  stopSlots: 2,
+  turnaroundAfterBuildupMs: 250,
+  turnaroundMaxMs: 6000,
+  turnaroundLeaveDb: -6,
+}
+
 /** One recorded 50 ms tick: when it closed, the mean power of each band and the beats in it. Enough to replay a session exactly. */
 export type SectionTick = { t: number; power: number[]; beats: number }
 
@@ -73,10 +116,8 @@ const BREAK_OUT = 0.25
 const ENTER_SLOTS = 2
 // A break that sounds more like a buildup by this margin turns into one (breaks often lead into a build).
 const SWITCH_MARGIN = 0.15
-const DROP_THRESHOLD = 0.3
-// While a buildup or break is still showing (or has just ended) a drop needs more evidence: the end of a build already looks like a drop
-// is coming, and one fired a moment early would hold off the real one for the refractory time. Worth 0.03 of drop F1 out of fold.
-const DROP_CONTEXT_THRESHOLD = 0.5
+// The drop thresholds are in SectionTuning. While a buildup or break is still showing (or has just ended) a drop needs more evidence: the end
+// of a build already looks like a drop is coming, and one fired a moment early would hold off the real one for the refractory time.
 const DROP_CONTEXT_MS = 1000
 const DROP_REFRACTORY_MS = 6000
 const NO_DROP_BEFORE_MS = 8000
@@ -150,6 +191,7 @@ export class SectionTracker {
   private readonly memoryBreak: number[] = []
   private readonly stage2Input: Float64Array
   private readonly model: SectionModelData
+  private readonly tuning: SectionTuning
 
   // Decoder state.
   private decoded: Decoded = 'groove'
@@ -160,6 +202,11 @@ export class SectionTracker {
   private breakRun = 0
   private lastDrop = -Infinity
   private lastSetup = -Infinity
+  private lastBuildup = -Infinity
+  private turnaroundStart: number | null = null
+  private lastTurnaroundEnd = -Infinity
+  private lastFillEnd = -Infinity
+  private stopRun = 0
   private dropCount = 0
   private hadBuildupOrDrop = false
   private outro = false
@@ -173,9 +220,10 @@ export class SectionTracker {
   private silenceBoundary = false
   private state: SectionState = SectionTracker.emptyState()
 
-  /** `model` is for evaluating fold models offline and for tests; the app uses the shipped one. */
-  constructor(model: SectionModelData = DEFAULT_MODEL) {
+  /** `model` and `tuning` are for evaluating variants offline and for tests; the app uses the shipped model and the defaults. */
+  constructor(model: SectionModelData = DEFAULT_MODEL, tuning: Partial<SectionTuning> = {}) {
     this.model = checkModel(model)
+    this.tuning = { ...DEFAULT_TUNING, ...tuning }
     this.stage2Input = new Float64Array(FEATURE_COUNT + 3 + model.memorySeconds.length * 4)
   }
 
@@ -290,6 +338,7 @@ export class SectionTracker {
     } else if (pBoundary >= BOUNDARY_THRESHOLD && t - this.songStart >= MIN_SONG_MS) {
       this.startSong(t, this.beatsThisSong >= SONG_MIN_BEATS, true)
     } else {
+      this.trackStop(t)
       this.decode(t, pBuild, pBreak, pDrop)
     }
     this.checkSongPlaying(t)
@@ -300,7 +349,7 @@ export class SectionTracker {
       this.shownStart = t
     }
     slot.section = shown
-    const confidence = shown === 'buildup' ? this.smoothed[1]! : shown === 'break' ? this.smoothed[2]! : 1
+    const confidence = shown === 'buildup' || shown === 'turnaround' ? this.smoothed[1]! : shown === 'break' ? this.smoothed[2]! : 1
     this.state = {
       section: shown,
       intensity: this.intensity(t),
@@ -356,12 +405,44 @@ export class SectionTracker {
     return [this.smoothed[1]!, this.smoothed[2]!, pDrop, pBoundary]
   }
 
-  // The state machine over the smoothed probabilities. Mirrors decode.py.
+  // Stops, and the turnaround: a stop during a buildup or just after one, until the music comes back, the drop lands or it lasts too long.
+  private trackStop = (t: number): void => {
+    const { total, bass } = this.features.getLastSlot()
+    const tune = this.tuning
+    if (this.decoded === 'buildup') this.lastBuildup = t
+    if (this.turnaroundStart !== null) {
+      if (total > tune.turnaroundLeaveDb) {
+        this.turnaroundStart = null
+        this.lastTurnaroundEnd = t
+      } else if (t - this.turnaroundStart > tune.turnaroundMaxMs) {
+        this.turnaroundStart = null
+      }
+      return
+    }
+    const stopped = total <= tune.stopTotalDb && bass <= tune.stopBassDb
+    if (!stopped && this.stopRun >= tune.stopSlots) this.lastFillEnd = t
+    this.stopRun = stopped ? this.stopRun + 1 : 0
+    if (this.stopRun >= tune.stopSlots && t - this.lastBuildup <= tune.turnaroundAfterBuildupMs && t - this.lastDrop >= DROP_REFRACTORY_MS) {
+      this.turnaroundStart = t - (this.stopRun - 1) * SLOT_MS
+      this.stopRun = 0
+    }
+  }
+
+  private dropThreshold = (t: number): number => {
+    const tune = this.tuning
+    const turnaround = this.turnaroundStart !== null || t - this.lastTurnaroundEnd <= tune.turnaroundDropWindowMs
+    if (turnaround && tune.turnaroundDropThreshold !== null) return tune.turnaroundDropThreshold
+    if (t - this.lastFillEnd <= tune.turnaroundDropWindowMs && tune.fillDropThreshold !== null) return tune.fillDropThreshold
+    return t - this.lastSetup <= DROP_CONTEXT_MS ? tune.dropContextThreshold : tune.dropThreshold
+  }
+
+  // The state machine over the smoothed probabilities. Mirrors decode.py (which has no turnaround).
   private decode = (t: number, pBuild: number, pBreak: number, pDrop: number): void => {
     const songAge = t - (this.songStart ?? t)
     if (this.decoded === 'buildup' || this.decoded === 'break') this.lastSetup = t
-    const threshold = t - this.lastSetup <= DROP_CONTEXT_MS ? DROP_CONTEXT_THRESHOLD : DROP_THRESHOLD
+    const threshold = this.dropThreshold(t)
     if (pDrop >= threshold && t - this.lastDrop >= DROP_REFRACTORY_MS && songAge >= NO_DROP_BEFORE_MS) {
+      this.turnaroundStart = null
       this.lastDrop = t
       this.dropCount++
       this.hadBuildupOrDrop = true
@@ -401,7 +482,10 @@ export class SectionTracker {
 
   // What is shown: the decoded section, with the song-level rules on top.
   private show = (t: number, row: Float64Array, silence: number): SongSection => {
-    if (!this.songConfirmed || silence >= SILENCE_SHOWN_S) return 'quiet'
+    if (!this.songConfirmed) return 'quiet'
+    // A turnaround is often near silence for a second or two; it is still the end of the buildup, not a quiet passage.
+    if (this.turnaroundStart !== null) return 'turnaround'
+    if (silence >= SILENCE_SHOWN_S) return 'quiet'
     const songAge = t - (this.songStart ?? t)
     // An outro: a fade late in a song that has had its drop. It ends if the level comes back.
     const level = row[F_REL_TOTAL]!
@@ -434,6 +518,11 @@ export class SectionTracker {
     this.breakRun = 0
     this.lastDrop = -Infinity
     this.lastSetup = -Infinity
+    this.lastBuildup = -Infinity
+    this.turnaroundStart = null
+    this.lastTurnaroundEnd = -Infinity
+    this.lastFillEnd = -Infinity
+    this.stopRun = 0
     this.dropCount = 0
     this.hadBuildupOrDrop = false
     this.outro = false

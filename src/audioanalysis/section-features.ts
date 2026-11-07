@@ -152,6 +152,7 @@ export class SectionFeatures {
   private readonly usualShape = new Float64Array(BANDS)
   private readonly shapeBefore = new Float64Array(BANDS)
   private shapeSlots = 0
+  private readonly lastSlot = { total: 0, bass: 0 }
   private readonly features = new Float64Array(FEATURE_COUNT)
   private readonly scratch: number[] = []
 
@@ -183,6 +184,9 @@ export class SectionFeatures {
     this.closeSlot()
     return this.compute()
   }
+
+  /** The slot that just closed, in dB against the song's top level: the whole mix and the bass. Not part of the features (the tracker's turnaround rule reads it). */
+  getLastSlot = (): { total: number; bass: number } => this.lastSlot
 
   /** The tick that was just added, for recording a session. */
   getLastTick = (): { power: Float64Array; beats: number } => ({ power: this.lastTick, beats: this.lastTickBeats })
@@ -374,6 +378,8 @@ export class SectionFeatures {
     // from how this song usually sounded before the gap. A stop inside a song comes back sounding like the song; the next song does not.
     const slotDb = toDb(this.slotPower.reduce((sum, ring) => sum + ring.at(0), 0))
     const rel = slotDb - toDb(peakTotal)
+    this.lastSlot.total = rel
+    this.lastSlot.bass = toDb(this.slotPower[0]!.at(0)) - peaks[0]!
     const quietBefore = this.quiet.now > 0
     this.silence.step(rel <= SILENCE_DB || slotDb <= SILENCE_FLOOR_DB)
     this.quiet.step(rel <= QUIET_DB || slotDb <= SILENCE_FLOOR_DB)
