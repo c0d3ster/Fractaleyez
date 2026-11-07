@@ -32,7 +32,10 @@ Setup each session needs: `pnpm install --frozen-lockfile`, `pip install numpy s
 - **Raveform band levels** (made on the user's machine by `scripts/section-eval/raveform-fetch.py`): the zip's download URL is the one line in
   `docs/overnight/data-source.txt` on origin/feat/bar-grid (`git pull` and re-read it on every retry; the user shares it on Google Drive,
   which downloads with `curl -L "https://drive.usercontent.google.com/download?id=<FILE_ID>&export=download&confirm=t" -o raveform-levels.zip`;
-  check the result is a zip, not an HTML page). If that file does not exist yet, the data is not ready. Inside: `<key>.f16` per track (raw
+  check the result is a zip, not an HTML page). If that file does not exist yet, the data is not ready. The zip (296 MB, checked) was made on
+  Windows: its paths use backslashes (`raveform-levels\0002.kfJQCu-Jbec.f16`, `raveform-levels\fetched.json`,
+  `raveform\structures\segments.json`), which `unzip` mishandles, so extract it with Python's `zipfile` and turn `\` into `/`. 1,370 tracks
+  were fetched (53 videos were unavailable; `fetched.json` lists them). Inside: `<key>.f16` per track (raw
   float16, frames x 5 bands, 60 fps) and `fetched.json` (which tracks worked). Convert to the float32 `.f32` files the scripts read
   (`numpy.fromfile(path, '<f2').astype('<f4').tofile(...)`).
 - **Raveform labels**: https://huggingface.co/datasets/taejunkim/raveform/resolve/main/raveform.zip (479 MB; only `raveform/structures/*`
