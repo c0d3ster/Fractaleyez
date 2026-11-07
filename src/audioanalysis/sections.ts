@@ -1,16 +1,21 @@
-// Labels the current part of a song (intro, groove, buildup, break, drop, outro, quiet) from slow features of the band levels.
-// Everything is judged against the song's own levels (its 90th percentile over the last 90 s, or its recent trend), never absolute
-// levels, so a quiet mic and a loud feed behave the same. The clock comes in with each sample, so the tracker is pure and testable.
+// Labels the current part of a song (intro, groove, buildup, break, drop, outro, quiet) and notices when the next song starts.
 //
-// What a section looks like in the band levels (the loudness of modern tracks is nearly flat, so it is the changes that count):
-//  - a buildup is a sustained climb: a straight-ish rise of one frequency group over several seconds (a regression slope with a good
-//    fit, not a recent-versus-earlier comparison, which fires on the pumping of a sidechained mix)
-//  - a break is the low end sitting well under its own peak
-//  - a drop is the step back up to the peak after a buildup, break or quiet stretch
-//  - an intro is a climb at the start of a song, an outro a long fall near the end
+// Three layers, every one causal (it only ever looks back):
+//  1. section-features.ts turns the five onset-band levels into a feature vector every 250 ms, all relative to the song's own levels.
+//  2. section-model.ts runs gradient-boosted trees, trained on 339 expert-labelled EDM tracks, on those features: how much the last
+//     stretch looks like a buildup or a break, whether a drop just landed, and whether a new song just started.
+//  3. This file turns those probabilities into labels that hold still: smoothing, enter and leave thresholds, a refractory time
+//     after a drop, and the song-level rules (no labels without a regular beat, the song clock, intro and outro).
+//
+// The thresholds below were tuned on out-of-fold model output (scripts/section-eval/decode.py), not by eye. See
+// docs/implementation-plans/song-sections.md for how it was measured and how well it does.
 import { estimateTempo } from './tempo'
+import { FEATURE_COUNT, FEATURE_NAMES, SLOT_MS, SectionFeatures } from './section-features'
+import { SectionModelData, boosterScores, sigmoid, softmaxInPlace } from './section-model'
+import modelData from './section-model.json'
+import { TickRecorder } from './tick-recorder'
 
-export type SongSection = 'intro' | 'quiet' | 'groove' | 'buildup' | 'break' | 'drop' | 'outro'
+export type SongSection = 'intro' | 'quiet' | 'groove' | 'buildup' | 'turnaround' | 'break' | 'drop' | 'outro'
 
 export type SectionState = {
   section: SongSection
@@ -24,6 +29,12 @@ export type SectionState = {
   songIndex: number
   /** How long the current song has been going (an estimate: it is counted from when the tracker thinks the song began), or null until it looks like a song is playing. */
   songMs: number | null
+  /** Drops heard in this song so far. Goes up by one on the slot a drop lands, so a change in it is the drop event. */
+  dropCount: number
+  /** How long since the last drop in this song, or null before the first. */
+  sinceDropMs: number | null
+  /** How sure the model is of a buildup or break while one is shown (its smoothed probability), 1 for the other sections. */
+  confidence: number
 }
 
 export type SectionSample = {
@@ -34,7 +45,7 @@ export type SectionSample = {
   beat: boolean
 }
 
-/** One closed slot of the long history, with the section that was current when it closed. */
+/** One closed slot of the history, with the section that was shown for it. */
 export type SectionSlot = {
   t: number
   total: number
@@ -45,209 +56,185 @@ export type SectionSlot = {
   section: SongSection
 }
 
-const SLOT_MS = 250
+/**
+ * Decoder settings that can be overridden, for testing variants offline (scripts/section-eval/run.mts --tuning). The app uses the defaults.
+ *
+ * A turnaround is the music cutting out during a buildup: the whole mix far under the song's top level with the bass gone, for a moment. It is
+ * a real, visible moment, but not a drop forecast: measured live and out of fold, about 1 in 4 is followed by a drop (with about 2 s of
+ * warning); the rest are stops inside a build that carries on, or builds that turn into a break. Lowering the drop threshold around one made
+ * drop detection slightly worse, so it does not (turnaroundDropThreshold and fillDropThreshold stay null). Looking back at whole songs, a stop
+ * after a buildup that comes back up lands on a drop about 6 times in 10, but whether it comes back is exactly what is not known yet live.
+ */
+export type SectionTuning = {
+  /** Drop threshold, and the stricter one while a buildup or break is still showing. */
+  dropThreshold: number
+  dropContextThreshold: number
+  /** Drop threshold during a turnaround and for a moment after the music comes back (null: no special threshold). */
+  turnaroundDropThreshold: number | null
+  turnaroundDropWindowMs: number
+  /** Drop threshold for a moment after a stop that was not a turnaround (a fill), or null for none. */
+  fillDropThreshold: number | null
+  /** What counts as a stop: the whole mix and the bass this far under the song's top level, for this many slots. */
+  stopTotalDb: number
+  stopBassDb: number
+  stopSlots: number
+  /** A stop counts as a turnaround while a buildup is showing (or this soon after), and for at most this long. */
+  turnaroundAfterBuildupMs: number
+  turnaroundMaxMs: number
+  /** The music is back once the whole mix is over this. */
+  turnaroundLeaveDb: number
+}
+
+const DEFAULT_TUNING: SectionTuning = {
+  dropThreshold: 0.3,
+  dropContextThreshold: 0.5,
+  turnaroundDropThreshold: null,
+  turnaroundDropWindowMs: 2000,
+  fillDropThreshold: null,
+  stopTotalDb: -10,
+  stopBassDb: -15,
+  stopSlots: 2,
+  turnaroundAfterBuildupMs: 250,
+  turnaroundMaxMs: 6000,
+  turnaroundLeaveDb: -6,
+}
+
+/** One recorded 50 ms tick: when it closed, the mean power of each band and the beats in it. Enough to replay a session exactly. */
+export type SectionTick = { t: number; power: number[]; beats: number }
+
+const DEFAULT_MODEL = modelData as SectionModelData
 const HISTORY_MS = 120000
-// Every closed slot is also kept for this long (40 minutes, about 9600 slots), so a listening session can be exported and replayed offline.
-const RECORDING_SLOTS = 9600
-const RECORDING_TRIM = 1200
-const PEAK_WINDOW_MS = 60000
-// The song's loudness memory: it jumps up at once and forgets slowly. Used for silence and quiet, which are about the whole level.
-const REFERENCE_RELEASE_TAU_MS = 45000
-// Needs this much song before it calls a break, outro or drop: the first stretch is mostly an intro ramping up from silence.
-const MIN_HISTORY_MS = 20000
-const RECENT_MS = 2000
-// Long enough to hold a few kicks, so a single hit against a quieter average does not read as the low end coming back.
-const FINE_MS = 1000
-const BEFORE_FROM_MS = 1500
-const BEFORE_TO_MS = 5000
+// Every tick of the last 40 minutes is kept, so a listening session can be exported and replayed offline (1.4 MB, see TickRecorder).
+const RECORDING_TICKS = 48000
 
-// A song's own top level: the 90th percentile of what each group did over the last 90 s of this song.
-const PEAK_REF_MS = 90000
-const PEAK_PERCENTILE = 0.9
-// A climb or a fall: a line fitted to six one-second means. It has to be steep enough, straight enough (the fit, 0 to 1) and big enough in total.
-const TREND_SECONDS = 6
-const TREND_MIN_SONG_MS = 8000
-const TREND_SLOPE_DB_S = 0.45
-const TREND_MIN_FIT = 0.6
-const TREND_MIN_DB = 3
-// A ramp spreads its rise over the window; a step (the drop itself, a cut) puts most of it into one second and is not a climb.
-const CLIMB_MAX_STEP_SHARE = 0.5
-// A buildup is a longer and bigger climb than the ones a groove makes coming back from a dip (those last a few seconds, builds last bars).
-const BUILDUP_SECONDS = 9
-const BUILDUP_MIN_DB = 6
-// A very straight 6 s climb is a buildup too, found earlier than the 9 s one: a dip recovering is not that straight.
-const BUILDUP_QUICK_MIN_DB = 5
-const BUILDUP_QUICK_FIT = 0.88
+// The decoder (tuned on out-of-fold output, see decode.py).
+const SMOOTH_S = 0.5
+const BUILDUP_IN = 0.3
+const BUILDUP_OUT = 0.2
+const BREAK_IN = 0.3
+const BREAK_OUT = 0.25
+const ENTER_SLOTS = 2
+// A break that sounds more like a buildup by this margin turns into one (breaks often lead into a build).
+const SWITCH_MARGIN = 0.15
+// The drop thresholds are in SectionTuning. While a buildup or break is still showing (or has just ended) a drop needs more evidence: the end
+// of a build already looks like a drop is coming, and one fired a moment early would hold off the real one for the refractory time.
+const DROP_CONTEXT_MS = 1000
+const DROP_REFRACTORY_MS = 6000
+const NO_DROP_BEFORE_MS = 8000
+// A drop is the high-energy part after the drop lands; with no break or buildup to end it, it is called groove after this long.
+const DROP_SECTION_MAX_MS = 64000
+const BUILDUP_TYPICAL_MS = 16000
 
-// An intro is a climb at the start of a song, and a big one: a few dB of drift in the first seconds is not an intro.
-const INTRO_WINDOW_MS = 45000
-const INTRO_MIN_DB = 6
-const INTRO_LAPSE_SLOTS = 8
-// An intro that is still climbing past this is the song's first buildup, and the intro was the part before it.
-const INTRO_MAX_MS = 30000
+// Song changes: the model's boundary probability, or silence long enough that nothing inside a song does it (see the plan for the numbers).
+const BOUNDARY_THRESHOLD = 0.9
+const MIN_SONG_MS = 45000
+const SILENCE_NEW_SONG_S = 6
+// Silence this long shows as quiet, whatever the section was.
+const SILENCE_SHOWN_S = 1
+// A "song" with fewer beats than this was never really a song (the app opened on silence or stray noise), so the next one is not a second song.
+const SONG_MIN_BEATS = 6
 
 // It takes this long, with a regular beat going, to believe a song is playing. Silence, stray noise and typing do not get a song time.
-const SONG_CONFIRM_MS = 10000
+const SONG_CONFIRM_MS = 8000
 const SONG_CONFIRM_WINDOW_MS = 8000
 const SONG_CONFIRM_BEATS = 8
 const SONG_CONFIRM_CONSISTENCY = 0.5
 const SONG_CONFIRM_CHECK_SLOTS = 8
-// A confirmed song that has had almost no beats for this long is not playing any more.
 const SONG_LOST_MS = 25000
 const SONG_LOST_BEATS = 2
-
-// Silence is much deeper than quiet: a paused player or a gap between songs, not a soft bridge. It is judged from its real start (not from when it
-// was noticed), works from the first seconds of a song, and any stretch of it this long separates two songs.
-const SILENCE_DB = -24
-// Mean level (% of full scale) under which it is silence whatever the song was doing, for a feed that is digitally silent.
-const SILENCE_ABS = 0.05
-const SILENCE_NEW_SONG_MS = 5000
-// A moment of sound, not a click, before the silence is over.
-const SILENCE_RETURN_SLOTS = 2
-// A "song" with fewer beats than this was never really a song (the app opened on silence or stray noise), so the next one is not a second song.
-const SONG_MIN_BEATS = 6
-
-const QUIET_ENTER_DB = -14
-const QUIET_LEAVE_DB = -8
-const QUIET_ENTER_SLOTS = 4
-const QUIET_MIN_MS = 3000
-// Coming out of a quiet stretch this long is a new song, not a bridge.
-const NEW_SONG_AFTER_QUIET_MS = 10000
-
-// An outro is a long, deep fall late in a song. A fall alone cannot tell a break from the end (a late break drops 7 to 9 dB and comes back), so
-// an outro has to go much lower than a break does; shallower than this it stays a break, and the next song is still found when it starts.
-const OUTRO_MIN_SONG_MS = 150000
-const OUTRO_REL_DB = -12
-// A fade that comes back up within this long was a pause after all, and the song goes on; later than that, the next song has started.
-const OUTRO_FALSE_ALARM_MS = 8000
-const OUTRO_LEAVE_DB = -3
-// During an outro, a climb this far over its quietest point means the next song is starting even if it opens quietly.
-const OUTRO_NEXT_SONG_RISE_RATIO = 2.5
-
-// A break: the low end well under its peak (or the whole song well under it), steady for a few seconds, and back up for a couple to leave.
-const BREAK_LOW_DB = -4
-const BREAK_TOTAL_DB = -3.5
-const BREAK_ENTER_SLOTS = 16
-// The low end of a wobbling bass dips 4 to 6 dB for a second or two inside a drop. A break is judged on this longer mean, so a wobble cannot start one,
-// and a drop is followed by a stretch where no break can start (and no second drop), which is what stops the break, drop, groove, break, drop loop.
-const BREAK_MEAN_MS = 4000
-const BREAK_AFTER_DROP_MS = 10000
-const DROP_REFRACTORY_MS = 8000
-const BREAK_LEAVE_LOW_DB = -2.5
-const BREAK_LEAVE_TOTAL_DB = -2
-const BREAK_LEAVE_SLOTS = 8
-const BREAK_MIN_MS = 3000
-
-// A buildup: a climb in the mids, highs or the whole, held for about a second. It ends when the climb has gone for a few seconds, or after this long.
-const BUILDUP_ENTER_SLOTS = 4
-// The turnaround before a drop (a stop, a rest) ends the climb a few seconds early, so the buildup lingers a bit after it.
-const BUILDUP_LOST_SLOTS = 16
-const BUILDUP_MAX_MS = 30000
-const BUILDUP_TYPICAL_MS = 12000
-// Right after a drop the song settles; a climb then is not a new buildup.
-const BUILDUP_AFTER_DROP_MS = 8000
-
-const DROP_LOW_JUMP_DB = 6
-const DROP_TOTAL_JUMP_DB = 4
-const DROP_HIGH_JUMP_DB = 8
-const DROP_MIN_REL_DB = -3.5
-// A step this big is a drop whether or not a buildup or break was labelled first (the label may have lapsed in the turnaround, or been an intro).
-const DROP_STRONG_EXTRA_DB = 3
-const DROP_HOLD_MS = 4000
-// A drop can follow a buildup, break, quiet stretch or fade that ended just before, and only a real one: one that lasted a moment is not a setup.
-const DROP_LOOKBACK_MS = 6000
-const DROP_AFTER_BUILDUP_MIN_MS = 2500
-const DROP_AFTER_BREAK_MIN_MS = 3000
-const DROP_AFTER_QUIET_MIN_MS = 2000
-const DROP_AFTER_OUTRO_MIN_MS = 2000
-
-// A different tempo from the one this song has held, over a few readings, means a different song, even with no outro (a blend, a cut).
-// One estimate per check costs about a millisecond, so it is read every few seconds, never every frame.
-const TEMPO_CHECK_SLOTS = 16
 const BEAT_MEMORY_MS = 30000
-const TEMPO_RECENT_MS = 12000
-const TEMPO_CHANGE = 0.08
-// The tempo estimate wobbles on real music (a steady 128 BPM track reads 96, 127, 160, 176 along the way, at consistency 0.4 to 0.7), so a change
-// only counts when the reading is clean and stays different for several checks in a row.
-const TEMPO_CHANGE_CHECKS = 3
-const TEMPO_MIN_CONSISTENCY = 0.75
-// Half time, double time and triplet feel read as the same tempo.
-const TEMPO_SAME_RATIOS = [0.5, 2 / 3, 1, 1.5, 2]
-// A song change from tempo needs a song that has been going this long, so the first readings are not compared with a previous song's beats.
-const TEMPO_MIN_SONG_MS = 40000
 
-const FLOOR = 1e-3
-const toDb = (value: number): number => 20 * Math.log10(Math.max(value, FLOOR))
-const clamp01 = (value: number): number => Math.min(1, Math.max(0, value))
+// Intro: the start of a song until its first buildup or drop, at most this long. Outro: a fade late in a song that has had a drop.
+const INTRO_MAX_MS = 60000
+const OUTRO_MIN_SONG_MS = 150000
+const OUTRO_LEVEL_DB = -10
+const OUTRO_SLOPE_DB_S = -0.3
+const OUTRO_LEAVE_DB = -6
 
-type SetupSection = 'buildup' | 'break' | 'quiet' | 'outro'
-const SETUP_MIN_MS: Record<SetupSection, number> = {
-  buildup: DROP_AFTER_BUILDUP_MIN_MS,
-  break: DROP_AFTER_BREAK_MIN_MS,
-  quiet: DROP_AFTER_QUIET_MIN_MS,
-  outro: DROP_AFTER_OUTRO_MIN_MS,
+const feature = (name: string): number => {
+  const index = FEATURE_NAMES.indexOf(name)
+  if (index < 0) throw new Error(`section model: unknown feature ${name}`)
+  return index
 }
-const isSetup = (section: SongSection): section is SetupSection =>
-  section === 'buildup' || section === 'break' || section === 'quiet' || section === 'outro'
+const F_REL_TOTAL = feature('relTotal')
+const F_SLOPE16_MID = feature('slope16_mid')
+const F_SLOPE16_LO = feature('slope16_lo')
+const F_SILENCE_NOW = feature('silenceNow')
 
-type Group = 'total' | 'low' | 'mid' | 'high'
-type Levels = { total: number; low: number; high: number }
-type Trend = { slope: number; fit: number; rise: number; /** The biggest rise between two neighbouring seconds: a step puts most of the total into one. */ maxStep: number }
+const checkModel = (model: SectionModelData): SectionModelData => {
+  if (model.features.length !== FEATURE_COUNT || model.features.some((name, i) => name !== FEATURE_NAMES[i])) {
+    throw new Error('section model: trained on different features than section-features.ts computes; retrain it')
+  }
+  return model
+}
 
-const sameTempo = (a: number, b: number): boolean => TEMPO_SAME_RATIOS.some((ratio) => Math.abs(b / a / ratio - 1) <= TEMPO_CHANGE)
+const clamp01 = (value: number): number => Math.min(1, Math.max(0, value))
+const toDb = (value: number): number => 20 * Math.log10(Math.max(value, 1e-3))
 
-const isClimb = (trend: Trend | null, minDb: number = TREND_MIN_DB, minFit: number = TREND_MIN_FIT): boolean =>
-  trend !== null &&
-  trend.slope >= TREND_SLOPE_DB_S &&
-  trend.fit >= minFit &&
-  trend.rise >= minDb &&
-  trend.maxStep <= trend.rise * CLIMB_MAX_STEP_SHARE
-
-const isFall = (trend: Trend | null): boolean =>
-  trend !== null && trend.slope <= -TREND_SLOPE_DB_S && trend.fit >= TREND_MIN_FIT && trend.rise <= -TREND_MIN_DB
+type Decoded = 'groove' | 'buildup' | 'break' | 'drop'
 
 export class SectionTracker {
+  private features = new SectionFeatures()
   private readonly slots: SectionSlot[] = []
-  private recording: SectionSlot[] = []
+  private readonly recording = new TickRecorder(RECORDING_TICKS)
   private beatTimes: number[] = []
-  private slotStart: number | null = null
-  private songStart: number | null = null
+  private lastT: number | null = null
   private sums = { total: 0, low: 0, mid: 0, high: 0 }
   private frames = 0
   private beats = 0
-  private reference: Levels = { total: 0, low: 0, high: 0 }
-  private section: SongSection = 'groove'
+
+  // Model state.
+  private readonly scores: number[] = []
+  private readonly smoothed = [1, 0, 0]
+  private smoothedReady = false
+  private readonly memoryBuild: number[] = []
+  private readonly memoryBreak: number[] = []
+  private readonly stage2Input: Float64Array
+  private readonly model: SectionModelData
+  private readonly tuning: SectionTuning
+
+  // Decoder state.
+  private decoded: Decoded = 'groove'
   private sectionStart = 0
+  private shownSection: SongSection = 'quiet'
+  private shownStart = 0
+  private buildRun = 0
+  private breakRun = 0
+  private lastDrop = -Infinity
+  private lastSetup = -Infinity
+  private lastBuildup = -Infinity
+  private turnaroundStart: number | null = null
+  private lastTurnaroundEnd = -Infinity
+  private lastFillEnd = -Infinity
+  private stopRun = 0
+  private dropCount = 0
+  private hadBuildupOrDrop = false
+  private outro = false
+
+  // Song state.
+  private songStart: number | null = null
   private songIndex = 1
   private songConfirmed = false
   private confirmSlots = 0
   private beatsThisSong = 0
-  private silentSince: number | null = null
   private silenceBoundary = false
-  private soundSlots = 0
-  private introDone = false
-  private introLapse = 0
-  private outroFloor = Infinity
-  private outroSeen = false
-  private lastSetupEnd = -Infinity
-  private lastSetupLongEnough = false
-  private lastDropEnd = -Infinity
-  private lastDropStart = -Infinity
-  private risingSlots = 0
-  private lostSlots = 0
-  private breakSlots = 0
-  private breakLeaveSlots = 0
-  private quietSlots = 0
-  private tempoSlots = 0
-  private tempoChanges = 0
-  private songTempo: number | null = null
-  private state: SectionState = { section: 'quiet', intensity: 0, buildupProgress: 0, sinceMs: 0, songIndex: 1, songMs: null }
+  private state: SectionState = SectionTracker.emptyState()
+
+  /** `model` and `tuning` are for evaluating variants offline and for tests; the app uses the shipped model and the defaults. */
+  constructor(model: SectionModelData = DEFAULT_MODEL, tuning: Partial<SectionTuning> = {}) {
+    this.model = checkModel(model)
+    this.tuning = { ...DEFAULT_TUNING, ...tuning }
+    this.stage2Input = new Float64Array(FEATURE_COUNT + 3 + model.memorySeconds.length * 4)
+  }
+
+  private static emptyState = (): SectionState => ({
+    section: 'quiet', intensity: 0, buildupProgress: 0, sinceMs: 0, songIndex: 1, songMs: null, dropCount: 0, sinceDropMs: null, confidence: 1,
+  })
 
   push = ({ t, levels, beat }: SectionSample): void => {
-    if (this.slotStart === null) {
-      this.slotStart = t
-      this.sectionStart = t
-    }
+    // A long gap between samples (the tab was in the background) is a fresh start, not a song that went quiet.
+    if (this.lastT !== null && t - this.lastT > HISTORY_MS) this.startSong(t, this.beatsThisSong >= SONG_MIN_BEATS, false)
+    this.lastT = t
     const bass = levels[0] ?? 0
     const lo = levels[1] ?? 0
     const mid = levels[2] ?? 0
@@ -263,58 +250,62 @@ export class SectionTracker {
       this.beatsThisSong++
       this.beatTimes.push(t)
     }
+    const features = this.features
+    const ticks = features.ticks
+    const row = features.push(t, levels, beat)
+    if (features.ticks !== ticks) {
+      const { power, beats } = features.getLastTick()
+      this.record(t, power, beats)
+    }
+    if (row) this.closeSlot(t, row)
+  }
 
-    if (t - this.slotStart < SLOT_MS) return
-    this.closeSlot(t)
+  /** Replays one recorded tick (see getRecording): the same path as live frames from the tick on. */
+  pushTick = ({ t, power, beats }: SectionTick): void => {
+    if (this.lastT !== null && t - this.lastT > HISTORY_MS) this.startSong(t, this.beatsThisSong >= SONG_MIN_BEATS, false)
+    this.lastT = t
+    const level = power.map((p) => Math.sqrt(p))
+    this.sums.low += ((level[0] ?? 0) + (level[1] ?? 0)) / 2
+    this.sums.mid += level[2] ?? 0
+    this.sums.high += ((level[3] ?? 0) + (level[4] ?? 0)) / 2
+    this.sums.total += level.reduce((sum, v) => sum + v, 0) / 5
+    this.frames++
+    this.beats += beats
+    this.beatsThisSong += beats
+    for (let b = 0; b < beats; b++) this.beatTimes.push(t)
+    this.record(t, power, beats)
+    const row = this.features.tick(power, beats)
+    if (row) this.closeSlot(t, row)
   }
 
   getState = (): SectionState => this.state
 
-  /** Every slot since the tracker started (the last 40 minutes at most), with the section that was shown for it. Not a copy: read it where it is called. */
-  getRecording = (): readonly SectionSlot[] => this.recording
+  /** Every 50 ms tick of the last 40 minutes at most, oldest first. Builds the list each call: for an export, not every frame. */
+  getRecording = (): SectionTick[] => this.recording.toTicks()
 
-  /** The closed slots, oldest first. Not a copy: read it where it is called. */
+  /** The closed slots of the last two minutes, oldest first. Not a copy: read it where it is called. */
   getHistory = (): readonly SectionSlot[] => this.slots
 
   reset = (): void => {
+    this.features = new SectionFeatures()
     this.slots.length = 0
-    this.recording = []
+    this.recording.clear()
     this.beatTimes = []
-    this.slotStart = null
-    this.songStart = null
+    this.lastT = null
     this.sums = { total: 0, low: 0, mid: 0, high: 0 }
     this.frames = 0
     this.beats = 0
-    this.reference = { total: 0, low: 0, high: 0 }
-    this.section = 'groove'
-    this.sectionStart = 0
     this.songIndex = 1
-    this.songConfirmed = false
-    this.confirmSlots = 0
-    this.beatsThisSong = 0
-    this.silentSince = null
-    this.silenceBoundary = false
-    this.soundSlots = 0
-    this.introDone = false
-    this.introLapse = 0
-    this.outroFloor = Infinity
-    this.outroSeen = false
-    this.lastSetupEnd = -Infinity
-    this.lastSetupLongEnough = false
-    this.lastDropEnd = -Infinity
-    this.lastDropStart = -Infinity
-    this.risingSlots = 0
-    this.lostSlots = 0
-    this.breakSlots = 0
-    this.breakLeaveSlots = 0
-    this.quietSlots = 0
-    this.tempoSlots = 0
-    this.tempoChanges = 0
-    this.songTempo = null
-    this.state = { section: 'quiet', intensity: 0, buildupProgress: 0, sinceMs: 0, songIndex: 1, songMs: null }
+    this.startSong(0, false, false)
+    this.songStart = null
+    this.state = SectionTracker.emptyState()
   }
 
-  private closeSlot = (t: number): void => {
+  private record = (t: number, power: ArrayLike<number>, beats: number): void => {
+    this.recording.push(t, power, beats)
+  }
+
+  private closeSlot = (t: number, row: Float64Array): void => {
     const frames = Math.max(this.frames, 1)
     const slot: SectionSlot = {
       t,
@@ -323,237 +314,217 @@ export class SectionTracker {
       mid: this.sums.mid / frames,
       high: this.sums.high / frames,
       beats: this.beats,
-      section: this.section,
+      section: this.shownSection,
     }
     this.sums = { total: 0, low: 0, mid: 0, high: 0 }
     this.frames = 0
     this.beats = 0
-    this.slotStart = t
-
-    // A long gap between samples (the tab was in the background) is a fresh start, not a song that went quiet.
-    const previous = this.slots[this.slots.length - 1]
-    if (!previous || t - previous.t > HISTORY_MS) {
-      this.beginSong(t, { total: 0, low: 0, high: 0 }, 'groove')
-      this.songIndex = previous ? this.songIndex + 1 : 1
-      slot.section = 'groove'
-    }
     this.slots.push(slot)
     const oldest = this.slots.findIndex((s) => t - s.t <= HISTORY_MS)
     if (oldest > 0) this.slots.splice(0, oldest)
     const oldestBeat = this.beatTimes.findIndex((time) => t - time <= BEAT_MEMORY_MS)
     if (oldestBeat > 0) this.beatTimes.splice(0, oldestBeat)
     else if (oldestBeat < 0) this.beatTimes = []
-    this.updateReference(slot)
 
-    if (!this.handleSilence(t, slot)) this.evaluate(t)
+    this.songStart ??= t
+    const [pBuild, pBreak, pDrop, pBoundary] = this.runModel(row)
+    const silence = row[F_SILENCE_NOW]!
+
+    // A new song: a long silence that ends, or the model hearing a song change (never within the first stretch of a song).
+    if (silence >= SILENCE_NEW_SONG_S && this.beatsThisSong >= SONG_MIN_BEATS) this.silenceBoundary = true
+    if (this.silenceBoundary && silence === 0) {
+      this.startSong(t, true, false)
+    } else if (pBoundary >= BOUNDARY_THRESHOLD && t - this.songStart >= MIN_SONG_MS) {
+      this.startSong(t, this.beatsThisSong >= SONG_MIN_BEATS, true)
+    } else {
+      this.trackStop(t)
+      this.decode(t, pBuild, pBreak, pDrop)
+    }
     this.checkSongPlaying(t)
-    slot.section = this.shown()
-    this.recording.push(slot)
-    if (this.recording.length > RECORDING_SLOTS) this.recording.splice(0, RECORDING_TRIM)
+
+    const shown = this.show(t, row, silence)
+    if (shown !== this.shownSection) {
+      this.shownSection = shown
+      this.shownStart = t
+    }
+    slot.section = shown
+    const confidence = shown === 'buildup' || shown === 'turnaround' ? this.smoothed[1]! : shown === 'break' ? this.smoothed[2]! : 1
     this.state = {
-      section: this.shown(),
+      section: shown,
       intensity: this.intensity(t),
-      buildupProgress: this.section === 'buildup' ? clamp01((t - this.sectionStart) / BUILDUP_TYPICAL_MS) : 0,
-      sinceMs: t - this.sectionStart,
+      buildupProgress: shown === 'buildup' ? clamp01((t - this.sectionStart) / BUILDUP_TYPICAL_MS) : 0,
+      sinceMs: t - this.shownStart,
       songIndex: this.songIndex,
       songMs: this.songConfirmed && this.songStart !== null ? t - this.songStart : null,
+      dropCount: this.dropCount,
+      sinceDropMs: Number.isFinite(this.lastDrop) ? t - this.lastDrop : null,
+      confidence: Math.round(confidence * 100) / 100,
     }
   }
 
-  // With no regular beat going (silence, a fan, typing on a keyboard) there is no song to have parts, so it shows as quiet rather than groove.
-  private shown = (): SongSection => (this.songConfirmed ? this.section : 'quiet')
+  // Stage 1 (build, break), its short memory, stage 2 (drop) and the boundary model. Returns [build, break, drop, boundary].
+  private runModel = (row: Float64Array): [number, number, number, number] => {
+    const p1 = softmaxInPlace(boosterScores(this.model.stage1, row, this.scores))
+    const [pOther = 1, pBuild = 0, pBreak = 0] = p1
+    const alpha = this.smoothedReady ? 1 - Math.exp(-SLOT_MS / 1000 / SMOOTH_S) : 1
+    this.smoothed[0]! += (pOther - this.smoothed[0]!) * alpha
+    this.smoothed[1]! += (pBuild - this.smoothed[1]!) * alpha
+    this.smoothed[2]! += (pBreak - this.smoothed[2]!) * alpha
+    this.smoothedReady = true
 
-  private updateReference = (slot: SectionSlot): void => {
-    const release = 1 - Math.exp(-SLOT_MS / REFERENCE_RELEASE_TAU_MS)
-    const follow = (reference: number, value: number): number => (value >= reference ? value : reference + (value - reference) * release)
-    this.reference = {
-      total: follow(this.reference.total, slot.total),
-      low: follow(this.reference.low, slot.low),
-      high: follow(this.reference.high, slot.high),
+    this.memoryBuild.push(pBuild)
+    this.memoryBreak.push(pBreak)
+    const longest = Math.max(...this.model.memorySeconds) * 4
+    if (this.memoryBuild.length > longest) {
+      this.memoryBuild.shift()
+      this.memoryBreak.shift()
     }
-  }
-
-  // Mean of a feature over slots whose age is between `fromAge` and `toAge` (ms before `now`), or null if there are none.
-  private mean = (now: number, fromAge: number, toAge: number, pick: Group): number | null => {
-    let sum = 0
-    let count = 0
-    for (let i = this.slots.length - 1; i >= 0; i--) {
-      const slot = this.slots[i]!
-      const age = now - slot.t
-      if (age >= toAge) break
-      if (age < fromAge) continue
-      sum += slot[pick]
-      count++
-    }
-    return count === 0 ? null : sum / count
-  }
-
-  private meanDb = (now: number, fromAge: number, toAge: number, pick: Group): number | null => {
-    const value = this.mean(now, fromAge, toAge, pick)
-    return value === null ? null : toDb(value)
-  }
-
-  // A line fitted to the last few seconds of one group's level (one mean per second, in dB): how steeply it climbs, how straight that line is, and how far it went.
-  private trend = (now: number, pick: Group, seconds: number = TREND_SECONDS): Trend | null => {
-    const bins: number[] = []
-    for (let i = 0; i < seconds; i++) {
-      const db = this.meanDb(now, (seconds - 1 - i) * 1000, (seconds - i) * 1000, pick)
-      if (db === null) return null
-      bins.push(db)
-    }
-    const n = bins.length
-    const meanX = (n - 1) / 2
-    const meanY = bins.reduce((sum, y) => sum + y, 0) / n
-    let sxy = 0
-    let sxx = 0
-    let syy = 0
-    bins.forEach((y, x) => {
-      sxy += (x - meanX) * (y - meanY)
-      sxx += (x - meanX) ** 2
-      syy += (y - meanY) ** 2
+    const input = this.stage2Input
+    input.set(row, 0)
+    input[FEATURE_COUNT] = pOther
+    input[FEATURE_COUNT + 1] = pBuild
+    input[FEATURE_COUNT + 2] = pBreak
+    let at = FEATURE_COUNT + 3
+    this.model.memorySeconds.forEach((seconds) => {
+      const window = seconds * 4
+      for (const memory of [this.memoryBuild, this.memoryBreak]) {
+        let sum = 0
+        let top = 0
+        const from = Math.max(0, memory.length - window)
+        for (let k = from; k < memory.length; k++) {
+          sum += memory[k]!
+          top = Math.max(top, memory[k]!)
+        }
+        input[at++] = sum / (memory.length - from)
+        input[at++] = top
+      }
     })
-    const slope = sxy / sxx
-    const fit = syy === 0 ? 0 : (sxy * sxy) / (sxx * syy)
-    let maxStep = 0
-    for (let i = 1; i < n; i++) maxStep = Math.max(maxStep, bins[i]! - bins[i - 1]!)
-    return { slope, fit, rise: slope * (n - 1), maxStep }
+    const pDrop = sigmoid(boosterScores(this.model.stage2, input, this.scores)[0]!)
+    const pBoundary = this.model.boundary ? sigmoid(boosterScores(this.model.boundary, row, this.scores)[0]!) : 0
+    return [this.smoothed[1]!, this.smoothed[2]!, pDrop, pBoundary]
   }
 
-  // The 90th percentile of a group's level over this song's last 90 s, in dB: the level the song is "at" when it is full. It is taken over 2 s means
-  // (the same span `relative` measures the present with), so the pumping of a sidechained kick does not lift the top and make every groove look low.
-  private peakDb = (now: number, pick: Group): number | null => {
-    const linear: number[] = []
-    for (let i = this.slots.length - 1; i >= 0; i--) {
-      const slot = this.slots[i]!
-      if (now - slot.t > PEAK_REF_MS || (this.songStart !== null && slot.t < this.songStart)) break
-      linear.push(slot[pick])
+  // Stops, and the turnaround: a stop during a buildup or just after one, until the music comes back, the drop lands or it lasts too long.
+  private trackStop = (t: number): void => {
+    const { total, bass } = this.features.getLastSlot()
+    const tune = this.tuning
+    if (this.decoded === 'buildup') this.lastBuildup = t
+    if (this.turnaroundStart !== null) {
+      if (total > tune.turnaroundLeaveDb) {
+        this.turnaroundStart = null
+        this.lastTurnaroundEnd = t
+      } else if (t - this.turnaroundStart > tune.turnaroundMaxMs) {
+        this.turnaroundStart = null
+      }
+      return
     }
-    if (linear.length === 0) return null
-    const box = Math.max(1, Math.min(linear.length, RECENT_MS / SLOT_MS))
-    const smoothed: number[] = []
-    let sum = 0
-    for (let i = 0; i < linear.length; i++) {
-      sum += linear[i]!
-      if (i >= box) sum -= linear[i - box]!
-      if (i >= box - 1) smoothed.push(toDb(sum / box))
+    const stopped = total <= tune.stopTotalDb && bass <= tune.stopBassDb
+    if (!stopped && this.stopRun >= tune.stopSlots) this.lastFillEnd = t
+    this.stopRun = stopped ? this.stopRun + 1 : 0
+    if (this.stopRun >= tune.stopSlots && t - this.lastBuildup <= tune.turnaroundAfterBuildupMs && t - this.lastDrop >= DROP_REFRACTORY_MS) {
+      this.turnaroundStart = t - (this.stopRun - 1) * SLOT_MS
+      this.stopRun = 0
     }
-    smoothed.sort((x, y) => x - y)
-    return smoothed[Math.min(smoothed.length - 1, Math.floor(smoothed.length * PEAK_PERCENTILE))] ?? null
   }
 
-  // Where a group's level is now (the last 2 s) against the song's own top level, in dB: 0 at the top, negative below it.
-  private relative = (now: number, pick: Group, windowMs: number = RECENT_MS): number | null => {
-    const recent = this.meanDb(now, 0, windowMs, pick)
-    const peak = this.peakDb(now, pick)
-    return recent === null || peak === null ? null : recent - peak
+  private dropThreshold = (t: number): number => {
+    const tune = this.tuning
+    const turnaround = this.turnaroundStart !== null || t - this.lastTurnaroundEnd <= tune.turnaroundDropWindowMs
+    if (turnaround && tune.turnaroundDropThreshold !== null) return tune.turnaroundDropThreshold
+    if (t - this.lastFillEnd <= tune.turnaroundDropWindowMs && tune.fillDropThreshold !== null) return tune.fillDropThreshold
+    return t - this.lastSetup <= DROP_CONTEXT_MS ? tune.dropContextThreshold : tune.dropThreshold
   }
 
-  private intensity = (now: number): number => {
-    const recent = this.mean(now, 0, RECENT_MS, 'total')
-    if (recent === null) return 0
-    let peak = 0
-    for (let i = this.slots.length - 1; i >= 0 && now - this.slots[i]!.t < PEAK_WINDOW_MS; i--) peak = Math.max(peak, this.slots[i]!.total)
-    return peak <= 0 ? 0 : clamp01((toDb(recent) - toDb(peak) + 18) / 18)
+  // The state machine over the smoothed probabilities. Mirrors decode.py (which has no turnaround).
+  private decode = (t: number, pBuild: number, pBreak: number, pDrop: number): void => {
+    const songAge = t - (this.songStart ?? t)
+    if (this.decoded === 'buildup' || this.decoded === 'break') this.lastSetup = t
+    const threshold = this.dropThreshold(t)
+    if (pDrop >= threshold && t - this.lastDrop >= DROP_REFRACTORY_MS && songAge >= NO_DROP_BEFORE_MS) {
+      this.turnaroundStart = null
+      this.lastDrop = t
+      this.dropCount++
+      this.hadBuildupOrDrop = true
+      this.enter('drop', t)
+      this.buildRun = 0
+      this.breakRun = 0
+      return
+    }
+    this.buildRun = pBuild >= BUILDUP_IN ? this.buildRun + 1 : 0
+    this.breakRun = pBreak >= BREAK_IN ? this.breakRun + 1 : 0
+    if (this.decoded === 'buildup' && pBuild < BUILDUP_OUT) this.enter(this.afterSetup(t), t)
+    else if (this.decoded === 'break' && pBreak < BREAK_OUT) this.enter(this.afterSetup(t), t)
+    if (this.decoded === 'groove' || this.decoded === 'drop') {
+      // The likelier of the two, once it has held for long enough.
+      if (pBuild >= pBreak) {
+        if (this.buildRun >= ENTER_SLOTS) this.enter('buildup', t)
+      } else if (this.breakRun >= ENTER_SLOTS) {
+        this.enter('break', t)
+      }
+    } else if (this.decoded === 'break' && this.buildRun >= ENTER_SLOTS && pBuild > pBreak) {
+      this.enter('buildup', t)
+    } else if (this.decoded === 'buildup' && this.breakRun >= ENTER_SLOTS && pBreak > pBuild + SWITCH_MARGIN) {
+      this.enter('break', t)
+    }
+    if (this.decoded === 'buildup') this.hadBuildupOrDrop = true
+    if (this.decoded === 'drop' && t - this.sectionStart >= DROP_SECTION_MAX_MS) this.enter('groove', t)
   }
 
-  private enter = (section: SongSection, t: number): void => {
-    if (section === this.section) return
-    if (this.section === 'drop') this.lastDropEnd = t
-    if (section === 'drop') this.lastDropStart = t
-    if (isSetup(this.section)) {
-      this.lastSetupEnd = t
-      this.lastSetupLongEnough = t - this.sectionStart >= SETUP_MIN_MS[this.section]
-    }
-    if (section === 'outro') {
-      this.outroSeen = true
-      this.outroFloor = Infinity
-    }
-    if (section === 'groove' && this.section === 'outro') this.outroSeen = false
-    this.section = section
+  // A buildup or break that ends without a drop goes back to the drop it interrupted (if that was recent) or to groove.
+  private afterSetup = (t: number): Decoded => (t - this.lastDrop < DROP_SECTION_MAX_MS ? 'drop' : 'groove')
+
+  private enter = (section: Decoded, t: number): void => {
+    if (section === this.decoded) return
+    this.decoded = section
     this.sectionStart = t
-    this.risingSlots = 0
-    this.lostSlots = 0
-    this.breakSlots = 0
-    this.breakLeaveSlots = 0
-    this.quietSlots = 0
   }
 
-  // A song starts: the loudness memory is reset to where it is now (the old song's levels say nothing about the new one), and nothing
-  // is compared across the boundary until it has some history of its own.
-  private beginSong = (t: number, levels: Levels, section: SongSection, continuous: boolean = false): void => {
+  // What is shown: the decoded section, with the song-level rules on top.
+  private show = (t: number, row: Float64Array, silence: number): SongSection => {
+    if (!this.songConfirmed) return 'quiet'
+    // A turnaround is often near silence for a second or two; it is still the end of the buildup, not a quiet passage.
+    if (this.turnaroundStart !== null) return 'turnaround'
+    if (silence >= SILENCE_SHOWN_S) return 'quiet'
+    const songAge = t - (this.songStart ?? t)
+    // An outro: a fade late in a song that has had its drop. It ends if the level comes back.
+    const level = row[F_REL_TOTAL]!
+    const falling = (row[F_SLOPE16_MID]! + row[F_SLOPE16_LO]!) / 2 <= OUTRO_SLOPE_DB_S
+    if (this.outro && level >= OUTRO_LEAVE_DB) this.outro = false
+    if (!this.outro && this.dropCount > 0 && songAge >= OUTRO_MIN_SONG_MS && level <= OUTRO_LEVEL_DB && falling && this.decoded !== 'buildup') {
+      this.outro = true
+    }
+    if (this.outro) return 'outro'
+    // The start of a song, before anything has built or dropped, is its intro (a break-like opening included).
+    if (!this.hadBuildupOrDrop && songAge < INTRO_MAX_MS && this.decoded !== 'buildup') return 'intro'
+    return this.decoded
+  }
+
+  // A song starts: features, decoder and clock start over. `counts` is whether the song that just ended was a real song.
+  private startSong = (t: number, counts: boolean, continuous: boolean): void => {
+    if (counts) this.songIndex++
+    this.features = new SectionFeatures()
     this.songStart = t
-    // Music that carries straight on (an outro into the next song, a change of tempo) is still music; after silence a song has to be heard again.
     this.songConfirmed = continuous && this.songConfirmed
     this.confirmSlots = 0
     this.beatsThisSong = 0
-    this.silentSince = null
     this.silenceBoundary = false
-    this.soundSlots = 0
-    this.reference = { ...levels }
-    this.introDone = false
-    this.introLapse = 0
-    this.outroSeen = false
-    this.outroFloor = Infinity
-    this.lastSetupEnd = -Infinity
-    this.lastSetupLongEnough = false
-    this.lastDropEnd = -Infinity
-    this.lastDropStart = -Infinity
-    this.tempoSlots = 0
-    this.tempoChanges = 0
-    this.songTempo = null
-    this.section = section
+    this.smoothedReady = false
+    this.memoryBuild.length = 0
+    this.memoryBreak.length = 0
+    this.decoded = 'groove'
     this.sectionStart = t
-    this.risingSlots = 0
-    this.lostSlots = 0
-    this.breakSlots = 0
-    this.breakLeaveSlots = 0
-    this.quietSlots = 0
-  }
-
-  private startNextSong = (t: number, levels?: Levels, continuous: boolean = true): void => {
-    // The app opening on silence and then music is the first song, not the second.
-    if (this.beatsThisSong >= SONG_MIN_BEATS) this.songIndex++
-    this.beginSong(
-      t,
-      levels ?? {
-        total: this.mean(t, 0, RECENT_MS, 'total') ?? 0,
-        low: this.mean(t, 0, RECENT_MS, 'low') ?? 0,
-        high: this.mean(t, 0, RECENT_MS, 'high') ?? 0,
-      },
-      'intro',
-      continuous,
-    )
-  }
-
-  // Silence long enough to separate songs. Returns true while it holds the tracker (nothing else is judged in silence, or on the slot that ends it).
-  private handleSilence = (t: number, slot: SectionSlot): boolean => {
-    const silent = slot.total < SILENCE_ABS || toDb(slot.total) - toDb(this.reference.total) < SILENCE_DB
-    if (silent) {
-      this.soundSlots = 0
-      this.silentSince ??= t - SLOT_MS
-      if (!this.silenceBoundary && t - this.silentSince >= SILENCE_NEW_SONG_MS) {
-        this.silenceBoundary = true
-        this.enter('quiet', t)
-        this.sectionStart = this.silentSince
-        this.songConfirmed = false
-      }
-      return this.silenceBoundary
-    }
-    if (this.silentSince === null) return false
-    if (!this.silenceBoundary) {
-      this.silentSince = null
-      return false
-    }
-    this.soundSlots++
-    if (this.soundSlots < SILENCE_RETURN_SLOTS) return true
-    this.startNextSong(t, { total: slot.total, low: slot.low, high: slot.high }, false)
-    return true
-  }
-
-  // True when a buildup, break, quiet stretch or fade is on, or just ended, and ran long enough to be the setup for a drop.
-  private setsUpDrop = (t: number): boolean => {
-    if (isSetup(this.section)) return t - this.sectionStart >= SETUP_MIN_MS[this.section]
-    return this.lastSetupLongEnough && t - this.lastSetupEnd <= DROP_LOOKBACK_MS
+    this.buildRun = 0
+    this.breakRun = 0
+    this.lastDrop = -Infinity
+    this.lastSetup = -Infinity
+    this.lastBuildup = -Infinity
+    this.turnaroundStart = null
+    this.lastTurnaroundEnd = -Infinity
+    this.lastFillEnd = -Infinity
+    this.stopRun = 0
+    this.dropCount = 0
+    this.hadBuildupOrDrop = false
+    this.outro = false
   }
 
   // A song is playing when a regular beat has been going: enough beats lately and a steady tempo. A fan, a keyboard or one-off noise has neither.
@@ -564,177 +535,32 @@ export class SectionTracker {
     if (this.songStart === null) return
     if (this.songConfirmed) {
       const lately = this.beatTimes.filter((time) => t - time <= SONG_LOST_MS).length
-      if (lately < SONG_LOST_BEATS && this.section !== 'quiet') this.songConfirmed = false
+      if (lately < SONG_LOST_BEATS) this.songConfirmed = false
       return
     }
-    if (this.section === 'quiet' || t - this.songStart < SONG_CONFIRM_MS) return
+    if (t - this.songStart < SONG_CONFIRM_MS) return
     const recent = this.beatTimes.filter((time) => t - time <= SONG_CONFIRM_WINDOW_MS)
     if (recent.length < SONG_CONFIRM_BEATS) return
     const reading = estimateTempo(recent)
     this.songConfirmed = reading !== null && reading.consistency >= SONG_CONFIRM_CONSISTENCY
   }
 
-  // The song's held tempo follows readings that agree with it; readings that stay different from it for a couple of checks in a row are a new song.
-  private tempoChanged = (t: number): boolean => {
-    this.tempoSlots++
-    if (this.tempoSlots < TEMPO_CHECK_SLOTS) return false
-    this.tempoSlots = 0
-    const reading = estimateTempo(this.beatTimes.filter((time) => t - time <= TEMPO_RECENT_MS))
-    // A mixed window (part of it from before the change) reads as an unsteady beat, and says nothing either way.
-    if (!reading || reading.consistency < TEMPO_MIN_CONSISTENCY) return false
-    if (this.songTempo === null || sameTempo(this.songTempo, reading.bpm)) {
-      this.songTempo = reading.bpm
-      this.tempoChanges = 0
-      return false
-    }
-    this.tempoChanges++
-    return this.tempoChanges >= TEMPO_CHANGE_CHECKS
-  }
-
-  // The step back up: the low end, the whole or the highs jump well over where they were a moment ago, to near the song's top level.
-  private isDropStep = (t: number, strong: boolean = false): boolean => {
-    const extra = strong ? DROP_STRONG_EXTRA_DB : 0
-    // The highs alone dropping out for a few seconds and coming back is a fill, not a drop, so they only count with a labelled setup before them.
-    const groups: Array<[Group, number]> = [
-      ['low', DROP_LOW_JUMP_DB + extra],
-      ['total', DROP_TOTAL_JUMP_DB + extra],
-      ...(strong ? [] : [['high', DROP_HIGH_JUMP_DB] as [Group, number]]),
-    ]
-    return groups.some(([group, jump]) => {
-      const now = this.meanDb(t, 0, FINE_MS, group)
-      const before = this.meanDb(t, BEFORE_FROM_MS, BEFORE_TO_MS, group)
-      const peak = this.peakDb(t, group)
-      return now !== null && before !== null && peak !== null && now - before >= jump && now - peak >= DROP_MIN_REL_DB
-    })
-  }
-
-  private evaluate = (t: number): void => {
-    if (this.songStart === null) this.songStart = t
-    const songAge = t - this.songStart
-    if (songAge < TREND_MIN_SONG_MS) return
-
-    const totalRecent = this.mean(t, 0, RECENT_MS, 'total')
-    if (totalRecent === null) return
-    // Against the slow follower, for the whole level going very low (quiet, and the way out of an outro).
-    const totalDb = toDb(totalRecent) - toDb(this.reference.total)
-
-    const trendTotal = this.trend(t, 'total')
-    const trendMid = this.trend(t, 'mid')
-    const trendHigh = this.trend(t, 'high')
-    const climbing = isClimb(trendTotal) || isClimb(trendMid) || isClimb(trendHigh)
-    const buildingUp =
-      isClimb(this.trend(t, 'total', BUILDUP_SECONDS), BUILDUP_MIN_DB) ||
-      isClimb(this.trend(t, 'mid', BUILDUP_SECONDS), BUILDUP_MIN_DB) ||
-      isClimb(this.trend(t, 'high', BUILDUP_SECONDS), BUILDUP_MIN_DB) ||
-      isClimb(trendTotal, BUILDUP_QUICK_MIN_DB, BUILDUP_QUICK_FIT) ||
-      isClimb(trendMid, BUILDUP_QUICK_MIN_DB, BUILDUP_QUICK_FIT) ||
-      isClimb(trendHigh, BUILDUP_QUICK_MIN_DB, BUILDUP_QUICK_FIT)
-
-    // An intro is a big climb in the first seconds of a song, and it lasts while the climb does.
-    if (this.section === 'intro') {
-      if (songAge >= MIN_HISTORY_MS && this.isDropStep(t, true)) {
-        this.introDone = true
-        this.enter('drop', t)
-        return
+  private intensity = (now: number): number => {
+    let recent = 0
+    let count = 0
+    let peak = 0
+    for (let i = this.slots.length - 1; i >= 0; i--) {
+      const slot = this.slots[i]!
+      const age = now - slot.t
+      if (age >= 60000) break
+      if (age < 2000) {
+        recent += slot.total
+        count++
       }
-      this.introLapse = climbing ? 0 : this.introLapse + 1
-      if (this.introLapse >= INTRO_LAPSE_SLOTS || t - this.sectionStart >= INTRO_MAX_MS) {
-        this.introDone = true
-        this.enter('groove', t)
-      }
-      return
+      peak = Math.max(peak, slot.total)
     }
-    if (!this.introDone) {
-      if (songAge > INTRO_WINDOW_MS) this.introDone = true
-      else if (isClimb(trendTotal, INTRO_MIN_DB)) {
-        this.enter('intro', t)
-        this.sectionStart = Math.max(this.songStart, t - TREND_SECONDS * 1000)
-        this.introLapse = 0
-        return
-      }
-    }
-    if (songAge < MIN_HISTORY_MS) return
-
-    // Quiet, with hysteresis: it takes a smaller dip to stay quiet than to become it. Coming out of a long one, or one after an outro, is the next song.
-    if (this.section === 'quiet') {
-      if (totalDb > QUIET_LEAVE_DB && t - this.sectionStart >= QUIET_MIN_MS) {
-        if (this.outroSeen || t - this.sectionStart >= NEW_SONG_AFTER_QUIET_MS) this.startNextSong(t)
-        else this.enter('groove', t)
-      }
-      return
-    }
-    this.quietSlots = totalDb < QUIET_ENTER_DB ? this.quietSlots + 1 : 0
-    if (this.quietSlots >= QUIET_ENTER_SLOTS) {
-      this.enter('quiet', t)
-      return
-    }
-
-    // An outro: a long fall late in the song. It ends when the level comes back: soon after it began that was a pause, later it is the next song.
-    if (this.section === 'outro') {
-      this.outroFloor = Math.min(this.outroFloor, totalRecent)
-      const longEnough = t - this.sectionStart >= OUTRO_FALSE_ALARM_MS
-      if (!longEnough && t - this.lastDropStart >= DROP_REFRACTORY_MS && ((this.setsUpDrop(t) && this.isDropStep(t)) || this.isDropStep(t, true))) {
-        this.enter('drop', t)
-      } else if (totalDb > OUTRO_LEAVE_DB) {
-        if (longEnough) this.startNextSong(t)
-        else this.enter('groove', t)
-      } else if (longEnough && totalRecent > this.outroFloor * OUTRO_NEXT_SONG_RISE_RATIO) {
-        this.startNextSong(t)
-      }
-      return
-    }
-    const relTotal = this.relative(t, 'total')
-    const relLow = this.relative(t, 'low')
-    if (relTotal === null || relLow === null) return
-    if (this.section !== 'drop' && songAge >= OUTRO_MIN_SONG_MS && isFall(trendTotal) && relTotal <= OUTRO_REL_DB) {
-      this.enter('outro', t)
-      return
-    }
-
-    // A different tempo from a few seconds ago is a different song, even with no outro to mark it.
-    if (songAge >= TEMPO_MIN_SONG_MS && this.tempoChanged(t)) {
-      this.startNextSong(t)
-      return
-    }
-
-    // A drop: the step back up after a buildup, break or quiet stretch.
-    if (this.section !== 'drop' && t - this.lastDropStart >= DROP_REFRACTORY_MS && ((this.setsUpDrop(t) && this.isDropStep(t)) || this.isDropStep(t, true))) {
-      this.enter('drop', t)
-      return
-    }
-    if (this.section === 'drop') {
-      if (t - this.sectionStart >= DROP_HOLD_MS) this.enter('groove', t)
-      return
-    }
-
-    if (this.section === 'buildup') {
-      this.lostSlots = climbing ? 0 : this.lostSlots + 1
-      if (this.lostSlots >= BUILDUP_LOST_SLOTS || t - this.sectionStart > BUILDUP_MAX_MS) this.enter('groove', t)
-      return
-    }
-
-    // A buildup: a sustained climb, from a groove or from out of a break.
-    const settled = t - this.lastDropEnd > BUILDUP_AFTER_DROP_MS
-    this.risingSlots = buildingUp && settled ? this.risingSlots + 1 : 0
-    if (this.risingSlots >= BUILDUP_ENTER_SLOTS) {
-      this.enter('buildup', t)
-      return
-    }
-
-    // A break takes a few seconds of the low end (or everything) well under its peak to start, and a couple of seconds back up to end.
-    const relLowLong = this.relative(t, 'low', BREAK_MEAN_MS)
-    const relTotalLong = this.relative(t, 'total', BREAK_MEAN_MS)
-    const low = (relLowLong ?? 0) <= BREAK_LOW_DB || (relTotalLong ?? 0) <= BREAK_TOTAL_DB
-    const afterDrop = t - this.lastDropStart < BREAK_AFTER_DROP_MS
-    if (this.section === 'break') {
-      const recovered = relLow >= BREAK_LEAVE_LOW_DB && relTotal >= BREAK_LEAVE_TOTAL_DB
-      this.breakLeaveSlots = recovered ? this.breakLeaveSlots + 1 : 0
-      if (this.breakLeaveSlots >= BREAK_LEAVE_SLOTS && t - this.sectionStart >= BREAK_MIN_MS) this.enter('groove', t)
-      return
-    }
-    // Leaky, not reset: the pumping of a kick lifts a low stretch over the line for a slot now and then, and that should not start the count over.
-    this.breakSlots = low && !afterDrop ? this.breakSlots + 1 : Math.max(0, this.breakSlots - 1)
-    if (this.breakSlots >= BREAK_ENTER_SLOTS) this.enter('break', t)
+    if (count === 0 || peak <= 0) return 0
+    return clamp01((toDb(recent / count) - toDb(peak) + 18) / 18)
   }
 }
 
