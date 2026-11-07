@@ -58,7 +58,7 @@ export const DEFAULT_GRID_OPTIONS: BeatGridOptions = {
   phaseWindowMs: 8000,
   phaseEveryMs: 250,
   phaseFollow: 0.3,
-  phaseJump: 0.15,
+  phaseJump: 0.2,
   phaseJumpUpdates: 24,
   offbeatJump: 0.4,
   offbeatJumpScale: 3,
