@@ -336,3 +336,60 @@ Session `session_01D1Q35hKdYvB3hTYCjT8Ks7`, wall time 14:10 to about 15:20 UTC (
 levels, then the 40 attempts at 40 s each). `get_session` `external_metadata.usage` read at 15:14: cost_usd 1.72, input 557, output 15,352,
 cache read 3,596,607, cache write 85,873 tokens. Like stage 1's figure, this looks lower than the full session would cost; the session's
 own page has the full cost.
+
+## Stage 5: the beat grid loop
+
+### What changed
+
+An automated loop tuned `BeatGrid`, which says where beat 1 of each bar and the 8-bar phrase line fall, on Raveform's expert-marked EDM
+tracks. Out of 40 attempts it kept five changes, all to the beat clock and to how long the downbeat evidence lasts:
+
+- The clock re-anchors after a large phase error has lasted 6 s instead of 4 s, and 18 s when the new phase is near the off-beat.
+  About a third of re-anchors went there: hi-hats between the kicks pull the phase score, especially in breakdowns.
+- Up to 20% of a beat counts as a small error (was 15%), and the clock follows small errors 40% of the way each update (was 30%).
+- The downbeat evidence is remembered for 24 bars instead of 16.
+
+The hidden folds improved, so `exp/grid-loop` is merged into feat/bar-grid. The kept commits are on `exp/grid-loop` (the merge is
+953a3e6). Every attempt is logged in [`docs/experiments/grid-loop.md`](../experiments/grid-loop.md), and the method and what failed are
+in [`bar-grid.md`](../implementation-plans/bar-grid.md#the-grid-loop-overnight-stage-5).
+
+How it was run: Raveform's own folds, 0 to 4 for tuning (855 tracks), 5 for the check (172) and 6 and 7 hidden (343). The evaluation
+(`scripts/section-eval/grid-loop-eval.py`) was committed before the first attempt and never changed. The score is downbeat F + 8-bar
+line F + 0.5 x beat F. A change was kept only if the tuning score rose by 0.005 or more, the check score did not fall and Ballroom beat
+F (non-EDM, as a guard) stayed within 0.002 of its start. After attempt 16 a second guard was added, because longer re-anchor waits kept
+winning: 160 pairs of tracks spliced together, timing how fast the grid locks onto the second song, as in a DJ set. A change that cut
+the share re-locking within 20 s by more than 0.02 was not taken.
+
+### Before and after (hidden folds 6 and 7, 343 tracks, scored once at the end)
+
+| | Before | After |
+| --- | --- | --- |
+| Score | 1.332 | 1.415 |
+| Beat F | 0.800 | 0.811 |
+| Downbeat F | 0.569 | 0.606 |
+| 8-bar line F | 0.363 | 0.404 |
+| Tracks with the bar right (and the phrase too) | 58% (33%) | 64% (39%) |
+| Section starts on the grid's 8-bar line (ceiling 75%) | 39% | 43% |
+| Ballroom beat F, downbeat F | 0.609, 0.221 | 0.616, 0.226 |
+| Song change: re-locked within 20 s (median) | 81% (12 s) | 76% (12 s) |
+
+Unlike stage 4, this generalizes: tuning rose by 0.075, the check by 0.086, the hidden folds by 0.083. Every genre with more than 15
+hidden tracks gained downbeat F (techno 0.61 to 0.65, trance 0.52 to 0.56, mainstage 0.64 to 0.69). The "before" here is stage 1's
+grid with stage 4's tempo tracker, which is why it is a little below stage 1's 0.577 and 0.367.
+
+The price is a slightly slower recovery after a song change: 5 more pairs in 100 take longer than 20 s, because a wrong phase is now
+given 6 to 18 s before the clock drops it. Two settings that scored higher on Raveform (a wider off-beat zone, or waiting 8 to 12 s for
+every re-anchor) cost more re-lock and were not taken. A real DJ-set test would settle the trade better than spliced tracks.
+
+What did not help: faster or slower downbeat and phrase switching (including a separate switch time for the phrase, now an option), a
+16 or 32-bar phrase memory, a 32-bar downbeat memory, a 10 s phase window, a 20 or 30 ms latency, requiring the large errors to agree
+before a re-anchor, weighting the phrase evidence by the downbeat confidence, and dropping downbeat evidence while a re-anchor is
+pending. Nothing on the phrase side moved, so the 8-bar line gained only through a better bar. Getting it from 40% to Raveform's 75%
+probably needs new phrase cues, not tuning. Drum and bass is still the weakest (beat F 0.74, its tempo).
+
+### Cost
+
+Session `session_01D1Q35fDbr1DsFqQ1gbXzHQ`, wall time 15:15 to about 17:45 UTC (2 h 30 min: about 25 min downloading and making
+Ballroom levels, 1 h 45 min for the 40 attempts at about 2.5 min each, then the hidden scoring and write-up). `get_session`
+`external_metadata.usage` read at 17:40: cost_usd 3.14, input 1,619, output 32,341, cache read 7,902,863, cache write 112,412 tokens.
+Like stages 1 and 4, this probably undercounts; the session's own page has the full cost.
