@@ -1,5 +1,6 @@
 import type { AppConfig, LayerKey } from '../config/configDefaults'
 import type { BeatTimeline } from '../audioanalysis/beat'
+import type { GridState } from '../audioanalysis/beat-grid'
 import type { SectionSlot, SectionState } from '../audioanalysis/sections'
 import type { TempoReading } from '../audioanalysis/tempo-tracker'
 import type { RhythmLabel, RhythmPattern } from '../audioanalysis/rhythm-pattern'
@@ -50,6 +51,8 @@ declare global {
     getSongSection?: () => SectionState
     /** The steady tempo (TempoTracker), or null when there is no rhythm to read. */
     getTempo?: () => TempoReading | null
+    /** Where the beats, bars and 8-bar phrases fall (BeatGrid), as of the last beat, or null before the grid has locked. */
+    getBeatGrid?: () => GridState | null
     /** The rhythm the drums make right now (rhythm-pattern.ts, from each band's own onsets at the tracker's tempo), or null when no name is confident enough. Unheld. */
     getRhythmPattern?: () => RhythmPattern | null
     /** The Beat HUD's line: the held rhythm name with its tempo range ("four on the floor · house & techno tempo"), blank when no name is confident. */

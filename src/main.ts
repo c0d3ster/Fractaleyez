@@ -5,6 +5,7 @@ import { AudioFeed } from './audioanalysis/audio-feed'
 import { beatMonitor } from './audioanalysis/beat'
 import { sectionTracker } from './audioanalysis/sections'
 import { tempoTracker } from './audioanalysis/tempo-tracker'
+import { beatGrid } from './audioanalysis/beat-grid'
 import { nameRhythm, RhythmLabel, RhythmLabeler, RhythmPattern } from './audioanalysis/rhythm-pattern'
 import { exportSectionLog } from './audioanalysis/section-export'
 import { DEFAULT_DETECTOR_MS, detectorCalibration, estimateLag, LagEstimate, median } from './audioanalysis/lag-estimate'
@@ -145,6 +146,7 @@ const init = (): void => {
   window.getBeatTimes = beatMonitor.getBeatTimes
   window.getSongSection = sectionTracker.getState
   window.getTempo = tempoTracker.getReading
+  window.getBeatGrid = beatGrid.getState
   const rhythmInput = (): { bandOnsets: ReadonlyArray<readonly number[]>; periodMs: number | null } => {
     const bpm = tempoTracker.getBpm()
     return { bandOnsets: beatMonitor.getBandOnsets(), periodMs: bpm === null ? null : 60000 / bpm }
