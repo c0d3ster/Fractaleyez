@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { SectionSample, SectionState, SectionTracker } from './sections'
-import { Booster, boosterScores, sigmoid, softmaxInPlace } from './section-model'
+import { Booster, SectionModelData, boosterScores, sigmoid, softmaxInPlace } from './section-model'
+import { FEATURE_NAMES } from './section-features'
 
 // How well the tracker labels real songs is measured offline against expert labels (scripts/section-eval, see the plan doc).
 // These tests pin what has to hold whatever the model learned: no labels without a song, the song clock, song changes on long
@@ -156,6 +157,32 @@ describe('SectionTracker', () => {
     expect(tracker.getRecording().length).toBeLessThanOrEqual(48000)
     // Well under a millisecond of work for every second of audio would be fine; this leaves room for a slow CI machine.
     expect(msPerSecondOfAudio).toBeLessThan(5)
+  })
+})
+
+describe('SectionTracker turnaround', () => {
+  // A model with no trees that always answers the same: "this is a buildup" (or "this is nothing in particular"), never a drop or a new song.
+  const constant = (build: boolean): SectionModelData => ({
+    features: [...FEATURE_NAMES],
+    memorySeconds: [4, 10, 20],
+    stage1: { baseline: build ? [0, 6, 0] : [6, 0, 0], treesPerIteration: 3, trees: [] },
+    stage2: { baseline: [-10], treesPerIteration: 1, trees: [] },
+    boundary: { baseline: [-10], treesPerIteration: 1, trees: [] },
+  })
+  // The music cuts out for 1.5 s (to about -26 dB: far under the song, but not silence) and comes back.
+  const withStop: Shape = (t) => (t > 40 && t < 41.5 ? { bass: 0.05, mid: 0.05, high: 0.05, beats: false } : groove(t))
+
+  it('shows a turnaround when the music cuts out during a buildup, then the buildup again', () => {
+    const states = play(new SectionTracker(constant(true)), render(50, withStop))
+    const at = (seconds: number): string => states[Math.round((seconds * 1000) / FRAME_MS)]!.section
+    expect(at(39)).toBe('buildup')
+    expect(at(41.2)).toBe('turnaround')
+    expect(at(44)).toBe('buildup')
+  })
+
+  it('does not call the same stop a turnaround outside a buildup', () => {
+    const states = play(new SectionTracker(constant(false)), render(50, withStop))
+    expect(states.some((s) => s.section === 'turnaround')).toBe(false)
   })
 })
 
