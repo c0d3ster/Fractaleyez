@@ -197,7 +197,8 @@ export class SectionFeatures {
     this.frames++
     if (beat) this.beatsInTick++
     if (t - this.tickStart < TICK_MS) return null
-    this.tickStart = t
+    // Keep the tick grid at 50 ms on average whatever the frame rate; resync after a long gap.
+    this.tickStart = t - this.tickStart >= 2 * TICK_MS ? t : this.tickStart + TICK_MS
     const frames = Math.max(this.frames, 1)
     for (let b = 0; b < BANDS; b++) this.tickInput[b] = this.sums[b]! / frames
     const beats = this.beatsInTick
