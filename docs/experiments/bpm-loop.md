@@ -42,3 +42,37 @@ Automated improvement loop on `TempoTracker` (`src/audioanalysis/tempo-tracker.t
 | 24 | memoryMs 8000 to 12000 (on 13) | 1.2818 | 1.2169 | no |
 | check | After 24: 30 fps 1.2680, 144 fps 1.2972 (start 1.2179, 1.2560): fine. Noise: the fan now shows a tempo (82% of readings clean at 60 fps). Cause: 13's extra harmonic weight raises every period's score, noise too, past minStrength. So 13 and 21 were never valid states; 25 is judged against the start, the last state that passed. | | | |
 | 25 | Period scores scaled to the total weight of their terms (3.5, what minStrength was set against), on 13 and 21 | 1.2954 | 1.2302 | yes (against the start's 1.2591 and 1.1943; noise shows no tempo at 30, 60 and 144 fps) |
+| 26 | bandWeights: lo 1 to 1.5 (on 25) | 1.2974 | 1.2348 | no (+0.002) |
+| 27 | memoryMs 8000 to 12000 (on 25) | 1.2914 | 1.2309 | no |
+| 28 | priorOctaves 0.5 to 0.45 (on 25) | 1.3000 | 1.2244 | no (+0.0046, and check fell) |
+| 29 | subdivision 1.5 to 1.25 (on 25) | 1.2991 | 1.2243 | no (check fell) |
+| 30 | harmonics: three beats 0 to -0.25 (a penalty for dotted periods) | 1.2857 | 1.2340 | no |
+| 31 | bandWeights: bass 2 to 2.5 | 1.2761 | 1.2241 | no |
+| 32 | bandWeights: mid 0.5 to 0.25 | 1.2856 | 1.2258 | no |
+| 33 | sameTempo 0.03 to 0.04, follow 0.3 to 0.2 | 1.2954 | 1.2286 | no |
+| 34 | minStrength 0.6 to 0.55 | 1.2941 | 1.2286 | no |
+| 35 | minConfidence 0.08 to 0.05 | 1.2954 | 1.2302 | no (no effect) |
+| 36 | holdMs 30000 to 60000 | 1.2951 | 1.2300 | no |
+| 37 | priorBpm 145 to 150 | 1.2993 | 1.2250 | no (check fell) |
+| 38 | switchReadings 4 to 3 | 1.2957 | 1.2281 | no |
+| 39 | lo 1.5 and subdivision 1.25 together | 1.3002 | 1.2348 | no (+0.0048, under the margin) |
+| 40 | priorBpm 150 and priorOctaves 0.45 together | 1.2990 | 1.2254 | no (check fell) |
+| final | After 40: 30 fps 1.2669, 144 fps 1.2945 on the tuning part (start 1.2179, 1.2560); noise shows no tempo at 30, 60 and 144 fps | | | |
+
+## Result
+
+Stopped at 40 iterations (about 1 hour 20 minutes). Final state: iteration 25 (commits bc80374, db9ae78 and the score scale after them).
+
+Hidden part (122 excerpts), scored once with the start's code and once with the final code:
+
+| | Start | Final |
+| --- | --- | --- |
+| Metric, 60 fps | 1.2295 | 1.2391 |
+| Metric, 30 fps | 1.2161 | 1.2337 |
+| Metric, 144 fps | 1.2225 | 1.2360 |
+| acc1 clean / laptop (60 fps) | 0.821 / 0.819 | 0.827 / 0.828 |
+| track clean / laptop (60 fps) | 0.828 / 0.820 | 0.828 / 0.828 |
+| jumps per minute clean / laptop (60 fps) | 0.055 / 0.055 | 0.046 / 0.055 |
+
+Better on the hidden part at every frame rate, so it is merged into feat/bar-grid. The gain (+0.010) is a quarter of the tuning part's
+(+0.036): most of what the loop found was fitting the tuning excerpts.
