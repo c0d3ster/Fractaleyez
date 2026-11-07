@@ -54,3 +54,32 @@ Automated improvement loop on `BeatGrid` (`src/audioanalysis/beat-grid.ts`), sta
 | 30 | phraseMemoryBars 24 to 16 | 1.3703 | | | no |
 | 31 | phraseSwitchBars 2 to 1 | 1.3629 | | | no |
 | 32 | phaseFollow 0.3 to 0.4 | 1.3782 | 1.3818 | 0.6157 | yes (re-lock within 20 s 0.76, median 12 s) |
+| 33 | off-beat threshold 0.4 to 0.35 (on 32) | 1.3925 | 1.3802 | 0.6153 | no (check fell from 1.3818) |
+| 34 | phaseFollow 0.4 to 0.5 | 1.3823 | | | no (+0.0041) |
+| 35 | offbeatJumpScale 3 to 2 | 1.3725 | | | no |
+| 36 | phaseJumpUpdates 24 to 20 | 1.3686 | | | no |
+| 37 | phrase cues of a bar weighted by the downbeat confidence (fully) | 1.3766 | | | no |
+| 38 | as 37, half weight | 1.3782 | | | no (+0.0000) |
+| 39 | downbeat cues left out while a re-anchor is pending | 1.3596 | | | no |
+| 40 | phase scoring leaves out the newest 40 ms instead of 60 ms (GUARD_BINS 12 to 8) | 1.3777 | | | no |
+
+## Result
+
+Stopped after 40 iterations (15:45 to 17:30 UTC, 1 h 45 min). Kept, in order: re-anchor after 6 s instead of 4 s (7), a re-anchor to
+near the off-beat waits 3x as long (14), phaseJump 0.2 (19), a 24-bar downbeat memory (25), phaseFollow 0.4 (32). All five are about
+the beat clock and how long the downbeat evidence lasts; nothing on the phrase side (memory, switching, confidence weighting) helped.
+
+Hidden folds 6 and 7 (343 tracks), scored once each at the end:
+
+| Hidden | Start (856dc39) | Final |
+| --- | --- | --- |
+| Metric | 1.3324 | 1.4154 |
+| Beat F | 0.800 | 0.811 |
+| Downbeat F | 0.569 | 0.606 |
+| 8-bar F | 0.363 | 0.404 |
+| Bar right / phrase right | 58% / 33% | 64% / 39% |
+| Section starts on the grid's 8-bar line | 39% | 43% |
+
+Tune moved +0.075 and hidden +0.083, so the gain is not fitting to the tuning folds. Ballroom beat F 0.6088 to 0.6157, downbeat F
+0.221 to 0.226. The cost: after a song change, 76% of pairs re-lock within 20 s against 81% at the start (median 12 s both, 4% never
+within 90 s both), because a wrong phase now persists 6 s, or 18 s near the off-beat, before the clock gives it up.
