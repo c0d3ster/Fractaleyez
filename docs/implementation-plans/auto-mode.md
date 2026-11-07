@@ -6,7 +6,7 @@ The visuals already respond to the music through the audio logic in the code (be
 
 Auto does not replace or retune the audio reactivity. That keeps running underneath as it does today.
 
-It depends on `song-sections.md`, which produces the signal it reads: `{ section, intensity, buildupProgress, sinceMs }` from `window.getSongSection`. That analysis is a separate effort and a prerequisite. Auto mode should not start until its labels are tuned on real songs, because Auto can only be as good as what it hears.
+It depends on `song-sections.md`, which produces the signal it reads from `window.getSongSection`: `{ section, intensity, buildupProgress, sinceMs, dropCount, sinceDropMs, confidence, songIndex, songMs }`. A change in `dropCount` is the drop event (the one-shot moment), `section === 'drop'` is the full-energy stretch after it, and a change in `songIndex` is a new song. That analysis is a separate effort and a prerequisite, now measured against expert labels (see that plan for how often each label is right). Auto should lean on what is most reliable: the buildup before a drop (shown before about 80% of drops) and the drop section, and treat a single drop event as a cue that is right about 4 times in 10, so a missed or extra one should never look broken (prefer changes that also read well a few seconds late).
 
 ## Categories
 
