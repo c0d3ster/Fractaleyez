@@ -27,8 +27,11 @@ Progress goes in `docs/overnight/status.md` (append, never rewrite).
 - If you cannot finish, push what works, write in status.md exactly where you stopped and why, and still start the next stage if its
   inputs exist; otherwise stop and say so in status.md.
 - At the end: start the next stage with the claude-code-remote `create_session` tool: `source_url` https://github.com/c0d3ster/Fractaleyez,
-  `source_revision` feat/bar-grid, `outcome_branch` feat/bar-grid, prompt "Run stage <N+1> of docs/overnight/pipeline.md", `tags` ["overnight-pipeline"]. Then write "stage N finished" in status.md. If that tool is
-  not available, write that in status.md. Stage 3 starts nothing.
+  `source_revision` feat/bar-grid, `outcome_branch` feat/bar-grid, prompt "Run stage <N+1> of docs/overnight/pipeline.md", `tags` ["overnight-pipeline"]. Then write "stage N finished" in status.md. If `create_session` is
+  not available, use `create_trigger` instead: `create_new_session_on_fire` true, `run_once_at` two minutes from now, name "Overnight stage
+  <N+1>", prompt "Attach c0d3ster/Fractaleyez with add_repo (access push), clone it, check out feat/bar-grid, then run stage <N+1> of
+  docs/overnight/pipeline.md (tag nothing; title your work Overnight <N+1>/3)." Write which way you started it in status.md. Stage 3 starts
+  nothing.
 
 Setup each session needs: `pnpm install --frozen-lockfile`, `pip install numpy scipy scikit-learn matplotlib`, ffmpeg (installed).
 
