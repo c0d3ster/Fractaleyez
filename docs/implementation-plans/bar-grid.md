@@ -19,8 +19,8 @@ So with a working grid, a drop is only expected about once every 8 bars (about 1
 
 ## How it works
 
-1. **Beat clock.** The tempo tracker gives the period. Every 250 ms the last 8 s of its onset strength (5 ms bins, lightly smoothed) is scored against every phase of that period, leaving out the newest 60 ms where a beat's onset is still arriving. The clock moves 30% of the way to a small error each time; an error over 15% of a beat has to persist for 16 updates (4 s) before the clock re-anchors. Beats are scheduled from the last one that fired, so a correction can neither skip a beat nor fire one twice, and beats a re-anchor jumps over are still counted, so the place in the bar stays aligned with the music. A constant 25 ms is taken off for the band filters' and level windows' own lag (measured on Ballroom: the median offset went from +25 ms to -1 ms).
-2. **Downbeat.** Once a beat is two beats past, 15 cues: each band's largest rise from a quarter beat before it to half a beat after (kick, clap, crash), and how much each band's level changed across it, over one beat and over two (bar lines change most). Kept per position in the bar with a 16-bar memory. Each hypothesis "position d is beat 1" weighs every position's cues (each relative to its mean over the four positions) by where that position sits from d, with weights fitted on Raveform (below): claps count for beats 2 and 4, the changes and the kick for beat 1. The downbeat is the hypothesis that wins, decided on a bar's last beat and changed only after another has led for 2 bars.
+1. **Beat clock.** The tempo tracker gives the period. Every 250 ms the last 8 s of its onset strength (5 ms bins, lightly smoothed) is scored against every phase of that period, leaving out the newest 60 ms where a beat's onset is still arriving. The clock moves 40% of the way to a small error each time; an error over 20% of a beat has to persist for 24 updates (6 s) before the clock re-anchors, and three times as long (18 s) when it points near the off-beat (over 0.4 of a beat), where hi-hats pull the phase score. Beats are scheduled from the last one that fired, so a correction can neither skip a beat nor fire one twice, and beats a re-anchor jumps over are still counted, so the place in the bar stays aligned with the music. A constant 25 ms is taken off for the band filters' and level windows' own lag (measured on Ballroom: the median offset went from +25 ms to -1 ms).
+2. **Downbeat.** Once a beat is two beats past, 15 cues: each band's largest rise from a quarter beat before it to half a beat after (kick, clap, crash), and how much each band's level changed across it, over one beat and over two (bar lines change most). Kept per position in the bar with a 24-bar memory. Each hypothesis "position d is beat 1" weighs every position's cues (each relative to its mean over the four positions) by where that position sits from d, with weights fitted on Raveform (below): claps count for beats 2 and 4, the changes and the kick for beat 1. The downbeat is the hypothesis that wins, decided on a bar's last beat and changed only after another has led for 2 bars.
 3. **Phrase.** The same one level up, four bars after each bar line: the rise on its first beat and each band's change across it over one, two and four bars (20 cues), kept per position in an 8-bar cycle with a 24-bar memory and weighed per hypothesis with fitted weights.
 
 `downbeatConfidence` and `phraseConfidence` are how far the leader's softmax share of the hypotheses is above chance (0 to 1).
@@ -52,6 +52,20 @@ What changed, each measured on folds 0 to 5 (downbeat F, 8-bar F): fitted cues i
 What did not help: a 32-bar downbeat memory (0.564), a 48-bar phrase memory (0.552 against 0.552), switching after 4 bars instead of 2 (0.547), following small errors at 15% instead of 30% (0.564), a 20 ms latency instead of 25 (no change; the offset is already -3 ms). Two that helped a little but are not taken: a 12 s phase window (+0.006 downbeat F on Raveform, but Ballroom beat F fell by 0.01 on its 30 s excerpts), and re-anchoring after 8 s (+0.009, but a slower re-lock after a song change in a DJ set, which single tracks do not measure).
 
 Where it is still weak: intros (the bar right only 43% of the time when the beat is, because there is no evidence yet), breakdowns (the beat itself right 63% of the time) and drum and bass.
+
+## The grid loop (overnight stage 5)
+
+An automated loop (`docs/experiments/grid-loop.md`) tried 40 changes to `beat-grid.ts` against a frozen evaluation (downbeat F + 8-bar F
++ 0.5 x beat F on Raveform folds 0 to 4, fold 5 as the check, Ballroom beat F and a song-change re-lock test as guards) and kept five:
+re-anchoring after 6 s, off-beat re-anchors waiting 3x as long, phaseJump 0.2, a 24-bar downbeat memory and phaseFollow 0.4. On folds 6
+and 7, scored once at the end: downbeat F 0.569 to 0.606, 8-bar F 0.363 to 0.404, beat F 0.800 to 0.811, section starts on the grid's
+8-bar line 39% to 43% (the start here is stage 1's grid with stage 4's tempo tracker, so it differs slightly from the table above).
+
+The trade: on 160 spliced pairs of tracks, 76% re-lock within 20 s of a song change against 81% before (median 12 s either way). Two
+changes that scored higher on Raveform (off-beat threshold 0.35 or 0.3, re-anchoring after 8 or 12 s) cost more re-lock and were not
+taken. What did not help: faster or slower downbeat and phrase switching, phrase memory 16 or 32 bars, a 32-bar downbeat memory, a 10 s
+phase window, latency 20 or 30 ms, requiring the large errors to agree before a re-anchor, weighting the phrase cues by the downbeat
+confidence, and leaving the downbeat cues out while a re-anchor is pending.
 
 ## Measured so far
 

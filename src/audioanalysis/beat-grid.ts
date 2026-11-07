@@ -41,11 +41,15 @@ export type BeatGridOptions = {
   phaseJump: number
   /** A large error has to persist this many updates before the clock re-anchors. */
   phaseJumpUpdates: number
+  /** A jump to near the off-beat (an error over this share of a beat) waits offbeatJumpScale times as long: hi-hats pull the clock there. */
+  offbeatJump: number
+  offbeatJumpScale: number
   /** Memory of the downbeat and phrase evidence, in bars. */
   downbeatMemoryBars: number
   phraseMemoryBars: number
-  /** A different downbeat or phrase line takes over once it has led for this many bars. */
+  /** A different downbeat takes over once it has led for this many bars; a different phrase line, for phraseSwitchBars. */
   switchBars: number
+  phraseSwitchBars: number
   /** How late the onsets arrive after the sound that makes them (band filters and level windows), taken off the beat times. */
   latencyMs: number
 }
@@ -53,12 +57,15 @@ export type BeatGridOptions = {
 export const DEFAULT_GRID_OPTIONS: BeatGridOptions = {
   phaseWindowMs: 8000,
   phaseEveryMs: 250,
-  phaseFollow: 0.3,
-  phaseJump: 0.15,
-  phaseJumpUpdates: 16,
-  downbeatMemoryBars: 16,
+  phaseFollow: 0.4,
+  phaseJump: 0.2,
+  phaseJumpUpdates: 24,
+  offbeatJump: 0.4,
+  offbeatJumpScale: 3,
+  downbeatMemoryBars: 24,
   phraseMemoryBars: 24,
   switchBars: 2,
+  phraseSwitchBars: 2,
   latencyMs: 25,
 }
 
@@ -273,7 +280,7 @@ export class BeatGrid {
     if (Math.abs(error) <= period * this.options.phaseJump) {
       this.anchor += error * this.options.phaseFollow
       this.jumpRuns = 0
-    } else if (++this.jumpRuns >= this.options.phaseJumpUpdates) {
+    } else if (++this.jumpRuns >= this.options.phaseJumpUpdates * (Math.abs(error) > period * this.options.offbeatJump ? this.options.offbeatJumpScale : 1)) {
       this.anchor += error
       this.jumpRuns = 0
     }
@@ -282,7 +289,7 @@ export class BeatGrid {
 
   // A beat lands: the cues for the beat two back (now that the two beats after it are known), then the downbeat and phrase decisions.
   private onBeat = (beatMs: number, period: number): void => {
-    const { downbeatMemoryBars, phraseMemoryBars, switchBars } = this.options
+    const { downbeatMemoryBars, phraseMemoryBars, switchBars, phraseSwitchBars } = this.options
     const profile = Float64Array.from(this.bandSums, (sum) => sum / Math.max(this.frames, 1))
     this.bandSums.fill(0)
     this.frames = 0
@@ -328,7 +335,7 @@ export class BeatGrid {
       const bar = Float64Array.from(this.barSum, (sum) => sum / Math.max(this.barBeats, 1))
       this.barSum.fill(0)
       this.barBeats = 0
-      this.onBar(bar, Math.exp(-1 / phraseMemoryBars), switchBars)
+      this.onBar(bar, Math.exp(-1 / phraseMemoryBars), phraseSwitchBars)
     }
     const barInPhrase = wrap(this.barCount - 1 - this.phrasePosition, BARS_PER_PHRASE) + 1
     this.state = {
