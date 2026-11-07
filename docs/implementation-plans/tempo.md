@@ -8,7 +8,7 @@ The Beat HUD's BPM was read afresh twice a second from the last 12 s of detected
 
 ## How it works
 
-1. Every frame, how much each onset band rose in dB over its own level of the last 20 ms (a follower), times the frame's length, each band scaled by its own running average (so a band that is empty on this input, like the bass on laptop speakers, neither dominates nor vanishes) and weighted toward the kick (bass 3, lo 1, mid 0.5, hi 0.5, air 0.25).
+1. Every frame, how much each onset band rose in dB over its own level of the last 20 ms (a follower), times the frame's length, each band scaled by its own running average (so a band that is empty on this input, like the bass on laptop speakers, neither dominates nor vanishes) and weighted toward the kick (bass 2, lo 1, mid 0.5, hi 0.5, air 0.25).
 2. Every 500 ms, that onset strength over the last 12 s on a 10 ms grid (each frame's share spread over the time it covers), and its autocorrelation. A beat period scores its correlation plus half of its correlation at two and four periods (bars), plus 1.5 times its correlation at half a period (subdivision), times a log-normal prior around 145 BPM half an octave wide. Not three periods: that made dotted patterns win.
 3. The scores are blended into a running score (8 s memory). The shown tempo follows small drifts of the same peak smoothly, and moves to a different peak only when it scores 15% higher for four readings in a row (2 s). With no onsets (a breakdown) it holds the last tempo for 30 s, then shows none.
 
@@ -30,6 +30,14 @@ At 60 fps. The app runs from 30 fps (Saver) to 144 and more, and the result hold
 By genre (new, clean, readings within 4%): psy-trance 99%, breaks 97%, deep house 93%, techno 91%, trance 91%, tech-house 89%, electro-house 81%, dubstep 78%, house 78%, drum and bass 72%, electronica 71%, glitch-hop 62%, chill-out 62%. Drum and bass was the weak spot before the subdivision term (its two-step kick spaces kicks a beat and a half apart, read as 116 for 174); that term was added after seeing those errors on the test excerpts, but its weight was tuned on the 116 only.
 
 Two bugs the frame-rate check caught, both now fixed and covered by the 30, 60 and 144 fps test: sampling one frame per 10 ms bin dropped a third of the frames at 144 fps (35% right there), and rises from one frame to the next counted every jitter as an onset, more of them the faster the frames.
+
+### Tuning on all of it
+
+To use every labelled excerpt without losing an honest score, the options were tuned again by 2-fold cross-validation: a coordinate search on one half of the 661, scored on the other half, then the other way round. Both halves chose a bass weight of 2 instead of 3, and each gained about 2 points on its unseen half (80.3% to 82.6% of readings right, and 79.3% to 81.7%). The other changes each half picked (a narrower prior, different bar weights) disagreed, so they were left out. With that one change, over all 661: 82% of readings right at 60 fps (81% at 30, 82% at 144), 85% of tracks usually right, 0.4 visible jumps a minute; on the laptop mic 83%, 85% and 0.3. Those are on excerpts the bass weight was chosen with, so the cross-validated 82% is the honest figure.
+
+## Cost
+
+Measured with `scripts/section-eval/bench-cpu.mts` (Node 22, the same V8 as Chrome) on 95 minutes of songs at 60 fps: 1.0 ms of CPU per second of audio, 0.1% of each frame's 16.7 ms. The work happens on the frame that makes a reading, every 500 ms: about 0.9 ms (p99) there, most of it the autocorrelation (about 400 lags over 1,200 samples). The old estimator cost 0.7 ms per second, and only while the Beat HUD was open; the tracker runs whenever audio does, since the sections and the bar grid will read it.
 
 ## Next
 
