@@ -16,6 +16,7 @@ const SECTION_COLORS: Record<SongSection, string> = {
   quiet: 'rgba(120, 130, 150, 0.22)',
   groove: 'rgba(90, 160, 120, 0.16)',
   buildup: 'rgba(240, 190, 60, 0.38)',
+  turnaround: 'rgba(255, 255, 255, 0.45)',
   break: 'rgba(90, 140, 220, 0.30)',
   drop: 'rgba(235, 80, 110, 0.48)',
   outro: 'rgba(160, 110, 210, 0.34)',
@@ -111,10 +112,10 @@ export const SectionHud = (): React.ReactElement => {
           {state ? `${Math.round(state.intensity * 100)}%` : '�'}
         </span>
       </div>
-      <div className='section-hud' {...info('The last two minutes. The line is the level of the song against its loudest moment, the colors are the sections: cyan intro, green groove, yellow buildup, blue break, red drop, purple outro, grey quiet.')}>
+      <div className='section-hud' {...info('The last two minutes. The line is the level of the song against its loudest moment, the colors are the sections: cyan intro, green groove, yellow buildup, white turnaround, blue break, red drop, purple outro, grey quiet.')}>
         <canvas ref={canvasRef} width={W} height={H} className='section-hud-canvas' />
       </div>
-      <span className='section-hud-name' {...info('The part of the song this looks like: intro (the start, before anything has built or dropped), groove, buildup (tension rising toward a drop), break (the low end pulled back, calmer), drop (the full-energy part after the drop lands, until the next break or buildup), outro (a fade late in the song) or quiet (silence, or no steady beat). A model trained on expert-labelled tracks makes the call, so it can be wrong; the next song starts over at intro.')}>
+      <span className='section-hud-name' {...info('The part of the song this looks like: intro (the start, before anything has built or dropped), groove, buildup (tension rising toward a drop), turnaround (the music cutting out during a buildup; about 1 in 4 turns into a drop), break (the low end pulled back, calmer), drop (the full-energy part after the drop lands, until the next break or buildup), outro (a fade late in the song) or quiet (silence, or no steady beat). A model trained on expert-labelled tracks makes the call, so it can be wrong; the next song starts over at intro.')}>
         {state?.section ?? ''}
       </span>
     </div>

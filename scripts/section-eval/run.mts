@@ -3,6 +3,7 @@
 //
 //   tsx run.mts <levels dir> <out.json> [--tracker ../../src/audioanalysis/sections.ts] [--only id,id] [--fps 60]
 //   tsx run.mts <levels dir> <out.json> --playlist <playlist.json>
+//   tsx run.mts <levels dir> <out.json> --tuning '{"turnaroundDropThreshold":0.15}'   (decoder overrides, see SectionTuning)
 //   tsx run.mts <levels dir> <out.json> --fold-models <dir>   (dir/fold<n>.json; each song is run through the model of the fold that held it out, id mod 5)
 //
 // A playlist file is [{ "songs": ["id", ...], "gapSeconds": 2, "crossfadeSeconds": 0 }, ...]: each entry is played as one stream, the songs
@@ -26,10 +27,12 @@ const option = (name: string, fallback: string | null = null): string | null => 
 const [dir, output] = [args[0]!, args[1]!]
 const trackerPath = resolve(option('tracker', '../../src/audioanalysis/sections.ts')!)
 const fps = Number(option('fps', '60'))
-const { SectionTracker } = (await import(pathToFileURL(trackerPath).href)) as { SectionTracker: new (model?: unknown) => Tracker }
+const { SectionTracker } = (await import(pathToFileURL(trackerPath).href)) as { SectionTracker: new (model?: unknown, tuning?: unknown) => Tracker }
+// Decoder overrides (SectionTuning), as JSON: --tuning '{"turnaroundDropThreshold":0.15}'
+const tuning = JSON.parse(option('tuning', '{}')!) as unknown
 const foldDir = option('fold-models')
 const foldModels = foldDir ? [0, 1, 2, 3, 4].map((f) => JSON.parse(readFileSync(join(foldDir, `fold${f}.json`), 'utf8')) as unknown) : null
-const trackerFor = (id: string): Tracker => (foldModels ? new SectionTracker(foldModels[Number(id) % 5]) : new SectionTracker())
+const trackerFor = (id: string): Tracker => new SectionTracker(foldModels ? foldModels[Number(id) % 5] : undefined, tuning)
 
 const BANDS = ONSET_BANDS.length
 const SOURCE_FPS = 60
@@ -109,7 +112,7 @@ if (playlistPath) {
   const playlists = JSON.parse(readFileSync(playlistPath, 'utf8')) as Array<{ songs: string[]; gapSeconds?: number; crossfadeSeconds?: number }>
   playlists.forEach((list, i) => {
     const { frames, starts } = joinSongs(list.songs, list.gapSeconds ?? 0, list.crossfadeSeconds ?? 0)
-    runs.push(runStream(`playlist-${i}`, frames, starts, foldModels ? new SectionTracker(foldModels[Number(list.songs[0]) % 5]) : new SectionTracker()))
+    runs.push(runStream(`playlist-${i}`, frames, starts, new SectionTracker(foldModels ? foldModels[Number(list.songs[0]) % 5] : undefined, tuning)))
   })
 } else {
   const only = option('only')?.split(',')

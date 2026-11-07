@@ -11,7 +11,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 
-COLORS = {'intro': '#50bed2', 'quiet': '#78829a', 'groove': '#5aa078', 'buildup': '#f0be3c', 'break': '#5a8cdc',
+COLORS = {'intro': '#50bed2', 'quiet': '#78829a', 'groove': '#5aa078', 'buildup': '#f0be3c', 'turnaround': '#ffffff', 'break': '#5a8cdc',
           'drop': '#eb506e', 'outro': '#a06ed2', 'main': '#5aa078'}
 BAND_NAMES = ['bass', 'lo', 'mid', 'hi', 'air']
 BAND_COLORS = ['#d33', '#e83', '#4a4', '#38c', '#a4c']
