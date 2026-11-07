@@ -11,8 +11,8 @@ stage before it just before starting it, with the reasons written in status.md:
   08:15 UTC about 15% of the week was used, with the week resetting the next night). Sessions cannot read that percentage, so use two
   proxies. (1) Call `get_session` with no id and read `external_metadata.rate_limit_info`: if it names a weekly limit (anything other than
   `five_hour`), or its status is not `allowed`, do not start. (2) Add up the stage costs in report.md: stage 5 starts only if stages 1 to 4
-  cost under $200 in total, stage 6 only if stages 1 to 5 cost under $250. Rough basis: stage 0's $58 was at most 15% of the week, so about
-  $250 more keeps 20% in hand. These are estimates; when in doubt, skip.
+  cost under $250 in total, stage 6 only if stages 1 to 5 cost under $300 (the user's limits). Rough basis: stage 0's $58 was at most 15%
+  of the week. These are estimates; when the rate-limit signal and the totals disagree, the rate-limit signal wins.
 - **Evidence.** Stage 5 only if the grid has room to improve (stage 1's tuned downbeat F under 0.85 or 8-bar F under 0.6 on the held-out
   folds) and stage 4's loop worked as a method (it ran without voiding, whether or not it improved the hidden set). Stage 6 only if stage 2
   reproduced the baseline and finished.
@@ -156,6 +156,10 @@ Retraining takes minutes, so expect fewer iterations; 4 hours still caps it. Shi
   `external_metadata.usage`: `cost_usd`, input, output, cache read and cache write tokens, plus the session's wall time (created to now).
   If a stage was resumed in more than one session, add each session's numbers and list the session ids. If `get_session` is not available,
   write the session id and "cost: see the session" instead.
+
+report.md is the one document the user reads in the morning, and later a case study of the work, so write it for a reader who has not
+seen any of the sessions: plain language, numbers with what they mean, what was tried and did not help, and links to the plan docs and
+commits for detail. status.md stays the raw log; report.md is the story.
 
 The final summary (written by the last stage that runs) goes at the top of report.md: a table with one row per stage (headline before and
 after number, cost in USD, wall time), the total cost, what the user should review first, and what is left.
