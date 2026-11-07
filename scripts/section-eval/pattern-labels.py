@@ -4,8 +4,8 @@
     python pattern-labels.py giantsteps <annotations/genre dir> <out.json>
     python pattern-labels.py ballroom <BallroomData dir> <out.json>
 
-Writes { id: { "genre": ..., "proxy": ..., "fold": n, "drops": [[start, end], ...] } }. "fold" and "drops" only for Raveform (its own
-folds, and its drop sections, where the full drum pattern plays). "proxy" is null where the genre says nothing reliable about the drums.
+Writes { id: { "genre": ..., "proxy": ..., "fold": n, "drops": [[start, end], ...], "breakdowns": [...] } }. "fold", "drops" and
+"breakdowns" only for Raveform (its own folds; its drop sections, where the full drum pattern plays; its breakdowns, mostly without a kick). "proxy" is null where the genre says nothing reliable about the drums.
 
 The mapping, and why it is only a proxy:
   four on the floor: techno, tech house, house, deep house, progressive house, melodic house and techno, trance, psy-trance, mainstage,
@@ -49,7 +49,8 @@ def main() -> None:
     if kind == 'raveform':
         for track in json.load(open(os.path.join(src, 'segments.json'))):
             drops = [[s['start'], s['end']] for s in track['sections'] if s['name'] == 'drop']
-            labels[track['key']] = dict(genre=track['genre'], proxy=proxy(track['genre']), fold=track['fold'], drops=drops)
+            breakdowns = [[s['start'], s['end']] for s in track['sections'] if s['name'] == 'breakdown']
+            labels[track['key']] = dict(genre=track['genre'], proxy=proxy(track['genre']), fold=track['fold'], drops=drops, breakdowns=breakdowns)
     elif kind == 'giantsteps':
         for name in os.listdir(src):
             genre = open(os.path.join(src, name)).read().strip()
