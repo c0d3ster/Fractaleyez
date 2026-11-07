@@ -18,3 +18,5 @@ Automated improvement loop on the song section model and its decoder, stage 6 of
 
 | Iteration | Change | Tune metric | Check metric | Kept |
 | --- | --- | --- | --- | --- |
+| 0 | Start (feat/bar-grid at 432829d): clean 0.441 (drop 0.372, build 0.430, break 0.522), laptop 0.424 (drop 0.359, build 0.377, break 0.536) | 0.4325 | 0.2620 | start |
+| 1 | Decoder: drop threshold 0.3 to 0.25, drop threshold while a buildup or break shows 0.5 to 0.6, buildup enter 0.3 to 0.25 (screened one at a time, each +0.001 to +0.0025; together +0.006) | 0.4385 | 0.2640 | yes |
