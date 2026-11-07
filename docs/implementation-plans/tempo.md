@@ -35,6 +35,31 @@ Two bugs the frame-rate check caught, both now fixed and covered by the 30, 60 a
 
 To use every labelled excerpt without losing an honest score, the options were tuned again by 2-fold cross-validation: a coordinate search on one half of the 661, scored on the other half, then the other way round. Both halves chose a bass weight of 2 instead of 3, and each gained about 2 points on its unseen half (80.3% to 82.6% of readings right, and 79.3% to 81.7%). The other changes each half picked (a narrower prior, different bar weights) disagreed, so they were left out. With that one change, over all 661: 82% of readings right at 60 fps (81% at 30, 82% at 144), 85% of tracks usually right, 0.4 visible jumps a minute; on the laptop mic 83%, 85% and 0.3. Those are on excerpts the bass weight was chosen with, so the cross-validated 82% is the honest figure.
 
+### The BPM loop (overnight stage 4)
+
+An automated loop (`docs/experiments/bpm-loop.md`) proposed one change at a time to `TempoTracker` and kept it only if the tuning score
+rose by at least 0.005 without the check score falling, with the tests, 30 and 144 fps and the noise files as guards. The GiantSteps
+excerpts were split by a hash of the id: 60% tune, 20% check, 20% hidden (`docs/experiments/bpm-loop-split.json`, scored by
+`scripts/section-eval/bpm-loop-eval.py`). Score: readings right + 0.5 x tracks usually right - 0.05 x jumps a minute, the mean of clean
+and the laptop mic. 40 iterations; kept: the four-beat (bar) term from 0.5 to 0.75, the air band from 0.25 to 0.5, and each period's score
+scaled to the total weight of its terms (3.5), because the larger bar term had lifted noise past `minStrength` (the fan showed a tempo).
+
+| Hidden 122 excerpts, 60 fps | Before | After |
+| --- | --- | --- |
+| Readings within 4%, clean / laptop | 82.1% / 81.9% | 82.7% / 82.8% |
+| Tracks usually right, clean / laptop | 82.8% / 82.0% | 82.8% / 82.8% |
+| Jumps a minute, clean / laptop | 0.05 / 0.05 | 0.05 / 0.05 |
+| Score (30 / 60 / 144 fps) | 1.216 / 1.230 / 1.223 | 1.234 / 1.239 / 1.236 |
+
+The tuning score rose 1.259 to 1.295 and the check score 1.194 to 1.230, but the hidden set gained a quarter of that: most of the gain was
+fitting the tuning excerpts, and what is left (under a point of readings, one excerpt's worth of tracks) is near the noise of 122 excerpts.
+Did not help, or broke something: a narrower or wider prior, a different centre (135, 150), a stronger subdivision (2, 2.5: past the
+margin together with a 12 s memory, but a synthetic 124 to 174 BPM test track then reads at 1.5 times), the hi band at 1 and the bar term
+at 1 (both past the margin, both broke the synthetic tests: claps on 2 and 4 pull to half tempo), longer memory or window, other switch
+and follow settings, lower strength and confidence gates, a penalty at three beats. The errors left on the tuning part are mostly slow
+tracks (70 to 90 BPM, chill-out, nu-disco, glitch-hop) read at double, where the prior around 145 decides and where GiantSteps itself
+labels some drum and bass 87 and some 174; dotted patterns read at 4/3 (127 as 168); and two-step drum and bass read at 2/3 (174 as 116).
+
 ## Noise (a fan, room hiss)
 
 Checked with synthetic noise through the app's band filters (`scripts/section-eval/noise.py`: white, pink, brown, and a fan: hiss, rumble, motor hum and a blade whoosh).
