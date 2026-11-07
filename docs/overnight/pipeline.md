@@ -29,8 +29,10 @@ Setup each session needs: `pnpm install --frozen-lockfile`, `pip install numpy s
 
 ## Data
 
-- **Raveform band levels** (made on the user's machine by `scripts/section-eval/raveform-fetch.py`): release asset
-  https://github.com/c0d3ster/Fractaleyez/releases/download/raveform-levels-v1/raveform-levels.zip. Inside: `<key>.f16` per track (raw
+- **Raveform band levels** (made on the user's machine by `scripts/section-eval/raveform-fetch.py`): the zip's download URL is the one line in
+  `docs/overnight/data-source.txt` on origin/feat/bar-grid (`git pull` and re-read it on every retry; the user shares it on Google Drive,
+  which downloads with `curl -L "https://drive.usercontent.google.com/download?id=<FILE_ID>&export=download&confirm=t" -o raveform-levels.zip`;
+  check the result is a zip, not an HTML page). If that file does not exist yet, the data is not ready. Inside: `<key>.f16` per track (raw
   float16, frames x 5 bands, 60 fps) and `fetched.json` (which tracks worked). Convert to the float32 `.f32` files the scripts read
   (`numpy.fromfile(path, '<f2').astype('<f4').tofile(...)`).
 - **Raveform labels**: https://huggingface.co/datasets/taejunkim/raveform/resolve/main/raveform.zip (479 MB; only `raveform/structures/*`
@@ -41,8 +43,9 @@ Setup each session needs: `pnpm install --frozen-lockfile`, `pip install numpy s
 
 ## Stage 1: the beat grid on real EDM
 
-Stage 1 starts by downloading the Raveform levels. If the release asset is not there yet (the user is uploading it), use `send_later` to try
-again in 30 minutes, up to 10 times, noting each wait in status.md; then stop with "blocked: no Raveform levels".
+Stage 1 starts by downloading the Raveform levels (see Data). If `docs/overnight/data-source.txt` is not there yet or the download fails (the
+user is uploading it), use `send_later` to try again in 30 minutes, up to 10 times, noting each wait in status.md; then stop with
+"blocked: no Raveform levels".
 
 1. Score `BeatGrid` (`src/audioanalysis/beat-grid.ts`, via `scripts/section-eval/grid-eval.mts`) against Raveform's marked beats: beat F
    (70 ms), downbeat F, and 8-bar line accuracy (counted from the first marked downbeat; Raveform's section starts sit on 8-bar lines 73% of
