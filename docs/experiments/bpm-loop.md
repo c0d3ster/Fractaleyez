@@ -26,3 +26,12 @@ Automated improvement loop on `TempoTracker` (`src/audioanalysis/tempo-tracker.t
 | 8 | subdivision 1.5 to 2.5 | 1.2631 | 1.2117 | no (+0.004) |
 | 9 | memoryMs 8000 to 16000 | 1.2563 | 1.1992 | no |
 | 10 | switchReadings 4 to 6 | 1.2592 | 1.1979 | no (+0.0001) |
+| 11 | subdivision 2 and memoryMs 12000 together | 1.2647 | 1.2111 | no (passes the margin, but subdivision 2 breaks tempo-tracker.test.ts: a synthetic 124 to 174 BPM track read at 1.5x) |
+| 12 | harmonics: two beats 0.5 to 0.75 | 1.2614 | 1.1978 | no |
+| 13 | harmonics: four beats 0.5 to 0.75 | 1.2858 | 1.2194 | yes |
+| 14 | harmonics: two beats 0.5 to 0.25 | 1.2567 | 1.1842 | no |
+| 15 | bandWeights: hi 0.5 to 1 | 1.2786 | 1.2248 | passed, not taken (13 was better; tried again on top of 13) |
+| 16 | bandWeights: air 0.25 to 0.5 | 1.2804 | 1.2193 | passed, not taken (as 15) |
+| 17 | bandWeights: lo 1 to 1.5 | 1.2643 | 1.2059 | no (+0.005 short by a hair: +0.0052 passes, but 13 was better; tried again on top) |
+| 18 | switchRatio 1.15 to 1.25 | 1.2618 | 1.2012 | no (+0.003) |
+| 19 | windowMs 12000 to 15000 | 1.2591 | 1.1813 | no |
