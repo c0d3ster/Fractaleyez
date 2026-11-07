@@ -100,8 +100,6 @@ export class TempoTracker {
   private nextRead = 0
   private readonly running = new Float64Array(MAX_LAG + 1)
   private runningReady = false
-  /** The best period's score in the last reading alone (the running score's input). */
-  lastRawBest = 0
   private readonly prior = new Float64Array(MAX_LAG + 1)
   private shownLag: number | null = null
   private challengerLag: number | null = null
@@ -202,7 +200,6 @@ export class TempoTracker {
     const zero = acf[0]! || 1
     const alpha = this.runningReady ? 1 - Math.exp(-readEveryMs / memoryMs) : 1
     let total = 0
-    let rawBest = 0
     for (let lag = MIN_LAG; lag <= MAX_LAG; lag++) {
       let score = Math.max(0, acf[lag]! / zero)
       harmonics.forEach((weight, h) => {
@@ -212,10 +209,8 @@ export class TempoTracker {
       if (this.options.subdivision > 0) score += this.options.subdivision * Math.max(0, acf[Math.round(lag / 2)]! / zero)
       this.running[lag]! += (score - this.running[lag]!) * alpha
       total += this.running[lag]!
-      rawBest = Math.max(rawBest, score)
     }
     this.runningReady = true
-    this.lastRawBest = rawBest
     this.decide(t, total / (MAX_LAG - MIN_LAG + 1), hasOnsets)
   }
 
