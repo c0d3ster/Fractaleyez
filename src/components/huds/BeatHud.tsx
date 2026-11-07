@@ -194,7 +194,7 @@ export const BeatHud = (): React.ReactElement => {
       <div className='beat-hud' {...info('Colored ticks are beats. The dashed lines are what each band had to pass to count as a hit.')}>
         <canvas ref={canvasRef} width={W} height={H} className='beat-hud-canvas' />
       </div>
-      <span className='beat-hud-feel' {...info('The rhythm the drums play, read from the kick, snare and hat bands: a kick on every beat (four on the floor) or a broken kick (breakbeat), or, when it is sure, the drum and bass kick on 1 and the "and" of 3 (two-step), with the tempo range it is played at. It only names a rhythm it is sure of, so it is often blank: in a breakdown, without a clear beat, or for rhythms it cannot tell apart. A name shows after 2 seconds and clears after 3.')}>
+      <span className='beat-hud-feel' {...info('The rhythm the drums play, read from the kick, snare and hat bands: a kick on every beat (four on the floor) or a broken kick (breakbeat), or, when it is sure, the drum and bass kick on 1 and the "and" of 3 (two-step). It only names a rhythm it is sure of, so it is often blank: in a breakdown, without a clear beat, or for rhythms it cannot tell apart. A name shows after 2 seconds and clears after 3.')}>
         {rhythm}
       </span>
     </div>

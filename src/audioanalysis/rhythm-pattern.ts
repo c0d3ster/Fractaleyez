@@ -156,7 +156,8 @@ export const tempoRange = (pattern: RhythmPattern, bpm: number | null): string |
   return TEMPO_RANGES[pattern].find(({ from, to }) => bpm >= from && bpm < to)?.text ?? null
 }
 
-/** The line the Beat HUD shows: the held pattern and the tempo range it is played at. */
+/** The line the Beat HUD shows (`text`: the held pattern alone), and the tempo range it is played at for anything that wants it. The range
+ * is not shown: it matches the track's genre only 76 to 93% of the time (tempo.md). */
 export type RhythmLabel = {
   pattern: RhythmPattern | null
   tempoRange: string | null
@@ -209,7 +210,7 @@ export class RhythmLabeler {
     }
     const range = tempoRange(this.shown, bpm)
     const confidence = reading.pattern === this.shown ? reading.confidence : 0
-    this.label = { pattern: this.shown, tempoRange: range, confidence, text: range === null ? this.shown : `${this.shown} · ${range}` }
+    this.label = { pattern: this.shown, tempoRange: range, confidence, text: this.shown }
     return this.label
   }
 

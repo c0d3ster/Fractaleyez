@@ -52,7 +52,7 @@ declare global {
     getTempo?: () => TempoReading | null
     /** The rhythm the drums make right now (rhythm-pattern.ts, from each band's own onsets at the tracker's tempo), or null when no name is confident enough. Unheld. */
     getRhythmPattern?: () => RhythmPattern | null
-    /** The Beat HUD's line: the held rhythm name with its tempo range ("four on the floor · house & techno tempo"), blank when no name is confident. */
+    /** The Beat HUD's line: the held rhythm name (`text`, e.g. "four on the floor") and its tempo range (`tempoRange`, not shown), blank when no name is confident. */
     getRhythmLabel?: () => RhythmLabel
     getSectionHistory?: () => readonly SectionSlot[]
     /** Downloads everything the section tracker saw this session as a JSON file, to be replayed offline. Run it from the console. */

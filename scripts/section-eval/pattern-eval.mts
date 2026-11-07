@@ -1,7 +1,8 @@
 // Replays saved band levels the way AudioFeed runs them (OnsetDetector with the app's defaults, gated on TempoTracker, feeding a BeatMonitor)
 // and records, every 500 ms, the rhythm pattern names the app can show: `patterns` is estimateTempo over the monitor's beat times (what the
 // Beat HUD shows), `rhythm` is nameRhythm over the monitor's per-band onsets at the tracker's tempo, unheld, and `label` the Beat HUD's
-// line (RhythmLabeler: held, with the tempo range, window.getRhythmLabel). Also writes,
+// line (RhythmLabeler: held, with the tempo range, window.getRhythmLabel). Also writes
+// the low bands' level features at each reading (rhythm-levels.ts) and,
 // for offline experiments (pattern-rename.mts), the beat times, each band's onsets, the grid's beats and the tempo readings.
 // Scored by pattern-score.py (--key rhythm for the second namer) against genre proxy labels.
 //
@@ -14,6 +15,7 @@ import { TempoTracker } from '../../src/audioanalysis/tempo-tracker.ts'
 import { BeatGrid } from '../../src/audioanalysis/beat-grid.ts'
 import { BeatMonitor } from '../../src/audioanalysis/beat.ts'
 import { nameRhythm, RhythmLabeler } from '../../src/audioanalysis/rhythm-pattern.ts'
+import { levelFeatures } from '../../src/audioanalysis/rhythm-levels.ts'
 import { BANDS, SOURCE_FPS, loadLevels } from './stream.mts'
 
 const args = process.argv.slice(2)
@@ -32,6 +34,7 @@ type Run = {
   patterns: Array<string | null>
   rhythm: Array<string | null>
   label: Array<string | null>
+  levels?: number[][]
   beats?: number[]
   bandOnsets?: number[][]
   grid?: Array<[number, number, number]>
@@ -65,6 +68,7 @@ for (const id of ids) {
   const patterns: Array<string | null> = []
   const rhythm: Array<string | null> = []
   const label: Array<string | null> = []
+  const levelRows: number[][] = []
   const labeler = new RhythmLabeler()
   const bpm: Array<number | null> = []
   let nextRead = READ_EVERY_MS
@@ -88,6 +92,7 @@ for (const id of ids) {
       const input = { bandOnsets: bands, periodMs: reading === null ? null : 60000 / reading }
       rhythm.push(nameRhythm(input))
       label.push(labeler.read(input, t).text || null)
+      if (dump) levelRows.push(levelFeatures(monitor.getTimeline().samples, t, input.periodMs).map((x) => Math.round(x * 1000) / 1000))
       bpm.push(reading === null ? null : Math.round(reading * 10) / 10)
       // Each band's onsets, collected from the monitor's window as they leave it (the window is longer than a reading's step).
       bands.forEach((list, b) => {
@@ -100,7 +105,7 @@ for (const id of ids) {
       nextRead += READ_EVERY_MS
     }
   }
-  runs.push(dump ? { id, patterns, rhythm, label, beats: beats.map(r3), bandOnsets, grid: gridBeats, bpm } : { id, patterns, rhythm, label })
+  runs.push(dump ? { id, patterns, rhythm, label, levels: levelRows, beats: beats.map(r3), bandOnsets, grid: gridBeats, bpm } : { id, patterns, rhythm, label })
 }
 writeFileSync(output, JSON.stringify({ fps, readEveryMs: READ_EVERY_MS, runs }))
 console.error(`${runs.length} tracks in ${((Date.now() - started) / 1000).toFixed(1)} s`)

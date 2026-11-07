@@ -70,11 +70,12 @@ describe('RhythmLabeler', () => {
   const run = (labeler: RhythmLabeler, reading: RhythmInput, start: number, count: number): string[] =>
     Array.from({ length: count }, (_, i) => labeler.read(reading, start + i * 500).text)
 
-  it('shows a name after 2 s of confident readings, with its tempo range', () => {
+  it('shows a name after 2 s of confident readings, and keeps its tempo range out of the text', () => {
     const labeler = new RhythmLabeler()
     const texts = run(labeler, input(FOUR), 0, 5)
     expect(texts.slice(0, 3)).toEqual(['', '', ''])
-    expect(texts[3]).toBe('four on the floor · house & techno tempo')
+    expect(texts[3]).toBe('four on the floor')
+    expect(labeler.read(input(FOUR), 2500).tempoRange).toBe('house & techno tempo')
   })
 
   it('keeps the name through a short gap and clears it after 3 s without it', () => {
@@ -89,6 +90,6 @@ describe('RhythmLabeler', () => {
     const labeler = new RhythmLabeler()
     for (let t = 0; t < 1400; t += 50) labeler.read(input(FOUR), t)
     expect(labeler.read(input(FOUR), 1450).text).toBe('')
-    expect(labeler.read(input(FOUR), 1500).text).toBe('four on the floor · house & techno tempo')
+    expect(labeler.read(input(FOUR), 1500).text).toBe('four on the floor')
   })
 })
