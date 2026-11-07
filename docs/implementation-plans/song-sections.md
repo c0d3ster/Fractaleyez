@@ -60,6 +60,17 @@ Looking back over whole songs, a stop after a buildup that comes back up lands o
 - **Waiting before calling a drop** (`exp_delay.py`): a detector trained on "a drop landed 1, 1.5, 2 or 3 s ago", with the features at the drop moment next to the current ones, scored 0.35, 0.32, 0.30 and 0.29 drop F1 against 0.39 for the one that answers at once. Two seconds after it fires, real drops and false alarms look the same (bass still full in 79% against 69%, same level and beat rate): most false alarms are the music really coming back to full (the end of a fill, the next phrase) where the labels have no drop. What tells them apart is where it falls in the song's phrasing, not what follows, which points at a bar and phrase grid.
 - **Looser drop threshold after a buildup**: worse (see the decoder note above; the opposite helps).
 
+## Cost
+
+Measured on 95 minutes of songs at 60 fps (`scripts/section-eval/bench-cpu.mts`, on the tempo branch; Node 22, the same V8 as Chrome):
+
+- 1.8 ms of CPU per second of audio, 0.18% of each frame's 16.7 ms. The rule-based tracker it replaces cost 1.5 ms; neither was microseconds.
+- The work lands on the frame that closes a 250 ms slot: about 1.1 ms there (p99). Of that, the features take about 320 µs (mostly sorting each band's last 90 s for its 90th percentile) and all 630 trees of the model about 50 µs. Frames over 2 ms: about 11 an hour (the old tracker 8), over 8 ms about one; the onset detector, which does almost nothing, shows the same rare spikes, so those are garbage collection and JIT pauses rather than the tracker's own work.
+- Memory: a fixed 1.4 MB for the last 40 minutes of 50 ms ticks (the session export), in typed arrays. Kept as one object per tick it was 14.7 MB after 45 minutes.
+- The model is a 285 KB JSON in the bundle (about 100 KB gzipped), parsed in 2.5 ms at startup.
+
+If the slot frame ever matters on a slow machine, the percentile sort is the place to start (keep a running histogram, or recompute the peaks once a second).
+
 ## Limits
 
 - The labels are subjective at the edges (when a build starts), and some builds and drops are marked by feel with no change in the band levels at all; about 16% of labelled drops have no clear level step. That caps slot-level agreement.
