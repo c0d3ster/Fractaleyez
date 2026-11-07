@@ -14,6 +14,7 @@ import { FEATURE_COUNT, FEATURE_NAMES, SLOT_MS, SectionFeatures } from './sectio
 import { SectionModelData, boosterScores, sigmoid, softmaxInPlace } from './section-model'
 import modelData from './section-model.json'
 import { TickRecorder } from './tick-recorder'
+import { DEFAULT_TEMPO_CHANGE, TempoChangeCue } from './tempo-change'
 import type { GridState } from './beat-grid'
 
 export type SongSection = 'intro' | 'quiet' | 'groove' | 'buildup' | 'turnaround' | 'break' | 'drop' | 'outro'
@@ -44,6 +45,8 @@ export type SectionSample = {
   levels: readonly number[]
   /** True on the frame a beat was detected. */
   beat: boolean
+  /** The BPM the tempo tracker shows now (null for none). Left out, the tempo-change cue for a new song is off. */
+  bpm?: number | null
   /** The beat grid's state on this frame (beat-grid.ts), when the app runs one. The model reads where the moment sits in the bar and phrase. */
   grid?: GridState | null
 }
@@ -86,6 +89,18 @@ export type SectionTuning = {
   turnaroundMaxMs: number
   /** The music is back once the whole mix is over this. */
   turnaroundLeaveDb: number
+  /** A new song on a change of tempo (see tempo-change.ts): this far from the song's tempo (null: the cue is off), not near an octave, 3:2, 4:3 or their inverses, held this long. */
+  tempoMinChange: number | null
+  tempoHarmonicTolerance: number
+  tempoHoldMs: number
+  /**
+   * While an outro shows and for this long after it ends, the boundary model needs only this (null: no special threshold). An outro is often
+   * right, and then the next song came in under a boundary probability just short of the usual threshold. Calling a new song whenever an
+   * outro ends with the music coming back up was tried and reset the clock 0.17 times a song: a false outro is usually a bridge into the
+   * next drop.
+   */
+  outroBoundaryThreshold: number | null
+  outroWindowMs: number
   /**
    * The phrase-line prior: while the beat grid is locked and its phrase confidence is at least phraseLineMinConfidence, the drop threshold
    * moves by phraseLineDropOffset within phraseLineBeats beats of an 8-bar line and by offPhraseDropOffset elsewhere (decode.py tunes them).
@@ -108,18 +123,23 @@ const DEFAULT_TUNING: SectionTuning = {
   turnaroundAfterBuildupMs: 250,
   turnaroundMaxMs: 6000,
   turnaroundLeaveDb: -6,
+  tempoMinChange: DEFAULT_TEMPO_CHANGE.minChange,
+  tempoHarmonicTolerance: DEFAULT_TEMPO_CHANGE.harmonicTolerance,
+  tempoHoldMs: DEFAULT_TEMPO_CHANGE.holdMs,
+  outroBoundaryThreshold: 0.7,
+  outroWindowMs: 20000,
   phraseLineBeats: 2,
   phraseLineDropOffset: 0,
   offPhraseDropOffset: 0,
   phraseLineMinConfidence: 0,
 }
 
-/** One recorded 50 ms tick: when it closed, the mean power of each band and the beats in it. Enough to replay a session exactly. */
-export type SectionTick = { t: number; power: number[]; beats: number }
+/** One recorded 50 ms tick: when it closed, the mean power of each band, the beats in it and the BPM shown. Enough to replay a session exactly. */
+export type SectionTick = { t: number; power: number[]; beats: number; bpm?: number | null }
 
 const DEFAULT_MODEL = modelData as SectionModelData
 const HISTORY_MS = 120000
-// Every tick of the last 40 minutes is kept, so a listening session can be exported and replayed offline (1.4 MB, see TickRecorder).
+// Every tick of the last 40 minutes is kept, so a listening session can be exported and replayed offline (1.6 MB, see TickRecorder).
 const RECORDING_TICKS = 48000
 
 // The decoder (tuned on out-of-fold output, see decode.py).
@@ -140,7 +160,8 @@ const NO_DROP_BEFORE_MS = 8000
 const DROP_SECTION_MAX_MS = 64000
 const BUILDUP_TYPICAL_MS = 16000
 
-// Song changes: the model's boundary probability, or silence long enough that nothing inside a song does it (see the plan for the numbers).
+// Song changes: the model's boundary probability (lower around an outro, see SectionTuning), a change of tempo (tempo-change.ts), or silence
+// long enough that nothing inside a song does it (see the plan for the numbers).
 const BOUNDARY_THRESHOLD = 0.9
 const MIN_SONG_MS = 45000
 const SILENCE_NEW_SONG_S = 6
@@ -231,6 +252,7 @@ export class SectionTracker {
   private dropCount = 0
   private hadBuildupOrDrop = false
   private outro = false
+  private lastOutro = -Infinity
 
   // Song state.
   private songStart: number | null = null
@@ -239,12 +261,18 @@ export class SectionTracker {
   private confirmSlots = 0
   private beatsThisSong = 0
   private silenceBoundary = false
+  private readonly tempoCue: TempoChangeCue | null
+  private bpm: number | null = null
   private state: SectionState = SectionTracker.emptyState()
 
   /** `model` and `tuning` are for evaluating variants offline and for tests; the app uses the shipped model and the defaults. */
   constructor(model: SectionModelData = DEFAULT_MODEL, tuning: Partial<SectionTuning> = {}) {
     this.model = checkModel(model)
     this.tuning = { ...DEFAULT_TUNING, ...tuning }
+    const { tempoMinChange, tempoHarmonicTolerance, tempoHoldMs } = this.tuning
+    this.tempoCue = tempoMinChange === null
+      ? null
+      : new TempoChangeCue({ ...DEFAULT_TEMPO_CHANGE, minChange: tempoMinChange, harmonicTolerance: tempoHarmonicTolerance, holdMs: tempoHoldMs })
     this.stage2Input = new Float64Array(model.features.length + 3 + model.memorySeconds.length * 4)
   }
 
@@ -252,10 +280,11 @@ export class SectionTracker {
     section: 'quiet', intensity: 0, buildupProgress: 0, sinceMs: 0, songIndex: 1, songMs: null, dropCount: 0, sinceDropMs: null, confidence: 1,
   })
 
-  push = ({ t, levels, beat, grid = null }: SectionSample): void => {
+  push = ({ t, levels, beat, bpm = null, grid = null }: SectionSample): void => {
     // A long gap between samples (the tab was in the background) is a fresh start, not a song that went quiet.
     if (this.lastT !== null && t - this.lastT > HISTORY_MS) this.startSong(t, this.beatsThisSong >= SONG_MIN_BEATS, false)
     this.lastT = t
+    this.bpm = bpm
     const bass = levels[0] ?? 0
     const lo = levels[1] ?? 0
     const mid = levels[2] ?? 0
@@ -282,9 +311,10 @@ export class SectionTracker {
   }
 
   /** Replays one recorded tick (see getRecording): the same path as live frames from the tick on. */
-  pushTick = ({ t, power, beats }: SectionTick): void => {
+  pushTick = ({ t, power, beats, bpm = null }: SectionTick): void => {
     if (this.lastT !== null && t - this.lastT > HISTORY_MS) this.startSong(t, this.beatsThisSong >= SONG_MIN_BEATS, false)
     this.lastT = t
+    this.bpm = bpm
     const level = power.map((p) => Math.sqrt(p))
     this.sums.low += ((level[0] ?? 0) + (level[1] ?? 0)) / 2
     this.sums.mid += level[2] ?? 0
@@ -313,6 +343,8 @@ export class SectionTracker {
     this.recording.clear()
     this.beatTimes = []
     this.lastT = null
+    this.bpm = null
+    this.tempoCue?.reset()
     this.sums = { total: 0, low: 0, mid: 0, high: 0 }
     this.frames = 0
     this.beats = 0
@@ -323,7 +355,7 @@ export class SectionTracker {
   }
 
   private record = (t: number, power: ArrayLike<number>, beats: number): void => {
-    this.recording.push(t, power, beats)
+    this.recording.push(t, power, beats, this.bpm)
   }
 
   private closeSlot = (t: number, row: Float64Array): void => {
@@ -351,11 +383,14 @@ export class SectionTracker {
     const [pBuild, pBreak, pDrop, pBoundary] = this.runModel(row)
     const silence = row[F_SILENCE_NOW]!
 
-    // A new song: a long silence that ends, or the model hearing a song change (never within the first stretch of a song).
+    // A new song: a long silence that ends, or the model hearing a song change, or the tempo moving to a different one (never within the
+    // first stretch of a song).
     if (silence >= SILENCE_NEW_SONG_S && this.beatsThisSong >= SONG_MIN_BEATS) this.silenceBoundary = true
+    const settled = t - this.songStart >= MIN_SONG_MS
+    const tempoChanged = this.tempoCue?.push(t, this.bpm, settled) ?? false
     if (this.silenceBoundary && silence === 0) {
       this.startSong(t, true, false)
-    } else if (pBoundary >= BOUNDARY_THRESHOLD && t - this.songStart >= MIN_SONG_MS) {
+    } else if ((pBoundary >= this.boundaryThreshold(t) || tempoChanged) && settled) {
       this.startSong(t, this.beatsThisSong >= SONG_MIN_BEATS, true)
     } else {
       this.trackStop(t)
@@ -503,6 +538,11 @@ export class SectionTracker {
     if (this.decoded === 'drop' && t - this.sectionStart >= DROP_SECTION_MAX_MS) this.enter('groove', t)
   }
 
+  private boundaryThreshold = (t: number): number => {
+    const { outroBoundaryThreshold, outroWindowMs } = this.tuning
+    return outroBoundaryThreshold !== null && t - this.lastOutro <= outroWindowMs ? outroBoundaryThreshold : BOUNDARY_THRESHOLD
+  }
+
   // A buildup or break that ends without a drop goes back to the drop it interrupted (if that was recent) or to groove.
   private afterSetup = (t: number): Decoded => (t - this.lastDrop < DROP_SECTION_MAX_MS ? 'drop' : 'groove')
 
@@ -526,7 +566,10 @@ export class SectionTracker {
     if (!this.outro && this.dropCount > 0 && songAge >= OUTRO_MIN_SONG_MS && level <= OUTRO_LEVEL_DB && falling && this.decoded !== 'buildup') {
       this.outro = true
     }
-    if (this.outro) return 'outro'
+    if (this.outro) {
+      this.lastOutro = t
+      return 'outro'
+    }
     // The start of a song, before anything has built or dropped, is its intro (a break-like opening included).
     if (!this.hadBuildupOrDrop && songAge < INTRO_MAX_MS && this.decoded !== 'buildup') return 'intro'
     return this.decoded
@@ -558,6 +601,7 @@ export class SectionTracker {
     this.dropCount = 0
     this.hadBuildupOrDrop = false
     this.outro = false
+    this.lastOutro = -Infinity
   }
 
   // A song is playing when a regular beat has been going: enough beats lately and a steady tempo. A fan, a keyboard or one-off noise has neither.

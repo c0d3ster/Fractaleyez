@@ -12,7 +12,8 @@ Code: `src/audioanalysis/section-features.ts` (features), `section-model.ts` and
 2. **Model** (gradient-boosted trees, about a thousand tree walks per slot, well under a millisecond). Stage 1: how much the last stretch looks like a buildup or a break. Stage 2: whether a drop just landed, from the features plus a 4, 10 and 20 s memory of stage 1. Boundary: whether a new song just started.
 3. **Decoder** (`sections.ts`, mirrored in `decode.py`, every threshold tuned on out-of-fold output). Stage 1 is smoothed (0.5 s), buildup and break are entered at 0.3 held for two slots and left under 0.2 / 0.25. A drop fires at 0.3 (0.5 while a buildup or break is still showing, because the end of a build already looks like a drop is coming and an early one would hold off the real one), at most every 6 s. After a drop the section is **drop** (the full-energy part) until the next buildup or break, for 64 s at most.
 4. **Turnaround.** While a buildup is showing, the whole mix falling 10 dB or more under the song's top level with the bass 15 dB under, for half a second, is a turnaround (the music cutting out). It lasts until the music is back (over -6 dB), a drop lands, or 6 s pass. It takes priority over the short-silence quiet, since a turnaround is often near silent. It does not change drop detection (see below).
-5. **Song rules.** Nothing is labelled (quiet) until a regular beat is confirmed; that also gates the song clock. Intro is the start of a song until its first buildup or drop (60 s at most). Outro is a fade late in a song that has had a drop (10 dB under, falling, after 150 s; tuned against where songs actually end). A new song starts on the boundary model (0.9, never within 45 s of the last change) or after 6 s of silence; features, decoder and clock start over.
+5. **Song rules.** Nothing is labelled (quiet) until a regular beat is confirmed; that also gates the song clock. Intro is the start of a song until its first buildup or drop (60 s at most). Outro is a fade late in a song that has had a drop (10 dB under, falling, after 150 s; tuned against where songs actually end). A new song starts on the boundary model (0.9, or 0.7 while an outro shows and for 20 s after it), on a change of tempo (below), or after 6 s of silence, never within 45 s of the last change; features, decoder and clock start over.
+6. **Tempo change** (`tempo-change.ts`). The BPM the tempo tracker shows (`TempoTracker`, `tempo.md`) is passed in with every frame. Once a song is 45 s old its tempo is the one shown (following small drifts); the shown BPM moving more than 5% away from it, not to within 3% of 2:1, 1:2, 3:2, 2:3, 4:3 or 3:4 (the same beat read at another level), and staying there for 4 s, is a new song. The BPM is recorded with each tick, so an exported session replays the same way.
 
 `SectionState` carries `section`, `intensity`, `buildupProgress`, `sinceMs`, `songIndex`, `songMs`, plus `dropCount` (a change in it is the drop event), `sinceDropMs` and `confidence`.
 
@@ -45,6 +46,41 @@ Song changes (clean feed; laptop is within a few points):
 | 6 s crossfade | 63% / 6.4 | 38% / 0.3 |
 
 The crossfade row is a real regression: the old tracker reset often enough (about every 10 minutes) that some resets landed on blends. The new one almost never invents a change, so the song clock is trustworthy, but it misses most crossfaded transitions.
+
+## Song changes when the tempo changes
+
+A song crossfaded into one of a clearly different tempo, or a click to another song mid-track, used to go unnoticed: the boundary model hears gaps, fades and band shape, not tempo, and was trained only on gaps and short crossfades. One session ran its song clock for 10 minutes.
+
+**Playlists with known tempos** (`make-playlists.py`): 5 songs each, one kind of join per playlist, the next song picked so the tempo difference falls in a bin chosen at random (under 3%, 3 to 8%, over 8%; "harmonic" is a difference over 8% within 3% of 2:1, 3:2 or 4:3 and their inverses). Joins: back to back (0 to 5 s gap), crossfade (4 to 10 s), cut (the song cut off at a random point at least 60 s in, the next one starting at its own start with no gap) and cut into the middle (the next one also starting 20 to 50% in). Two sets: SSME songs (480 joins, tempo: what the tracker usually shows for that song, as they carry no tempo labels) and GiantSteps two-minute excerpts (640 joins, labelled tempos, never used for any tuning; they start and end mid-track, so they have no intros or outros). Settings were tuned on SSME folds 0 and 1 (`tune_tempo_change.py` for a quick grid, then the real tracker) and are reported on folds 2 to 4. A change counts when it lands from 5 s before to 25 s after the next song starts; with 60 s, late resets count too (still far better than none).
+
+| | SSME before | SSME after | GiantSteps before | GiantSteps after |
+| --- | --- | --- | --- | --- |
+| Changes found (within 25 s) | 41% | 60% | 14% | 36% |
+| Changes found (within 60 s) | 41% | 69% | 14% | 49% |
+| Back to back | 94% | 96% | 51% | 56% |
+| Crossfade | 51% | 69% | 2% | 28% |
+| Cut | 17% | 36% | 1% | 33% |
+| Cut into the middle | 3% | 38% | 1% | 27% |
+| Tempo under 3% apart | 47% | 50% | 12% | 10% |
+| 3 to 8% apart | 42% | 64% | 15% | 45% |
+| Over 8% apart | 40% | 67% | 12% | 55% |
+| Harmonic | 30% | 44% | 16% | 26% |
+| Invented per hour (within 25 s / 60 s) | 0.37 / 0.37 | 2.4 / 1.2 | 0.64 / 0.46 | 4.9 / 1.1 |
+| False resets per single song | 0.043 | 0.063 | 0.011 | 0.026 |
+| Median delay of a found change | 0.7 s | 4.1 s | 0.2 s | 18.8 s |
+
+Single songs: SSME folds 2 to 4 (253 songs) and all 664 GiantSteps excerpts. Through the laptop mic (`levels.py --mic laptop`, SSME folds 2 and 3: 192 joins, 179 songs) it holds: changes found 35% to 53% (36% to 61% within 60 s), cuts 10% to 31%, cuts into the middle 0% to 29%, false resets per song 0.006 to 0.017. Drop, buildup and break F1 on single songs are unchanged (0.601, 0.558, 0.629 before; 0.602, 0.558, 0.627 after). The SSME columns are with the tempo tracker and section model as retuned on main by the BPM and bar-grid loops; the GiantSteps and laptop figures, and the tuning comparisons below, were measured just before those landed (SSME then: 56% found, 0.067 false resets). Most of the "invented" changes within 25 s are real changes found late: the tempo tracker takes a median of about 20 s to show a new song's tempo even after a clean gap (its 12 s window and 8 s running score still hold the old song, then a new peak has to win for 2 s), so a tempo change is called about 20 to 30 s after the join.
+
+What each part adds (SSME, folds 2 to 4, within 25 s / false resets per song): the outro threshold alone 48% / 0.075 at 0.5 (0.7 chosen, with the tempo cue it costs less), the tempo cue alone (5%, 4 s) 54% / 0.059, both 56% / 0.067. The false resets the tempo cue still makes are mostly the tracker settling on 5:4 or 4:5 of the beat for a while (a swing reading); counting those as the same beat too would lose real changes like 128 to 100.
+
+Tried and left out:
+
+- **The outro ending with the music coming back up as a new song**: 0.17 false resets per song (from 0.03). A false outro is usually a bridge into the next drop.
+- **The tempo of each reading alone**, before the tracker's running score (faster to move): it found a few more changes but wobbles inside songs (0.18 false resets per song at a 4 s hold); held long enough to be steady, it is no better than the shown BPM.
+- **Retraining the boundary model with cuts in its playlists** (`dump-playlists.mts --cuts 0.5`, scored on the same held-out cut playlists with `train_boundary.py --test`): cuts 23% to 29%, but crossfades 38% to 23%. Not shipped.
+- **A separate cue for a sharp cut** (band shape and tempo changing together): the tempo shows up about 20 s after the band shape changes, so the two are not together in time; the tempo cue and the outro threshold already take cuts from 17% to 35%.
+
+Songs of about the same tempo (under 3% apart) are no better found than before: in a DJ blend of matched tempos only the boundary model and the outro can hear the change, and the boundary model misses most blends.
 
 ## Turnaround
 
@@ -95,7 +131,7 @@ Measured on 95 minutes of songs at 60 fps (`scripts/section-eval/bench-cpu.mts`,
 
 - 1.8 ms of CPU per second of audio, 0.18% of each frame's 16.7 ms. The rule-based tracker it replaces cost 1.5 ms; neither was microseconds.
 - The work lands on the frame that closes a 250 ms slot: about 1.1 ms there (p99). Of that, the features take about 320 µs (mostly sorting each band's last 90 s for its 90th percentile) and all 630 trees of the model about 50 µs. Frames over 2 ms: about 11 an hour (the old tracker 8), over 8 ms about one; the onset detector, which does almost nothing, shows the same rare spikes, so those are garbage collection and JIT pauses rather than the tracker's own work.
-- Memory: a fixed 1.4 MB for the last 40 minutes of 50 ms ticks (the session export), in typed arrays. Kept as one object per tick it was 14.7 MB after 45 minutes.
+- Memory: a fixed 1.6 MB for the last 40 minutes of 50 ms ticks (the session export, with the BPM shown), in typed arrays. Kept as one object per tick it was 14.7 MB after 45 minutes.
 - The model is a 285 KB JSON in the bundle (about 100 KB gzipped), parsed in 2.5 ms at startup.
 
 If the slot frame ever matters on a slow machine, the percentile sort is the place to start (keep a running histogram, or recompute the peaks once a second).
@@ -105,7 +141,7 @@ If the slot frame ever matters on a slow machine, the percentile sort is the pla
 - The labels are subjective at the edges (when a build starts), and some builds and drops are marked by feel with no change in the band levels at all; about 16% of labelled drops have no clear level step. That caps slot-level agreement.
 - A drop is detected by reacting to it, about a second late. Auto mode should prefer the buildup (shown before 84% of drops) to get ready, and treat a single drop event as a cue that is right about 4 times in 10.
 - Outro and a late break look alike while they happen; outro is shown only on a deep, falling fade after 150 s.
-- Crossfades and DJ mixes: most song changes in a blend are missed (sections still work across them).
+- Crossfades and DJ mixes: a change of tempo is now found (about 20 to 30 s late), but most blends of songs at the same tempo are still missed (sections still work across them).
 - Trained on EDM. Other genres are untested.
 - The mic conditions are simulations. Real sessions can be checked with `exportSectionLog()` (50 ms ticks, replayed exactly by `replay-log.mts`).
 
@@ -126,11 +162,11 @@ Still rising, about 0.03 of mean F1 per doubling: twice the songs would be worth
 
 1. Done and not shipped: the beat grid as features and as a drop prior, and Raveform's tracks in training (above). The grid would need to find the 8-bar line far more reliably (and on a laptop mic) before it can help; Raveform's labels would need mapping closer to SSME's (its breakdowns split into break and build by the level trend, say) before they can be pooled.
 2. Label a handful of real mic sessions (export, mark sections) and score them, to confirm the simulations.
-3. Crossfade boundaries: a detector trained on more blended playlists, or a tempo-change cue.
+3. Song changes at the same tempo (DJ blends): a boundary detector trained on longer, tempo-matched blends, or the bar and phrase grid (a new song restarts the phrase count), and a faster tempo switch right after the band shape changes, to call tempo changes sooner.
 4. Auto mode (`auto-mode.md`).
 5. Optional: load `section-model.json` lazily (about 100 KB gzipped) to keep it off the first paint.
 
 ## Verification
 
-- `pnpm test`: `sections.test.ts` pins what must hold for any model (quiet and no clock without a regular beat, the clock, a new song after a long silence but not on a short stop, the same labels at a tenth of the level, a replayed recording giving the same states, bounded memory and speed) and the tree inference.
+- `pnpm test`: `sections.test.ts` pins what must hold for any model (quiet and no clock without a regular beat, the clock, a new song after a long silence but not on a short stop, a new song on a held change of tempo but not on an octave, 3:2 or 4:3 reading, a blip or a drift, the same labels at a tenth of the level, a replayed recording giving the same states, bounded memory and speed) and the tree inference.
 - The out-of-fold evaluation above, reproducible with `scripts/section-eval/`.

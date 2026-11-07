@@ -33,19 +33,30 @@ python train_boundary.py playlists/clean,playlists/laptop features/clean --expor
 python score.py out/run.json gt.json
 ../../node_modules/.bin/tsx run.mts levels/clean out/pl.json --playlist pl-gap0.json
 python score.py out/pl.json x --playlist
+# 5. Song changes by join kind and tempo difference (the tempo-change cue): playlists with known tempos, the tracker with and without it.
+python make-playlists.py levels/clean tempos.json pl-tempo.json --per-fold 6
+../../node_modules/.bin/tsx run.mts levels/clean out/pl-before.json --playlist pl-tempo.json --no-tempo --tuning '{"outroBoundaryThreshold":null}'
+../../node_modules/.bin/tsx run.mts levels/clean out/pl-after.json --playlist pl-tempo.json --shard 0/4   # and 1/4 to 3/4 in parallel
+python score.py out/pl-after.json x --playlist --folds 2,3,4 [--late 60]
+python score.py out/single.json x --singles --folds 2,3,4
+python tune_tempo_change.py out/pl-before.json out/single-before.json --folds 0,1
 ```
+
+`tempos.json` is `{ id: bpm }`: the GiantSteps labels, or for songs without labels the tracker's most common reading (`bpm` in a `run.mts` output).
 
 `folds.json` is `{ id: id mod 5 }`. Fold models for `train_boundary.py` come from the same folds.
 
 ## Scripts
 
 - `levels.py`: decode, optional mic simulation (room: reverb, noise floor at -48 dB, low cut at 40 Hz; laptop: almost no bass under 200 Hz, 10 kHz top, more reverb, noise at -40 dB), the five onset-band filters, RMS per frame.
-- `dump-features.mts`, `dump-playlists.mts`: the real `OnsetDetector` and `SectionFeatures` over saved levels. `stream.mts` joins songs with gaps or crossfades.
+- `dump-features.mts`, `dump-playlists.mts`: the real `OnsetDetector` and `SectionFeatures` over saved levels (`--cuts` adds playlists cut off mid-song). `stream.mts` joins songs with gaps, crossfades or cuts (`segments`: the part of each song that is played).
+- `make-playlists.py`: playlists for `run.mts` with known tempos at every join (back to back, crossfade, cut, cut into the middle), picked to cover tempo differences under 3%, 3 to 8% and over 8%.
+- `tune_tempo_change.py`: a quick grid over the tempo-change cue's settings, replayed over the shown BPM a `--no-tempo` run recorded; the chosen setting is then checked with the real tracker.
 - `train.py`: stage 1 (other / build / break per slot) and stage 2 (a drop just landed), gradient-boosted trees, out-of-fold probabilities to `oof.npz`, exports for the app.
 - `decode.py`: the state machine that turns probabilities into labels (mirrors `sections.ts`), with a coordinate search over its thresholds on out-of-fold output.
-- `train_boundary.py`: the song change detector, scored on playlists (changes found, changes invented per hour) and on single songs (every change is a false clock reset).
-- `run.mts`: replays levels through any tracker module (`--tracker`), single songs, fold models or playlists. Works on the old rule-based tracker too, which is how the before and after numbers were made.
-- `score.py`: drop P/R/F1 (a drop counts within 1 s before to 3 s after a labelled one), build and break agreement slot by slot, how many drops had a buildup shown in the 10 s before, false song changes, and playlist boundary recall.
+- `train_boundary.py`: the song change detector, scored on playlists (changes found, changes invented per hour) and on single songs (every change is a false clock reset). `--test` scores on other playlists than it trained on, to compare detectors on the same ones.
+- `run.mts`: replays levels through any tracker module (`--tracker`), single songs, fold models or playlists, with a `TempoTracker` feeding the shown BPM as `AudioFeed` does (`--no-tempo` leaves it out; `--shard k/n` splits a run over processes). Works on the old rule-based tracker too, which is how the before and after numbers were made.
+- `score.py`: drop P/R/F1 (a drop counts within 1 s before to 3 s after a labelled one), build and break agreement slot by slot, how many drops had a buildup shown in the 10 s before, false song changes, and playlist boundary recall (by join kind and tempo difference when the playlist carries `joins`). `--singles` counts false resets on songs without labels; outputs can be passed comma-separated.
 - `chart.py`: one song's band levels with the expert labels and each tracker's sections underneath.
 - `replay-log.mts`: replays a session exported from the app (`exportSectionLog()` in the console, 50 ms ticks) through the current tracker, exactly as it ran.
 - `bpm-eval.mts`, `bpm-score.py`: the BPM the Beat HUD would show every 500 ms, old estimator or `TempoTracker` (`--opts` for variants, `--fps` for the frame rate), scored against labelled tempos (the GiantSteps tempo set: https://github.com/GiantSteps/giantsteps-tempo-dataset, audio from the JKU research mirror its `audio_dl.sh` points at).

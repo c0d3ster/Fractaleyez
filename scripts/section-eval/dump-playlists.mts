@@ -1,11 +1,13 @@
 // Builds random playlists from a levels directory and writes their section features with song-boundary labels, for training
 // the song change detector.
 //
-//   tsx dump-playlists.mts <levels dir> <folds.json> <out dir> [--per-fold 30] [--songs 5] [--seed 1]
+//   tsx dump-playlists.mts <levels dir> <folds.json> <out dir> [--per-fold 30] [--songs 5] [--seed 1] [--cuts 0.3]
 //
 // For every fold, playlists are drawn only from that fold's songs, so the detector can be scored out of fold. Each playlist gets a
-// random join: back to back (0 to 5 s of silence) or a crossfade (4 to 10 s). Writes <out>/pl<n>.feat (slots x features) and
-// <out>/playlists.json ([{ fold, songs, gapSeconds, crossfadeSeconds, starts, slots }]).
+// random join: back to back (0 to 5 s of silence) or a crossfade (4 to 10 s), or with --cuts that share of playlists cut each song off
+// at a random point (at least 60 s in) with the next one starting straight after, half of them from its start and half from its middle
+// (see make-playlists.py). Writes <out>/pl<n>.feat (slots x features) and <out>/playlists.json
+// ([{ fold, kind, songs, gapSeconds, crossfadeSeconds, segments, starts, slots }]).
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { OnsetDetector } from '../../src/audioanalysis/onset-detector.ts'
@@ -13,7 +15,7 @@ import { DEFAULT_ENABLED_BANDS } from '../../src/audioanalysis/onset-bands.ts'
 import { FEATURE_NAMES, SectionFeatures } from '../../src/audioanalysis/section-features.ts'
 import { TempoTracker } from '../../src/audioanalysis/tempo-tracker.ts'
 import { BeatGrid } from '../../src/audioanalysis/beat-grid.ts'
-import { BANDS, SOURCE_FPS, joinSongs, loadLevels } from './stream.mts'
+import { BANDS, SOURCE_FPS, Segment, joinSongs, loadLevels } from './stream.mts'
 
 const args = process.argv.slice(2)
 const option = (name: string, fallback: string): string => {
@@ -23,6 +25,8 @@ const option = (name: string, fallback: string): string => {
 const [dir, foldsPath, out] = [args[0]!, args[1]!, args[2]!]
 const perFold = Number(option('per-fold', '30'))
 const songsPer = Number(option('songs', '5'))
+const cuts = Number(option('cuts', '0'))
+const MIN_PLAYED_S = 60
 let seed = Number(option('seed', '1'))
 const random = (): number => {
   seed = (seed * 1664525 + 1013904223) % 4294967296
@@ -35,16 +39,32 @@ const byFold = new Map<number, string[]>()
 Object.entries(folds).forEach(([id, fold]) => byFold.set(fold, [...(byFold.get(fold) ?? []), id]))
 
 const FRAME_MS = 1000 / SOURCE_FPS
-const meta: Array<{ fold: number; songs: string[]; gapSeconds: number; crossfadeSeconds: number; starts: number[]; slots: number }> = []
+type Meta = { fold: number; kind: string; songs: string[]; gapSeconds: number; crossfadeSeconds: number; segments: Segment[]; starts: number[]; slots: number }
+const meta: Meta[] = []
 let n = 0
 for (const [fold, ids] of [...byFold.entries()].sort((a, b) => a[0] - b[0])) {
   for (let p = 0; p < perFold; p++) {
     const pool = [...ids]
     const songs = Array.from({ length: songsPer }, () => pool.splice(Math.floor(random() * pool.length), 1)[0]!)
-    const crossfade = random() < 0.3
-    const gapSeconds = crossfade ? 0 : [0, 0, 0.5, 1, 2, 3, 5][Math.floor(random() * 7)]!
+    // Drawn in this order so that without --cuts the playlists are the same as before it existed.
+    const cut = cuts > 0 && random() < cuts
+    const fromMiddle = cut && random() < 0.5
+    const crossfade = !cut && random() < 0.3
+    const gapSeconds = crossfade || cut ? 0 : [0, 0, 0.5, 1, 2, 3, 5][Math.floor(random() * 7)]!
     const crossfadeSeconds = crossfade ? 4 + Math.round(random() * 6) : 0
-    const { frames, starts } = joinSongs(songs.map((id) => loadLevels(dir, id)), gapSeconds, crossfadeSeconds)
+    const audio = songs.map((id) => loadLevels(dir, id))
+    const segments: Segment[] = cut
+      ? audio.map((song, s) => {
+        const length = song.length / BANDS / SOURCE_FPS
+        const fromSeconds = fromMiddle && s > 0 ? (0.2 + random() * 0.3) * length : 0
+        const left = length - fromSeconds
+        if (s === songs.length - 1 || left <= MIN_PLAYED_S) return { fromSeconds }
+        const played = Math.max(MIN_PLAYED_S, 0.3 * left) + random() * Math.max(0, 0.85 * left - Math.max(MIN_PLAYED_S, 0.3 * left))
+        return { fromSeconds, toSeconds: fromSeconds + played }
+      })
+      : []
+    const kind = cut ? (fromMiddle ? 'cutmid' : 'cut') : crossfade ? 'crossfade' : 'gap'
+    const { frames, starts } = joinSongs(audio, gapSeconds, crossfadeSeconds, segments)
     const detector = new OnsetDetector(BANDS)
     const features = new SectionFeatures()
     // One grid over the whole playlist, as the app runs one across songs.
@@ -61,7 +81,7 @@ for (const [fold, ids] of [...byFold.entries()].sort((a, b) => a[0] - b[0])) {
       if (row) rows.push(...row)
     }
     writeFileSync(join(out, `pl${n}.feat`), Buffer.from(Float32Array.from(rows).buffer))
-    meta.push({ fold, songs, gapSeconds, crossfadeSeconds, starts, slots: rows.length / FEATURE_NAMES.length })
+    meta.push({ fold, kind, songs, gapSeconds, crossfadeSeconds, segments, starts, slots: rows.length / FEATURE_NAMES.length })
     n++
   }
 }

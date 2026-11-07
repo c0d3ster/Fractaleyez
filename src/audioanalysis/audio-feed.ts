@@ -41,9 +41,10 @@ export class AudioFeed {
     snapshot.beat = onset.beat
     const now = performance.now()
     beatMonitor.record({ t: now, bands: onset.bands, beatBand: onset.beatBand })
-    // The raw band levels, as the section model was trained and scored on (the onset detector's followed levels blur its tick features).
-    sectionTracker.push({ t: now, levels, beat: onset.beatBand !== null })
     tempoTracker.push(now, levels)
+    // The raw band levels, as the section model was trained and scored on (the onset detector's followed levels blur its tick features), and
+    // the BPM now shown, for the tempo-change song cue.
+    sectionTracker.push({ t: now, levels, beat: onset.beatBand !== null, bpm: tempoTracker.getBpm() })
 
     this.latest = snapshot
     return snapshot

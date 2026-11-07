@@ -4,7 +4,7 @@
 
 The Beat HUD's BPM was read afresh twice a second from the last 12 s of detected beats (`estimateTempo` in `tempo.ts`). It jumped about 10 times a minute and was within 4% of the right tempo 59% of the time on clean audio. Three causes: the beats it reads are sparse (at most one per 250 ms, from the bass and hi bands only), nothing carries over from one reading to the next, and nothing prefers the tempos music is usually counted at, so a 128 BPM track could read 96 or 176.
 
-`TempoTracker` (`src/audioanalysis/tempo-tracker.ts`) replaces it for the BPM shown. `estimateTempo` still names the rhythm pattern and gives the consistency figure, and the section tracker still uses it to confirm a song is playing.
+`TempoTracker` (`src/audioanalysis/tempo-tracker.ts`) replaces it for the BPM shown. `estimateTempo` still names the rhythm pattern and gives the consistency figure, and the section tracker still uses it to confirm a song is playing. The section tracker also reads the shown BPM to notice a song change from a change of tempo (`tempo-change.ts`, see `song-sections.md`).
 
 ## How it works
 
@@ -168,6 +168,7 @@ What did not make the bar, and why:
 
 ## Next
 
+- A faster switch to a new song's tempo: the shown tempo takes a median of about 20 s to move after a song change, even after a clean gap (the 12 s window and 8 s running score still hold the old song). That delay is most of the delay of a tempo-change song change.
 - Rhythm names with more coverage on short excerpts, and half time: needs a feature that tells dubstep from breaks at 140.
 - Beat phase: where the beats fall, not only how far apart. That and a downbeat give the bar and phrase grid the section tracker can use (see `song-sections.md`).
 - Tempo through a real mic session, and on non-EDM music (untested).
