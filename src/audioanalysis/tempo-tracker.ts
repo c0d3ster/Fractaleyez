@@ -46,6 +46,8 @@ export type TempoTrackerOptions = {
 
 // Tuned on 116 GiantSteps excerpts (scripts/section-eval/bpm-eval.mts) and checked on the other 546, clean and through a laptop mic; the
 // bass weight was then set by 2-fold cross-validation over all 661 (both halves chose 2, and each gained about 2 points on the other).
+// Then the stage 4 BPM loop (docs/experiments/bpm-loop.md): four beats at 0.75 in a period's score, the air band at 0.5, and scores scaled
+// to the weight the noise gate was set with. On its hidden 122 excerpts: readings right 82.0% to 82.8%, a small gain.
 export const DEFAULT_TEMPO_OPTIONS: TempoTrackerOptions = {
   onsetTauMs: 20,
   windowMs: 12000,
