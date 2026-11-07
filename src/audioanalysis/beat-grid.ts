@@ -44,8 +44,9 @@ export type BeatGridOptions = {
   /** Memory of the downbeat and phrase evidence, in bars. */
   downbeatMemoryBars: number
   phraseMemoryBars: number
-  /** A different downbeat or phrase line takes over once it has led for this many bars. */
+  /** A different downbeat takes over once it has led for this many bars; a different phrase line, for phraseSwitchBars. */
   switchBars: number
+  phraseSwitchBars: number
   /** How late the onsets arrive after the sound that makes them (band filters and level windows), taken off the beat times. */
   latencyMs: number
 }
@@ -59,6 +60,7 @@ export const DEFAULT_GRID_OPTIONS: BeatGridOptions = {
   downbeatMemoryBars: 16,
   phraseMemoryBars: 24,
   switchBars: 2,
+  phraseSwitchBars: 2,
   latencyMs: 25,
 }
 
@@ -282,7 +284,7 @@ export class BeatGrid {
 
   // A beat lands: the cues for the beat two back (now that the two beats after it are known), then the downbeat and phrase decisions.
   private onBeat = (beatMs: number, period: number): void => {
-    const { downbeatMemoryBars, phraseMemoryBars, switchBars } = this.options
+    const { downbeatMemoryBars, phraseMemoryBars, switchBars, phraseSwitchBars } = this.options
     const profile = Float64Array.from(this.bandSums, (sum) => sum / Math.max(this.frames, 1))
     this.bandSums.fill(0)
     this.frames = 0
@@ -328,7 +330,7 @@ export class BeatGrid {
       const bar = Float64Array.from(this.barSum, (sum) => sum / Math.max(this.barBeats, 1))
       this.barSum.fill(0)
       this.barBeats = 0
-      this.onBar(bar, Math.exp(-1 / phraseMemoryBars), switchBars)
+      this.onBar(bar, Math.exp(-1 / phraseMemoryBars), phraseSwitchBars)
     }
     const barInPhrase = wrap(this.barCount - 1 - this.phrasePosition, BARS_PER_PHRASE) + 1
     this.state = {
