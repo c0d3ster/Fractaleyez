@@ -114,8 +114,8 @@ def score(oof: dict, gt: dict, cfg: dict, cond: int | None = None, keys: set | N
     return out
 
 
-DEFAULT = {'smooth': 0.5, 'buildup_in': 0.3, 'buildup_out': 0.2, 'break_in': 0.3, 'break_out': 0.25, 'enter': 2, 'switch': 0.15,
-           'drop': 0.3, 'refractory': 6, 'hold': 0, 'min_t': 8, 'drop_ctx': 0.5, 'ctx_s': 1,
+DEFAULT = {'smooth': 0.5, 'buildup_in': 0.25, 'buildup_out': 0.2, 'break_in': 0.3, 'break_out': 0.25, 'enter': 2, 'switch': 0.15,
+           'drop': 0.25, 'refractory': 6, 'hold': 0, 'min_t': 8, 'drop_ctx': 0.6, 'ctx_s': 1,
            'line_w': 2, 'line_on': 0, 'line_off': 0, 'line_conf': 0}
 
 

@@ -97,8 +97,8 @@ export type SectionTuning = {
 }
 
 const DEFAULT_TUNING: SectionTuning = {
-  dropThreshold: 0.3,
-  dropContextThreshold: 0.5,
+  dropThreshold: 0.25,
+  dropContextThreshold: 0.6,
   turnaroundDropThreshold: null,
   turnaroundDropWindowMs: 2000,
   fillDropThreshold: null,
@@ -124,7 +124,7 @@ const RECORDING_TICKS = 48000
 
 // The decoder (tuned on out-of-fold output, see decode.py).
 const SMOOTH_S = 0.5
-const BUILDUP_IN = 0.3
+const BUILDUP_IN = 0.25
 const BUILDUP_OUT = 0.2
 const BREAK_IN = 0.3
 const BREAK_OUT = 0.25
