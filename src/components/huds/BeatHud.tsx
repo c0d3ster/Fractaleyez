@@ -4,7 +4,7 @@ import './BeatHud.css'
 
 import { BeatSample } from '../../audioanalysis/beat'
 import { DEFAULT_ENABLED_BANDS, ONSET_BANDS } from '../../audioanalysis/onset-bands'
-import { estimateTempo, TempoEstimate, TempoPattern } from '../../audioanalysis/tempo'
+import { estimateTempo, TempoPattern } from '../../audioanalysis/tempo'
 import { subscribeUiTick } from '../../utils/uiTicker'
 import { bandColor } from './bandColors'
 
@@ -20,8 +20,12 @@ const TEMPO_UPDATE_INTERVAL_MS = 500
 // A different pattern name has to hold for this many readings in a row (about 3 s) before it replaces the one shown, so a song near the line between two names does not flicker.
 const PATTERN_HOLD_READINGS = 6
 
-const sameTempo = (a: TempoEstimate | null, b: TempoEstimate | null): boolean =>
-  a === null || b === null ? a === b : Math.round(a.bpm) === Math.round(b.bpm) && Math.round(a.consistency * 100) === Math.round(b.consistency * 100)
+// The BPM comes from the tempo tracker (steady, read from the onset bands); the consistency and the pattern from the last 12 s of detected beats.
+type TempoShown = { bpm: number | null; consistency: number | null }
+
+const sameTempo = (a: TempoShown, b: TempoShown): boolean =>
+  (a.bpm === null ? b.bpm === null : b.bpm !== null && Math.round(a.bpm) === Math.round(b.bpm)) &&
+  (a.consistency === null ? b.consistency === null : b.consistency !== null && Math.round(a.consistency * 100) === Math.round(b.consistency * 100))
 
 // One look per band, in the order of ONSET_BANDS (the Frequency HUD colors its bars and labels the same way, so there is no legend here).
 type BandLook = { fill: string; line: string; trigger: string }
@@ -96,7 +100,7 @@ const scaleFor = (samples: readonly BeatSample[], from: number, band: number, no
 export const BeatHud = (): React.ReactElement => {
   const info = useInfo()
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const [tempo, setTempo] = useState<TempoEstimate | null>(null)
+  const [tempo, setTempo] = useState<TempoShown>({ bpm: null, consistency: null })
   const [pattern, setPattern] = useState<TempoPattern | null>(null)
 
   useEffect(() => {
@@ -114,7 +118,8 @@ export const BeatHud = (): React.ReactElement => {
       if (now - lastTempoAt < TEMPO_UPDATE_INTERVAL_MS) return
       lastTempoAt = now
       const estimate = estimateTempo(source.getBeatTimes?.() ?? [])
-      setTempo((previous) => (sameTempo(previous, estimate) ? previous : estimate))
+      const next: TempoShown = { bpm: source.getTempo?.()?.bpm ?? null, consistency: estimate?.consistency ?? null }
+      setTempo((previous) => (sameTempo(previous, next) ? previous : next))
 
       // The first name shows right away; a change waits until the new name has held for a few readings in a row.
       const reading = estimate?.pattern ?? null
@@ -195,12 +200,12 @@ export const BeatHud = (): React.ReactElement => {
   return (
     <div className='beat-hud-wrapper'>
       <div className='beat-hud-title-row'>
-        <span className='beat-hud-bpm' {...info('Tempo read from the last 12 seconds of detected beats')}>
-          {tempo ? `${Math.round(tempo.bpm)} BPM` : '— BPM'}
+        <span className='beat-hud-bpm' {...info('Tempo read from the last 12 seconds of the onset bands. It is held steady: it follows small drifts, changes only once a different tempo has clearly taken over for a couple of seconds, and holds through a breakdown with no beat.')}>
+          {tempo.bpm !== null ? `${Math.round(tempo.bpm)} BPM` : '— BPM'}
         </span>
         <span className='beat-hud-label'>Beat</span>
         <span className='beat-hud-consistency' {...info('How steady the detected beats are: the share of gaps between them that are one beat (or one step of the rhythm grid) long, give or take 15%. Missed or extra beats lower it.')}>
-          {tempo ? `${Math.round(tempo.consistency * 100)}% cons` : '—'}
+          {tempo.consistency !== null ? `${Math.round(tempo.consistency * 100)}% cons` : '—'}
         </span>
       </div>
       <div className='beat-hud' {...info('Colored ticks are beats. The dashed lines are what each band had to pass to count as a hit.')}>
