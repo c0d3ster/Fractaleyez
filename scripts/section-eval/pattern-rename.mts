@@ -1,7 +1,10 @@
 // Names the rhythm pattern again from a pattern-eval.mts dump (its detected beats, each band's onsets and the tempo readings), without
 // replaying the levels, so namers and their options can be compared in seconds. Writes the same shape pattern-score.py reads.
 //
-//   tsx pattern-rename.mts <dump.json>[,<dump.json>...] <out.json> [--namer tempo|rhythm] [--opts '{"shareBeatsHit":0.7}']
+//   tsx pattern-rename.mts <dump.json>[,<dump.json>...] <out.json> [--namer tempo|rhythm] [--opts '{"shareBeatsHit":0.7}'] [--every n] [--ids a,b]
+//
+// --every n names only every nth reading (the rest are written as "skip", which pattern-score.py leaves out), for a quick search;
+// --ids keeps only those tracks.
 //
 // tempo:  estimateTempo over the last 12 s of beats (what the Beat HUD shows), with --opts as its PatternOptions.
 // rhythm: nameRhythm (rhythm-pattern.ts) over the last 12 s of each band's onsets, at the tempo tracker's beat, with --opts as its options.
@@ -19,6 +22,8 @@ const option = (name: string, fallback: string): string => {
 const [inputs, output] = [args[0]!, args[1]!]
 const namer = option('namer', 'tempo')
 const opts = JSON.parse(option('opts', '{}')) as Record<string, number>
+const every = Number(option('every', '1'))
+const keepIds = option('ids', '') ? new Set(option('ids', '').split(',')) : null
 const READ_EVERY_MS = 500
 const WINDOW_MS = 12000
 
@@ -29,10 +34,11 @@ const advance = (times: readonly number[], from: number, t: number): number => {
   return i
 }
 
-const runs = inputs.split(',').flatMap((path) => (JSON.parse(readFileSync(path, 'utf8')) as { runs: Dump[] }).runs).map((run) => {
+const runs = inputs.split(',').flatMap((path) => (JSON.parse(readFileSync(path, 'utf8')) as { runs: Dump[] }).runs).filter(({ id }) => keepIds === null || keepIds.has(id)).map((run) => {
   const beats = run.beats.map((x) => x * 1000)
   const bands = run.bandOnsets.map((list) => list.map((x) => x * 1000))
   const patterns = run.bpm.map((bpm, i) => {
+    if (i % every !== 0) return 'skip'
     const t = (i + 1) * READ_EVERY_MS
     if (namer === 'tempo') {
       const end = advance(beats, 0, t)

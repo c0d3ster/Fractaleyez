@@ -1,9 +1,10 @@
 """Scores pattern-eval.mts pattern names against pattern-labels.py proxy labels.
 
-    python pattern-score.py <run.json>[,<run.json>...] <labels.json> [--folds 6,7] [--half tune|test] [--drops] [--shown] [--json]
+    python pattern-score.py <run.json>[,<run.json>...] <labels.json> [--folds 6,7] [--half tune|test] [--drops | --breakdowns] [--shown] [--json] [--key rhythm]
 
-Every reading from WARMUP_S on counts (the first 12 s window has to fill). --drops keeps only readings whose whole 12 s window is inside a
-labelled drop (Raveform), where the full drum pattern plays. --shown applies the Beat HUD's hold (a change of name shows only after it has
+--key picks which names in the run to score (default "patterns"; pattern-eval.mts also writes "rhythm"). Every reading from WARMUP_S on counts (the first 12 s window has to fill). --drops keeps only readings whose whole 12 s window is inside a
+labelled drop (Raveform), where the full drum pattern plays; --breakdowns only those inside a breakdown (where the kick mostly stops, so
+the right answer is mostly no name). --shown applies the Beat HUD's hold (a change of name shows only after it has
 been read 6 times in a row). --half splits by a stable hash of the id (tune: even, test: odd), for sets without folds.
 
 Prints, per proxy class, the share of readings given each name (a confusion matrix, rows sum to 1), then:
@@ -63,13 +64,16 @@ def main() -> None:
             continue
         if half is not None and stable_half(run['id']) != half:
             continue
-        readings = held(run['patterns']) if '--shown' in argv else run['patterns']
+        key = argv[argv.index('--key') + 1] if '--key' in argv else 'patterns'
+        readings = held(run[key]) if '--shown' in argv else run[key]
         keep = []
         for i, name in enumerate(readings):
             t = (i + 1) * every
-            if t < WARMUP_S:
+            if t < WARMUP_S or name == 'skip':
                 continue
             if '--drops' in argv and not any(s + WINDOW_S <= t <= e for s, e in label.get('drops', [])):
+                continue
+            if '--breakdowns' in argv and not any(s + WINDOW_S <= t <= e for s, e in label.get('breakdowns', [])):
                 continue
             keep.append(name)
         if not keep:
