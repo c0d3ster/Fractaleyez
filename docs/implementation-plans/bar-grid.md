@@ -33,6 +33,18 @@ On Ballroom (Gouyon et al. 2006, 698 30 s excerpts of ballroom dances with hand-
 
 Two bugs the evaluation caught: beats were judged from the interval after them, so a slightly late clock credited a beat's hit to the beat before; and a correction on the frame a beat was due skipped it, which shifted every bar position after it by one (the downbeat was right 4% of the time on the synthetic test before the fix, over 90% after).
 
+## First check of what the grid gives the sections
+
+`grid-dump.mts` writes the grid's state every 250 ms (place in bar and phrase, beats to and since the 8-bar line, confidences) and `exp_grid.py` adds it to the section features, out of fold on the 339 labelled songs (clean feed, same decoder for both):
+
+| | Without the grid | With it |
+| --- | --- | --- |
+| Drop F1 (precision / recall) | 0.36 (0.42 / 0.32) | 0.385 (0.44 / 0.34) |
+| Buildup F1 / break F1 | 0.45 / 0.58 | 0.44 / 0.58 |
+| Mean F1 | 0.462 | 0.470 |
+
+34% of labelled drops land within a second of the grid's 8-bar line, against 6% of the time: 5.7 times chance. But Raveform says 73% of section starts are on an 8-bar line, so the grid's phrase position is often wrong. That is where the headroom is, and Raveform's marked beats are what will measure it. Not in the shipped model yet.
+
 ## Next
 
 1. **EDM evaluation on Raveform.** Its audio is only on YouTube, which refuses downloads from the cloud session. `scripts/section-eval/raveform-fetch.py` fetches it on a machine where YouTube works and keeps only the band levels (about 350 MB for all 1,423 tracks). Then: beats, downbeats and 8-bar lines against Raveform's marks, and the section model retrained on Raveform's sections.
