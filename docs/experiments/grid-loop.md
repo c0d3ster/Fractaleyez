@@ -48,3 +48,9 @@ Automated improvement loop on `BeatGrid` (`src/audioanalysis/beat-grid.ts`), sta
 | 24 | latencyMs 25 to 30 | 1.3527 | | | no |
 | 25 | downbeatMemoryBars 16 to 24 | 1.3710 | 1.3738 | 0.6148 | yes (re-lock unchanged, 0.76) |
 | 26 | switchBars 2 to 1 (on 19) | 1.3614 | | | no |
+| 27 | off-beat threshold 0.4 to 0.35 (on 25) | 1.3841 | 1.3765 | 0.6143 | passed, not taken (re-lock within 20 s 0.74, at the limit; 32 passed with no cost; tried again on top of 32) |
+| 28 | downbeatMemoryBars 24 to 32 | 1.3731 | | | no (+0.0021) |
+| 29 | phraseMemoryBars 24 to 32 | 1.3716 | | | no |
+| 30 | phraseMemoryBars 24 to 16 | 1.3703 | | | no |
+| 31 | phraseSwitchBars 2 to 1 | 1.3629 | | | no |
+| 32 | phaseFollow 0.3 to 0.4 | 1.3782 | 1.3818 | 0.6157 | yes (re-lock within 20 s 0.76, median 12 s) |
