@@ -37,8 +37,10 @@ export type TempoTrackerOptions = {
   /** Within this share of the shown tempo, a new reading is the same tempo drifting, and it is followed this fast (0 to 1 per reading). */
   sameTempo: number
   follow: number
-  /** Under this peak sharpness there is no rhythm to read; the tempo is held for this long, then dropped. */
+  /** Under this peak sharpness, or this periodicity strength (the best period's running score), there is no rhythm to read; the tempo is
+   * held for this long, then dropped. Noise (white, pink, brown, a fan) never scored over 0.53; music sits around 1. */
   minConfidence: number
+  minStrength: number
   holdMs: number
 }
 
@@ -60,6 +62,7 @@ export const DEFAULT_TEMPO_OPTIONS: TempoTrackerOptions = {
   sameTempo: 0.03,
   follow: 0.3,
   minConfidence: 0.08,
+  minStrength: 0.6,
   holdMs: 30000,
 }
 
@@ -73,6 +76,8 @@ const BAND_NORM_TAU_MS = 4000
 const FLOOR_DB = -60
 const TRIM_SLACK_MS = 1000
 const HARMONIC_LIMIT = 4
+const FIRST_LOCK_READINGS = 6
+const FIRST_LOCK_STRENGTH = 0.7
 
 const toDb = (level: number): number => Math.max(FLOOR_DB, 20 * Math.log10(Math.max(level, 1e-6)))
 
@@ -80,6 +85,8 @@ export type TempoReading = {
   bpm: number
   /** How clearly the beat stands out (the shown peak's score over the mean score), 0 to about 1. */
   confidence: number
+  /** How periodic the onsets are at all: the running score of the best period (a correlation, 0 for noise, rising with a steady beat). */
+  strength: number
 }
 
 export class TempoTracker {
@@ -89,14 +96,18 @@ export class TempoTracker {
   private readonly lastDb = new Float64Array(BANDS)
   private readonly bandMean = new Float64Array(BANDS).fill(1)
   private lastT: number | null = null
+  private startT = 0
   private nextRead = 0
   private readonly running = new Float64Array(MAX_LAG + 1)
   private runningReady = false
+  /** The best period's score in the last reading alone (the running score's input). */
+  lastRawBest = 0
   private readonly prior = new Float64Array(MAX_LAG + 1)
   private shownLag: number | null = null
   private challengerLag: number | null = null
   private challengerReadings = 0
   private lastRhythm = -Infinity
+  private rhythmReadings = 0
   private reading: TempoReading | null = null
   private readonly grid: Float64Array
   private readonly acf = new Float64Array(MAX_LAG * HARMONIC_LIMIT + 1)
@@ -123,11 +134,13 @@ export class TempoTracker {
       const db = toDb(levels[b] ?? 0)
       if (this.lastT === null) {
         this.lastDb[b] = db
+        this.startT = t
         continue
       }
       const rise = Math.max(0, db - this.lastDb[b]!)
       this.lastDb[b]! += (db - this.lastDb[b]!) * follow
-      this.bandMean[b]! += (rise - this.bandMean[b]!) * (1 - Math.exp(-dt / BAND_NORM_TAU_MS))
+      // A running average from the first frame (not from a made-up starting value), turning into the 4 s exponential one once that much has passed.
+      this.bandMean[b]! += (rise - this.bandMean[b]!) * Math.max(1 - Math.exp(-dt / BAND_NORM_TAU_MS), dt / Math.max(dt, t - this.startT))
       onset += (((this.options.bandWeights[b] ?? 1) * rise) / Math.max(this.bandMean[b]!, 0.05)) * (dt / GRID_MS)
     }
     this.lastT = t
@@ -169,22 +182,27 @@ export class TempoTracker {
         if (bin >= 0 && overlap > 0) this.grid[bin]! += density * overlap
       }
     }
+    // Until the window has filled (the first 12 s), only the part that has audio counts: empty bins would dilute the correlation.
+    const first = Math.max(0, Math.ceil((this.times[0]! - start) / GRID_MS))
+    const filled = n - first
     let mean = 0
-    for (let i = 0; i < n; i++) mean += this.grid[i]! / n
-    for (let i = 0; i < n; i++) this.grid[i]! -= mean
+    for (let i = first; i < n; i++) mean += this.grid[i]! / filled
+    for (let i = first; i < n; i++) this.grid[i]! -= mean
     // Autocorrelation over every lag up to four beats of the slowest tempo, normalised by the zero lag.
-    const maxLag = Math.min(n - 1, MAX_LAG * (harmonics.length + 1))
+    const maxLag = Math.min(filled - 1, MAX_LAG * (harmonics.length + 1))
     const acf = this.acf
+    acf.fill(0)
     for (let lag = 0; lag <= maxLag; lag++) {
       let sum = 0
-      for (let i = lag; i < n; i++) sum += this.grid[i]! * this.grid[i - lag]!
-      acf[lag] = sum / (n - lag)
+      for (let i = first + lag; i < n; i++) sum += this.grid[i]! * this.grid[i - lag]!
+      acf[lag] = sum / (filled - lag)
     }
     // No onsets at all in the window (silence, or a pad with nothing moving): this reading is no evidence of a rhythm, whatever the running score says.
     const hasOnsets = acf[0]! > 1e-9
     const zero = acf[0]! || 1
     const alpha = this.runningReady ? 1 - Math.exp(-readEveryMs / memoryMs) : 1
     let total = 0
+    let rawBest = 0
     for (let lag = MIN_LAG; lag <= MAX_LAG; lag++) {
       let score = Math.max(0, acf[lag]! / zero)
       harmonics.forEach((weight, h) => {
@@ -194,30 +212,37 @@ export class TempoTracker {
       if (this.options.subdivision > 0) score += this.options.subdivision * Math.max(0, acf[Math.round(lag / 2)]! / zero)
       this.running[lag]! += (score - this.running[lag]!) * alpha
       total += this.running[lag]!
+      rawBest = Math.max(rawBest, score)
     }
     this.runningReady = true
+    this.lastRawBest = rawBest
     this.decide(t, total / (MAX_LAG - MIN_LAG + 1), hasOnsets)
   }
 
   // The weighted peak of the running score, the hysteresis against the shown one, and the hold through a stretch with no rhythm.
   private decide = (t: number, meanScore: number, hasOnsets: boolean): void => {
-    const { switchRatio, switchReadings, sameTempo, follow, minConfidence, holdMs } = this.options
+    const { switchRatio, switchReadings, sameTempo, follow, minConfidence, minStrength, holdMs } = this.options
     const weighted = (lag: number): number => this.running[lag]! * this.prior[lag]!
     let best = MIN_LAG
     for (let lag = MIN_LAG + 1; lag <= MAX_LAG; lag++) if (weighted(lag) > weighted(best)) best = lag
     const confidence = meanScore > 0 ? Math.min(1, (this.running[best]! - meanScore) / (this.running[best]! + 1e-9)) : 0
-    if (!hasOnsets || confidence < minConfidence) {
+    if (!hasOnsets || confidence < minConfidence || this.running[best]! < minStrength) {
+      this.rhythmReadings = 0
       if (t - this.lastRhythm > holdMs) {
         this.reading = null
         this.shownLag = null
       }
       return
     }
+    // A first tempo needs a stronger rhythm (FIRST_LOCK_STRENGTH), held for a few readings in a row: noise can look periodic for a moment early
+    // on, while only a few seconds have been heard, and the hold would then keep it up.
+    this.rhythmReadings = this.reading === null && this.running[best]! < FIRST_LOCK_STRENGTH ? 0 : this.rhythmReadings + 1
+    if (this.reading === null && this.rhythmReadings < FIRST_LOCK_READINGS) return
     this.lastRhythm = t
     const bpmOf = (lag: number): number => 60000 / (this.refine(lag) * GRID_MS)
     if (this.shownLag === null || this.reading === null) {
       this.shownLag = best
-      this.reading = { bpm: bpmOf(best), confidence }
+      this.reading = { bpm: bpmOf(best), confidence, strength: this.running[best]! }
       return
     }
     const shownBpm = this.reading.bpm
@@ -226,7 +251,7 @@ export class TempoTracker {
       // The same tempo, drifting a little or refined: follow it smoothly.
       this.shownLag = best
       this.challengerReadings = 0
-      this.reading = { bpm: shownBpm + (bestBpm - shownBpm) * follow, confidence }
+      this.reading = { bpm: shownBpm + (bestBpm - shownBpm) * follow, confidence, strength: this.running[best]! }
       return
     }
     const strongEnough = weighted(best) >= weighted(this.shownLag) * switchRatio
@@ -235,9 +260,9 @@ export class TempoTracker {
     if (this.challengerReadings >= switchReadings) {
       this.shownLag = best
       this.challengerReadings = 0
-      this.reading = { bpm: bestBpm, confidence }
+      this.reading = { bpm: bestBpm, confidence, strength: this.running[best]! }
     } else {
-      this.reading = { bpm: shownBpm, confidence }
+      this.reading = { bpm: shownBpm, confidence, strength: this.running[best]! }
     }
   }
 

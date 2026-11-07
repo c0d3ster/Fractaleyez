@@ -26,6 +26,31 @@ const SILENCE_LEVEL = 0.02
 const WARMUP_MS = 1000
 const HISTORY_SLOTS = 64
 
+/**
+ * The noise floor gate. Steady noise (a fan, room hiss) makes a narrow band's level swing a few dB from one window to the next on its own:
+ * the bass band is only 110 Hz wide and read over 46 ms, so a fan read as 39 bass hits a minute against the 3 dB rise test alone. Each band
+ * also follows its own floor (a running low percentile of its level), and a hit has to stand this far above it. Noise sits on its floor;
+ * a kick stands well clear of the quieter moments between kicks.
+ */
+export type OnsetDetectorOptions = {
+  /** How far over the band's floor a hit must be, in dB. 0 turns the gate off. */
+  floorMarginDb: number
+  /** Which percentile of the band's level the floor follows (0 to 1). */
+  floorQuantile: number
+  /** How fast the floor moves, in dB per second. */
+  floorRateDbPerS: number
+  /**
+   * A bass hit also needs the lo band (150 to 500 Hz) to rise this much (dB over its own recent maximum) within the last few frames.
+   * A kick's boom comes with its body; a swing of rumble in the bass band alone, which narrowband noise makes all the time, does not. 0 is off.
+   */
+  bassNeedsLoDb: number
+}
+
+// Applied only while no rhythm is heard (OnsetParams.rhythm false): with music playing they would cost real hits (the floor gate about 8% of
+// them on EDM, the lo band rule a third of the bass hits), with only a fan they take its false hits from 39 a minute to 7 (2 on a laptop mic).
+export const DEFAULT_ONSET_OPTIONS: OnsetDetectorOptions = { floorMarginDb: 6, floorQuantile: 0.2, floorRateDbPerS: 20, bassNeedsLoDb: 1 }
+const COINCIDENCE_MS = 40
+
 type OnsetParams = {
   /** Which bands may set off a beat (the Frequency HUD toggles). Disabled bands are still tracked, just not heard. */
   enabledBands: boolean[]
@@ -35,6 +60,8 @@ type OnsetParams = {
   ignoreMs: number
   /** How long the beat value takes to fall from 1 to 0. */
   decayMs: number
+  /** Whether a steady rhythm is being heard (the tempo tracker shows a tempo). False turns on the noise gates in OnsetDetectorOptions; leaving it out keeps them off. */
+  rhythm?: boolean
 }
 
 export type BandReading = {
@@ -60,6 +87,10 @@ const toDb = (level: number): number => 20 * Math.log10(Math.max(level, SILENCE_
 const fromDb = (db: number): number => 10 ** (db / 20)
 
 class BandTracker {
+  private floorDb: number | null = null
+
+  constructor(private readonly options: OnsetDetectorOptions) {}
+
   private fast = 0
   private loudness = 0
   private clockMs = 0
@@ -70,7 +101,11 @@ class BandTracker {
   private head = 0
   private count = 0
 
-  step = (level: number, dtMs: number, thresholdDb: number): { risingEdge: boolean; reading: BandReading } => {
+  /** The band's largest rise over its reference in the last COINCIDENCE_MS, in dB. */
+  recentRiseDb = -Infinity
+  private recentRiseAt = -Infinity
+
+  step = (level: number, dtMs: number, thresholdDb: number, noiseGate: boolean): { risingEdge: boolean; reading: BandReading } => {
     this.clockMs += dtMs
     this.fast = follow(this.fast, level, dtMs, FAST_TAU_MS)
     this.loudness = this.fast > this.loudness ? this.fast : follow(this.loudness, this.fast, dtMs, LOUDNESS_RELEASE_TAU_MS)
@@ -90,9 +125,19 @@ class BandTracker {
 
     const levelGate = MIN_LEVEL_OF_LOUDNESS * this.loudness
     const hasReference = Number.isFinite(referenceDb)
-    const above = hasReference && db - referenceDb > thresholdDb && this.fast >= levelGate && this.fast >= SILENCE_LEVEL
+    // A quantile follower: up by q of a step when the level is over the floor, down by (1 - q) when under, so it settles on the q percentile.
+    const { floorMarginDb, floorQuantile, floorRateDbPerS } = this.options
+    const step = (floorRateDbPerS * dtMs) / 1000
+    this.floorDb = this.floorDb === null ? db : this.floorDb + (db > this.floorDb ? floorQuantile * step : -(1 - floorQuantile) * step)
+    const overFloor = !noiseGate || floorMarginDb <= 0 || db - this.floorDb >= floorMarginDb
+    const above = hasReference && db - referenceDb > thresholdDb && overFloor && this.fast >= levelGate && this.fast >= SILENCE_LEVEL
     const risingEdge = above && !this.wasAbove
     this.wasAbove = above
+    const rise = hasReference ? db - referenceDb : -Infinity
+    if (rise >= this.recentRiseDb || this.clockMs - this.recentRiseAt > COINCIDENCE_MS) {
+      this.recentRiseDb = rise
+      this.recentRiseAt = this.clockMs
+    }
 
     const referenceLevel = hasReference ? fromDb(referenceDb + thresholdDb) : levelGate
     return { risingEdge, reading: { level: this.fast, loudness: this.loudness, trigger: Math.max(referenceLevel, levelGate) } }
@@ -101,12 +146,14 @@ class BandTracker {
 
 export class OnsetDetector {
   private readonly trackers: BandTracker[]
+  private readonly options: OnsetDetectorOptions
   private clockMs = 0
   private lastBeatMs = -Infinity
   private beatEnergy = 0
 
-  constructor(bandCount: number) {
-    this.trackers = Array.from({ length: bandCount }, () => new BandTracker())
+  constructor(bandCount: number, options: Partial<OnsetDetectorOptions> = {}) {
+    this.options = { ...DEFAULT_ONSET_OPTIONS, ...options }
+    this.trackers = Array.from({ length: bandCount }, () => new BandTracker(this.options))
   }
 
   update = (levels: number[], deltaMs: number, fullBandEnergy: number, params: OnsetParams): OnsetReading => {
@@ -114,9 +161,13 @@ export class OnsetDetector {
     this.clockMs += dtMs
 
     const thresholdDb = Math.min(MAX_THRESHOLD_DB, Math.max(MIN_THRESHOLD_DB, params.sensitivity * DB_PER_SENSITIVITY))
-    const steps = this.trackers.map((tracker, i) => tracker.step(levels[i] ?? 0, dtMs, thresholdDb))
+    const noiseGate = params.rhythm === false
+    const steps = this.trackers.map((tracker, i) => tracker.step(levels[i] ?? 0, dtMs, thresholdDb, noiseGate))
     const canFire = this.clockMs > WARMUP_MS && this.clockMs - this.lastBeatMs >= params.ignoreMs
-    const edgeBand = steps.findIndex(({ risingEdge }, i) => risingEdge && (params.enabledBands[i] ?? false))
+    const { bassNeedsLoDb } = this.options
+    const loRise = this.trackers[1]?.recentRiseDb ?? Infinity
+    const counts = (i: number): boolean => !noiseGate || i !== 0 || bassNeedsLoDb <= 0 || loRise >= bassNeedsLoDb
+    const edgeBand = steps.findIndex(({ risingEdge }, i) => risingEdge && (params.enabledBands[i] ?? false) && counts(i))
     const fresh = canFire && edgeBand >= 0
     if (fresh) {
       this.lastBeatMs = this.clockMs
