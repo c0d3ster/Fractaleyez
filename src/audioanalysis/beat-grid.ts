@@ -62,7 +62,7 @@ export const DEFAULT_GRID_OPTIONS: BeatGridOptions = {
   phaseJumpUpdates: 24,
   offbeatJump: 0.4,
   offbeatJumpScale: 3,
-  downbeatMemoryBars: 16,
+  downbeatMemoryBars: 24,
   phraseMemoryBars: 24,
   switchBars: 2,
   phraseSwitchBars: 2,
