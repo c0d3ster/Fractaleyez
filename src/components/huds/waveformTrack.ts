@@ -8,10 +8,11 @@ import { bandColor } from './bandColors'
 // (scripts/section-eval/bench-cpu.mts). Everything is allocated once: a tick only writes into typed arrays and issues draw calls.
 
 export const WAVEFORM_W = 360
-export const WAVEFORM_H = 150
-// How much is kept, and how much is shown unless the view is zoomed: 8 s is about four bars at dance tempos.
+export const WAVEFORM_H = 120
+// How much is kept, and how much is shown: 4 s (two bars at dance tempos) unless zoomed, between MIN_VIEW_MS and the whole history.
 export const WAVEFORM_HISTORY_MS = 16000
-export const DEFAULT_VIEW_MS = 8000
+export const DEFAULT_VIEW_MS = 4000
+export const MIN_VIEW_MS = 2000
 
 const BANDS = ONSET_BANDS.length
 // Fine enough that a 4 s view still has more than one column per pixel.
@@ -20,9 +21,12 @@ const COLUMNS = WAVEFORM_HISTORY_MS / COLUMN_MS
 // A gap between samples longer than this is a real gap (the HUD was off screen, the tab was hidden), so it is left empty. A shorter one is
 // a slow frame, and the sample is held across it so the waveform has no holes.
 const HOLD_MS = 250
-const RULER_H = 12
+const RULER_H = 20
+// Hits are marked on a strip along the bottom, so nothing cuts through the waveform but the grid's bar and phrase lines.
+const HIT_STRIP_H = 8
 const PLOT_TOP = RULER_H + 2
-const PLOT_H = WAVEFORM_H - PLOT_TOP
+const PLOT_BOTTOM = WAVEFORM_H - HIT_STRIP_H - 2
+const PLOT_H = PLOT_BOTTOM - PLOT_TOP
 const MID = PLOT_TOP + PLOT_H / 2
 // A column is the band's level against its own recent loudness (as the Frequency HUD's bars are), so every band uses the full height.
 const HEADROOM = 1.1
@@ -30,20 +34,18 @@ const HEADROOM = 1.1
 const BAND_SCALE = ONSET_BANDS.map((_, band) => 1 - band * 0.11)
 const ENABLED_FILLS = ONSET_BANDS.map((_, band) => bandColor(band, 58, 0.9))
 const DISABLED_FILLS = ONSET_BANDS.map((_, band) => bandColor(band, 30, 0.35))
-// Hits are lighter than the fills and sit on a dark edge, so a bass hit still shows over the bass waveform.
-const HIT_COLORS = ONSET_BANDS.map((_, band) => bandColor(band, 78))
-const HIT_EDGE = 'rgba(0, 0, 0, 0.75)'
-// A threshold line is drawn light over a dark edge, so it shows over its own band's fill as well as over the black.
-const TRIGGER_COLORS = ONSET_BANDS.map((_, band) => bandColor(band, 85))
-const TRIGGER_EDGE = 'rgba(0, 0, 0, 0.7)'
+const HIT_COLORS = ONSET_BANDS.map((_, band) => bandColor(band, 62))
+// Thresholds are faint and thin, there to check a hit against rather than to read at a glance.
+const TRIGGER_COLORS = ONSET_BANDS.map((_, band) => bandColor(band, 88, 0.55))
 const DASH = [4, 3]
 const NO_DASH: number[] = []
 const IGNORE_FILL = 'rgba(255, 255, 255, 0.07)'
-const RULER_FILL = 'rgba(255, 255, 255, 0.05)'
+const RULER_FILL = 'rgba(255, 255, 255, 0.07)'
 const LINE_COLOR = '#fff'
 const LABEL_COLOR = '#999'
 const LABEL_FONT = '11px sans-serif'
-const LAMP_FADE_MS = 200
+// How long the Beat title glows after a hit.
+const GLOW_FADE_MS = 200
 const HIT_CAPACITY = 256
 
 // The grid's lines are only drawn once the grid is fairly sure of them: below LOW they are not drawn as bar or phrase lines at all, and they
@@ -51,8 +53,8 @@ const HIT_CAPACITY = 256
 const CONFIDENCE_LOW = 0.2
 const CONFIDENCE_HIGH = 0.5
 const BEAT_CAPACITY = 128
-const BEAT_TICK_PX = 4
-const PHRASE_MARK_PX = 5
+const BEAT_TICK_PX = 8
+const PHRASE_MARK_PX = 7
 
 export const confidenceAlpha = (confidence: number): number =>
   Math.max(0, Math.min(1, (confidence - CONFIDENCE_LOW) / (CONFIDENCE_HIGH - CONFIDENCE_LOW)))
@@ -64,7 +66,7 @@ const BEAT_ONLY_LABELS = Array.from({ length: 4 }, (_, beat) => `?.${beat + 1}`)
 /** The canvas calls the track makes, so the bench can time them without a browser. */
 export type WaveformContext = Pick<
   CanvasRenderingContext2D,
-  | 'clearRect' | 'fillRect' | 'beginPath' | 'rect' | 'fill' | 'moveTo' | 'lineTo' | 'closePath' | 'stroke' | 'arc' | 'fillText'
+  | 'clearRect' | 'fillRect' | 'beginPath' | 'rect' | 'fill' | 'moveTo' | 'lineTo' | 'closePath' | 'stroke' | 'fillText'
   | 'setLineDash' | 'fillStyle' | 'strokeStyle' | 'lineWidth' | 'globalAlpha' | 'font' | 'textBaseline'
 >
 
@@ -144,7 +146,7 @@ export class WaveformTrack {
     this.drawTriggers(ctx, view)
     this.drawHits(ctx, view)
     this.drawGrid(ctx, view)
-    this.drawLamp(ctx, view)
+    this.drawPlace(ctx)
   }
 
   private clearColumn = (column: number): void => {
@@ -217,7 +219,7 @@ export class WaveformTrack {
         if (h < 0.5) continue
         const x = this.toX(g * COLUMN_MS, view)
         if (view.mirrored) ctx.rect(x, MID - h, width, h * 2)
-        else ctx.rect(x, WAVEFORM_H - h, width, h)
+        else ctx.rect(x, PLOT_BOTTOM - h, width, h)
       }
       ctx.fill()
     }
@@ -243,35 +245,40 @@ export class WaveformTrack {
             continue
           }
           const h = trigger * scale
-          const y = view.mirrored ? (side === 0 ? MID - h : MID + h) : WAVEFORM_H - h
+          const y = view.mirrored ? (side === 0 ? MID - h : MID + h) : PLOT_BOTTOM - h
           const x = this.toX(g * COLUMN_MS, view) + halfStep
           if (drawing) ctx.lineTo(x, y)
           else ctx.moveTo(x, y)
           drawing = true
         }
       }
-      ctx.setLineDash(NO_DASH)
-      ctx.strokeStyle = TRIGGER_EDGE
-      ctx.lineWidth = 3
-      ctx.stroke()
       ctx.setLineDash(DASH)
       ctx.strokeStyle = TRIGGER_COLORS[b]!
-      ctx.lineWidth = 1.25
+      ctx.lineWidth = 1
       ctx.stroke()
     }
     ctx.setLineDash(NO_DASH)
   }
 
-  // A hit is a line through the plot in the color of the band that set it off.
+  // A hit is a mark on the bottom strip in the color of the band that set it off.
   private drawHits = (ctx: WaveformContext, view: WaveformView): void => {
+    ctx.fillStyle = RULER_FILL
+    ctx.fillRect(0, WAVEFORM_H - HIT_STRIP_H, WAVEFORM_W, HIT_STRIP_H)
     for (let k = 0, at = this.hitSlot(0, view.now, view.viewMs); at >= 0; at = this.hitSlot(++k, view.now, view.viewMs)) {
-      const x = Math.round(this.toX(this.hitTimes[at]!, view))
-      ctx.fillStyle = HIT_EDGE
-      ctx.fillRect(x - 2, PLOT_TOP, 4, PLOT_H)
       ctx.fillStyle = HIT_COLORS[this.hitBands[at]!]!
-      ctx.fillRect(x - 0.75, PLOT_TOP, 1.5, PLOT_H)
+      ctx.fillRect(Math.round(this.toX(this.hitTimes[at]!, view)) - 1, WAVEFORM_H - HIT_STRIP_H, 3, HIT_STRIP_H)
     }
   }
+
+  /** How bright the Beat title should glow, 1 on the frame of a hit down to 0 GLOW_FADE_MS later. */
+  glow = (now: number): number => {
+    if (this.hitCount === 0) return 0
+    const last = (this.hitHead - 1 + HIT_CAPACITY) % HIT_CAPACITY
+    return Math.max(0, 1 - (now - this.hitTimes[last]!) / GLOW_FADE_MS)
+  }
+
+  /** The band that set off the last hit (0 before any). */
+  glowBand = (): number => (this.hitCount === 0 ? 0 : this.hitBands[(this.hitHead - 1 + HIT_CAPACITY) % HIT_CAPACITY]!)
 
   // The grid lives on the ruler along the top, so it never reads as a hit: beats are short ticks, bar lines tick the ruler's whole height with
   // a faint line down through the plot, and 8-bar phrase lines add a marker and a stronger line. A bar or phrase line fades with the grid's
@@ -299,34 +306,25 @@ export class WaveformTrack {
         ctx.closePath()
         ctx.fill()
         ctx.globalAlpha = 0.6 * phrase
-        ctx.fillRect(x - 1, RULER_H, 2, WAVEFORM_H - RULER_H)
+        ctx.fillRect(x - 1, RULER_H, 2, PLOT_BOTTOM - RULER_H)
       } else if (bar > 0) {
         ctx.globalAlpha = 0.85 * bar
         ctx.fillRect(x, 0, 1, RULER_H)
         ctx.globalAlpha = 0.22 * bar
-        ctx.fillRect(x, RULER_H, 1, WAVEFORM_H - RULER_H)
+        ctx.fillRect(x, RULER_H, 1, PLOT_BOTTOM - RULER_H)
       }
     }
     ctx.globalAlpha = 1
   }
 
-  // Beat lamp, colored by the band that last fired, and where the grid has the music: bar of the phrase, then beat of the bar.
-  private drawLamp = (ctx: WaveformContext, view: WaveformView): void => {
-    const last = this.hitCount > 0 ? (this.hitHead - 1 + HIT_CAPACITY) % HIT_CAPACITY : -1
-    const lamp = last >= 0 ? Math.max(0, 1 - (view.now - this.hitTimes[last]!) / LAMP_FADE_MS) : 0
-    ctx.globalAlpha = 0.15 + lamp * 0.85
-    ctx.fillStyle = HIT_COLORS[last >= 0 ? this.hitBands[last]! : 0]!
-    ctx.beginPath()
-    ctx.arc(10, PLOT_TOP + 9, 5, 0, Math.PI * 2)
-    ctx.fill()
-    ctx.globalAlpha = 1
-
+  // Where the grid has the music: bar of the phrase, then beat of the bar.
+  private drawPlace = (ctx: WaveformContext): void => {
     const label = this.placeLabel()
     if (label === null) return
     ctx.fillStyle = LABEL_COLOR
     ctx.font = LABEL_FONT
     ctx.textBaseline = 'middle'
-    ctx.fillText(label, 20, PLOT_TOP + 9)
+    ctx.fillText(label, 5, PLOT_TOP + 8)
   }
 
   private placeLabel = (): string | null => {
