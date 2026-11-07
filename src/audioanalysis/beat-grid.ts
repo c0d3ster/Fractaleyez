@@ -41,6 +41,9 @@ export type BeatGridOptions = {
   phaseJump: number
   /** A large error has to persist this many updates before the clock re-anchors. */
   phaseJumpUpdates: number
+  /** A jump to near the off-beat (an error over this share of a beat) waits offbeatJumpScale times as long: hi-hats pull the clock there. */
+  offbeatJump: number
+  offbeatJumpScale: number
   /** Memory of the downbeat and phrase evidence, in bars. */
   downbeatMemoryBars: number
   phraseMemoryBars: number
@@ -57,6 +60,8 @@ export const DEFAULT_GRID_OPTIONS: BeatGridOptions = {
   phaseFollow: 0.3,
   phaseJump: 0.15,
   phaseJumpUpdates: 24,
+  offbeatJump: 0.4,
+  offbeatJumpScale: 3,
   downbeatMemoryBars: 16,
   phraseMemoryBars: 24,
   switchBars: 2,
@@ -275,7 +280,7 @@ export class BeatGrid {
     if (Math.abs(error) <= period * this.options.phaseJump) {
       this.anchor += error * this.options.phaseFollow
       this.jumpRuns = 0
-    } else if (++this.jumpRuns >= this.options.phaseJumpUpdates) {
+    } else if (++this.jumpRuns >= this.options.phaseJumpUpdates * (Math.abs(error) > period * this.options.offbeatJump ? this.options.offbeatJumpScale : 1)) {
       this.anchor += error
       this.jumpRuns = 0
     }

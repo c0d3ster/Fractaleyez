@@ -24,3 +24,12 @@ Automated improvement loop on `BeatGrid` (`src/audioanalysis/beat-grid.ts`), sta
 | 5 | downbeatMemoryBars 16 to 24 | 1.3049 | | | no (+0.0013) |
 | 6 | phraseMemoryBars 24 to 32 | 1.3039 | | | no (+0.0003) |
 | 7 | phaseJumpUpdates 16 to 24 (re-anchor after 6 s instead of 4 s) | 1.3243 | 1.3246 | 0.6101 | yes |
+| 8 | phaseJumpUpdates 24 to 32 | 1.3349 | 1.3302 | 0.6078 | passed, not taken (waiting longer for every re-anchor slows the re-lock after a song change in a DJ set; tried a targeted version below) |
+| 9 | phaseJumpUpdates 24 to 48 | 1.3606 | | | not taken (as 8) |
+| 10 | phaseJump 0.15 to 0.2 | 1.3309 | | | passed the margin, not checked yet (tried again on top of 14) |
+| 11 | phaseFollow 0.3 to 0.2 | 1.3083 | | | no |
+| 12 | a re-anchor counts only large errors that keep pointing at the same phase | 1.3256 | | | no (+0.0013) |
+| 13 | as 12, phaseJumpUpdates 16 | 1.3095 | | | no |
+| 14 | a re-anchor to near the off-beat (error over 0.4 beat) waits 3x as long (18 s); 31% of re-anchors on 120 fold-0 tracks were there | 1.3568 | 1.3643 | 0.6097 | yes |
+| 15 | as 14, phaseJumpUpdates 16 | 1.3444 | | | no (below 14) |
+| 16 | as 14, scale 5 | 1.3616 | | | no (+0.0048 over 14) |
