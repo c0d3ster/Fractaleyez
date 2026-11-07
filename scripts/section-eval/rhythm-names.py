@@ -17,6 +17,7 @@ older "syncopated") and two-step on drum and bass and breaks (two-step: drum and
 without a proxy (and every Ballroom reading) cannot be scored right or wrong: Ballroom is reported as how often each name shows per dance.
   precision  right among readings with a name shown
   coverage   share of scored readings with a name shown
+  changes    changes of the shown name per minute (to or from blank included), and those that land on a wrong name
 """
 import hashlib
 import json
@@ -26,6 +27,7 @@ from collections import Counter, defaultdict
 import numpy as np
 
 WARMUP_S = 12
+READ_EVERY_S = 0.5
 WINDOW_S = 12
 RIGHT = {
     'four on the floor': {'four on the floor'},
@@ -137,7 +139,13 @@ def report(d: dict, names: np.ndarray, mask: np.ndarray, title: str) -> dict:
         if m.any():
             cls[p] = (float((right & m).sum() / m.sum()), float(((names != '') & m).sum() / m.sum()))
     res['class'] = cls
-    print(f'{title:44s} precision {res["precision"]:.3f}  coverage {res["coverage"]:.3f}  (n {res["n"]})')
+    # Changes of the shown name (blank included) per minute of scored audio, and how many of them land on a wrong name.
+    same_track = np.r_[False, d['id'][1:] == d['id'][:-1]]
+    changed = same_track & (names != np.r_[[''], names[:-1]])
+    minutes = scored.sum() * READ_EVERY_S / 60
+    res['switches'] = float((changed & scored).sum() / minutes) if minutes else float('nan')
+    res['wrong_switches'] = float((changed & shown & ~right).sum() / minutes) if minutes else float('nan')
+    print(f'{title:44s} precision {res["precision"]:.3f}  coverage {res["coverage"]:.3f}  changes/min {res["switches"]:.2f} (to a wrong name {res["wrong_switches"]:.2f})  (n {res["n"]})')
     print('    per name: ' + ', '.join(f'{k} {v[0]:.2f} ({v[1]})' for k, v in per.items()))
     print('    per genre class (right, any name): ' + ', '.join(f'{k} {v[0]:.2f}/{v[1]:.2f}' for k, v in cls.items()))
     return res

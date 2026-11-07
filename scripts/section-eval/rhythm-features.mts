@@ -5,22 +5,20 @@
 //   tsx rhythm-features.mts <run.json> <out.json>
 //
 // Writes { columns: [...], runs: [{ id, rhythm, rows: number[][] }] }, one row per reading (null BPM rows are all NaN but the time).
-// Columns: t (s), bpm, then rhythm-model.json's features (rhythmFeatures in rhythm-pattern.ts): d<b> (hits per beat in band b: 0 bass,
+// Columns: t (s), bpm, then the onset features (rhythmFeatures in rhythm-pattern.ts): d<b> (hits per beat in band b: 0 bass,
 // 1 lo, 2 mid, 3 hi, 4 air), r<b>_<lag> (share of band b's hits repeating `lag` beats later within 40 ms), ph<k> (share of hi hits in each
 // sixth of a beat after the latest kick: swing shows late), then the level features (rhythm-levels.ts) when the run has them. `rhythm` is the run's held label when it has one (pattern-eval.mts), else its name.
 import { readFileSync, writeFileSync } from 'node:fs'
-import { rhythmFeatures } from '../../src/audioanalysis/rhythm-pattern.ts'
+import { ONSET_FEATURE_NAMES, rhythmFeatures } from '../../src/audioanalysis/rhythm-pattern.ts'
 import { LEVEL_FEATURE_NAMES } from '../../src/audioanalysis/rhythm-levels.ts'
-import modelData from '../../src/audioanalysis/rhythm-model.json' with { type: 'json' }
 
 const [input, output] = process.argv.slice(2) as [string, string]
 const WINDOW_MS = 12000
 
 type Run = { id: string; rhythm: Array<string | null>; label?: Array<string | null>; bandOnsets: number[][]; bpm: Array<number | null>; levels?: number[][] }
 const data = JSON.parse(readFileSync(input, 'utf8')) as { readEveryMs: number; runs: Run[] }
-const onsetColumns = modelData.features.filter((name) => !LEVEL_FEATURE_NAMES.includes(name))
 const withLevels = data.runs.every((run) => run.levels !== undefined)
-const columns = ['t', 'bpm', ...onsetColumns, ...(withLevels ? LEVEL_FEATURE_NAMES : [])]
+const columns = ['t', 'bpm', ...ONSET_FEATURE_NAMES, ...(withLevels ? LEVEL_FEATURE_NAMES : [])]
 
 const windowOf = (onsets: number[], from: number, to: number): number[] => onsets.filter((time) => time >= from && time <= to)
 

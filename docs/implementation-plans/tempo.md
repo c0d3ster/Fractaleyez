@@ -162,13 +162,38 @@ What did not make the bar, and why:
 - **The BPM as a feature.** It lifts breakbeat coverage (drum and bass is the only common genre at 174) but then the name guesses the genre from the tempo; hardcore at 170 and breaks at 140 are the cases that would go wrong. Left out.
 - **Two-step against breaks.** Two-step is right 96 to 98% of the time it shows, but only 13 held-out GiantSteps tracks are breaks, too few to show it never calls a breaks track two-step.
 
+### Second pass: no tempo range on the label, longer hold, wobble bass, half time
+
+- **Label.** The Beat HUD shows the name alone. `RhythmLabel.tempoRange` is still computed (now with "dubstep tempo" for half time at 130 to 150) for anything that wants it, but it is not shown: it matched the track's genre only 76 to 93% of the time.
+- **More data.** The GiantSteps MTG key set (1,486 more two-minute Beatport previews, about 94 per genre, none shared with the tempo set) joined the fit and the scoring, clean and through the laptop mic, split by the same md5 half. It brings 94 dubstep, 94 breaks and 93 drum and bass tracks, which the tempo set had too few of (76, 26, 139).
+- **Level features** (`rhythm-levels.ts`, from the monitor's last 5 s of band levels): for the bass, lo and mid bands, how much of the time the band sits near its peak (a wobble bass holds it, a kick spikes), its peak against its mean, and the envelope's autocorrelation at a sixteenth, a triplet, an eighth, a beat and two beats (the wobble rates). The main model reads them alongside the onset features. At the same thresholds they raised breakbeat precision from about 80% to 91% and four on the floor coverage by 4 to 7 points.
+- **Half time.** A second, binary model (dubstep against every other genre with a proxy) only over readings at 130 to 150 BPM, where dubstep plays; outside that range half time is never named, and a confident four on the floor wins over it. The drums alone still cannot tell it from breaks there, so it is the least precise name: about 3 times in 5.
+- **Hold and thresholds.** A sweep over thresholds and holds (`hold` in `RhythmLabeler`, scored for precision, coverage and how often the shown name changes) found a longer hold gives more coverage and fewer changes: a name now shows after 3 s and clears after 5 s. Four on the floor at 0.6, breakbeat 0.85, two-step 0.95, half time 0.8. Breakbeat and two-step need the kick or hats to hit at least 0.4 times a beat (below that a shown breakbeat was right 75% of the time), and nothing is named under 0.5 hits a beat over all bands (silence with the tempo still held).
+
+Held-out halves, as the HUD shows them. MTG key is new, so it has no first-pass numbers.
+
+| | First pass precision / coverage / changes per min | Second pass |
+| --- | --- | --- |
+| Raveform | 99.1% / 75% / 1.32 | 98.8% / 80% / 0.94 |
+| Raveform drops | 99.5% / 83% / 0.78 | 99.5% / 86% / 0.39 |
+| GiantSteps clean | 92.8% / 38% / 1.69 | 90.6% / 49% / 1.51 |
+| GiantSteps laptop | 92.8% / 36% / 1.57 | 91.3% / 45% / 1.54 |
+| MTG key clean | | 94.6% / 65% / 1.66 |
+| MTG key laptop | | 94.6% / 60% / 1.70 |
+
+Per name, precision (GiantSteps clean / laptop / MTG key clean / laptop / Raveform): four on the floor 96 / 96 / 98 / 97 / 100%, breakbeat 94 / 90 / 85 / 97 / 89%, two-step 100 / 100 / 97 / 98 / 99%, half time 53 / 56 / 61 / 66% (and wrong on Raveform's 0.5% of readings that get it: it has no dubstep).
+
+Dubstep readings named half time: 20% and 17% on GiantSteps, 35% and 38% on MTG key; the rest mostly blank (53 to 75%), four on the floor 6 to 9%. The usual half time mistake is breaks (19 to 38% of GiantSteps breaks readings, 6 to 9% on MTG key), then trance breakdowns. Laptop-mic drum and bass called four on the floor: 2 to 3%. Ballroom: four on the floor 19 to 25% on cha-cha, jive, quickstep and tango, 56% on samba; half time 6 to 9% on samba and tango; waltzes blank.
+
+What did not help: half time from the main model's own class, with or without the BPM as a feature (31 to 40% before the hold, against 52 to 74% for the gated model); a gradient-boosted model for half time (65 to 89% at 0.8 to 0.9 on MTG key but 60 to 70% on GiantSteps, and it is not shippable as a few numbers); a kick-count guard on four on the floor (the readings it would drop were still 97.5% right).
+
 ### Wiring
 
-`window.getRhythmLabel()` (main.ts) returns the held label (`{ pattern, tempoRange, confidence, text }`) and the Beat HUD shows its `text`. `window.getRhythmPattern()` returns the unheld name. Cost: `BeatMonitor` keeps five short lists of onset times; every 500 ms the labeler walks each band's list 10 times and does a 61 by 3 dot product.
+`window.getRhythmLabel()` (main.ts) returns the held label (`{ pattern, tempoRange, confidence, text }`) and the Beat HUD shows its `text`. `window.getRhythmPattern()` returns the unheld name. Both pass the monitor's last 5 s of samples for the level features. Cost: every 500 ms the labeler walks each band's onset list 10 times, resamples three bands' 5 s of levels onto a 20 ms grid with five autocorrelations each, and does an 82 by 3 and an 82 by 1 dot product.
 
 ## Next
 
-- Rhythm names with more coverage on short excerpts, and half time: needs a feature that tells dubstep from breaks at 140.
+- Half time: about 3 in 5 right; breaks at 140 are the confusion. A feature for the snare on beat 3 of the 140 bar (needs the grid's phase) is the next thing to try.
 - Beat phase: where the beats fall, not only how far apart. That and a downbeat give the bar and phrase grid the section tracker can use (see `song-sections.md`).
 - Tempo through a real mic session, and on non-EDM music (untested).
 

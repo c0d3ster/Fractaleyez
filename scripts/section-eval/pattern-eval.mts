@@ -89,7 +89,7 @@ for (const id of ids) {
       patterns.push(estimateTempo(monitor.getBeatTimes())?.pattern ?? null)
       const reading = tempo.getBpm()
       const bands = monitor.getBandOnsets()
-      const input = { bandOnsets: bands, periodMs: reading === null ? null : 60000 / reading }
+      const input = { bandOnsets: bands, periodMs: reading === null ? null : 60000 / reading, levels: monitor.getTimeline().samples, nowMs: t }
       rhythm.push(nameRhythm(input))
       label.push(labeler.read(input, t).text || null)
       if (dump) levelRows.push(levelFeatures(monitor.getTimeline().samples, t, input.periodMs).map((x) => Math.round(x * 1000) / 1000))
