@@ -1,13 +1,16 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useInfo } from '../config/info/info'
 import './SectionHud.css'
 
 import { SectionState, SectionSlot, SongSection } from '../../audioanalysis/sections'
 import { subscribeUiTick } from '../../utils/uiTicker'
+import { listenWheel, zoomView } from './wheelZoom'
 
 const W = 360
 const H = 56
-const WINDOW_MS = 120000
+// A minute shown unless zoomed (the section now and the one before it, at dance tempos), from 30 s up to the whole two minutes the tracker keeps.
+const DEFAULT_VIEW_MS = 60000
+const ZOOM_RANGE = { minMs: 30000, maxMs: 120000 }
 // Only drawn again when the label or the intensity (to the nearest percent) changes.
 const STATE_UPDATE_INTERVAL_MS = 250
 
@@ -42,31 +45,32 @@ const sameState = (a: SectionState | null, b: SectionState | null): boolean =>
       Math.round(a.intensity * 100) === Math.round(b.intensity * 100) &&
       songSeconds(a) === songSeconds(b)
 
-const drawStrip = (ctx: CanvasRenderingContext2D, slots: readonly SectionSlot[], now: number): void => {
-  const toX = (t: number): number => W - ((now - t) / WINDOW_MS) * W
-  const slotWidth = (250 / WINDOW_MS) * W + 1
+const drawStrip = (ctx: CanvasRenderingContext2D, slots: readonly SectionSlot[], now: number, viewMs: number): void => {
+  const toX = (t: number): number => W - ((now - t) / viewMs) * W
+  const slotWidth = (250 / viewMs) * W + 1
+  // Slots come in time order, so the visible stretch starts where walking back from the newest leaves the view.
+  let from = slots.length
+  while (from > 0 && now - slots[from - 1]!.t <= viewMs) from--
 
   let peak = 0
-  for (const slot of slots) peak = Math.max(peak, slot.total)
+  for (let i = from; i < slots.length; i++) peak = Math.max(peak, slots[i]!.total)
   if (peak <= 0) return
 
-  slots.forEach((slot) => {
-    if (now - slot.t > WINDOW_MS) return
+  for (let i = from; i < slots.length; i++) {
+    const slot = slots[i]!
     ctx.fillStyle = SECTION_COLORS[slot.section]
     ctx.fillRect(toX(slot.t) - slotWidth, 0, slotWidth, H)
-  })
+  }
 
   // The energy trace is in dB against the loudest slot shown, so a quiet mic and a loud one read the same.
   ctx.beginPath()
-  let started = false
-  slots.forEach((slot) => {
-    if (now - slot.t > WINDOW_MS) return
+  for (let i = from; i < slots.length; i++) {
+    const slot = slots[i]!
     const db = 20 * Math.log10(Math.max(slot.total, 1e-3) / peak)
     const y = H - Math.min(1, Math.max(0, (db + 36) / 36)) * (H - 4) - 2
-    if (started) ctx.lineTo(toX(slot.t), y)
-    else ctx.moveTo(toX(slot.t), y)
-    started = true
-  })
+    if (i === from) ctx.moveTo(toX(slot.t), y)
+    else ctx.lineTo(toX(slot.t), y)
+  }
   ctx.strokeStyle = LINE_COLOR
   ctx.lineWidth = 1.25
   ctx.stroke()
@@ -76,6 +80,14 @@ export const SectionHud = (): React.ReactElement => {
   const info = useInfo()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [state, setState] = useState<SectionState | null>(null)
+  const viewMsRef = useRef(DEFAULT_VIEW_MS)
+  const redrawRef = useRef<(() => void) | null>(null)
+
+  // A double-click puts the zoom back to the default.
+  const handleDoubleClick = useCallback((): void => {
+    viewMsRef.current = DEFAULT_VIEW_MS
+    redrawRef.current?.()
+  }, [])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -94,10 +106,19 @@ export const SectionHud = (): React.ReactElement => {
         setState((previous) => (sameState(previous, next) ? previous : next))
       }
       const slots = source.getSectionHistory?.()
-      if (slots && slots.length > 0) drawStrip(ctx, slots, now)
+      if (slots && slots.length > 0) drawStrip(ctx, slots, now, viewMsRef.current)
     }
+    redrawRef.current = draw
 
-    return subscribeUiTick(draw, canvas)
+    const stopWheel = listenWheel(canvas, (deltaY) => {
+      viewMsRef.current = zoomView(viewMsRef.current, deltaY, ZOOM_RANGE)
+      draw()
+    })
+    const unsubscribe = subscribeUiTick(draw, canvas)
+    return () => {
+      stopWheel()
+      unsubscribe()
+    }
   }, [])
 
   return (
@@ -111,8 +132,8 @@ export const SectionHud = (): React.ReactElement => {
           {state ? `${Math.round(state.intensity * 100)}%` : '�'}
         </span>
       </div>
-      <div className='section-hud' {...info('The last two minutes. The line is the level of the song against its loudest moment, the colors are the sections: cyan intro, green groove, yellow buildup, white turnaround, blue break, red drop, purple outro, grey quiet.')}>
-        <canvas ref={canvasRef} width={W} height={H} className='section-hud-canvas' />
+      <div className='section-hud' {...info('The last minute (scroll to zoom from 30 seconds to 2 minutes, double-click to reset). The line is the level of the song against its loudest moment, the colors are the sections: cyan intro, green groove, yellow buildup, white turnaround, blue break, red drop, purple outro, grey quiet.')}>
+        <canvas ref={canvasRef} width={W} height={H} className='section-hud-canvas' onDoubleClick={handleDoubleClick} />
       </div>
       <span className='section-hud-name' {...info('The part of the song this looks like: intro (the start, before anything has built or dropped), groove, buildup (tension rising toward a drop), turnaround (the music cutting out during a buildup; about 1 in 4 turns into a drop), break (the low end pulled back, calmer), drop (the full-energy part after the drop lands, until the next break or buildup), outro (a fade late in the song) or quiet (silence, or no steady beat). A model trained on expert-labelled tracks makes the call, so it can be wrong; the next song starts over at intro.')}>
         {state?.section ?? ''}

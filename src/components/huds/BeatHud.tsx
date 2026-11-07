@@ -6,12 +6,12 @@ import { DEFAULT_ENABLED_BANDS } from '../../audioanalysis/onset-bands'
 import { estimateTempo } from '../../audioanalysis/tempo'
 import { subscribeUiTick } from '../../utils/uiTicker'
 import { DEFAULT_VIEW_MS, MIN_VIEW_MS, WAVEFORM_H, WAVEFORM_HISTORY_MS, WAVEFORM_W, WaveformTrack, WaveformView } from './waveformTrack'
+import { listenWheel, zoomView } from './wheelZoom'
 
 // The tempo moves slowly, so it is re-read twice a second, and only drawn again when the number shown changes.
 const TEMPO_UPDATE_INTERVAL_MS = 500
 const MIRRORED_KEY = 'beatHudMirrored'
-// How far one notch of the wheel zooms (a notch is a deltaY of about 100): about 20%.
-const ZOOM_PER_DELTA = 0.002
+const ZOOM_RANGE = { minMs: MIN_VIEW_MS, maxMs: WAVEFORM_HISTORY_MS }
 // A click waits this long before switching the view, so the two clicks of a double-click (which resets the zoom) do not switch it twice.
 const CLICK_DELAY_MS = 250
 // The BPM comes from the tempo tracker (steady, read from the onset bands) and the consistency from the last 12 s of detected beats. The rhythm
@@ -106,16 +106,13 @@ export const BeatHud = (): React.ReactElement => {
     }
     redrawRef.current = draw
 
-    // The wheel zooms the time shown. It is a native listener, not React's onWheel, which is passive and so cannot stop the column scrolling.
-    const zoom = (event: WheelEvent): void => {
-      event.preventDefault()
-      viewMsRef.current = Math.min(WAVEFORM_HISTORY_MS, Math.max(MIN_VIEW_MS, viewMsRef.current * Math.exp(event.deltaY * ZOOM_PER_DELTA)))
+    const stopWheel = listenWheel(canvas, (deltaY) => {
+      viewMsRef.current = zoomView(viewMsRef.current, deltaY, ZOOM_RANGE)
       draw()
-    }
-    canvas.addEventListener('wheel', zoom, { passive: false })
+    })
     const unsubscribe = subscribeUiTick(draw, canvas)
     return () => {
-      canvas.removeEventListener('wheel', zoom)
+      stopWheel()
       unsubscribe()
       if (clickTimerRef.current !== null) clearTimeout(clickTimerRef.current)
     }
