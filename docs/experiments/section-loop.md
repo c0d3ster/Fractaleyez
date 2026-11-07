@@ -29,6 +29,8 @@ metric only); only those that screen well get a full evaluation, which is what t
 | 0 | Start (feat/bar-grid at 432829d): clean 0.441 (drop 0.372, build 0.430, break 0.522), laptop 0.424 (drop 0.359, build 0.377, break 0.536) | 0.4325 | 0.2700 | start |
 | 1 | Decoder: drop threshold 0.3 to 0.25, drop threshold while a buildup or break shows 0.5 to 0.6, buildup enter 0.3 to 0.25 | 0.4385 | 0.2770 | yes |
 | 2 | Training: drop label window (-0.5, 1.25) to (-0.5, 2.25) s after the drop | 0.4460 | 0.2720 | no (check fell: Raveform drop precision 0.72 to 0.64) |
+| 3 | Training: drop label window to (-0.5, 1.75) | 0.4430 | 0.2750 | no (check fell: Raveform drop precision 0.72 to 0.67) |
+| 4 | Window (-0.5, 1.75) and drop threshold 0.25 to 0.35 to win precision back | 0.4415 | 0.2690 | no (check fell: Raveform drop recall 0.26 to 0.24) |
 
 Screens (tune metric only, start of each against the kept code at the time):
 
@@ -37,3 +39,4 @@ Screens (tune metric only, start of each against the kept code at the time):
   0.4330; smoothing 1 s: 0.4300; enter slots 3: 0.4295; drop 0.25 + buildup enter 0.25: 0.4365; plus drop in context 0.6: 0.4385 (iteration 1).
 - Training, from iteration 1 (0.4385): drop window to 1.75 s: 0.4430; to 2.25 s: 0.4460; (0, 1.75): 0.4455; (0, 2.25): 0.4395; stage 2 with
   200 trees at learning rate 0.05: 0.4345.
+- With the 1.75 s window's fold models: drop threshold 0.3 / 0.35: 0.4420 / 0.4415.
