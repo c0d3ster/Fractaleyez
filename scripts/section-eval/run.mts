@@ -27,6 +27,8 @@ const option = (name: string, fallback: string | null = null): string | null => 
 const [dir, output] = [args[0]!, args[1]!]
 const trackerPath = resolve(option('tracker', '../../src/audioanalysis/sections.ts')!)
 const fps = Number(option('fps', '60'))
+// --smoothed feeds the tracker the onset detector's 20 ms followed levels instead of the raw band levels (what AudioFeed used to pass).
+const smoothed = args.includes('--smoothed')
 const { SectionTracker } = (await import(pathToFileURL(trackerPath).href)) as { SectionTracker: new (model?: unknown, tuning?: unknown) => Tracker }
 // Decoder overrides (SectionTuning), as JSON: --tuning '{"turnaroundDropThreshold":0.15}'
 const tuning = JSON.parse(option('tuning', '{}')!) as unknown
@@ -86,7 +88,7 @@ const runStream = (id: string, frames: Float32Array, starts: number[], tracker: 
     for (let b = 0; b < BANDS; b++) levels[b] = frames[f * BANDS + b]!
     const t = k * frameMs
     const onset = detector.update(levels, frameMs, 0, { enabledBands: DEFAULT_ENABLED_BANDS, sensitivity: 2, ignoreMs: 250, decayMs: 300 })
-    tracker.push({ t, levels, beat: onset.beatBand !== null })
+    tracker.push({ t, levels: smoothed ? onset.bands.map(({ level }) => level) : levels, beat: onset.beatBand !== null })
     while (t >= nextSlot) {
       const state = tracker.getState()
       run.sections.push(state.section)
