@@ -12,7 +12,10 @@ const W = 360
 const PLOT_H = 90
 const H = PLOT_H
 const WINDOW_MS = 4000
-const MIN_Y_MAX = 4
+// The axis never goes below this (in percent of full scale, like the levels), so near silence is not blown up to fill the plot.
+const MIN_Y_MAX = 0.2
+// Nor below this share of the band's recent loudness, so a quiet stretch in a loud song still reads as quiet.
+const LOUDNESS_FLOOR = 0.5
 const Y_HEADROOM = 1.15
 const LAMP_FADE_MS = 200
 // The tempo moves slowly, so it is re-read twice a second, and only drawn again when the number shown changes.
@@ -81,9 +84,10 @@ const drawBand = (ctx: CanvasRenderingContext2D, samples: readonly BeatSample[],
   ctx.setLineDash([])
 }
 
-// Each band is scaled to its own recent peak, since the bands sit at very different levels.
+// Each band is scaled to its own recent peak, since the bands sit at very different levels. The floor follows the band's loudness rather
+// than a fixed level: a fixed floor of 4 sat above what most mics deliver, so the traces were pressed flat against the bottom.
 const scaleFor = (samples: readonly BeatSample[], from: number, band: number, now: number): Scale => {
-  let peak = MIN_Y_MAX
+  let peak = Math.max(MIN_Y_MAX, (samples[samples.length - 1]?.bands[band]?.loudness ?? 0) * LOUDNESS_FLOOR)
   for (let i = from; i < samples.length; i++) {
     const sample = samples[i]!.bands[band]
     peak = Math.max(peak, sample?.level ?? 0, sample?.trigger ?? 0)
