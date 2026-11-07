@@ -75,7 +75,12 @@ def features(data: str, work: str, ids: list[str], jobs: int) -> str:
 def run_tracker(levels: str, ids: list[str], models: str, out: str, jobs: int) -> list[dict]:
     parts = chunks(ids, jobs)
     paths = [f'{out}.{j}.json' for j in range(len(parts))]
-    parallel([[TSX, 'run.mts', levels, p, '--only', ','.join(part), '--fold-models', models, '--no-grid'] for part, p in zip(parts, paths)])
+    # Every track's fold, written out: run.mts takes id mod 5 by default, which is NaN for Raveform's keys (and then runs the shipped model).
+    folds = f'{out}.folds.json'
+    json.dump({k: (int(k) % 5 if k.isdigit() else 0) for k in ids}, open(folds, 'w'))
+    parallel([[TSX, 'run.mts', levels, p, '--only', ','.join(part), '--fold-models', models, '--folds', folds, '--no-grid']
+              for part, p in zip(parts, paths)])
+    os.remove(folds)
     runs = []
     for p in paths:
         runs += json.load(open(p))['runs']
