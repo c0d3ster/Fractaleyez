@@ -161,6 +161,12 @@ export class TempoTracker {
 
   getReading = (): TempoReading | null => this.reading
 
+  /** The beat period in ms the shown tempo stands for, or null. */
+  getPeriodMs = (): number | null => (this.reading ? 60000 / this.reading.bpm : null)
+
+  /** The onset strength of recent frames (when each frame was, and its strength), oldest first. Not copies: read them where they are called. */
+  getOnsets = (): { times: readonly number[]; strength: readonly number[] } => ({ times: this.times, strength: this.strength })
+
   private read = (t: number): void => {
     const { windowMs, memoryMs, readEveryMs, harmonics } = this.options
     if (this.times.length < 2 || t - this.times[0]! < windowMs * 0.75) return
