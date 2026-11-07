@@ -147,6 +147,41 @@ describe('SectionTracker', () => {
     expect(replayStates.map((s) => s.dropCount)).toEqual(liveStates.map((s) => s.dropCount))
   })
 
+  // The BPM shown by the tempo tracker, as AudioFeed passes it: one tempo up to `at` seconds, another after it.
+  const withBpm = (frames: SectionSample[], before: number, after: number, at: number): SectionSample[] =>
+    frames.map((frame) => ({ ...frame, bpm: frame.t < at * 1000 ? before : after }))
+
+  it('starts a new song when the tempo moves to a clearly different one and stays there', () => {
+    const tracker = new SectionTracker()
+    const states = play(tracker, withBpm(render(100, groove), 128, 140, 60))
+    expect(states.findIndex((s) => s.songIndex === 2) / 60).toBeGreaterThan(60)
+    expect(states[states.length - 1]!.songIndex).toBe(2)
+  })
+
+  it('keeps the song on a tempo read at another level (double, 3:2, 4:3), a short blip, a small drift, or no BPM at all', () => {
+    for (const after of [256, 192, 170.7, 132]) {
+      const states = play(new SectionTracker(), withBpm(render(100, groove), 128, after, 60))
+      expect(states[states.length - 1]!.songIndex).toBe(1)
+    }
+    const blip = render(100, groove).map((frame) => ({ ...frame, bpm: frame.t > 60000 && frame.t < 61500 ? 140 : 128 }))
+    expect(play(new SectionTracker(), blip).at(-1)!.songIndex).toBe(1)
+    expect(play(new SectionTracker(), render(100, groove)).at(-1)!.songIndex).toBe(1)
+  })
+
+  it('does not change songs on tempo in the first stretch of a song', () => {
+    const states = play(new SectionTracker(), withBpm(render(40, groove), 128, 140, 20))
+    expect(states[states.length - 1]!.songIndex).toBe(1)
+  })
+
+  it('records the BPM it was given, so a replay makes the same tempo song change', () => {
+    const live = new SectionTracker()
+    const liveStates = play(live, withBpm(render(100, groove), 128, 140, 60))
+    const replay = new SectionTracker()
+    live.getRecording().forEach((tick) => replay.pushTick(tick))
+    expect(replay.getState().songIndex).toBe(liveStates[liveStates.length - 1]!.songIndex)
+    expect(replay.getState().songIndex).toBe(2)
+  })
+
   it('keeps a bounded history and stays fast', () => {
     const tracker = new SectionTracker()
     const frames = render(600, groove)

@@ -1,6 +1,6 @@
 """Scores a run.mts output against expert labels (drop times, build and break intervals).
 
-    python score.py <run.json> <gt.json> [--per-song] [--playlist]
+    python score.py <run.json>[,<run.json>...] <gt.json> [--per-song] [--playlist] [--singles]
 
 Single songs:
   drop       a predicted drop (the label turning to drop) counts when it is within DROP_EARLY s before to DROP_LATE s after a labelled drop
@@ -11,6 +11,11 @@ Single songs:
   break      slot by slot: break shown against inside a labelled break
   resets     song changes inside one song (each file is one song, so every one is wrong)
 Playlists (--playlist): how many real song changes were found (within -5 s to +25 s of the next song's start) and how many were invented.
+  With "joins" in the run (make-playlists.py), recall is also broken down by join kind and by tempo difference: under 3%, 3 to 8%, over 8%,
+  and "harmonic" for a difference over 8% that is within 3% of 2:1, 1:2, 3:2, 2:3, 4:3 or 3:4 (the tempo tracker can read those as the same beat).
+  --late 60 counts a change found up to 60 s after the next song started (a late reset is still better than none).
+  --folds 2,3,4 scores only playlists from those folds (the ones a setting was not tuned on); with --singles, songs whose id mod 5 is one.
+Single songs without labels (--singles, gt not read): song changes per song and per hour, every one a false clock reset.
 """
 import json
 import sys
@@ -148,36 +153,76 @@ def score_songs(runs: list[dict], gt: dict, per_song: bool) -> dict:
     return out
 
 
-def score_playlists(runs: list[dict]) -> dict:
+HARMONICS = (2, 0.5, 1.5, 2 / 3, 4 / 3, 3 / 4)
+
+
+def tempo_bin(before: float, after: float) -> str:
+    diff = abs(after / before - 1)
+    if diff < 0.03:
+        return '<3%'
+    if diff < 0.08:
+        return '3-8%'
+    if any(abs(after / (before * h) - 1) < 0.03 for h in HARMONICS):
+        return 'harmonic'
+    return '>8%'
+
+
+def score_playlists(runs: list[dict], late: float = 25) -> dict:
     found = boundaries = invented = 0
     hours = 0.0
     lat = []
+    by: dict[str, list[int]] = {}
     for run in runs:
         songs = run['songs']
         changes = [(i + 1) * SLOT for i in range(1, len(songs)) if songs[i] != songs[i - 1]]
         starts = run['starts'][1:]
+        joins = run.get('joins') or [None] * len(starts)
         used = set()
-        for s in starts:
+        for s, join in zip(starts, joins):
             boundaries += 1
-            cands = [j for j, c in enumerate(changes) if j not in used and s - 5 <= c <= s + 25]
+            cands = [j for j, c in enumerate(changes) if j not in used and s - 5 <= c <= s + late]
             if cands:
                 used.add(cands[0])
                 found += 1
                 lat.append(changes[cands[0]] - s)
+            if join:
+                b = tempo_bin(join['bpmBefore'], join['bpmAfter'])
+                for key in (join['kind'], b, f"{join['kind']} {b}"):
+                    by.setdefault(key, []).append(1 if cands else 0)
         invented += len(changes) - len(used)
         hours += run['seconds'] / 3600
-    return {
+    out = {
         'boundaries': boundaries, 'found': found, 'recall': found / max(1, boundaries),
         'invented_per_hour': invented / max(hours, 1e-9), 'latency_median': float(np.median(lat)) if lat else None,
+    }
+    for key in sorted(by):
+        out[f'recall {key}'] = f'{np.mean(by[key]):.2f} of {len(by[key])}'
+    return out
+
+
+def score_singles(runs: list[dict]) -> dict:
+    resets = [sum(1 for i in range(1, len(r['songs'])) if r['songs'][i] != r['songs'][i - 1]) for r in runs]
+    hours = sum(r['seconds'] for r in runs) / 3600
+    return {
+        'songs': len(runs), 'hours': hours, 'false_resets_per_song': sum(resets) / max(1, len(runs)),
+        'false_resets_per_hour': sum(resets) / max(hours, 1e-9), 'songs_with_a_reset': sum(1 for r in resets if r) / max(1, len(runs)),
     }
 
 
 def main() -> None:
-    run = json.load(open(sys.argv[1]))
+    runs = [r for path in sys.argv[1].split(',') for r in json.load(open(path))['runs']]
     if '--playlist' in sys.argv:
-        result = score_playlists(run['runs'])
+        if '--folds' in sys.argv:
+            folds = {int(f) for f in sys.argv[sys.argv.index('--folds') + 1].split(',')}
+            runs = [r for r in runs if r.get('fold') in folds]
+        result = score_playlists(runs, float(sys.argv[sys.argv.index('--late') + 1]) if '--late' in sys.argv else 25)
+    elif '--singles' in sys.argv:
+        if '--folds' in sys.argv:
+            folds = {int(f) for f in sys.argv[sys.argv.index('--folds') + 1].split(',')}
+            runs = [r for r in runs if int(r['id'].split('.')[0]) % 5 in folds]
+        result = score_singles(runs)
     else:
-        result = score_songs(run['runs'], json.load(open(sys.argv[2])), '--per-song' in sys.argv)
+        result = score_songs(runs, json.load(open(sys.argv[2])), '--per-song' in sys.argv)
     print(json.dumps({k: (round(v, 3) if isinstance(v, float) else v) for k, v in result.items()}))
 
 
