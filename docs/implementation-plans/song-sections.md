@@ -52,6 +52,35 @@ Measured live, out of fold, on the clean feed: 167 turnarounds over 339 songs (a
 
 Looking back over whole songs, a stop after a buildup that comes back up lands on a drop about 6 times in 10. Live that cannot be known yet: of the live turnarounds where the music came back within a second, 47% were followed by a drop; of those where it did not, 4%. Whether it comes back is decided at the moment the drop would land, so it gives no warning. Variants tried (only during a buildup, deeper or longer stops, a lower drop threshold during and just after a turnaround, a higher one after other stops): the stricter ones raise precision to about 27% but warn before only 2% of drops, and the threshold changes cost up to 0.01 drop F1. So the turnaround is a moment for the visuals to react to (the music cut out), not a promise of a drop.
 
+## Beat grid and Raveform (overnight stage 2)
+
+Three things were tried on top of the model above, each scored out of fold the same way (SSME's 339 tracks, folds by id mod 5, the real TypeScript tracker with fold models; Raveform's tracks in their own folds, taken mod 5 so they pool with SSME's). None of them is shipped: the rule was to ship only a model that beats the current one on SSME without losing on the laptop mic, and none did.
+
+First the current model was rebuilt from scratch (levels, features, `train.py`, the shipped decoder). It reproduces the table above within noise: drop F1 0.407 / 0.412 / 0.394 (clean / room / laptop), buildup 0.435 / 0.426 / 0.392, break 0.523 / 0.524 / 0.522. Laptop drop F1 comes out 0.04 higher than the 0.35 above; the mic simulation's random seeds differ from the first run, and 435 drops leave about that much noise.
+
+**1. The grid as features.** `SectionFeatures` takes the `BeatGrid` state every frame (fed the same levels, in the order `AudioFeed` would feed it) and adds 11 columns: grid locked, beat in bar, bar in phrase, beats into the phrase and to the next 8-bar line, the beat's phase, both confidences, and within 1, 2 or 4 beats of the line. With the clean feed alone the grid helps (drop F1 0.367 to 0.394, Python decoder), as `exp_grid.py` found before. But the shipped model is trained on clean, room and laptop together, and that model is already at 0.397 without the grid. On top of it the grid columns make drops worse:
+
+| TS tracker, out of fold | Current (clean / room / laptop) | With grid columns |
+| --- | --- | --- |
+| Drop F1 | 0.407 / 0.412 / 0.394 | 0.393 / 0.390 / 0.366 |
+| Buildup F1 | 0.435 / 0.426 / 0.392 | 0.432 / 0.425 / 0.397 |
+| Break F1 | 0.523 / 0.524 / 0.522 | 0.526 / 0.525 / 0.522 |
+
+The grid is right about the 8-bar line only part of the time (stage 1: 8-bar F 0.37 on Raveform's held-out folds), and on the laptop mic, with the bass gone, less often; the trees learn line positions that do not hold on other songs.
+
+**2. A decoder prior: drops land on phrase lines.** The drop threshold moves by one amount within 1, 2 or 4 beats of the grid's 8-bar line and by another elsewhere, when the phrase confidence is high enough (`SectionTuning.phraseLine*`, `decode.py --line`, off by default). Tuned on SSME folds 0 to 2 over 36 settings: none beat no prior. Only 40% of SSME's labelled drops fall within 2 beats of the grid's line, 3.8 times chance but not most of them, so raising the threshold off the line loses more real drops than false ones (at +0.1: precision 0.43 to 0.46, recall 0.35 to 0.33, F1 0.388 to 0.383).
+
+**3. Raveform's 1,370 tracks in training.** Its labels mapped to ours (`raveform-sections.py`): buildup to build, breakdown and cooldown to break, the start of a drop that follows something other than a drop to a drop event (3,409 drops, 1,328 builds, 4,281 breaks). Raveform's band levels exist only for the clean feed (they were made from its audio on another machine), so it adds no mic copies. Out of fold, Python decoder:
+
+| | SSME mean F1 | SSME drop F1 (clean / laptop) | SSME buildup F1 | Raveform mean F1 (drop F1) |
+| --- | --- | --- | --- | --- |
+| SSME only (current) | 0.463 | 0.397 / 0.386 | 0.427 | 0.254 (0.328), TS tracker |
+| With Raveform, weight 0.5 | 0.410 | 0.399 / 0.339 | 0.319 | 0.624 (0.679), TS tracker |
+| Raveform in the drop stage only | 0.455 | 0.399 / 0.327 | 0.427 | 0.383 (0.666) |
+| Raveform at weight 0.1 | 0.449 | 0.389 / 0.368 | 0.403 | 0.506 (0.527) |
+
+The two sets label differently. Raveform calls most of the rise before a drop a breakdown and marks a drop at every return to full energy after one; SSME's experts mark a build and a drop only where the music builds to a moment. A model trained on both does far better on Raveform's labels (mean F1 0.25 to 0.62) and worse on SSME's, mostly in buildups (0.43 to 0.32) and drop precision (0.44 to 0.36). Which labels the visuals should follow is a design question, not a measurement: SSME's are closer to what Auto mode wants (a buildup shown before 84% of drops; trained with Raveform, 66%).
+
 ## What was tried and did not help
 
 - **More model capacity** (deeper trees, more of them) and class balancing: no gain out of fold. Stage 1 is limited by information, not fit.
@@ -95,7 +124,7 @@ Still rising, about 0.03 of mean F1 per doubling: twice the songs would be worth
 
 ## Next
 
-1. A steady BPM and a beat, bar and phrase grid (EDM sections change on 8, 16 or 32 bars, and drops land on a phrase's first beat), as features and as a prior on when a drop can land.
+1. Done and not shipped: the beat grid as features and as a drop prior, and Raveform's tracks in training (above). The grid would need to find the 8-bar line far more reliably (and on a laptop mic) before it can help; Raveform's labels would need mapping closer to SSME's (its breakdowns split into break and build by the level trend, say) before they can be pooled.
 2. Label a handful of real mic sessions (export, mark sections) and score them, to confirm the simulations.
 3. Crossfade boundaries: a detector trained on more blended playlists, or a tempo-change cue.
 4. Auto mode (`auto-mode.md`).

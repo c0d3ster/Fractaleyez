@@ -11,6 +11,9 @@
 //  - how much it pumps from tick to tick (a kick or sidechain pumping, gone in a break) and how often it jumps (snare rolls)
 //  - the lowest it went in the last 15 s (a drop comes out of a dip)
 // plus the beat rate, the song's age and how long since the bass was last full or last gone.
+// And where the beat grid (beat-grid.ts) puts the moment: the place in the bar and the 8-bar phrase, how far to the next phrase line, and
+// how sure the grid is. EDM sections start on phrase lines, so a drop's step on the line and the same step mid-phrase mean different things.
+import type { GridState } from './beat-grid'
 
 export const TICK_MS = 50
 export const SLOT_MS = 250
@@ -37,12 +40,36 @@ const RUN_CAP_S = 10
 // The song's usual band shape (each band against the mean of the five) follows the music this slowly, and holds still in silence.
 const SHAPE_TAU_SLOTS = 120
 
+const BEATS_PER_PHRASE = 32
+/** The grid columns, last in the feature vector. All zero while the grid is not locked (or no grid is fed, as when a recording is replayed). */
+export const GRID_FEATURE_NAMES: readonly string[] = [
+  'gridLocked', 'beatInBar', 'barInPhrase', 'beatsIntoPhrase', 'beatsToLine', 'beatPhase', 'downbeatConfidence', 'phraseConfidence',
+  'nearLine1', 'nearLine2', 'nearLine4',
+]
+
+/** Writes the grid columns for time `t` into `out` from `at`. Beats into the phrase count the current beat as whole and the time since it as a fraction. */
+export const gridColumns = (grid: GridState | null, t: number, out: Float64Array, at: number): void => {
+  if (!grid) {
+    out.fill(0, at, at + GRID_FEATURE_NAMES.length)
+    return
+  }
+  const phase = Math.min(0.999, Math.max(0, (t - grid.lastBeatMs) / grid.periodMs))
+  const into = (grid.barInPhrase - 1) * 4 + (grid.beatInBar - 1) + phase
+  const fromLine = Math.min(into, BEATS_PER_PHRASE - into)
+  const values = [1, grid.beatInBar, grid.barInPhrase, into, BEATS_PER_PHRASE - into, phase, grid.downbeatConfidence, grid.phraseConfidence,
+    fromLine <= 1 ? 1 : 0, fromLine <= 2 ? 1 : 0, fromLine <= 4 ? 1 : 0]
+  values.forEach((value, k) => {
+    out[at + k] = value
+  })
+}
+
 export const FEATURE_NAMES: readonly string[] = [
   ...['rel2', 'rel8', 'step', 'slope8', 'slope16', 'pump', 'flux', 'fluxSlope', 'min15', 'rel05', 'jump', 'recover'].flatMap((name) =>
     ['bass', 'lo', 'mid', 'hi', 'air'].map((band) => `${name}_${band}`)),
   'relTotal', 'stepTotal', 'beats2', 'beats8', 'beatTrend', 'age', 'sinceBassFull', 'sinceBassGone', 'tilt', 'tiltSlope',
   'pumpReturn_bass', 'pumpReturn_lo', 'beatReturn', 'gap4', 'bassOutJustEnded', 'bassInJustEnded',
   'silenceNow', 'silenceLast', 'sinceSilence', 'quietNow', 'quietLast', 'sinceQuiet', 'levelBeforeQuiet', 'shapeShift', 'shapeShiftNow',
+  ...GRID_FEATURE_NAMES,
 ]
 export const FEATURE_COUNT = FEATURE_NAMES.length
 const SINCE_BASS_FULL = FEATURE_NAMES.indexOf('sinceBassFull')
@@ -155,9 +182,16 @@ export class SectionFeatures {
   private readonly lastSlot = { total: 0, bass: 0 }
   private readonly features = new Float64Array(FEATURE_COUNT)
   private readonly scratch: number[] = []
+  private grid: GridState | null = null
+  private gridT = 0
 
-  /** Adds one frame. Returns the feature vector when a 250 ms slot closes (the same array every time: read it before the next push), otherwise null. */
-  push = (t: number, levels: readonly number[], beat: boolean): Float64Array | null => {
+  /**
+   * Adds one frame, with the beat grid's state on it when there is one. Returns the feature vector when a 250 ms slot closes (the same array
+   * every time: read it before the next push), otherwise null.
+   */
+  push = (t: number, levels: readonly number[], beat: boolean, grid: GridState | null = null): Float64Array | null => {
+    this.grid = grid
+    this.gridT = t
     this.tickStart ??= t
     for (let b = 0; b < BANDS; b++) this.sums[b]! += (levels[b] ?? 0) ** 2
     this.frames++
@@ -407,6 +441,7 @@ export class SectionFeatures {
     f[i++] = this.quiet.since < RUN_CAP_S || this.quiet.now > 0 ? this.levelBeforeQuiet : 0
     f[i++] = this.quiet.since < RUN_CAP_S && this.shapeSlots > 0 ? distance(this.shapeBefore) : 0
     f[i++] = distance(this.usualShape)
+    gridColumns(this.grid, this.gridT, f, i)
     return f
   }
 }

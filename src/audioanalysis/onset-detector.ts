@@ -71,6 +71,8 @@ export type BandReading = {
   loudness: number
   /** The level the band had to pass to count as a hit. */
   trigger: number
+  /** True on the frame this band's level first clears its trigger, whether or not the band may set off a beat (each band's own onsets). */
+  rising: boolean
 }
 
 export type OnsetReading = {
@@ -140,7 +142,7 @@ class BandTracker {
     }
 
     const referenceLevel = hasReference ? fromDb(referenceDb + thresholdDb) : levelGate
-    return { risingEdge, reading: { level: this.fast, loudness: this.loudness, trigger: Math.max(referenceLevel, levelGate) } }
+    return { risingEdge, reading: { level: this.fast, loudness: this.loudness, trigger: Math.max(referenceLevel, levelGate), rising: risingEdge } }
   }
 }
 

@@ -1,6 +1,7 @@
 """Trains the section model on expert labels, with track-level cross-validation, and exports it for section-model.ts.
 
-    python train.py <features dir>[,<features dir>...] <gt.json> <out dir> [--export model.json]
+    python train.py <features dir>[,<features dir>...] <gt.json>[,<gt.json>...] <out dir> [--export model.json] [--export-folds]
+        [--folds folds.json] [--no-grid] [--dir-weights 1,1,1,0.5[/1,1,1,0.5]]
 
 Stage 1, per 250 ms slot: other / build / break, from the features alone.
 Stage 2, per slot: "a drop just happened" (within the last second or so), from the features plus a short memory of stage 1
@@ -9,6 +10,10 @@ same imperfect stage 1 it will get at run time.
 Every number printed is out of fold (a track is never scored by a model that saw it), and the out-of-fold probabilities are
 saved to <out dir>/oof.npz for tuning the decoder (decode.py).
 Several feature dirs (clean, room, laptop) are pooled for training, each track's copies kept in the same fold.
+A track's fold is its id mod 5, or its entry in --folds ({ id: fold }, how Raveform's tracks join SSME's five folds). Several label files
+are merged (SSME's and Raveform's mapped ones, raveform-sections.py). --no-grid trains on the features before the grid columns (the model
+before the grid); --dir-weights weighs each feature dir's slots in training (to balance a large set against a small one); a second list after a slash
+weighs stage 2 separately (0 in the first list and more in the second trains stage 1 without that set and stage 2 with it).
 """
 import json
 import os
@@ -63,8 +68,11 @@ def memory(p: np.ndarray, starts: np.ndarray) -> np.ndarray:
     return np.concatenate(out)
 
 
-def load(dirs: list[str], gt: dict) -> dict:
+def load(dirs: list[str], gt: dict, grid: bool = True) -> dict:
     names = json.load(open(os.path.join(dirs[0], 'names.json')))
+    width = len(names)
+    if not grid and 'gridLocked' in names:
+        names = names[:names.index('gridLocked')]
     xs, ys, drops, ignores, groups, ids, conds = [], [], [], [], [], [], []
     keys = sorted(k for k, v in gt.items() if v['drop'] or v['build_start'] or v['break_start'])
     for c, d in enumerate(dirs):
@@ -72,7 +80,7 @@ def load(dirs: list[str], gt: dict) -> dict:
             path = os.path.join(d, f'{k}.feat')
             if not os.path.exists(path):
                 continue
-            x = np.fromfile(path, dtype='<f4').reshape(-1, len(names))
+            x = np.fromfile(path, dtype='<f4').reshape(-1, width)[:, :len(names)]
             y, drop, ignore = labels_for(gt[k], len(x))
             xs.append(x); ys.append(y); drops.append(drop); ignores.append(ignore)
             groups.append(np.full(len(x), g)); ids.append(k); conds.append(c)
@@ -108,22 +116,27 @@ def export_hgb(model: HistGradientBoostingClassifier) -> dict:
 
 def main() -> None:
     dirs = sys.argv[1].split(',')
-    gt = json.load(open(sys.argv[2]))
+    gt = {k: v for path in sys.argv[2].split(',') for k, v in json.load(open(path)).items()}
     out = sys.argv[3]
     os.makedirs(out, exist_ok=True)
-    data = load(dirs, gt)
+    data = load(dirs, gt, grid='--no-grid' not in sys.argv)
+    fold_of = json.load(open(sys.argv[sys.argv.index('--folds') + 1])) if '--folds' in sys.argv else {}
+    spec = sys.argv[sys.argv.index('--dir-weights') + 1] if '--dir-weights' in sys.argv else ','.join(['1'] * len(dirs))
+    lists = [[float(w) for w in part.split(',')] for part in spec.split('/')]
+    weight = np.array(lists[0])[np.array(data['conds'])][groups_to_track(data)]
+    weight2 = np.array(lists[-1])[np.array(data['conds'])][groups_to_track(data)]
     X, y, groups, starts = data['X'], data['y'], data['groups'], data['starts']
     print(f"{len(data['ids'])} track copies, {len(X)} slots, classes {np.bincount(y)}")
 
     # The fold of a track is its id mod 5, the same everywhere (the song change detector's playlists and the TypeScript check use it too).
-    track_fold = np.array([int(k) % FOLDS for k in data['ids']])
+    track_fold = np.array([fold_of.get(k, int(k) % FOLDS if k.isdigit() else 0) for k in data['ids']])
     slot_fold = track_fold[groups_to_track(data)]
     folds = [(np.where(slot_fold != f)[0], np.where(slot_fold == f)[0]) for f in range(FOLDS)]
     export_folds = '--export-folds' in sys.argv
     fold_models: list[dict] = [{} for _ in folds]
     p1 = np.zeros((len(X), 3))
     for f, (train, test) in enumerate(folds):
-        model = HistGradientBoostingClassifier(**STAGE1, random_state=0).fit(X[train], y[train])
+        model = HistGradientBoostingClassifier(**STAGE1, random_state=0).fit(X[train], y[train], sample_weight=weight[train])
         p1[test] = model.predict_proba(X[test])
         fold_models[f]['stage1'] = model
     pred = p1.argmax(axis=1)
@@ -135,10 +148,14 @@ def main() -> None:
     p2 = np.zeros(len(X))
     for f, (train, test) in enumerate(folds):
         train = train[keep[train]]
-        model = HistGradientBoostingClassifier(**STAGE2, random_state=0).fit(X2[train], data['drop'][train])
+        model = HistGradientBoostingClassifier(**STAGE2, random_state=0).fit(X2[train], data['drop'][train], sample_weight=weight2[train])
         p2[test] = model.predict_proba(X2[test])[:, 1]
         fold_models[f]['stage2'] = model
-    np.savez_compressed(os.path.join(out, 'oof.npz'), p1=p1, p2=p2, starts=starts, ids=np.array(data['ids']), conds=np.array(data['conds']))
+    # The grid columns go along (when the features have them) so the decoder's phrase-line prior can be tuned on the same output.
+    grid_cols = {}
+    if 'nearLine1' in data['names']:
+        grid_cols = {name: X[:, data['names'].index(name)] for name in ('gridLocked', 'beatsIntoPhrase', 'phraseConfidence', 'downbeatConfidence')}
+    np.savez_compressed(os.path.join(out, 'oof.npz'), p1=p1, p2=p2, starts=starts, ids=np.array(data['ids']), conds=np.array(data['conds']), **grid_cols)
     print('saved out-of-fold probabilities')
 
     def bundle(m1: HistGradientBoostingClassifier, m2: HistGradientBoostingClassifier) -> dict:
@@ -153,8 +170,8 @@ def main() -> None:
     if '--export' in sys.argv:
         path = sys.argv[sys.argv.index('--export') + 1]
         # Stage 2 is trained on out-of-fold stage 1 output (what it will see at run time), and shipped with stage 1 trained on everything.
-        m1 = HistGradientBoostingClassifier(**STAGE1, random_state=0).fit(X, y)
-        m2 = HistGradientBoostingClassifier(**STAGE2, random_state=0).fit(X2[keep], data['drop'][keep])
+        m1 = HistGradientBoostingClassifier(**STAGE1, random_state=0).fit(X, y, sample_weight=weight)
+        m2 = HistGradientBoostingClassifier(**STAGE2, random_state=0).fit(X2[keep], data['drop'][keep], sample_weight=weight2[keep])
         json.dump(bundle(m1, m2), open(path, 'w'), separators=(',', ':'))
         print('exported', path, os.path.getsize(path) // 1024, 'KB')
 
