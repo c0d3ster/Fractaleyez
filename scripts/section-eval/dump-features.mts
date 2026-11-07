@@ -3,11 +3,14 @@
 //   tsx dump-features.mts <levels dir> <out dir>
 //
 // One <id>.feat file per song: raw float32, slots x FEATURE_COUNT, one row per 250 ms (row k ends at (k + 1) * 0.25 s).
+// The grid columns come from a TempoTracker and BeatGrid fed the same frames, in the order AudioFeed feeds them.
 import { mkdirSync, readFileSync, readdirSync, writeFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { OnsetDetector } from '../../src/audioanalysis/onset-detector.ts'
 import { ONSET_BANDS, DEFAULT_ENABLED_BANDS } from '../../src/audioanalysis/onset-bands.ts'
 import { FEATURE_COUNT, FEATURE_NAMES, SectionFeatures } from '../../src/audioanalysis/section-features.ts'
+import { TempoTracker } from '../../src/audioanalysis/tempo-tracker.ts'
+import { BeatGrid } from '../../src/audioanalysis/beat-grid.ts'
 
 const [dir, out] = [process.argv[2]!, process.argv[3]!]
 mkdirSync(out, { recursive: true })
@@ -23,13 +26,18 @@ for (const id of ids) {
   const frames = new Float32Array(buffer.buffer, buffer.byteOffset, buffer.byteLength / 4)
   const detector = new OnsetDetector(BANDS)
   const features = new SectionFeatures()
+  const tempo = new TempoTracker()
+  const grid = new BeatGrid(tempo)
   const rows: number[] = []
   const levels = new Array<number>(BANDS).fill(0)
   const count = frames.length / BANDS
   for (let f = 0; f < count; f++) {
     for (let b = 0; b < BANDS; b++) levels[b] = frames[f * BANDS + b]!
+    const t = f * FRAME_MS
     const onset = detector.update(levels, FRAME_MS, 0, { enabledBands: DEFAULT_ENABLED_BANDS, sensitivity: 2, ignoreMs: 250, decayMs: 300 })
-    const row = features.push(f * FRAME_MS, levels, onset.beatBand !== null)
+    tempo.push(t, levels)
+    grid.push(t, levels)
+    const row = features.push(t, levels, onset.beatBand !== null, grid.getState())
     if (row) rows.push(...row)
   }
   writeFileSync(join(out, `${id}.feat`), Buffer.from(Float32Array.from(rows).buffer))

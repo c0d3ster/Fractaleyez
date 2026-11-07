@@ -11,6 +11,8 @@ import { join } from 'node:path'
 import { OnsetDetector } from '../../src/audioanalysis/onset-detector.ts'
 import { DEFAULT_ENABLED_BANDS } from '../../src/audioanalysis/onset-bands.ts'
 import { FEATURE_NAMES, SectionFeatures } from '../../src/audioanalysis/section-features.ts'
+import { TempoTracker } from '../../src/audioanalysis/tempo-tracker.ts'
+import { BeatGrid } from '../../src/audioanalysis/beat-grid.ts'
 import { BANDS, SOURCE_FPS, joinSongs, loadLevels } from './stream.mts'
 
 const args = process.argv.slice(2)
@@ -45,12 +47,17 @@ for (const [fold, ids] of [...byFold.entries()].sort((a, b) => a[0] - b[0])) {
     const { frames, starts } = joinSongs(songs.map((id) => loadLevels(dir, id)), gapSeconds, crossfadeSeconds)
     const detector = new OnsetDetector(BANDS)
     const features = new SectionFeatures()
+    // One grid over the whole playlist, as the app runs one across songs.
+    const tempo = new TempoTracker()
+    const grid = new BeatGrid(tempo)
     const rows: number[] = []
     const levels = new Array<number>(BANDS).fill(0)
     for (let f = 0; f < frames.length / BANDS; f++) {
       for (let b = 0; b < BANDS; b++) levels[b] = frames[f * BANDS + b]!
       const onset = detector.update(levels, FRAME_MS, 0, { enabledBands: DEFAULT_ENABLED_BANDS, sensitivity: 2, ignoreMs: 250, decayMs: 300 })
-      const row = features.push(f * FRAME_MS, levels, onset.beatBand !== null)
+      tempo.push(f * FRAME_MS, levels)
+      grid.push(f * FRAME_MS, levels)
+      const row = features.push(f * FRAME_MS, levels, onset.beatBand !== null, grid.getState())
       if (row) rows.push(...row)
     }
     writeFileSync(join(out, `pl${n}.feat`), Buffer.from(Float32Array.from(rows).buffer))
