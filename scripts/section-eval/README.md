@@ -1,37 +1,55 @@
-# Section evaluation tools
+# Section evaluation and training
 
-Offline tools for checking `SectionTracker` (`src/audioanalysis/sections.ts`) against real songs, instead of synthetic curves.
+Offline tools that train the song section model (`src/audioanalysis/section-model.json`) on expert labels and score `SectionTracker` (`src/audioanalysis/sections.ts`) against them. Everything here is causal in the same way the app is: the tracker only ever sees the past.
+
+## Data
+
+The **Socially Significant Music Events** dataset (Yadati, Larson, Liem, Hanjalic, IEEE Transactions on Multimedia 2018): 402 Creative Commons EDM tracks from SoundCloud, with drop times and build and break intervals marked by experts. On OSF as project `eydxk` (`https://osf.io/eydxk`): a split zip of the mp3s plus one `.mat` per track. Audio is not committed.
+
+- 63 tracks carry no labels at all (placeholder zeros); they are left out of training and scoring.
+- 159 tracks have no drop but do have builds or breaks.
+- What is left: 435 drops, 595 builds and 371 breaks over 339 tracks, all at 1 s precision.
+
+Convert the `.mat` files to one JSON (`{ id: { drop, build_start, build_end, break_start, break_end } }`, zeros and empty intervals dropped) with `scipy.io.loadmat`. The scripts take that JSON as `<gt.json>`.
 
 ## Pipeline
 
-1. `frames.mts <song.mp3> <out.frames.json>`: decodes the song, runs the same band filters (two cascaded 2nd-order Butterworth stages per edge, like `AudioStream`) and the real `OnsetDetector` at 60 fps, and saves the per-frame band levels and beats. Slow (about 10 s a song), so it is run once per song.
-2. `replay.mts <in.frames.json> <out.json>`: replays the saved frames through the current `SectionTracker` and writes one record per 250 ms (band levels, beats, section, song index, clock). Fast, so it is the loop to iterate on.
-3. `render.py <in.json> <out.png>`: draws a chart like the ones streaming apps show. Top: smoothed low (red), high (blue) and overall (white) level lines with 30 s time labels. Middle: the five bands as a heatmap (air on top, bass at the bottom). Below: beat density, then the tracker's section as a colored strip (cyan intro, grey quiet, green groove, yellow buildup, blue break, red drop, purple outro). Red ticks on the lowest strip are song changes. Needs numpy only.
-
-## Setup
+Needs ffmpeg, Python 3 with numpy, scipy and scikit-learn (matplotlib for charts), and the repo's node_modules (`tsx`).
 
 ```sh
 cd scripts/section-eval
-npm i --no-save mpg123-decoder   # MP3 decoder (WASM), not a project dependency
-../../node_modules/.bin/tsx frames.mts song.mp3 song.frames.json
-../../node_modules/.bin/tsx replay.mts song.frames.json song.json
-python render.py song.json song.png
+# 1. Band levels, as the app measures them (Web Audio biquads, RMS per frame at 60 fps). --mic room|laptop simulates hearing it through a microphone.
+python levels.py song.mp3 levels/clean/<id>.f32
+python levels.py song.mp3 levels/laptop/<id>.f32 --mic laptop --seed <n>
+# 2. Section features (src/audioanalysis/section-features.ts) for every song, and random playlists for the song change detector.
+../../node_modules/.bin/tsx dump-features.mts levels/clean features/clean
+../../node_modules/.bin/tsx dump-playlists.mts levels/clean folds.json playlists/clean --per-fold 40
+# 3. Train with 5-fold cross-validation (fold = track id mod 5), tune the decoder on out-of-fold output, add the song change detector.
+python train.py features/clean,features/room,features/laptop gt.json out --export-folds --export ../../src/audioanalysis/section-model.json
+python decode.py out/oof.npz gt.json --grid
+python train_boundary.py playlists/clean,playlists/laptop features/clean --export ../../src/audioanalysis/section-model.json
+# 4. Score the real tracker (TypeScript), each song through the fold model that never saw it.
+../../node_modules/.bin/tsx run.mts levels/clean out/run.json --fold-models out
+python score.py out/run.json gt.json
+../../node_modules/.bin/tsx run.mts levels/clean out/pl.json --playlist pl-gap0.json
+python score.py out/pl.json x --playlist
 ```
 
-## Test songs
+`folds.json` is `{ id: id mod 5 }`. Fold models for `train_boundary.py` come from the same folds.
 
-Audio is not committed. The set used so far is 11 tracks from *Most Wanted* by Starfrosch (CC BY-NC-ND 3.0, on archive.org as `starfrosch-mostwanted`): trap, dubstep, house and EDM with real builds and drops. They are only decoded and analyzed locally. ccMixter would also be a fit but blocks non-browser downloads (403), so archive.org was used.
+## Scripts
 
-## Replaying a live session
+- `levels.py`: decode, optional mic simulation (room: reverb, noise floor at -48 dB, low cut at 40 Hz; laptop: almost no bass under 200 Hz, 10 kHz top, more reverb, noise at -40 dB), the five onset-band filters, RMS per frame.
+- `dump-features.mts`, `dump-playlists.mts`: the real `OnsetDetector` and `SectionFeatures` over saved levels. `stream.mts` joins songs with gaps or crossfades.
+- `train.py`: stage 1 (other / build / break per slot) and stage 2 (a drop just landed), gradient-boosted trees, out-of-fold probabilities to `oof.npz`, exports for the app.
+- `decode.py`: the state machine that turns probabilities into labels (mirrors `sections.ts`), with a coordinate search over its thresholds on out-of-fold output.
+- `train_boundary.py`: the song change detector, scored on playlists (changes found, changes invented per hour) and on single songs (every change is a false clock reset).
+- `run.mts`: replays levels through any tracker module (`--tracker`), single songs, fold models or playlists. Works on the old rule-based tracker too, which is how the before and after numbers were made.
+- `score.py`: drop P/R/F1 (a drop counts within 1 s before to 3 s after a labelled one), build and break agreement slot by slot, how many drops had a buildup shown in the 10 s before, false song changes, and playlist boundary recall.
+- `chart.py`: one song's band levels with the expert labels and each tracker's sections underneath.
+- `replay-log.mts`: replays a session exported from the app (`exportSectionLog()` in the console, 50 ms ticks) through the current tracker, exactly as it ran.
+- `spectrum.py`: emulates the app's 512-point FFT analyser. Used to test whether spectral (timbre) features help; they did not (see the plan doc), so the model does not use them.
 
-In the running app's console, `exportSectionLog()` downloads everything the tracker saw this session (up to 40 minutes of 250 ms slots) as a JSON file. `replay-log.mts <log.json> <out.json>` feeds it back through the current tracker (each slot becomes 15 frames of its low, mid and high levels, with the beats spread across them), and `render.py` charts the result. Use it to reproduce a bad moment heard in the app, then tune against it.
+## Results
 
-## Other tools
-
-- `summarize.py <dir>`: one line per song listing every section run of 1.5 s or more (except groove), the number of songs detected, and the total seconds per label. Quick way to scan many songs after a change. Each file in the test set is one song, so `songs=` should always be 1.
-- `probe.mts <frames.json> <from s> <to s> <step s>`: prints the tracker's internals (relative levels and the climb/fall fits) while replaying, to see why a label fired. It reaches into private members, so it is a debugging aid only.
-- `tempoprobe.mts <frames.json> <from s> <to s>`: prints the tempo estimate every 4 s, which is how the tempo estimator's wobble on real music was found.
-
-## Status
-
-See `docs/implementation-plans/song-sections.md`. In short: after a rebuild guided by these charts, breaks and the drops that end them are found on most test songs and each song reads as one song, but there is no ground-truth annotation yet (the charts are read by eye), buildup recall on real songs is unproven (the test set has few classic riser builds), and outro and intro are the weakest labels. Marking true sections per song and scoring the tracker against them is the next step.
+See `docs/implementation-plans/song-sections.md`.
