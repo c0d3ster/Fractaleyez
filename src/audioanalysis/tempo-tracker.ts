@@ -53,7 +53,7 @@ export const DEFAULT_TEMPO_OPTIONS: TempoTrackerOptions = {
   memoryMs: 8000,
   priorBpm: 145,
   priorOctaves: 0.5,
-  bandWeights: [2, 1, 0.5, 0.5, 0.25],
+  bandWeights: [2, 1, 0.5, 0.5, 0.5],
   // Two and four beats, not three: crediting three made dotted patterns (three quarters of a beat) win. Four at 0.75 (BPM loop, stage 4).
   harmonics: [0.5, 0, 0.75],
   subdivision: 1.5,

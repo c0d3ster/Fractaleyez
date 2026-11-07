@@ -32,6 +32,11 @@ Automated improvement loop on `TempoTracker` (`src/audioanalysis/tempo-tracker.t
 | 14 | harmonics: two beats 0.5 to 0.25 | 1.2567 | 1.1842 | no |
 | 15 | bandWeights: hi 0.5 to 1 | 1.2786 | 1.2248 | passed, not taken (13 was better; tried again on top of 13) |
 | 16 | bandWeights: air 0.25 to 0.5 | 1.2804 | 1.2193 | passed, not taken (as 15) |
-| 17 | bandWeights: lo 1 to 1.5 | 1.2643 | 1.2059 | no (+0.005 short by a hair: +0.0052 passes, but 13 was better; tried again on top) |
+| 17 | bandWeights: lo 1 to 1.5 | 1.2643 | 1.2059 | passed (+0.0052), not taken (as 15) |
 | 18 | switchRatio 1.15 to 1.25 | 1.2618 | 1.2012 | no (+0.003) |
 | 19 | windowMs 12000 to 15000 | 1.2591 | 1.1813 | no |
+| 20 | bandWeights: hi 0.5 to 1 (on 13) | 1.2953 | 1.2527 | no (passes the margin, but breaks tempo-tracker.test.ts: claps on 2 and 4 pull a synthetic track to half tempo) |
+| 21 | bandWeights: air 0.25 to 0.5 (on 13) | 1.2944 | 1.2383 | yes |
+| 22 | bandWeights: lo 1 to 1.5 (on 13) | 1.2936 | 1.2204 | passed, not taken (21 was better) |
+| 23 | harmonics: four beats 0.75 to 1 (on 13) | 1.2953 | 1.2359 | no (passes the margin, but breaks tempo-tracker.test.ts) |
+| 24 | memoryMs 8000 to 12000 (on 13) | 1.2818 | 1.2169 | no |
