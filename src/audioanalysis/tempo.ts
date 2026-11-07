@@ -31,16 +31,29 @@ const MIN_FINE_STEP_MS = 0.1
 // aligns about as well as the best one is the real grid. Only peaks within this share of the best score are looked at.
 const SAME_GRID_SCORE = 0.98
 const PEAK_CANDIDATE_SCORE = 0.9
-// A pattern is only named when the onsets line up on the grid at least this well.
-const MIN_PATTERN_ALIGNMENT = 0.75
-// Positions within a beat (0 is on it, 0.5 is halfway to the next), each with how far off still counts.
-const ON_BEAT = 0.15
-// How much of the run a pattern has to explain to be named. Lower than perfect, because the detector adds and misses hits on real music.
-const SHARE_ON_BEAT = 0.65
-const SHARE_BEATS_HIT = 0.8
-const SHARE_SAME_PARITY = 0.9
-const SHARE_EVEN_GAPS = 0.8
-const SHARE_DEMBOW = 0.6
+/** The thresholds the pattern is named with (see DEFAULT_PATTERN_OPTIONS). Exposed so the offline evaluation can tune them. */
+export type PatternOptions = {
+  /** A pattern is only named when the onsets line up on the grid at least this well. */
+  minAlignment: number
+  /** How far from a beat (share of a beat) a hit still counts as on it. */
+  onBeat: number
+  /** How much of the run a pattern has to explain to be named. Lower than perfect, because the detector adds and misses hits on real music. */
+  shareOnBeat: number
+  shareBeatsHit: number
+  shareSameParity: number
+  shareEvenGaps: number
+  shareDembow: number
+}
+
+export const DEFAULT_PATTERN_OPTIONS: PatternOptions = {
+  minAlignment: 0.75,
+  onBeat: 0.15,
+  shareOnBeat: 0.65,
+  shareBeatsHit: 0.8,
+  shareSameParity: 0.9,
+  shareEvenGaps: 0.8,
+  shareDembow: 0.6,
+}
 // Dembow (and the tresillo) is 3+3+2 eighths, repeating.
 const DEMBOW_STEPS = [2, 3, 3]
 const STEP_TOLERANCE = 0.2
@@ -128,27 +141,29 @@ const dembowShare = (gaps: readonly number[], eighth: number): number => {
 }
 
 // The share of the beats in the run that have a hit on them, and the share of those that are all odd or all even beats.
-const beatCoverage = (turns: readonly number[]): { hit: number; sameParity: number; hitBeats: number; beats: number } => {
+const beatCoverage = (turns: readonly number[], onBeatTolerance: number): { hit: number; sameParity: number; hitBeats: number; beats: number } => {
   const slots = turns.map(Math.round)
-  const onBeat = new Set(turns.flatMap((turn, i) => (Math.abs(turn - (slots[i] ?? 0)) <= ON_BEAT ? [slots[i] ?? 0] : [])))
+  const onBeat = new Set(turns.flatMap((turn, i) => (Math.abs(turn - (slots[i] ?? 0)) <= onBeatTolerance ? [slots[i] ?? 0] : [])))
   const beats = Math.max(1, Math.max(...slots) - Math.min(...slots) + 1)
   const odd = [...onBeat].filter((slot) => Math.abs(slot % 2) === 1).length
   const sameParity = onBeat.size === 0 ? 0 : Math.max(odd, onBeat.size - odd) / onBeat.size
   return { hit: onBeat.size / beats, sameParity, hitBeats: onBeat.size, beats }
 }
 
-const namePattern = (onsets: readonly number[], period: number): TempoPattern => {
+const namePattern = (onsets: readonly number[], period: number, options: PatternOptions): TempoPattern => {
   const turns = beatTurns(onsets, period)
-  const onBeat = shareOf(turns, (turn) => Math.abs(turn - Math.round(turn)) <= ON_BEAT)
+  const onBeat = shareOf(turns, (turn) => Math.abs(turn - Math.round(turn)) <= options.onBeat)
   const gaps = onsets.slice(1).map((time, i) => time - (onsets[i] ?? time)).filter((gap) => gap > 0)
-  const coverage = beatCoverage(turns)
+  const coverage = beatCoverage(turns, options.onBeat)
 
-  if (gapShare(gaps, period / 4) >= SHARE_EVEN_GAPS) return 'sixteenths'
-  if (gapShare(gaps, period / 2) >= SHARE_EVEN_GAPS) return 'double time'
-  if (onBeat >= SHARE_ON_BEAT && coverage.hit >= SHARE_BEATS_HIT) return 'four on the floor'
+  if (gapShare(gaps, period / 4) >= options.shareEvenGaps) return 'sixteenths'
+  if (gapShare(gaps, period / 2) >= options.shareEvenGaps) return 'double time'
+  if (onBeat >= options.shareOnBeat && coverage.hit >= options.shareBeatsHit) return 'four on the floor'
   // Every second beat only: the hits are all odd or all even beats, and they fill those.
-  if (onBeat >= SHARE_ON_BEAT && coverage.sameParity >= SHARE_SAME_PARITY && coverage.hitBeats / Math.ceil(coverage.beats / 2) >= SHARE_BEATS_HIT) return 'half time'
-  if (dembowShare(gaps, period / 2) >= SHARE_DEMBOW) return 'dembow'
+  if (onBeat >= options.shareOnBeat && coverage.sameParity >= options.shareSameParity && coverage.hitBeats / Math.ceil(coverage.beats / 2) >= options.shareBeatsHit) {
+    return 'half time'
+  }
+  if (dembowShare(gaps, period / 2) >= options.shareDembow) return 'dembow'
   return 'syncopated'
 }
 
@@ -157,7 +172,8 @@ const namePattern = (onsets: readonly number[], period: number): TempoPattern =>
  * The beat period is the one the onsets line up on best (any onset can sit on it, not only neighbors a beat apart), so syncopation,
  * a missed beat or hits on the off-beat do not throw the estimate off. Consistency is how many of the gaps are one beat (or one grid step) long.
  */
-export const estimateTempo = (onsetTimesMs: readonly number[]): TempoEstimate | null => {
+export const estimateTempo = (onsetTimesMs: readonly number[], patternOptions: Partial<PatternOptions> = {}): TempoEstimate | null => {
+  const options = { ...DEFAULT_PATTERN_OPTIONS, ...patternOptions }
   if (onsetTimesMs.length < MIN_ONSETS) return null
   const first = onsetTimesMs[0] ?? 0
   const onsets = onsetTimesMs.map((time) => time - first)
@@ -169,6 +185,6 @@ export const estimateTempo = (onsetTimesMs: readonly number[]): TempoEstimate | 
   // A gap is steady when it is one beat or one step of the grid the onsets sit on (a half-time or eighth-note pattern has gaps of 2 beats or half a beat).
   const isNear = (gap: number, length: number): boolean => Math.abs(gap - length) <= length * TOLERANCE
   const steady = gaps.filter((gap) => isNear(gap, period) || isNear(gap, gridPeriod)).length
-  const pattern = score >= MIN_PATTERN_ALIGNMENT ? namePattern(onsets, period) : null
+  const pattern = score >= options.minAlignment ? namePattern(onsets, period, options) : null
   return { bpm, pattern, consistency: steady / gaps.length, onsets: onsetTimesMs.length }
 }
