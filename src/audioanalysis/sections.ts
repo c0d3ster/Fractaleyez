@@ -13,6 +13,7 @@ import { estimateTempo } from './tempo'
 import { FEATURE_COUNT, FEATURE_NAMES, SLOT_MS, SectionFeatures } from './section-features'
 import { SectionModelData, boosterScores, sigmoid, softmaxInPlace } from './section-model'
 import modelData from './section-model.json'
+import { TickRecorder } from './tick-recorder'
 
 export type SongSection = 'intro' | 'quiet' | 'groove' | 'buildup' | 'turnaround' | 'break' | 'drop' | 'outro'
 
@@ -103,9 +104,8 @@ export type SectionTick = { t: number; power: number[]; beats: number }
 
 const DEFAULT_MODEL = modelData as SectionModelData
 const HISTORY_MS = 120000
-// Every tick of the last 40 minutes is kept, so a listening session can be exported and replayed offline (about 1.2 MB).
+// Every tick of the last 40 minutes is kept, so a listening session can be exported and replayed offline (1.4 MB, see TickRecorder).
 const RECORDING_TICKS = 48000
-const RECORDING_TRIM = 4000
 
 // The decoder (tuned on out-of-fold output, see decode.py).
 const SMOOTH_S = 0.5
@@ -176,7 +176,7 @@ type Decoded = 'groove' | 'buildup' | 'break' | 'drop'
 export class SectionTracker {
   private features = new SectionFeatures()
   private readonly slots: SectionSlot[] = []
-  private recording: SectionTick[] = []
+  private readonly recording = new TickRecorder(RECORDING_TICKS)
   private beatTimes: number[] = []
   private lastT: number | null = null
   private sums = { total: 0, low: 0, mid: 0, high: 0 }
@@ -280,8 +280,8 @@ export class SectionTracker {
 
   getState = (): SectionState => this.state
 
-  /** Every 50 ms tick of the last 40 minutes at most. Not a copy: read it where it is called. */
-  getRecording = (): readonly SectionTick[] => this.recording
+  /** Every 50 ms tick of the last 40 minutes at most, oldest first. Builds the list each call: for an export, not every frame. */
+  getRecording = (): SectionTick[] => this.recording.toTicks()
 
   /** The closed slots of the last two minutes, oldest first. Not a copy: read it where it is called. */
   getHistory = (): readonly SectionSlot[] => this.slots
@@ -289,7 +289,7 @@ export class SectionTracker {
   reset = (): void => {
     this.features = new SectionFeatures()
     this.slots.length = 0
-    this.recording = []
+    this.recording.clear()
     this.beatTimes = []
     this.lastT = null
     this.sums = { total: 0, low: 0, mid: 0, high: 0 }
@@ -302,8 +302,7 @@ export class SectionTracker {
   }
 
   private record = (t: number, power: ArrayLike<number>, beats: number): void => {
-    this.recording.push({ t, power: Array.from(power, (p) => +p.toPrecision(5)), beats })
-    if (this.recording.length > RECORDING_TICKS) this.recording.splice(0, RECORDING_TRIM)
+    this.recording.push(t, power, beats)
   }
 
   private closeSlot = (t: number, row: Float64Array): void => {
