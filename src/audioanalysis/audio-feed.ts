@@ -16,8 +16,6 @@ import { DEFAULT_ENABLED_BANDS, ONSET_BANDS } from './onset-bands'
 export class AudioFeed {
   private latest: AudioAnalysedDataForVisualization | null = null
   private readonly onsetDetector = new OnsetDetector(ONSET_BANDS.length)
-  // Reused every frame, so feeding the section tracker allocates nothing.
-  private readonly sectionLevels: number[] = ONSET_BANDS.map(() => 0)
 
   constructor(
     private readonly stream: AudioStream,
@@ -30,7 +28,8 @@ export class AudioFeed {
     const snapshot = this.analyser.getAnalysedDataForVisualization()
 
     const { soundThreshold, ignoreTime } = window.config.audio
-    const onset = this.onsetDetector.update(this.stream.getBandLevels(), deltaTime, this.analyser.getAnalysedData().getEnergy(), {
+    const levels = this.stream.getBandLevels()
+    const onset = this.onsetDetector.update(levels, deltaTime, this.analyser.getAnalysedData().getEnergy(), {
       enabledBands: window.enabledFreqBands ?? DEFAULT_ENABLED_BANDS,
       sensitivity: soundThreshold.value,
       ignoreMs: ignoreTime.value,
@@ -39,10 +38,8 @@ export class AudioFeed {
     snapshot.beat = onset.beat
     const now = performance.now()
     beatMonitor.record({ t: now, bands: onset.bands, beatBand: onset.beatBand })
-    onset.bands.forEach(({ level }, i) => {
-      this.sectionLevels[i] = level
-    })
-    sectionTracker.push({ t: now, levels: this.sectionLevels, beat: onset.beatBand !== null })
+    // The raw band levels, as the section model was trained and scored on (the onset detector's followed levels blur its tick features).
+    sectionTracker.push({ t: now, levels, beat: onset.beatBand !== null })
 
     this.latest = snapshot
     return snapshot
