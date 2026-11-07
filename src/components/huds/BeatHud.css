@@ -29,8 +29,8 @@
   display: block;
   width: 100%;
   height: auto;
-  /* App.css hides the cursor on every canvas. */
-  cursor: default;
+  /* App.css hides the cursor on every canvas. A click switches the view. */
+  cursor: pointer;
 }
 /* The title stays centered; the tempo sits to its right. */
 .beat-hud-title-row {
