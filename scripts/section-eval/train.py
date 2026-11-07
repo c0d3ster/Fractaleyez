@@ -1,7 +1,7 @@
 """Trains the section model on expert labels, with track-level cross-validation, and exports it for section-model.ts.
 
     python train.py <features dir>[,<features dir>...] <gt.json>[,<gt.json>...] <out dir> [--export model.json] [--export-folds]
-        [--folds folds.json] [--no-grid] [--dir-weights 1,1,1,0.5]
+        [--folds folds.json] [--no-grid] [--dir-weights 1,1,1,0.5[/1,1,1,0.5]]
 
 Stage 1, per 250 ms slot: other / build / break, from the features alone.
 Stage 2, per slot: "a drop just happened" (within the last second or so), from the features plus a short memory of stage 1
@@ -12,7 +12,8 @@ saved to <out dir>/oof.npz for tuning the decoder (decode.py).
 Several feature dirs (clean, room, laptop) are pooled for training, each track's copies kept in the same fold.
 A track's fold is its id mod 5, or its entry in --folds ({ id: fold }, how Raveform's tracks join SSME's five folds). Several label files
 are merged (SSME's and Raveform's mapped ones, raveform-sections.py). --no-grid trains on the features before the grid columns (the model
-before the grid); --dir-weights weighs each feature dir's slots in training (to balance a large set against a small one).
+before the grid); --dir-weights weighs each feature dir's slots in training (to balance a large set against a small one); a second list after a slash
+weighs stage 2 separately (0 in the first list and more in the second trains stage 1 without that set and stage 2 with it).
 """
 import json
 import os
@@ -120,8 +121,10 @@ def main() -> None:
     os.makedirs(out, exist_ok=True)
     data = load(dirs, gt, grid='--no-grid' not in sys.argv)
     fold_of = json.load(open(sys.argv[sys.argv.index('--folds') + 1])) if '--folds' in sys.argv else {}
-    dir_weights = [float(w) for w in sys.argv[sys.argv.index('--dir-weights') + 1].split(',')] if '--dir-weights' in sys.argv else [1.0] * len(dirs)
-    weight = np.array(dir_weights)[np.array(data['conds'])][groups_to_track(data)]
+    spec = sys.argv[sys.argv.index('--dir-weights') + 1] if '--dir-weights' in sys.argv else ','.join(['1'] * len(dirs))
+    lists = [[float(w) for w in part.split(',')] for part in spec.split('/')]
+    weight = np.array(lists[0])[np.array(data['conds'])][groups_to_track(data)]
+    weight2 = np.array(lists[-1])[np.array(data['conds'])][groups_to_track(data)]
     X, y, groups, starts = data['X'], data['y'], data['groups'], data['starts']
     print(f"{len(data['ids'])} track copies, {len(X)} slots, classes {np.bincount(y)}")
 
@@ -145,7 +148,7 @@ def main() -> None:
     p2 = np.zeros(len(X))
     for f, (train, test) in enumerate(folds):
         train = train[keep[train]]
-        model = HistGradientBoostingClassifier(**STAGE2, random_state=0).fit(X2[train], data['drop'][train], sample_weight=weight[train])
+        model = HistGradientBoostingClassifier(**STAGE2, random_state=0).fit(X2[train], data['drop'][train], sample_weight=weight2[train])
         p2[test] = model.predict_proba(X2[test])[:, 1]
         fold_models[f]['stage2'] = model
     # The grid columns go along (when the features have them) so the decoder's phrase-line prior can be tuned on the same output.
@@ -168,7 +171,7 @@ def main() -> None:
         path = sys.argv[sys.argv.index('--export') + 1]
         # Stage 2 is trained on out-of-fold stage 1 output (what it will see at run time), and shipped with stage 1 trained on everything.
         m1 = HistGradientBoostingClassifier(**STAGE1, random_state=0).fit(X, y, sample_weight=weight)
-        m2 = HistGradientBoostingClassifier(**STAGE2, random_state=0).fit(X2[keep], data['drop'][keep], sample_weight=weight[keep])
+        m2 = HistGradientBoostingClassifier(**STAGE2, random_state=0).fit(X2[keep], data['drop'][keep], sample_weight=weight2[keep])
         json.dump(bundle(m1, m2), open(path, 'w'), separators=(',', ':'))
         print('exported', path, os.path.getsize(path) // 1024, 'KB')
 
