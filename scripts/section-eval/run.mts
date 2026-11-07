@@ -4,7 +4,10 @@
 //   tsx run.mts <levels dir> <out.json> [--tracker ../../src/audioanalysis/sections.ts] [--only id,id] [--fps 60]
 //   tsx run.mts <levels dir> <out.json> --playlist <playlist.json>
 //   tsx run.mts <levels dir> <out.json> --tuning '{"turnaroundDropThreshold":0.15}'   (decoder overrides, see SectionTuning)
-//   tsx run.mts <levels dir> <out.json> --fold-models <dir>   (dir/fold<n>.json; each song is run through the model of the fold that held it out, id mod 5)
+//   tsx run.mts <levels dir> <out.json> --fold-models <dir> [--folds folds.json]   (dir/fold<n>.json; each song is run through the model of the
+//     fold that held it out: id mod 5, or its fold in folds.json, { id: fold })
+//
+// The tracker is fed a BeatGrid's state every frame (a TempoTracker and BeatGrid on the same levels, in AudioFeed's order); --no-grid leaves it out.
 //
 // A playlist file is [{ "songs": ["id", ...], "gapSeconds": 2, "crossfadeSeconds": 0 }, ...]: each entry is played as one stream, the songs
 // back to back with that much silence (or that much overlap, mixed in power) between them, the way a streaming app plays an album.
@@ -13,9 +16,11 @@ import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { OnsetDetector } from '../../src/audioanalysis/onset-detector.ts'
 import { ONSET_BANDS, DEFAULT_ENABLED_BANDS } from '../../src/audioanalysis/onset-bands.ts'
+import { TempoTracker } from '../../src/audioanalysis/tempo-tracker.ts'
+import { BeatGrid, GridState } from '../../src/audioanalysis/beat-grid.ts'
 
 type Tracker = {
-  push: (sample: { t: number; levels: readonly number[]; beat: boolean }) => void
+  push: (sample: { t: number; levels: readonly number[]; beat: boolean; grid?: GridState | null }) => void
   getState: () => { section: string; songIndex: number; songMs: number | null; intensity: number; dropCount?: number }
 }
 
@@ -34,7 +39,11 @@ const { SectionTracker } = (await import(pathToFileURL(trackerPath).href)) as { 
 const tuning = JSON.parse(option('tuning', '{}')!) as unknown
 const foldDir = option('fold-models')
 const foldModels = foldDir ? [0, 1, 2, 3, 4].map((f) => JSON.parse(readFileSync(join(foldDir, `fold${f}.json`), 'utf8')) as unknown) : null
-const trackerFor = (id: string): Tracker => new SectionTracker(foldModels ? foldModels[Number(id) % 5] : undefined, tuning)
+const foldsPath = option('folds')
+const folds = foldsPath ? (JSON.parse(readFileSync(foldsPath, 'utf8')) as Record<string, number>) : null
+const foldOf = (id: string): number => folds?.[id] ?? Number(id) % 5
+const useGrid = !args.includes('--no-grid')
+const trackerFor = (id: string): Tracker => new SectionTracker(foldModels ? foldModels[foldOf(id)] : undefined, tuning)
 
 const BANDS = ONSET_BANDS.length
 const SOURCE_FPS = 60
@@ -75,6 +84,8 @@ type Run = {
 
 const runStream = (id: string, frames: Float32Array, starts: number[], tracker: Tracker = trackerFor(id)): Run => {
   const detector = new OnsetDetector(BANDS)
+  const tempo = new TempoTracker()
+  const grid = new BeatGrid(tempo)
   const count = frames.length / BANDS
   const step = SOURCE_FPS / fps
   const frameMs = 1000 / fps
@@ -88,7 +99,11 @@ const runStream = (id: string, frames: Float32Array, starts: number[], tracker: 
     for (let b = 0; b < BANDS; b++) levels[b] = frames[f * BANDS + b]!
     const t = k * frameMs
     const onset = detector.update(levels, frameMs, 0, { enabledBands: DEFAULT_ENABLED_BANDS, sensitivity: 2, ignoreMs: 250, decayMs: 300 })
-    tracker.push({ t, levels: smoothed ? onset.bands.map(({ level }) => level) : levels, beat: onset.beatBand !== null })
+    if (useGrid) {
+      tempo.push(t, levels)
+      grid.push(t, levels)
+    }
+    tracker.push({ t, levels: smoothed ? onset.bands.map(({ level }) => level) : levels, beat: onset.beatBand !== null, grid: useGrid ? grid.getState() : null })
     while (t >= nextSlot) {
       const state = tracker.getState()
       run.sections.push(state.section)
@@ -114,7 +129,7 @@ if (playlistPath) {
   const playlists = JSON.parse(readFileSync(playlistPath, 'utf8')) as Array<{ songs: string[]; gapSeconds?: number; crossfadeSeconds?: number }>
   playlists.forEach((list, i) => {
     const { frames, starts } = joinSongs(list.songs, list.gapSeconds ?? 0, list.crossfadeSeconds ?? 0)
-    runs.push(runStream(`playlist-${i}`, frames, starts, new SectionTracker(foldModels ? foldModels[Number(list.songs[0]) % 5] : undefined, tuning)))
+    runs.push(runStream(`playlist-${i}`, frames, starts, new SectionTracker(foldModels ? foldModels[foldOf(list.songs[0]!)] : undefined, tuning)))
   })
 } else {
   const only = option('only')?.split(',')
