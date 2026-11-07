@@ -20,14 +20,18 @@ Needs ffmpeg, Python 3 with numpy, scipy and scikit-learn (matplotlib for charts
 cd scripts/section-eval
 # 1. Band levels, as the app measures them (Web Audio biquads, RMS per frame at 60 fps). --mic room|laptop simulates hearing it through a microphone.
 python levels.py song.mp3 levels/clean/<id>.f32
+python levels.py song.mp3 levels/room/<id>.f32 --mic room --seed <n>
 python levels.py song.mp3 levels/laptop/<id>.f32 --mic laptop --seed <n>
 # 2. Section features (src/audioanalysis/section-features.ts) for every song, and random playlists for the song change detector.
 ../../node_modules/.bin/tsx dump-features.mts levels/clean features/clean
+../../node_modules/.bin/tsx dump-features.mts levels/room features/room
+../../node_modules/.bin/tsx dump-features.mts levels/laptop features/laptop
 ../../node_modules/.bin/tsx dump-playlists.mts levels/clean folds.json playlists/clean --per-fold 40
+../../node_modules/.bin/tsx dump-playlists.mts levels/laptop folds.json playlists/laptop --per-fold 40
 # 3. Train with 5-fold cross-validation (fold = track id mod 5), tune the decoder on out-of-fold output, add the song change detector.
 python train.py features/clean,features/room,features/laptop gt.json out --export-folds --export ../../src/audioanalysis/section-model.json
 python decode.py out/oof.npz gt.json --grid
-python train_boundary.py playlists/clean,playlists/laptop features/clean --export ../../src/audioanalysis/section-model.json
+python train_boundary.py playlists/clean,playlists/laptop features/clean --export-folds out --export ../../src/audioanalysis/section-model.json
 # 4. Score the real tracker (TypeScript), each song through the fold model that never saw it.
 ../../node_modules/.bin/tsx run.mts levels/clean out/run.json --fold-models out
 python score.py out/run.json gt.json

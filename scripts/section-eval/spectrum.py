@@ -21,7 +21,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument('song')
     parser.add_argument('out')
-    parser.add_argument('--mic', default='clean')
+    parser.add_argument('--mic', default='clean', choices=['clean', 'room', 'laptop'])
     parser.add_argument('--seed', type=int, default=1)
     args = parser.parse_args()
     x = simulate_mic(decode(args.song), args.mic, np.random.default_rng(args.seed))
