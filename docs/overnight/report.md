@@ -280,3 +280,59 @@ you play.
 
 Session `session_01D1Q35eSPGqxCgJVMvRQgGL`, wall time 12:25 to about 14:15 UTC (1 h 50 min, most of it replaying 2,700 tracks through
 the onset detector). `get_session` did not return `external_metadata.usage` for this session: cost: see the session.
+
+## Stage 4: the BPM loop
+
+### What changed
+
+An automated loop tuned `TempoTracker` (the BPM the Beat HUD shows) on the GiantSteps tempo set. It made 40 attempts and kept three
+changes: the bar term in each candidate tempo's score went from 0.5 to 0.75, the air band (cymbals and hats) went from 0.25 to 0.5, and
+each score is now scaled to the total weight of its terms. That last one was needed because the bigger bar term had let a fan's noise show a
+tempo. The hidden set improved slightly at 30, 60 and 144 fps, so `exp/bpm-loop` is merged into feat/bar-grid. Commits: bc80374, db9ae78 and 639f82a on `exp/bpm-loop`, merged in
+4b446df. Every attempt is logged in
+[`docs/experiments/bpm-loop.md`](../experiments/bpm-loop.md), and the method and what failed are in
+[`tempo.md`](../implementation-plans/tempo.md#the-bpm-loop-overnight-stage-4).
+
+How it was run: the 664 excerpts were split by a hash of the id into 60% tune, 20% check and 20% hidden
+(`docs/experiments/bpm-loop-split.json`). The evaluation (`scripts/section-eval/bpm-loop-eval.py`) was committed before the first
+attempt and never changed. The score is readings right + 0.5 x tracks usually right - 0.05 x jumps a minute, averaged over a clean feed
+and a simulated laptop mic. A change was kept only if the tuning score rose by 0.005 or more, the check score did not fall and the tests
+still passed. Every 10 attempts the loop also checked 30 and 144 fps and the noise files.
+
+### Before and after (hidden 122 excerpts, never seen by the loop)
+
+| | Before | After |
+| --- | --- | --- |
+| Score at 60 fps (30 / 144 fps) | 1.230 (1.216 / 1.223) | 1.239 (1.234 / 1.236) |
+| Readings within 4% of the right tempo, clean / laptop mic | 82.1% / 81.9% | 82.7% / 82.8% |
+| Tracks whose usual reading is right, clean / laptop mic | 82.8% / 82.0% | 82.8% / 82.8% |
+| Visible jumps a minute, clean / laptop mic | 0.05 / 0.05 | 0.05 / 0.05 |
+| Noise files (white, pink, brown, fan) showing a tempo | none | none |
+
+This is a small gain. The tuning score rose by 0.036 and the check score by 0.036, but the hidden set rose by only 0.010. Most of what the
+loop found was fitting the tuning excerpts. What is left is under one point of readings and about one excerpt out of 122, which is close
+to the noise of a set this size. It is still better at every frame rate and on both inputs, and nothing got worse.
+
+What did not help, or broke something:
+
+- A wider or narrower tempo prior, or a different centre (135, 150).
+- A stronger subdivision term (2, 2.5). Combined with a 12 s memory it passed the margin, but a synthetic test track then read at 1.5 times
+  its tempo.
+- The hi band at 1, and the bar term at 1. Both passed the margin and both broke the synthetic tests (claps on 2 and 4 pull to half
+  tempo), so they were rejected.
+- A longer memory or window, other switch and follow settings, lower strength and confidence gates, and a penalty at three beats.
+
+The noise check caught a real problem: after attempt 13 the fan read a tempo 82% of the time. The fix was attempt 25, the score scale.
+Attempts 13 and 21 were judged again together with it, against the start.
+
+The errors left are mostly of three kinds. Slow tracks (70 to 90 BPM: chill-out, nu-disco, glitch-hop) read at double, because the prior
+around 145 decides those and GiantSteps itself labels some drum and bass 87 and some 174. Dotted patterns read at 4/3 (127 as 168). Two-step
+drum and bass reads at 2/3 (174 as 116). Fixing these needs a new kind of evidence, such as kick against snare placement, not more
+tuning of these weights.
+
+### Cost
+
+Session `session_01D1Q35hKdYvB3hTYCjT8Ks7`, wall time 14:10 to about 15:20 UTC (1 h 10 min: about 20 min downloading and computing
+levels, then the 40 attempts at 40 s each). `get_session` `external_metadata.usage` read at 15:14: cost_usd 1.72, input 557, output 15,352,
+cache read 3,596,607, cache write 85,873 tokens. Like stage 1's figure, this looks lower than the full session would cost; the session's
+own page has the full cost.
