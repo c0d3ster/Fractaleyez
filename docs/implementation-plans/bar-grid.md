@@ -75,8 +75,10 @@ Two bugs the evaluation caught: beats were judged from the interval after them, 
 
 34% of labelled drops land within a second of the grid's 8-bar line, against 6% of the time: 5.7 times chance. But Raveform says 73% of section starts are on an 8-bar line, so the grid's phrase position is often wrong. That is where the headroom is, and Raveform's marked beats are what will measure it. Not in the shipped model yet.
 
+After the Raveform tuning (overnight stage 2, see `song-sections.md`, "Beat grid and Raveform"), the grid columns were scored on the shipped setup, a model trained on clean, room and laptop audio together, through the TypeScript tracker. There they do not help: drop F1 0.407 / 0.412 / 0.394 without them (clean / room / laptop) and 0.393 / 0.390 / 0.366 with them. A decoder prior that a drop lands near the 8-bar line did not help either (40% of SSME's labelled drops fall within 2 beats of the grid's line). So the grid is not wired into `AudioFeed` yet.
+
 ## Next
 
 1. **Done: EDM evaluation on Raveform** (above). Left: the tempo tracker on drum and bass, and the bar and phrase in the first minute of a track.
-2. **The section model reads the grid.** Bar in phrase, beats to the next 8-bar line and the grid's confidence as features, and a prior in the decoder that a drop lands on a phrase line. Scored out of fold on the 339 labelled tracks, the same way as everything else.
-3. Wire `BeatGrid` into `AudioFeed` and expose it (`window.getBeatGrid`) once 1 and 2 show it helps.
+2. **Tried: the section model reads the grid** (features and a phrase-line drop prior). No gain on the shipped multi-condition model; the plumbing is in (`SectionFeatures` takes a `GridState`, `SectionTuning.phraseLine*`), so a better grid can be tried again in minutes.
+3. Wire `BeatGrid` into `AudioFeed` and expose it (`window.getBeatGrid`) once the grid finds the 8-bar line reliably enough for 2 to help.
