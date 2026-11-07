@@ -4,7 +4,7 @@ import './BeatHud.css'
 
 import { BeatSample } from '../../audioanalysis/beat'
 import { DEFAULT_ENABLED_BANDS, ONSET_BANDS } from '../../audioanalysis/onset-bands'
-import { estimateTempo, TempoPattern } from '../../audioanalysis/tempo'
+import { estimateTempo } from '../../audioanalysis/tempo'
 import { subscribeUiTick } from '../../utils/uiTicker'
 import { bandColor } from './bandColors'
 
@@ -17,10 +17,8 @@ const Y_HEADROOM = 1.15
 const LAMP_FADE_MS = 200
 // The tempo moves slowly, so it is re-read twice a second, and only drawn again when the number shown changes.
 const TEMPO_UPDATE_INTERVAL_MS = 500
-// A different pattern name has to hold for this many readings in a row (about 3 s) before it replaces the one shown, so a song near the line between two names does not flicker.
-const PATTERN_HOLD_READINGS = 6
-
-// The BPM comes from the tempo tracker (steady, read from the onset bands); the consistency and the pattern from the last 12 s of detected beats.
+// The BPM comes from the tempo tracker (steady, read from the onset bands) and the consistency from the last 12 s of detected beats. The rhythm
+// name comes held from the main window (RhythmLabeler, window.getRhythmLabel), so it is the same in a popped-out config window.
 type TempoShown = { bpm: number | null; consistency: number | null }
 
 const sameTempo = (a: TempoShown, b: TempoShown): boolean =>
@@ -101,7 +99,7 @@ export const BeatHud = (): React.ReactElement => {
   const info = useInfo()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [tempo, setTempo] = useState<TempoShown>({ bpm: null, consistency: null })
-  const [pattern, setPattern] = useState<TempoPattern | null>(null)
+  const [rhythm, setRhythm] = useState('')
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -110,9 +108,6 @@ export const BeatHud = (): React.ReactElement => {
     if (!ctx) return
 
     let lastTempoAt = 0
-    let shownPattern: TempoPattern | null = null
-    let candidate: TempoPattern | null = null
-    let streak = 0
     const updateTempo = (source: Window): void => {
       const now = source.performance.now()
       if (now - lastTempoAt < TEMPO_UPDATE_INTERVAL_MS) return
@@ -120,19 +115,7 @@ export const BeatHud = (): React.ReactElement => {
       const estimate = estimateTempo(source.getBeatTimes?.() ?? [])
       const next: TempoShown = { bpm: source.getTempo?.()?.bpm ?? null, consistency: estimate?.consistency ?? null }
       setTempo((previous) => (sameTempo(previous, next) ? previous : next))
-
-      // The first name shows right away; a change waits until the new name has held for a few readings in a row.
-      const reading = estimate?.pattern ?? null
-      if (reading === shownPattern) {
-        candidate = reading
-        streak = 0
-        return
-      }
-      streak = reading === candidate ? streak + 1 : 1
-      candidate = reading
-      if (shownPattern !== null && streak < PATTERN_HOLD_READINGS) return
-      shownPattern = reading
-      setPattern(reading)
+      setRhythm(source.getRhythmLabel?.().text ?? '')
     }
 
     const draw = (): void => {
@@ -211,8 +194,8 @@ export const BeatHud = (): React.ReactElement => {
       <div className='beat-hud' {...info('Colored ticks are beats. The dashed lines are what each band had to pass to count as a hit.')}>
         <canvas ref={canvasRef} width={W} height={H} className='beat-hud-canvas' />
       </div>
-      <span className='beat-hud-feel' {...info('The rhythm the hits make against the beat: on every beat (four on the floor), every second beat (half time), steady eighths (double time) or sixteenths, a 3+3+2 pattern (dembow), or anything else off the beat (syncopated). Blank when there is no clear beat. A new name shows after it has held for a few seconds.')}>
-        {pattern ?? ''}
+      <span className='beat-hud-feel' {...info('The rhythm the drums play, read from the kick, snare and hat bands: a kick on every beat (four on the floor) or a broken kick (breakbeat), or, when it is sure, the drum and bass kick on 1 and the "and" of 3 (two-step), with the tempo range it is played at. It only names a rhythm it is sure of, so it is often blank: in a breakdown, without a clear beat, or for rhythms it cannot tell apart. A name shows after 2 seconds and clears after 3.')}>
+        {rhythm}
       </span>
     </div>
   )

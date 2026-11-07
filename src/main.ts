@@ -5,8 +5,7 @@ import { AudioFeed } from './audioanalysis/audio-feed'
 import { beatMonitor } from './audioanalysis/beat'
 import { sectionTracker } from './audioanalysis/sections'
 import { tempoTracker } from './audioanalysis/tempo-tracker'
-import { nameRhythm } from './audioanalysis/rhythm-pattern'
-import type { TempoPattern } from './audioanalysis/tempo'
+import { nameRhythm, RhythmLabel, RhythmLabeler, RhythmPattern } from './audioanalysis/rhythm-pattern'
 import { exportSectionLog } from './audioanalysis/section-export'
 import { DEFAULT_DETECTOR_MS, detectorCalibration, estimateLag, LagEstimate, median } from './audioanalysis/lag-estimate'
 import { LagProbe } from './audioanalysis/lag-probe'
@@ -146,10 +145,13 @@ const init = (): void => {
   window.getBeatTimes = beatMonitor.getBeatTimes
   window.getSongSection = sectionTracker.getState
   window.getTempo = tempoTracker.getReading
-  window.getRhythmPattern = (): TempoPattern | null => {
+  const rhythmInput = (): { bandOnsets: ReadonlyArray<readonly number[]>; periodMs: number | null } => {
     const bpm = tempoTracker.getBpm()
-    return nameRhythm({ bandOnsets: beatMonitor.getBandOnsets(), periodMs: bpm === null ? null : 60000 / bpm })
+    return { bandOnsets: beatMonitor.getBandOnsets(), periodMs: bpm === null ? null : 60000 / bpm }
   }
+  window.getRhythmPattern = (): RhythmPattern | null => nameRhythm(rhythmInput())
+  const rhythmLabeler = new RhythmLabeler()
+  window.getRhythmLabel = (): RhythmLabel => rhythmLabeler.read(rhythmInput(), performance.now())
   window.getSectionHistory = sectionTracker.getHistory
   window.exportSectionLog = (): void => exportSectionLog(sectionTracker.getRecording())
   window.subscribeBeat = beatMonitor.subscribe

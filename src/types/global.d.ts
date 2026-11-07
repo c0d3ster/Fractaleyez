@@ -2,7 +2,7 @@ import type { AppConfig, LayerKey } from '../config/configDefaults'
 import type { BeatTimeline } from '../audioanalysis/beat'
 import type { SectionSlot, SectionState } from '../audioanalysis/sections'
 import type { TempoReading } from '../audioanalysis/tempo-tracker'
-import type { TempoPattern } from '../audioanalysis/tempo'
+import type { RhythmLabel, RhythmPattern } from '../audioanalysis/rhythm-pattern'
 import type { LagEstimate } from '../audioanalysis/lag-estimate'
 import type { LagMeasurement } from '../audioanalysis/lag-probe'
 import type { QualityStatus } from '../visualization/quality-controller'
@@ -50,8 +50,10 @@ declare global {
     getSongSection?: () => SectionState
     /** The steady tempo (TempoTracker), or null when there is no rhythm to read. */
     getTempo?: () => TempoReading | null
-    /** The rhythm the drums make (rhythm-pattern.ts, from each band's own onsets at the tracker's tempo), or null with no tempo or too few hits. */
-    getRhythmPattern?: () => TempoPattern | null
+    /** The rhythm the drums make right now (rhythm-pattern.ts, from each band's own onsets at the tracker's tempo), or null when no name is confident enough. Unheld. */
+    getRhythmPattern?: () => RhythmPattern | null
+    /** The Beat HUD's line: the held rhythm name with its tempo range ("four on the floor · house & techno tempo"), blank when no name is confident. */
+    getRhythmLabel?: () => RhythmLabel
     getSectionHistory?: () => readonly SectionSlot[]
     /** Downloads everything the section tracker saw this session as a JSON file, to be replayed offline. Run it from the console. */
     exportSectionLog?: () => void
