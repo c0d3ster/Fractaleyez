@@ -11,6 +11,11 @@ Automated improvement loop on `BeatGrid` (`src/audioanalysis/beat-grid.ts`), sta
   `grid-score.py`'s definitions, from 10 s in, 70 ms). Metric: downbeat F + 8-bar F + 0.5 x beat F, mean over the tuning tracks.
 - Keep a change only if the tuning metric rises by at least 0.005, the check metric does not fall below the current kept code's, and
   Ballroom beat F does not fall more than 0.002 below the start's (0.6088; a guard against drift, not a target).
+- Added after iteration 16 (a side check, not the metric): re-lock after a song change. 160 pairs of tuning-fold tracks (not drum and
+  bass), track A's first 90 s then track B from 60 s in; the time until the grid's beats score F 0.8 against B's marks over a 4 s window.
+  At the start, 81% re-lock within 20 s (median 12 s, most of it the tempo tracker's own re-lock). Slower re-anchoring wins on single
+  tracks but costs this, so a change that lowers it more than 0.02 below the kept code's is not taken. Script: `relock.mts`/`relock.py`
+  in the session's scratch, described here; not part of the frozen evaluation.
 - Edit surface: `beat-grid.ts` only (not `GridState`, not the fitted weights). The grid and the tempo tracker are deterministic, so there
   is no seed to fix.
 
@@ -33,3 +38,6 @@ Automated improvement loop on `BeatGrid` (`src/audioanalysis/beat-grid.ts`), sta
 | 14 | a re-anchor to near the off-beat (error over 0.4 beat) waits 3x as long (18 s); 31% of re-anchors on 120 fold-0 tracks were there | 1.3568 | 1.3643 | 0.6097 | yes |
 | 15 | as 14, phaseJumpUpdates 16 | 1.3444 | | | no (below 14) |
 | 16 | as 14, scale 5 | 1.3616 | | | no (+0.0048 over 14) |
+| 17 | as 14, off-beat threshold 0.4 to 0.35 | 1.3667 | 1.3682 | 0.6095 | passed, not taken (re-lock within 20 s 0.73 to 0.71, never re-locked 4% to 6%; tried again on top of 19) |
+| 18 | as 14, off-beat threshold 0.3 | 1.3755 | | | not taken (re-lock within 20 s 0.69) |
+| 19 | phaseJump 0.15 to 0.2 (on 14) | 1.3638 | 1.3669 | 0.6148 | yes (re-lock within 20 s 0.73 to 0.76) |
