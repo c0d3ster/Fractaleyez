@@ -26,20 +26,58 @@ Everything here is judged against human labels on audio the model never saw, thr
 - **A real microphone**: every dataset also run through a simulated room and a simulated laptop (laptop speakers into the laptop mic, which
   lose almost all bass), and synthetic noise (white, pink, brown, a fan).
 
-### What changed, and what it bought
+### What changed, and what it bought (against the baseline, same data and scoring)
 
-| | Before | After |
+The baseline is what existed when this work started: the hand-tuned section tracker on `feat/song-sections-auto-mode` (#266) and the old
+BPM estimator (`estimateTempo` over the last 12 s of detected beats). Every row below is measured, out of sample, on the same data for both.
+
+**Sections** (339 expert-labelled SSME tracks, out of fold; F1 is the balance of precision and recall, 1 is perfect):
+
+| | Baseline | Now (clean) | Now (room mic) | Now (laptop mic) | Baseline (laptop mic) |
+| --- | --- | --- | --- | --- | --- |
+| Drop F1 | 0.20 | 0.39 | 0.41 | 0.35 | 0.06 |
+| Drops fired per real drop | 1.88 | 0.85 | 0.83 | 0.73 | 1.80 |
+| Buildup F1 | 0.09 | 0.44 | 0.43 | 0.39 | 0.09 |
+| Break F1 | 0.28 | 0.52 | 0.53 | 0.53 | 0.16 |
+| A buildup shown before a drop | 22% | 84% | 83% | 81% | 22% |
+| False song-clock resets per song | 0.41 | 0.06 | 0.03 | 0.03 | 0.39 |
+| Median drop latency | 1.0 s | 1.0 s | 1.0 s | 0.75 s | 1.1 s |
+
+**Song changes** (playlists of 5 songs; found within 25 s, and invented changes per hour):
+
+| | Baseline | Now |
 | --- | --- | --- |
-| Drop F1 (clean / laptop mic) | 0.20 / 0.06 | 0.39 / 0.35 |
-| Buildup F1 | 0.09 | 0.44 |
-| Break F1 | 0.28 | 0.52 |
-| A buildup shown before a drop | 22% | 84% |
-| False song-clock resets per song | 0.41 | 0.06 |
-| Invented song changes per hour (playlists) | 4 to 7 | under 1 |
-| BPM readings within 4% (cross-validated) | 59% | about 82% |
-| Visible BPM jumps per minute | 10.5 | under 0.5 |
-| False hits a minute on a fan (clean / laptop) | 39 / 16 | 7 / 2 |
-| A BPM shown on pure noise | 86% of the time | never |
+| Back to back | 80% found, 3.9 invented an hour | 78%, 0.7 |
+| 2 s gap | 82%, 6.7 | 98%, 0.5 |
+| 6 s crossfade | 63%, 6.4 | **38%, 0.3 (a regression in what is found)** |
+
+**Tempo** (GiantSteps, 661 excerpts; tuned and scored on separate halves, then cross-validated):
+
+| | Baseline | Now |
+| --- | --- | --- |
+| Readings within 4% of the true tempo | 59% | about 82% |
+| Tracks whose usual reading is right | 76% | 84 to 85% |
+| Visible jumps (over 4%) per minute | 10.5 | under 0.5 |
+| Laptop mic, readings within 4% | 66% | 83% |
+| 30 fps / 144 fps, readings within 4% | 55% / 60% | 81% / 82% |
+| A tempo shown on pure noise | 86% of the time | never |
+| First tempo after (median) | under 12 s | 11 s |
+| Excerpts that never get a tempo | about 3% | about 4% |
+
+**Noise** (synthetic, through the app's own filters; every hit is false):
+
+| | Baseline | Now |
+| --- | --- | --- |
+| Fan, clean / laptop mic (hits a minute) | 39 / 16 | 7 / 2 |
+| White and pink noise | about 10 | 0 |
+| Brown noise | 32 | 1 |
+| EDM kicks and claps detected a minute (should not drop) | 112 | 109 |
+
+**New, with no baseline to compare against**: the beat grid (beats F 0.69 on Ballroom at the marked rate, 0.82 at any level; on Raveform's
+real EDM, stage 1's first run: beat F 0.80, downbeat F 0.44, 8-bar F 0.23); the turnaround section (about 1 in 4 is followed by a drop,
+with about 2 s of warning); grid features in the section model (+0.025 drop F1 in a first test). And the cost of all of it: 1.8 ms of CPU
+per second of audio for the sections (baseline 1.5 ms) and 1.0 ms for the tempo (baseline 0.7 ms, which only ran while the Beat HUD was
+open).
 
 The pieces:
 
