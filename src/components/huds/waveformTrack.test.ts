@@ -72,8 +72,6 @@ describe('WaveformTrack', () => {
     expect(hits).toHaveLength(1)
     expect(hits[0]!.y + hits[0]!.h).toBe(WAVEFORM_H)
     expect(hits[0]!.h).toBeLessThan(WAVEFORM_H / 4)
-    expect(track.glow(1016)).toBe(1)
-    expect(track.glowBand()).toBe(3)
     // One dashed threshold per enabled band.
     expect(strokes()).toBe(2)
   })

@@ -10,7 +10,6 @@
 
 .beat-hud-label {
   text-align: center;
-  transition: color 60ms linear, text-shadow 60ms linear;
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.08em;

@@ -9,13 +9,13 @@ import { bandColor } from './bandColors'
 
 export const WAVEFORM_W = 360
 export const WAVEFORM_H = 120
-// How much is kept, and how much is shown: 4 s (two bars at dance tempos) unless zoomed, between MIN_VIEW_MS and the whole history.
+// How much is kept, and how much is shown: 6 s (three bars at dance tempos) unless zoomed, between MIN_VIEW_MS and the whole history.
 export const WAVEFORM_HISTORY_MS = 16000
-export const DEFAULT_VIEW_MS = 4000
+export const DEFAULT_VIEW_MS = 6000
 export const MIN_VIEW_MS = 2000
 
 const BANDS = ONSET_BANDS.length
-// Fine enough that a 4 s view still has more than one column per pixel.
+// About a column per pixel at 4 s; zoomed in to 2 s, each column is two pixels wide.
 const COLUMN_MS = 10
 const COLUMNS = WAVEFORM_HISTORY_MS / COLUMN_MS
 // A gap between samples longer than this is a real gap (the HUD was off screen, the tab was hidden), so it is left empty. A shorter one is
@@ -44,8 +44,6 @@ const RULER_FILL = 'rgba(255, 255, 255, 0.07)'
 const LINE_COLOR = '#fff'
 const LABEL_COLOR = '#999'
 const LABEL_FONT = '11px sans-serif'
-// How long the Beat title glows after a hit.
-const GLOW_FADE_MS = 200
 const HIT_CAPACITY = 256
 
 // The grid's lines are only drawn once the grid is fairly sure of them: below LOW they are not drawn as bar or phrase lines at all, and they
@@ -269,16 +267,6 @@ export class WaveformTrack {
       ctx.fillRect(Math.round(this.toX(this.hitTimes[at]!, view)) - 1, WAVEFORM_H - HIT_STRIP_H, 3, HIT_STRIP_H)
     }
   }
-
-  /** How bright the Beat title should glow, 1 on the frame of a hit down to 0 GLOW_FADE_MS later. */
-  glow = (now: number): number => {
-    if (this.hitCount === 0) return 0
-    const last = (this.hitHead - 1 + HIT_CAPACITY) % HIT_CAPACITY
-    return Math.max(0, 1 - (now - this.hitTimes[last]!) / GLOW_FADE_MS)
-  }
-
-  /** The band that set off the last hit (0 before any). */
-  glowBand = (): number => (this.hitCount === 0 ? 0 : this.hitBands[(this.hitHead - 1 + HIT_CAPACITY) % HIT_CAPACITY]!)
 
   // The grid lives on the ruler along the top, so it never reads as a hit: beats are short ticks, bar lines tick the ruler's whole height with
   // a faint line down through the plot, and 8-bar phrase lines add a marker and a stronger line. A bar or phrase line fades with the grid's
