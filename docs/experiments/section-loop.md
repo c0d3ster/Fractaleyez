@@ -31,6 +31,7 @@ metric only); only those that screen well get a full evaluation, which is what t
 | 2 | Training: drop label window (-0.5, 1.25) to (-0.5, 2.25) s after the drop | 0.4460 | 0.2720 | no (check fell: Raveform drop precision 0.72 to 0.64) |
 | 3 | Training: drop label window to (-0.5, 1.75) | 0.4430 | 0.2750 | no (check fell: Raveform drop precision 0.72 to 0.67) |
 | 4 | Window (-0.5, 1.75) and drop threshold 0.25 to 0.35 to win precision back | 0.4415 | 0.2690 | no (check fell: Raveform drop recall 0.26 to 0.24) |
+| 5 | Training: room copies left out (condition weights 1, 0, 1) | 0.4460 | 0.2650 | no (check fell: Raveform drop F1 0.38 to 0.34) |
 
 Screens (tune metric only, start of each against the kept code at the time):
 
@@ -39,4 +40,23 @@ Screens (tune metric only, start of each against the kept code at the time):
   0.4330; smoothing 1 s: 0.4300; enter slots 3: 0.4295; drop 0.25 + buildup enter 0.25: 0.4365; plus drop in context 0.6: 0.4385 (iteration 1).
 - Training, from iteration 1 (0.4385): drop window to 1.75 s: 0.4430; to 2.25 s: 0.4460; (0, 1.75): 0.4455; (0, 2.25): 0.4395; stage 2 with
   200 trees at learning rate 0.05: 0.4345.
+- Training, from iteration 1: stage 1 with 200 trees: 0.4340; stage 1 memory (2, 4, 10, 20, 40 s): 0.4325; condition weights 1, 0.5,
+  1.5: 0.4410; 1, 0, 1: 0.4460 (iteration 5).
 - With the 1.75 s window's fold models: drop threshold 0.3 / 0.35: 0.4420 / 0.4415.
+
+## Result
+
+Stopped after 5 full iterations (about 1 h 30 min of the 4 h after the restart): every single decoder knob was within 0.0025 of the kept
+code, and every training change that raised the tune metric lowered the check. The changes left (new features) cost about 15 minutes an
+attempt and had nothing in the screens pointing at them.
+
+Hidden set, scored once with the start code and once with the final code (a model trained on all 277 tune tracks):
+
+| | Start | Final |
+| --- | --- | --- |
+| SSME hidden (62 tracks), mean of clean and laptop | 0.4270 | 0.4345 |
+| clean: mean F1 (drop / buildup / break) | 0.433 (0.398 / 0.413 / 0.488) | 0.436 (0.385 / 0.426 / 0.498) |
+| laptop | 0.421 (0.310 / 0.423 / 0.532) | 0.433 (0.340 / 0.438 / 0.520) |
+| Raveform folds 6 and 7 (343 tracks), mean F1 (drop) | 0.262 (0.372) | 0.273 (0.397) |
+
+The hidden set improved on both, so the decoder change ships (in `sections.ts`). `section-model.json` is unchanged: no training change was kept.

@@ -5,6 +5,33 @@ grid), what was measured at each step, and what it cost. Stage 0 is the interact
 unattended overnight (see `pipeline.md`), each adding its own section below. The final summary goes at the top when the last stage ends.
 The raw log of every checkpoint is `status.md`; this file is the story.
 
+## Summary (written by stage 6, the last stage)
+
+| Stage | Headline, before -> after (out of sample) | Cost | Wall time |
+| --- | --- | --- | --- |
+| 0 (interactive) | Section tracker drop F1 0.20 -> 0.39 (clean), 0.06 -> 0.35 (laptop) | $58.35 | about 9 h 50 min |
+| 1, beat grid on EDM | Raveform held-out downbeat F 0.421 -> 0.577, 8-bar line F 0.228 -> 0.367 | $0.96 (partial) | 1 h 33 min |
+| 2, sections with grid and Raveform | Nothing shipped; baseline reproduced (drop F1 0.407 / 0.394 clean / laptop) | $6.15 | 2 h 45 min |
+| 3, rhythm names | Raveform drops named four on the floor 52% -> 84% | see the session | 1 h 50 min |
+| 4, BPM loop | GiantSteps hidden metric 1.2295 -> 1.2391 (acc1 0.821 -> 0.827) | $1.72 (partial) | 1 h 10 min |
+| 5, beat grid loop | Raveform hidden metric 1.332 -> 1.415 (downbeat F 0.569 -> 0.606) | $3.14 (partial) | 2 h 30 min |
+| 6, section model loop | SSME hidden mean F1 0.427 -> 0.4345 (laptop 0.421 -> 0.433), Raveform 0.262 -> 0.273 | see the session | about 3 h 30 min |
+
+Total known: $70.32 (stage 0's $58.35 plus the overnight figures `get_session` returned; stages 1, 4 and 5 look undercounted and stages 3
+and 6 returned none, so the session pages have the real numbers).
+
+PR 269 (feat/bar-grid, stages 1 to 5) was merged into main during stage 6, so stage 6 is on its own branch, `feat/section-loop`, with no
+PR yet.
+
+Review first:
+1. `feat/section-loop`: three decoder thresholds in `src/audioanalysis/sections.ts` (the one shipped change from stage 6), and the fix to
+   the loop's own evaluation (`section-loop-eval.py`) that voided its first run.
+2. Stage 5's slower re-lock after a song change (81% -> 76% within 20 s), worth a listen on a real DJ set.
+3. Stage 2's label question: Raveform and SSME mark drops and builds differently; which convention Auto mode should follow is your call.
+
+Left: the 8-bar line (40% of section starts on the grid's line against Raveform's own 75%) needs new phrase cues; drum and bass tempo;
+crossfaded song changes (38% found); section features are the untried lever for stage 6 (decoder and training are close to their best).
+
 ## Stage 0: from hand-tuned rules to measured models (interactive session)
 
 ### Where it started
@@ -393,3 +420,48 @@ Session `session_01D1Q35fDbr1DsFqQ1gbXzHQ`, wall time 15:15 to about 17:45 UTC (
 Ballroom levels, 1 h 45 min for the 40 attempts at about 2.5 min each, then the hidden scoring and write-up). `get_session`
 `external_metadata.usage` read at 17:40: cost_usd 3.14, input 1,619, output 32,341, cache read 7,902,863, cache write 112,412 tokens.
 Like stages 1 and 4, this probably undercounts; the session's own page has the full cost.
+
+## Stage 6: the section model loop
+
+### What changed
+
+Three decoder thresholds in the section tracker (`src/audioanalysis/sections.ts`, mirrored in `decode.py`): a drop fires at 0.25
+instead of 0.3, at 0.6 instead of 0.5 while a buildup or break is still showing, and a buildup is entered at 0.25 instead of 0.3. The
+trained model (`section-model.json`) is unchanged. On branch `feat/section-loop` (PR 269 was merged mid-stage), commits from `1e0d453`
+(frozen evaluation) to the stage 6 docs commit. Log of every attempt: `docs/experiments/section-loop.md`; plan doc:
+`docs/implementation-plans/song-sections.md`, "Section model loop".
+
+How it ran: SSME's labelled tracks with id mod 5 == 4 (62) and Raveform's folds 6 and 7 (343) were put away first. The loop's score was
+mean F1 over drops, buildups and breaks on the other 277 SSME tracks, 4-fold cross-validated through the TypeScript tracker, averaged
+over the clean feed and the simulated laptop mic. A change was kept only if that rose by 0.003 and Raveform folds 0 to 5 (a different
+labelling convention, used as a guard) did not fall. Ideas were screened cheaply first (90 s for a decoder change, 4.5 min for a training
+change) and only promising ones got the full 10-minute evaluation.
+
+The first run was voided: its check ran the shipped model on Raveform instead of the loop's (the tracker picks a fold model by id mod 5,
+which is NaN for Raveform's keys). The evaluation was fixed and the loop restarted from the start code.
+
+### Before and after (hidden tracks, scored once at the end)
+
+| | Before | After |
+| --- | --- | --- |
+| SSME hidden, mean F1 (clean and laptop averaged) | 0.427 | 0.4345 |
+| SSME clean: drop / buildup / break F1 | 0.398 / 0.413 / 0.488 | 0.385 / 0.426 / 0.498 |
+| SSME laptop: drop / buildup / break F1 | 0.310 / 0.423 / 0.532 | 0.340 / 0.438 / 0.520 |
+| Buildup shown before a drop (clean / laptop) | 75% / 78% | 79% / 84% |
+| Raveform folds 6 and 7, mean F1 (drop F1) | 0.262 (0.372) | 0.273 (0.397) |
+
+On the tune tracks the change was +0.006 (0.4325 to 0.4385), and the hidden set moved by about as much (+0.0075), so it is not just fitting.
+Clean-feed drops got slightly worse (0.398 to 0.385) while laptop drops and buildups everywhere got better. 62 hidden tracks is a small
+set: differences of 0.01 are within noise.
+
+What did not help (all in the log): wider drop labels in training (up to 2.25 s after the drop: +0.014 on SSME, but Raveform's drop
+precision fell from 0.72 to 0.64), the same with a stricter threshold, more trees, a longer stage 1 memory, and training without the room
+copies (+0.0075 on SSME, worse on Raveform). Every single decoder knob moved the score by 0.0025 or less. The loop stopped after 5 full
+iterations, well short of 40 and of the 4-hour cap, because the decoder and training settings were exhausted and nothing pointed at a
+particular feature to add. New features are where the next gain would come from.
+
+### Cost
+
+Session `session_01D1Q35fzvsZNjZcBaFdBjDL`, wall time 17:27 to about 21:00 UTC (about 3 h 30 min: 30 min downloading SSME and Raveform
+and making 1,017 SSME level files, 25 min lost to the voided run, the rest screens and evaluations at 10 min each). `get_session` did not
+return `external_metadata.usage` for this session: cost: see the session.

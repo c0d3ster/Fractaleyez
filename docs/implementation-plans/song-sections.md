@@ -10,7 +10,7 @@ Code: `src/audioanalysis/section-features.ts` (features), `section-model.ts` and
 
 1. **Features** (every 250 ms, causal). The five onset-band levels the app already measures are pooled into 50 ms ticks (so the frame rate does not matter) and 250 ms slots. 85 numbers describe the last couple of minutes, every level in dB against the song's own top level (the 90th percentile of its 2 s means over the last 90 s), so a quiet mic and a loud feed read the same. Per band: level now and over 8 s, the step from a few seconds ago, 8 and 16 s trends, how much it pumps tick to tick (a kick, sidechain), how often it jumps (snare rolls), the lowest it went lately, and the last half second against the 2 s before (a drop often lands straight out of a short stop). Plus beat rate, song age, how long the bass has been out or in, brightness tilt, silence and quiet runs, and how different the band shape is from the song's usual shape.
 2. **Model** (gradient-boosted trees, about a thousand tree walks per slot, well under a millisecond). Stage 1: how much the last stretch looks like a buildup or a break. Stage 2: whether a drop just landed, from the features plus a 4, 10 and 20 s memory of stage 1. Boundary: whether a new song just started.
-3. **Decoder** (`sections.ts`, mirrored in `decode.py`, every threshold tuned on out-of-fold output). Stage 1 is smoothed (0.5 s), buildup and break are entered at 0.3 held for two slots and left under 0.2 / 0.25. A drop fires at 0.3 (0.5 while a buildup or break is still showing, because the end of a build already looks like a drop is coming and an early one would hold off the real one), at most every 6 s. After a drop the section is **drop** (the full-energy part) until the next buildup or break, for 64 s at most.
+3. **Decoder** (`sections.ts`, mirrored in `decode.py`, every threshold tuned on out-of-fold output). Stage 1 is smoothed (0.5 s), buildup is entered at 0.25 and break at 0.3, held for two slots, and left under 0.2 / 0.25. A drop fires at 0.25 (0.6 while a buildup or break is still showing, because the end of a build already looks like a drop is coming and an early one would hold off the real one), at most every 6 s. After a drop the section is **drop** (the full-energy part) until the next buildup or break, for 64 s at most.
 4. **Turnaround.** While a buildup is showing, the whole mix falling 10 dB or more under the song's top level with the bass 15 dB under, for half a second, is a turnaround (the music cutting out). It lasts until the music is back (over -6 dB), a drop lands, or 6 s pass. It takes priority over the short-silence quiet, since a turnaround is often near silent. It does not change drop detection (see below).
 5. **Song rules.** Nothing is labelled (quiet) until a regular beat is confirmed; that also gates the song clock. Intro is the start of a song until its first buildup or drop (60 s at most). Outro is a fade late in a song that has had a drop (10 dB under, falling, after 150 s; tuned against where songs actually end). A new song starts on the boundary model (0.9, never within 45 s of the last change) or after 6 s of silence; features, decoder and clock start over.
 
@@ -80,6 +80,26 @@ The grid is right about the 8-bar line only part of the time (stage 1: 8-bar F 0
 | Raveform at weight 0.1 | 0.449 | 0.389 / 0.368 | 0.403 | 0.506 (0.527) |
 
 The two sets label differently. Raveform calls most of the rise before a drop a breakdown and marks a drop at every return to full energy after one; SSME's experts mark a build and a drop only where the music builds to a moment. A model trained on both does far better on Raveform's labels (mean F1 0.25 to 0.62) and worse on SSME's, mostly in buildups (0.43 to 0.32) and drop precision (0.44 to 0.36). Which labels the visuals should follow is a design question, not a measurement: SSME's are closer to what Auto mode wants (a buildup shown before 84% of drops; trained with Raveform, 66%).
+
+## Section model loop (overnight stage 6)
+
+An automated loop (`docs/experiments/section-loop.md`) tuned the decoder, the training settings and the features against a frozen
+evaluation: SSME tracks with id mod 5 of 0 to 3 in 4-fold cross-validation (TypeScript tracker, clean and laptop averaged), with Raveform
+folds 0 to 5 as a check that a change is not only fitting SSME. SSME tracks with id mod 5 == 4 and Raveform folds 6 and 7 were held out to
+the end. Kept: the decoder change above (drop 0.3 to 0.25, drop while a buildup or break shows 0.5 to 0.6, buildup entered at 0.25 instead
+of 0.3). The model itself is unchanged.
+
+| Held out, mean F1 (drop / buildup / break) | Before | After |
+| --- | --- | --- |
+| SSME clean, 62 tracks | 0.433 (0.398 / 0.413 / 0.488) | 0.436 (0.385 / 0.426 / 0.498) |
+| SSME laptop | 0.421 (0.310 / 0.423 / 0.532) | 0.433 (0.340 / 0.438 / 0.520) |
+| Buildup shown before a drop (clean / laptop) | 75% / 78% | 79% / 84% |
+| Raveform folds 6 and 7, 343 tracks | 0.262 (drop 0.372) | 0.273 (drop 0.397) |
+
+Not kept: a wider drop label window in training (up to 2.25 s after the drop: +0.014 on SSME, but Raveform's drop precision fell from 0.72
+to 0.64), the same with a stricter threshold, more trees in stage 1 or 2, a longer stage 1 memory, and leaving the room copies out of
+training (+0.0075 on SSME, -0.012 on Raveform). Single decoder knobs (smoothing, enter slots, break thresholds) moved the score by 0.0025 at
+most: the decoder is close to its best for this model.
 
 ## What was tried and did not help
 
