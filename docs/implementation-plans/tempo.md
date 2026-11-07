@@ -47,8 +47,62 @@ Checked with synthetic noise through the app's band filters (`scripts/section-ev
 
 Measured with `scripts/section-eval/bench-cpu.mts` (Node 22, the same V8 as Chrome) on 95 minutes of songs at 60 fps: 1.0 ms of CPU per second of audio, 0.1% of each frame's 16.7 ms. The work happens on the frame that makes a reading, every 500 ms: about 0.9 ms (p99) there, most of it the autocorrelation (about 400 lags over 1,200 samples). The old estimator cost 0.7 ms per second, and only while the Beat HUD was open; the tracker runs whenever audio does, since the sections and the bar grid will read it.
 
+## Rhythm pattern names
+
+The line under the BPM in the Beat HUD names the rhythm: four on the floor, half time, double time, sixteenths, dembow or syncopated. It came from `estimateTempo` (`tempo.ts`) reading the app's beats, the merged bass and hi band onsets with the Ignore Time (250 ms) between them. That input cannot say much: a beat does not say whether it was the kick or a hat, and 250 ms of dead time drops every eighth note at dance tempos, so double time, sixteenths and dembow almost never fire.
+
+### How it was scored
+
+No dataset labels drum patterns, so the labels are a proxy from each track's genre (`scripts/section-eval/pattern-labels.py`, which writes the mapping and its weaknesses down): techno, house, trance and their kin to four on the floor; dubstep to half time; drum and bass and breaks to breakbeat (named "syncopated" by the app, which has no breakbeat name). Other genres are left out. The weak points: the label is per track while the name is per reading, so a breakdown without a kick counts against a techno track; genres come from a store, not from listening to the drums. Raveform's sections help with the first: its drop sections are where the full pattern plays, so they are scored separately ("drops").
+
+`pattern-eval.mts` replays band levels exactly as `AudioFeed` runs them and records both names every 500 ms; `pattern-score.py` prints the confusion matrix. "Right" is the share of readings named as the proxy says (an unnamed reading counts as wrong). Everything was tuned on half the tracks (Raveform folds 0 to 3, GiantSteps by a hash of the id) and the numbers below are the other half.
+
+### What the old names did
+
+On Raveform (all 1,370 tracks, current code), four on the floor genres were named four on the floor in 43% of readings (52% in drops), "syncopated" 32% and nothing 23%; drum and bass was "syncopated" 48%. On GiantSteps, four on the floor 21%, drum and bass and breaks "syncopated" 48%, and dubstep was never "half time" (0.3%: "syncopated" 40%, nothing 55%). On Ballroom every dance was mostly "syncopated" or nothing. So "syncopated" was a catch-all, and on EDM the most common name for a techno track was wrong almost half the time.
+
+### Naming from each band's own onsets
+
+`nameRhythm` (`rhythm-pattern.ts`) reads each onset band's own hits over the last 12 s (`BeatMonitor.getBandOnsets`, from the rising edge every band already computes, 100 ms dead time per band) at the tempo tracker's beat:
+
+- **Four on the floor**: the bass band's hits repeat one, two and four beats later (on average at least half of them, within 40 ms), and come at least 0.3 a beat. Repeats rather than gaps between neighbours, so a bass note between two kicks does not break it.
+- **Syncopated**: otherwise, while the bass or hi band hits at least 0.4 a beat (the drums play, but the kick does not keep the beat: breakbeats, two-step, half time).
+- **Nothing** without a tempo, or with fewer hits (a breakdown, silence).
+
+Measured on the held-out half (readings right, and in brackets the share of tracks whose most common name is right):
+
+| | Old | New |
+| --- | --- | --- |
+| Raveform drops: four on the floor | 52% (60%) | 84% (84%) |
+| Raveform drops: drum and bass named syncopated | 50% (86%) | 77% (93%) |
+| Raveform drops: drum and bass called four on the floor | 18% | 1% |
+| Raveform drops: four on the floor called syncopated | 27% | 16% |
+| Raveform, all readings: four on the floor / drum and bass | 43% / 48% | 74% / 65% |
+| GiantSteps: four on the floor | 19% (27%) | 50% (60%) |
+| GiantSteps: drum and bass and breaks | 47% (87%) | 59% (91%) |
+| GiantSteps through a laptop mic: four on the floor | 16% (16%) | 55% (68%) |
+| GiantSteps through a laptop mic: drum and bass and breaks | 49% (92%) | 57% (70%) |
+| Dubstep named half time | 0% | 0% (it says syncopated) |
+
+With the HUD's hold (a new name shows after six readings in a row) the numbers move by a point or two. Raveform scores higher than GiantSteps because its tracks are whole songs with sections to score drops on, while GiantSteps excerpts are two-minute store previews scored throughout, breakdowns included.
+
+Where it is weaker: through the laptop mic, drum and bass is called four on the floor 27% of the time (7% on a clean feed), so the majority name of a drum and bass track is right 70% of the time instead of 92%. In Raveform's breakdowns of four on the floor tracks, it says four on the floor 37% of the time against 18%; those readings have about one bass hit a beat, regularly spaced, so the kick is still playing there and the name is mostly right. On Ballroom (not EDM), the dances with a bass note on every beat (cha-cha, jive, quickstep, samba, tango) are now called four on the floor 53 to 61% of the time (5 to 15% before): the bass band cannot tell a kick from a walking bass. Waltzes stay unnamed (0 to 7%).
+
+What did not help:
+
+- **Looser thresholds for the old names** (`estimateTempo`'s `PatternOptions`, now overridable for this). Naming at an alignment of 0.5 to 0.65 instead of 0.75 lifts drum and bass from 50% to 71 to 78% on Raveform's held-out drops, but only by saying the catch-all "syncopated" more often: four on the floor moves from 52% to 55%, and in breakdowns "syncopated" goes from 47% to 67%. Fewer beats needed on the beat (0.6 or 0.7 instead of 0.8) trades drum and bass for four on the floor. The defaults are unchanged.
+- **Half time, two-step, breakbeat or shuffle as names.** Dubstep and drum and bass look the same in every band at these settings (how often each band's hits repeat at a half, one, one and a half, two, three and four beats), so nothing tells half time from a two-step but the tempo (140 against 174). A small decision tree using the tempo separates them (dubstep half time 72% on GiantSteps), but that is guessing the genre from the BPM, not hearing the drums, so it is not used. No refined name is added.
+- **The grid's bar positions** (`BeatGrid`): the share of the grid's beats with a kick on them, at any threshold, named four on the floor in at most 67% of Raveform drop readings against 86% for the repeats (at the same drum and bass rate). Measured against Raveform's own marked beats the kick is on 92% of beats but only 71% of the grid's, because the grid's phase is off often enough; the repeats need no phase.
+- **The lo band as the kick** (for a laptop mic): it raises four on the floor but makes drum and bass look regular (6% to 30% of readings).
+- **Requiring the kick to stand alone in the bass band** (an electronic kick has no hit in the other bands at the same moment; a band's bass note comes with the rest of the instrument: 25% of EDM kicks coincide with a lo, mid or hi hit, 50 to 73% of Ballroom's bass notes). It cut Ballroom's four on the floor to 6 to 31%, but it cost real four on the floor: Raveform drops 87% to 73% at the loosest setting tried, the laptop mic 56% to 26%.
+
+### Wiring
+
+`window.getRhythmPattern()` returns the new name (main.ts). The Beat HUD still reads `estimateTempo`'s: switching it is one line in `BeatHud.tsx` (`estimate?.pattern` to `source.getRhythmPattern?.() ?? null`), left for the HUD work going on in parallel. Cost: `BeatMonitor` keeps five short lists of onset times; `nameRhythm` walks them three times, every 500 ms.
+
 ## Next
 
+- Show the band-based rhythm name in the Beat HUD (above).
 - Beat phase: where the beats fall, not only how far apart. That and a downbeat give the bar and phrase grid the section tracker can use (see `song-sections.md`).
 - Tempo through a real mic session, and on non-EDM music (untested).
 
@@ -56,3 +110,5 @@ Measured with `scripts/section-eval/bench-cpu.mts` (Node 22, the same V8 as Chro
 
 - `tempo-tracker.test.ts`: the right tempo at 30, 60 and 144 fps, dotted hats not taken for the beat, steady on a steady track, one clean switch on a real tempo change, held through a breakdown, nothing in silence, the same at a tenth of the level.
 - `scripts/section-eval/bpm-eval.mts` and `bpm-score.py` against the GiantSteps labels.
+- `rhythm-pattern.test.ts`: four on the floor with and without off-beat hats and with a stray bass note, a two-step and a broken kick syncopated, nothing without a tempo or hits, the same at 100 to 174 BPM. `beat.test.ts`: each band's onsets kept, 100 ms dead time, trimmed to 12 s.
+- `scripts/section-eval/pattern-eval.mts`, `pattern-rename.mts`, `pattern-labels.py` and `pattern-score.py` against the genre proxies (Raveform, GiantSteps clean and laptop, Ballroom).

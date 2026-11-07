@@ -216,3 +216,67 @@ would need a closer mapping (its breakdowns split into break and build by how th
 Session `session_01D1Q35iqnHvET3EWnJGkpaE`, wall time 09:20 to about 12:05 UTC (2 h 45 min, most of it computing levels, features and
 models). `get_session` `external_metadata.usage` read at 12:03: cost_usd 6.15, input 3,210, output 54,120, cache read 17,756,372, cache
 write 187,114 tokens.
+
+## Stage 3: rhythm pattern names
+
+### What changed
+
+The name under the BPM in the Beat HUD (four on the floor, half time, syncopated and so on) was scored for the first time, and it was
+mostly wrong on dance music: it read the app's merged beats, which mix the kick with the hats and drop anything inside the 250 ms Ignore
+Time, so a techno track got "four on the floor" in only about half its readings and "syncopated" served as a catch-all. A new namer,
+`nameRhythm` (`src/audioanalysis/rhythm-pattern.ts`), reads each frequency band's own onsets instead, at the tempo tracker's beat: four on
+the floor when the bass band's hits repeat one, two and four beats later; syncopated when the drums play but the kick does not keep the
+beat; nothing without a tempo or hits. The onset detector now marks each band's own rising edge, `BeatMonitor` keeps those onsets for
+12 s, and `window.getRhythmPattern()` returns the new name. **The HUD does not show it yet**: the pipeline kept this stage out of the HUD
+files (another session is working on them), and switching is one line in `BeatHud.tsx` (`estimate?.pattern` to
+`source.getRhythmPattern?.() ?? null`). Commits `2625d18` (scoring tools, checkpoint 1) and `03b0402` (namer and plumbing), then the docs
+commit after them. Details: `docs/implementation-plans/tempo.md`, "Rhythm pattern names".
+
+### How it was scored
+
+No dataset labels drum patterns, so the labels are a proxy from genre (`scripts/section-eval/pattern-labels.py` writes the mapping and
+its weaknesses down): techno, house, trance and their kin should read four on the floor; dubstep half time; drum and bass and breaks a
+breakbeat, which the app calls "syncopated". Three sets: Raveform (1,370 whole EDM tracks with sections, so drops, where the full drum
+pattern plays, can be scored on their own), GiantSteps (664 two-minute EDM previews, clean and through a simulated laptop mic) and
+Ballroom (698 dance excerpts, not EDM, to see what happens on other music). Everything was replayed exactly as the app runs it, tuned on
+half the tracks (Raveform folds 0 to 3, half of GiantSteps by a hash of the id), and the numbers below are on the other half.
+
+### Before and after
+
+Share of readings (every 500 ms) named as the genre says; in brackets, the share of tracks whose most common name is right:
+
+| Held-out half | Before | After |
+| --- | --- | --- |
+| Raveform drops: four on the floor | 52% (60%) | 84% (84%) |
+| Raveform drops: drum and bass named syncopated | 50% (86%) | 77% (93%) |
+| Raveform drops: drum and bass called four on the floor | 18% | 1% |
+| Raveform, whole tracks: four on the floor / drum and bass | 43% / 48% | 74% / 65% |
+| GiantSteps: four on the floor / drum and bass and breaks | 19% / 47% | 50% / 59% |
+| GiantSteps, laptop mic: four on the floor / drum and bass and breaks | 16% / 49% | 55% / 57% |
+| Dubstep named half time | 0% | 0% |
+
+What got worse: through the laptop mic, drum and bass is now called four on the floor 27% of the time (7% clean), so a drum and bass
+track's usual name is right 70% of the time there instead of 92%. On Ballroom, dances with a bass note on every beat (cha-cha, jive,
+quickstep, samba, tango) are called four on the floor 53 to 61% of the time instead of 5 to 15%: the bass band cannot tell a kick from a
+walking bass. Waltzes stay unnamed.
+
+What was tried and did not help:
+
+- **Half time, two-step, breakbeat or shuffle as names.** Dubstep and drum and bass look the same in every band's onsets at these settings;
+  only the tempo (140 against 174) separates them, and naming from the BPM is guessing the genre, not hearing the drums. So no refined name
+  was added, and the new namer never says half time.
+- **The beat grid's bar positions.** Counting kicks on the grid's beats named four on the floor at most 67% of the time against 86%: the
+  grid's phase is off often enough (against Raveform's own marked beats the kick is on 92% of beats, on only 71% of the grid's).
+- **Looser thresholds for the old namer.** They raise drum and bass only by saying "syncopated" more often (in breakdowns too: 47% to
+  67%), while four on the floor moves 3 points. Defaults unchanged.
+- **The lo band as the kick** (for laptop mics): drum and bass then looks regular too (6% to 30%).
+- **Requiring the kick to stand alone** (EDM kicks rarely coincide with hits in other bands, a band's bass notes do): it fixed Ballroom
+  but cost real four on the floor (Raveform 87% to 73%, laptop 56% to 26%).
+
+To review: the one-line HUD switch, and whether the Ballroom behaviour (a walking bass reads as four on the floor) matters for the music
+you play.
+
+### Cost
+
+Session `session_01D1Q35eSPGqxCgJVMvRQgGL`, wall time 12:25 to about 14:15 UTC (1 h 50 min, most of it replaying 2,700 tracks through
+the onset detector). `get_session` did not return `external_metadata.usage` for this session: cost: see the session.
