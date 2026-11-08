@@ -10,7 +10,7 @@
 //   --attribution runs the popup-idle and popup-drag scenarios once per widget hidden and prints one table.
 // The tier is fixed (default quality) so Auto does not step during a run; --quality=auto leaves it on.
 // Paths and browser come from the environment as in bench.js: BENCH_DIR, CHROME_PATH (default: the Chromium Playwright ships),
-// --gpu=nvidia launches with --force_high_performance_gpu (without it a hybrid laptop uses the integrated GPU); --pos=x,y places the window on a monitor.
+// --gpu=nvidia launches with --force_high_performance_gpu and --gpu=intel with --force_low_power_gpu (without either, a hybrid laptop uses whichever GPU the driver prefers, which can be the discrete one); --pos=x,y places the window on a monitor, --popup-pos=x,y the pop-out.
 // BENCH_URL, BENCH_CHROME_ARGS (e.g. software GL: "--use-angle=swiftshader --enable-unsafe-swiftshader"), PLAYWRIGHT_CORE.
 const path = require('path')
 const fs = require('fs')
@@ -29,6 +29,8 @@ const attribution = args.includes('--attribution')
 const size = flag('size', '1280x800')
 const gpuFlag = flag('gpu', 'default')
 const pos = flag('pos', '0,0')
+// --popup-pos=x,y moves the pop-out to that screen point after it opens (the app's own placement needs a permission a fresh profile lacks), e.g. the monitor next to the visual.
+const popupPos = flag('popup-pos', '')
 const quality = flag('quality', 'quality')
 // The selectors hidden in the pop-out; --attribution changes it one widget at a time.
 let hide = flag('hide', '')
@@ -132,7 +134,7 @@ const launch = async () => {
       '--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream',
       ...(fs.existsSync(wav) ? [`--use-file-for-fake-audio-capture=${wav}`] : []),
       `--window-size=${size.replace('x', ',')}`, `--window-position=${pos}`,
-      ...(gpuFlag === 'nvidia' ? ['--force_high_performance_gpu'] : []),
+      ...(gpuFlag === 'nvidia' ? ['--force_high_performance_gpu'] : gpuFlag === 'intel' ? ['--force_low_power_gpu'] : []),
       '--disable-backgrounding-occluded-windows', '--disable-renderer-backgrounding',
       '--disable-features=CalculateNativeWinOcclusion', '--autoplay-policy=no-user-gesture-required', ...EXTRA_ARGS,
     ],
@@ -144,6 +146,13 @@ const launch = async () => {
 const openPopup = async (ctx, page) => {
   const [pop] = await Promise.all([ctx.waitForEvent('page', { timeout: 15000 }), page.keyboard.press('e')])
   await pop.waitForLoadState('load')
+  if (popupPos) {
+    const [left, top] = popupPos.split(',').map(Number)
+    const session = await ctx.newCDPSession(pop)
+    const { windowId } = await session.send('Browser.getWindowForTarget')
+    await session.send('Browser.setWindowBounds', { windowId, bounds: { left, top } })
+    await session.detach()
+  }
   await sleep(2500)
   if (hide) await pop.addStyleTag({ content: `${hide} { display: none !important }` })
   return pop

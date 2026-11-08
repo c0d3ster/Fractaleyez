@@ -11,7 +11,7 @@
 # Needs .env with CLERK_PUBLISHABLE_KEY in the repo (it is copied to the worktrees), or CLERK_PUBLISHABLE_KEY in the environment. Not headless unless you pass --headless.
 set -e
 cd "$(dirname "$0")/../.."
-ROOT=$(pwd)
+ROOT=$(pwd -W 2>/dev/null || pwd)  # pwd -W gives C:/... in Git Bash, which Node and git both read correctly
 BASE_REF=$1; NEW_REF=$2
 if [ -z "$BASE_REF" ] || [ -z "$NEW_REF" ]; then sed -n 2,13p "$0" | sed 's/^# \{0,1\}//'; exit 1; fi
 shift 2
