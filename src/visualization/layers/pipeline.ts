@@ -2,7 +2,9 @@ import * as THREE from 'three'
 
 import { AudioAnalysedDataForVisualization } from '../../audioanalysis/audio-analysed-data'
 import { QualityProfile } from '../../config/quality.config'
+import { stepDisplayedColor } from '../../config/displayedColor'
 import { perfProbe } from '../perf'
+import { ProfileRamp, RampedValues } from '../profile-ramp'
 import { QualityController } from '../quality-controller'
 import { LayerCompositor } from './compositor'
 import { FractalLayer } from './fractal-layer'
@@ -45,13 +47,19 @@ export const createLayerPipeline = (quality: QualityController): LayerPipeline =
   fractal.warm()
   effects.warm()
 
-  // The tier sets how much each layer and effect spends; it is applied now and again whenever Auto or the user changes it.
+  // The tier sets how much each layer and effect spends; it is applied now and again whenever Auto or the user changes it. What would show as
+  // a jump (the fractal's and the glow's resolution, the logo's filter) moves toward the new tier over a few tenths of a second instead
+  // (see profile-ramp.ts, and the fractal's iteration cap eases on its own); the first tier applies at once.
+  const ramp = new ProfileRamp()
+  const applyRamped = ({ fractalScale, bloomScale, logoBicubic }: Partial<RampedValues>): void => {
+    if (fractalScale !== undefined) compositor.setResolutionScale('fractal', fractalScale)
+    if (bloomScale !== undefined) effects.setBloomScale(bloomScale)
+    if (logoBicubic !== undefined) logo.setSmoothMagnification(logoBicubic)
+  }
   const applyProfile = (_tier: unknown, profile: QualityProfile): void => {
-    compositor.setResolutionScale('fractal', profile.fractalScale)
+    applyRamped(ramp.setTarget(profile))
     fractal.setMaxIterations(profile.fractalIterations)
-    effects.setBloomScale(profile.bloomScale)
     video.setUploadFps(profile.videoUploadFps)
-    logo.setSmoothMagnification(profile.logoBicubic)
   }
   const unsubscribeQuality = quality.subscribe(applyProfile)
   quality.setVideoDropProvider(video.getDropRate)
@@ -66,6 +74,9 @@ export const createLayerPipeline = (quality: QualityController): LayerPipeline =
 
   return {
     render: (deltaTime, audio) => {
+      // The Color config's palette, saturation, phase and cycles ease over the crossfade time; every layer then draws with the same shown colors.
+      stepDisplayedColor(deltaTime)
+      applyRamped(ramp.step(deltaTime))
       compositor.renderLayers(deltaTime, audio, window.config.layers)
       perfProbe.begin('camera')
       orbit.stepCamera(deltaTime)

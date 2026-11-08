@@ -194,6 +194,7 @@ const summarize = (name, { gaps, probe, tier }) => ({
   sections: Object.fromEntries(Object.keys(probe.sections).map((key) => [key, section(probe, key)])),
   loaf: Object.fromEntries(Object.entries(probe.longFrames).map(([window, s]) => [window, { count: s.count, blockingMs: s.blockingTotalMs, worstMs: s.worst[0] ? s.worst[0].durationMs : 0, top: s.topInvokers.slice(0, 3) }])),
   gauges: probe.gauges,
+  resizes: probe.counters['resize.fractal'] || 0,
   popupCommits: probe.counters['popup.commit'] || 0,
   changeToPopupMs: probe.latencies['config.change to popup commit'] || null,
 })
@@ -204,6 +205,7 @@ const printTable = (rows) => {
   console.log(cols.map(([c, w]) => c.padEnd(w)).join(''))
   for (const r of rows) {
     console.log([cell(r.scenario + (r.hide ? '*' : ''), 24), cell(r.popup ? 'yes' : 'no', 6), cell(r.displayFrames, 7), cell(r.gapP99, 7), cell(r.gapMax, 7), cell(r.over25, 5), cell(r.over50, 5), cell(r.cpuP95, 7), cell(r.cpuMax, 7), cell(r.gpuFrameP95, 7)].join(''))
+    if (r.resizes) console.log(`    fractal target resized ${r.resizes} times`)
     if (r.gauges && Object.keys(r.gauges).length) console.log(`    ${Object.entries(r.gauges).map(([k, v]) => `${k} ${v}`).join(' | ')}`)
     const loaf = Object.entries(r.loaf).map(([w, s]) => `${w}: ${s.count} long, worst ${s.worstMs} ms`).join(' | ')
     if (loaf) console.log(`    ${loaf}${r.popupCommits ? ` | popup commits ${r.popupCommits}` : ''}`)

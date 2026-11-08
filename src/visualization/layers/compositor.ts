@@ -122,6 +122,7 @@ export class LayerCompositor {
     if (!target) return
     const { x, y } = this.renderer.getDrawingBufferSize(new THREE.Vector2())
     const [w, h] = this.targetSize(key, x, y)
+    perfProbe.count(`resize.${key}`)
     target.setSize(w, h)
   }
 

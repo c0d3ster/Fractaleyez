@@ -5,7 +5,8 @@ import { getResolvedSpriteUrl } from '../utils/spriteCache'
 import { acquireSpriteTexture, releaseSpriteTexture } from '../utils/textureCache'
 import { getParticleCrossfadeDurationMs, MAX_CROSSFADE_GENERATIONS } from '../config/visualizer.config'
 import { userConfig } from '../config/user.config'
-import { ColorState, resolveColorState } from '../config/colorState'
+import { DisplayedColor } from '../config/colorTransition'
+import { getDisplayedColor } from '../config/displayedColor'
 import { sampleLut } from '../config/paletteLut'
 import { getMusicSpeedMultiplier } from './music-speed'
 import { geometryGroup, isReshapedOnBeat } from './orbit-geometry-groups'
@@ -49,7 +50,8 @@ export class HopalongVisualizer {
   particlesPerLayer: number
   layers: number
   levels: number
-  colorState: ColorState
+  colorState: DisplayedColor
+  private colorKey: string
   levelDepth: number
   particleSize: number
   needsParticleReset: boolean
@@ -79,7 +81,8 @@ export class HopalongVisualizer {
     this.particlesPerLayer = window.config.particle.particlesPerLayer.value
     this.layers = window.config.particle.layers.value
     this.levels = window.config.particle.levels.value
-    this.colorState = resolveColorState(window.config.color)
+    this.colorState = getDisplayedColor()
+    this.colorKey = this.colorState.key
     this.levelDepth = 500
     this.particleSize = window.config.particle.particleSize.value
     this.needsParticleReset = false
@@ -256,10 +259,12 @@ export class HopalongVisualizer {
   }
 
   // The Color config sits outside the particle diff that rebuilds the system, so a change recolors the existing
-  // particles in place.
+  // particles in place. The shown colors ease toward the config over the crossfade time (see displayedColor.ts), so
+  // this runs on every frame they move; the state is updated in place, so the key says whether it changed.
   private syncColor = (): void => {
-    const next = resolveColorState(window.config.color)
-    if (next === this.colorState) return
+    const next = getDisplayedColor()
+    if (next.key === this.colorKey) return
+    this.colorKey = next.key
     this.colorState = next
     const recolor = (obj: ParticleSystem): void => this.colorize(obj, obj.mySubset)
     this.objects.forEach(recolor)
