@@ -4,7 +4,8 @@ import './Sidebar.css'
 
 import { Presets, PresetSelection } from '../presets/Presets'
 import { SavePreset } from '../presets/SavePreset'
-import { ConfigAccordion } from '../config/ConfigAccordion'
+import { ConfigAccordion, useOpenCategories } from '../config/ConfigAccordion'
+import { SLIDE_OUT_MS, shouldRenderConfigBody, canParkConfigBody } from './configBodyParking'
 import { connectConfig } from '../config/context/ConfigProvider'
 import { AppConfig } from '../../config/configDefaults'
 
@@ -19,6 +20,9 @@ const SidebarInner = ({ config: _config, setConfigWindow, configWindowVisible }:
   const [tabVisible, setTabVisible] = useState(true)
   const [prefill, setPrefill] = useState<PresetSelection | null>(null)
   const hideTimerRef = useRef<number | null>(null)
+  const { openCategories, toggleOpen } = useOpenCategories(false)
+  // True once the sidebar has been out of sight, with the expanded config window open, long enough that its config body can go (see configBodyParking.ts).
+  const [bodySettled, setBodySettled] = useState(false)
 
   const hideTabDelayed = useCallback((waitTime: number | React.MouseEvent<HTMLDivElement>) => {
     if (!hideTimerRef.current) {
@@ -56,6 +60,17 @@ const SidebarInner = ({ config: _config, setConfigWindow, configWindowVisible }:
     document.addEventListener('keyup', handleKeyUp)
     return () => document.removeEventListener('keyup', handleKeyUp)
   }, [])
+
+  const parkable = canParkConfigBody(configWindowVisible, sidebarVisible)
+  useEffect(() => {
+    if (!parkable) {
+      setBodySettled(false)
+      return undefined
+    }
+    const timer = window.setTimeout(() => setBodySettled(true), SLIDE_OUT_MS)
+    return () => window.clearTimeout(timer)
+  }, [parkable])
+  const showConfigBody = shouldRenderConfigBody(configWindowVisible, sidebarVisible, bodySettled)
 
   const sidebarContentClasses = classNames('sidebar-content', {
     'slide-in': sidebarVisible,
@@ -99,7 +114,7 @@ const SidebarInner = ({ config: _config, setConfigWindow, configWindowVisible }:
               ⤢
             </button>
           </div>
-          <ConfigAccordion canOpenMultiple={false} />
+          {showConfigBody && <ConfigAccordion openCategories={openCategories} toggleOpen={toggleOpen} />}
         </div>
       </div>
     </div>
