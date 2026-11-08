@@ -17,6 +17,10 @@ export class FractalLayer implements Layer {
     this.visualizer.renderTo(this.renderer, target)
   }
 
+  warm = (): void => {
+    this.visualizer.warm(this.renderer)
+  }
+
   setMaxIterations = (iterations: number): void => {
     this.visualizer.setMaxIterations(iterations)
   }

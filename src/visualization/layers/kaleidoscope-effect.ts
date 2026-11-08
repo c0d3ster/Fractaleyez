@@ -101,6 +101,9 @@ export class KaleidoscopeEffect extends Effect {
     this.sourceToUniform = sourceToUniform
   }
 
+  /** True when the effect leaves the picture alone: no fold is wanted and no morph is still under way. A morph only advances in `update`, so it has to keep rendering until it ends. */
+  isIdle = (): boolean => this.progress >= 1 && this.target < 1.5
+
   /** Safe to call every frame: only a change of target starts a morph (from whichever fold is closer if one is mid-way); count 1 is off, mode is 0 radial, 1 horizontal, 2 vertical, and source (0 to 1) is where the strip modes' untouched strip sits. */
   setFold = (count: number, mode: number, source: number): void => {
     if (count === this.target && mode === this.targetMode && source === this.targetSource) return
