@@ -1,7 +1,8 @@
 // Usage: node popup-cost.js [url=http://localhost:3000] [hide css selectors] [label]
 // What the expanded config window costs the main thread on its own: every visualizer layer and effect is switched off, so what is left is React, style, layout and the
 // HUD ticks. Opens the window, measures 8 s idle, then five slider drags of 50 pointer moves, with Chrome's Performance metrics (task, script, layout and style time and
-// counts). Point it at a production build (ab.sh builds one) for numbers that match what users run; the dev build is slower per render but ranks things the same.
+// counts). Uses CHROME_PATH and the machine's own GPU; for software GL (a machine without one) set BENCH_CHROME_ARGS="--use-angle=swiftshader --enable-unsafe-swiftshader".
+// Point it at a production build (ab.sh builds one) for numbers that match what users run; the dev build is slower per render but ranks things the same.
 // Reads: dragPer250Moves.taskMs / 255 is the main-thread cost of one slider move, scriptMs is the React part; layouts is how often the page laid out (it should
 // not, for a hidden sidebar). nodes.sidebar is how many DOM nodes the sidebar holds while the pop-out is open.
 const { chromium } = require(process.env.PLAYWRIGHT_CORE || 'playwright-core')
@@ -15,7 +16,7 @@ const diff = (a, b) => Object.fromEntries(METRICS.map((k) => [k, b[k] - a[k]]))
 const r = (v, d = 0) => Math.round(v * 10 ** d) / 10 ** d
 
 ;(async () => {
-  const browser = await chromium.launch({ args: [...(process.env.BENCH_CHROME_ARGS || '--use-angle=swiftshader --enable-unsafe-swiftshader').split(' ').filter(Boolean), '--disable-backgrounding-occluded-windows', '--disable-renderer-backgrounding', '--autoplay-policy=no-user-gesture-required'] })
+  const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || undefined, args: [...(process.env.BENCH_CHROME_ARGS || '').split(' ').filter(Boolean), '--disable-backgrounding-occluded-windows', '--disable-renderer-backgrounding', '--autoplay-policy=no-user-gesture-required'] })
   const ctx = await browser.newContext({ viewport: { width: 1400, height: 900 } })
   await ctx.addInitScript(() => { Object.defineProperty(Screen.prototype, 'isExtended', { get: () => false }) })
   const page = await ctx.newPage()
