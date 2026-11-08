@@ -8,6 +8,7 @@ import type { LagEstimate } from '../audioanalysis/lag-estimate'
 import type { LagMeasurement } from '../audioanalysis/lag-probe'
 import type { QualityStatus } from '../visualization/quality-controller'
 import type { StutterSummary } from '../visualization/stutter-monitor'
+import type { PerfProbeControls } from '../visualization/perf'
 
 // Window Management API — not yet in TypeScript's lib.dom.d.ts.
 // https://developer.mozilla.org/en-US/docs/Web/API/Window_Management_API
@@ -71,6 +72,8 @@ declare global {
       stutters: { display: StutterSummary; video: StutterSummary }
     }
     getQuality?: () => QualityStatus
+    /** The frame-time probe the benchmark scripts read (see `visualization/perf`). */
+    perfProbe?: PerfProbeControls
     setQuality?: (setting: string) => void
     getScreenDetails?: () => Promise<ScreenDetails>
   }

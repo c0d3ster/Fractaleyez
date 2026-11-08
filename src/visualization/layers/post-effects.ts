@@ -1,8 +1,9 @@
 import * as THREE from 'three'
-import { BloomEffect, EffectComposer, EffectPass, RenderPass, ShockWaveEffect } from 'postprocessing'
+import { BloomEffect, EffectComposer, EffectPass, Pass, RenderPass, ShockWaveEffect } from 'postprocessing'
 
 import { AudioAnalysedDataForVisualization } from '../../audioanalysis/audio-analysed-data'
 import { CAMERA_STEER_SCREEN_FRACTION_PER_PAD_UNIT } from '../../config/visualizer.config'
+import { perfProbe } from '../perf'
 import { KaleidoscopeEffect } from './kaleidoscope-effect'
 
 // The shockwave effect projects its position through a fixed camera at this distance and field of view,
@@ -12,6 +13,16 @@ const SHOCKWAVE_CAMERA_Z = 7
 const SHOCKWAVE_PLANE_Z = -5
 // Added to the Speed slider and beat terms so the wave never crawls at a low Speed.
 const SHOCKWAVE_BASE_SPEED = 0.05
+
+/** Times a pass's render call (CPU and GPU) under a name in the perf probe; a no-op while the probe is off. */
+const timePass = (pass: Pass, name: string): void => {
+  const render = pass.render.bind(pass)
+  pass.render = (...args: Parameters<Pass['render']>): void => {
+    perfProbe.begin(name, true)
+    render(...args)
+    perfProbe.end(name)
+  }
+}
 
 /** Bloom and shockwave, run once over the compositor's output (not per layer) and drawn to the screen. */
 export class PostEffects {
@@ -36,7 +47,8 @@ export class PostEffects {
   ) {
     // The composite is one full-screen quad, so the composer's buffers need no depth.
     this.composer = new EffectComposer(renderer, { depthBuffer: false })
-    this.composer.addPass(new RenderPass(scene, camera))
+    const compositePass = new RenderPass(scene, camera)
+    this.composer.addPass(compositePass)
     this.bloomEffect.kernelSize = 1
 
     const fakeCamera = new THREE.PerspectiveCamera(SHOCKWAVE_CAMERA_FOV, window.innerWidth / window.innerHeight)
@@ -53,6 +65,9 @@ export class PostEffects {
     this.plainPass.enabled = false
     this.composer.addPass(this.glowPass)
     this.composer.addPass(this.plainPass)
+    timePass(compositePass, 'post.composite')
+    timePass(this.glowPass, 'post.effects')
+    timePass(this.plainPass, 'post.effects')
   }
 
   private syncGlow = (glow: boolean): void => {

@@ -16,6 +16,7 @@ import { LAYER_REGISTRY } from './config/layers'
 import { createLayerPipeline, LayerPipeline } from './visualization/layers'
 import { shouldDrawForVideoFrame, shouldDrawUnderCap } from './visualization/frame-cap'
 import { loadTracker } from './visualization/load-tracker'
+import { perfProbe } from './visualization/perf'
 import { qualityController } from './visualization/quality-controller'
 import { displayStutters, videoStutters } from './visualization/stutter-monitor'
 import { videoFrameSignal } from './visualization/video-frame-signal'
@@ -220,6 +221,7 @@ const analyze = (): void => {
   }
   videoFrameSignal.clear()
 
+  perfProbe.frameStart()
   const deltaTime = now - lastFrameTime
   lastFrameTime = now
   const currentTimer = new Date()
@@ -231,7 +233,9 @@ const analyze = (): void => {
   }
 
   // Analyse once per frame; every layer and HUD reads this same snapshot
+  perfProbe.begin('audio')
   const visualizationData = audioFeed.tick(deltaTime, currentTimer)
+  perfProbe.end('audio')
 
   if (audioFeed.isSilent()) { // if the user hasnt clicked the page, the audio context wont be allowed to start automatically
     idleSoundTimer++
@@ -243,6 +247,7 @@ const analyze = (): void => {
   }
 
   pipeline?.render(deltaTime, visualizationData)
+  perfProbe.frameEnd()
   const submittedAt = performance.now()
   lagProbe.frameSubmitted(submittedAt)
   frameWorkMs.push(submittedAt - now)
