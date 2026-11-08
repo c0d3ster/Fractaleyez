@@ -3,7 +3,8 @@ import { useInfo } from './info/info'
 import classNames from 'classnames'
 import './LayerHeader.css'
 
-import { connectConfig } from './context/ConfigProvider'
+import { connectConfigActions } from './context/ConfigProvider'
+import { useConfigSelector } from './context/useConfigSelector'
 import { ResetIcon } from './ResetIcon'
 import { AppConfig, LayerKey } from '../../config/configDefaults'
 import { LAYER_CAP } from '../../config/layers'
@@ -16,7 +17,6 @@ const KEY_STEP = 0.05
 type LayerHeaderProps = {
   layerKey: LayerKey
   title: string
-  config: AppConfig
   setLayerEnabled: (key: LayerKey, enabled: boolean) => boolean
   setLayerOpacity: (key: LayerKey, opacity: number) => void
   moveLayer: (key: LayerKey, toIndex: number) => void
@@ -38,10 +38,11 @@ type DragState = {
 
 const clamp01 = (value: number): number => Math.min(Math.max(value, 0), 1)
 
+const selectLayers = (config: AppConfig): AppConfig['layers'] => config.layers
+
 const LayerHeaderInner = ({
   layerKey,
   title,
-  config,
   setLayerEnabled,
   setLayerOpacity,
   moveLayer,
@@ -54,7 +55,7 @@ const LayerHeaderInner = ({
   const dragRef = useRef<DragState | null>(null)
   const frameRef = useRef<number | null>(null)
 
-  const { meta, order } = config.layers
+  const { meta, order } = useConfigSelector(selectLayers)
   const enabled = meta[layerKey].enabled.value
   const opacity = meta[layerKey].opacity.value
   const enabledCount = Object.values(meta).filter(m => m.enabled.value).length
@@ -217,4 +218,4 @@ const LayerHeaderInner = ({
   )
 }
 
-export const LayerHeader = connectConfig(LayerHeaderInner)
+export const LayerHeader = connectConfigActions(LayerHeaderInner)

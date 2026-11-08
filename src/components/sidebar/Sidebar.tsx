@@ -6,16 +6,13 @@ import { Presets, PresetSelection } from '../presets/Presets'
 import { SavePreset } from '../presets/SavePreset'
 import { ConfigAccordion, useOpenCategories } from '../config/ConfigAccordion'
 import { SLIDE_OUT_MS, shouldRenderConfigBody, canParkConfigBody } from './configBodyParking'
-import { connectConfig } from '../config/context/ConfigProvider'
-import { AppConfig } from '../../config/configDefaults'
 
 type SidebarProps = {
-  config: AppConfig
   setConfigWindow: () => void
   configWindowVisible: boolean
 }
 
-const SidebarInner = ({ config: _config, setConfigWindow, configWindowVisible }: SidebarProps): React.ReactElement => {
+const SidebarInner = ({ setConfigWindow, configWindowVisible }: SidebarProps): React.ReactElement => {
   const [sidebarVisible, setSidebarVisible] = useState<boolean | null>(null)
   const [tabVisible, setTabVisible] = useState(true)
   const [prefill, setPrefill] = useState<PresetSelection | null>(null)
@@ -121,4 +118,4 @@ const SidebarInner = ({ config: _config, setConfigWindow, configWindowVisible }:
   )
 }
 
-export const Sidebar = connectConfig(SidebarInner)
+export const Sidebar = SidebarInner

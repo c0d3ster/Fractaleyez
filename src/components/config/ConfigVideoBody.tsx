@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import './Checkbox.css'
 
-import { connectConfig } from './context/ConfigProvider'
+import { connectConfigActions } from './context/ConfigProvider'
+import { useConfigSelector } from './context/useConfigSelector'
 import { AppConfig } from '../../config/configDefaults'
 
 type ClipRowProps = {
@@ -58,12 +59,13 @@ const ClipRow = ({ clip, active, onToggle }: ClipRowProps): React.ReactElement =
 }
 
 type ConfigVideoBodyProps = {
-  config: AppConfig
   updateVideoClips: (clips: string[]) => void
 }
 
-const ConfigVideoBodyInner = ({ config, updateVideoClips }: ConfigVideoBodyProps): React.ReactElement => {
-  const { clips, allClips = clips } = config.video
+const selectVideo = (config: AppConfig): AppConfig['video'] => config.video
+
+const ConfigVideoBodyInner = ({ updateVideoClips }: ConfigVideoBodyProps): React.ReactElement => {
+  const { clips, allClips = clips } = useConfigSelector(selectVideo)
 
   const toggle = (clip: string): void => {
     const isActive = clips.includes(clip)
@@ -85,4 +87,4 @@ const ConfigVideoBodyInner = ({ config, updateVideoClips }: ConfigVideoBodyProps
   )
 }
 
-export const ConfigVideoBody = connectConfig(ConfigVideoBodyInner)
+export const ConfigVideoBody = connectConfigActions(ConfigVideoBodyInner)

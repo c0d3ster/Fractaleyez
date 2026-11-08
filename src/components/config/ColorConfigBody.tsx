@@ -2,7 +2,7 @@ import React from 'react'
 import { ConfigSectionItems } from './ConfigSectionItems'
 import { PaletteRange } from './PaletteRange'
 import { PalettePicker } from './PalettePicker'
-import { connectConfig, ConfigContextValue } from './context/ConfigProvider'
+import { connectConfigActions, ConfigContextValue } from './context/ConfigProvider'
 
 type ColorConfigBodyProps = {
   updateConfigItem: ConfigContextValue['updateConfigItem']
@@ -21,4 +21,4 @@ const ColorConfigBodyInner = ({ updateConfigItem }: ColorConfigBodyProps): React
 }
 
 /** The Color config's layout: the palette choice, the range slider that crops it, the Reverse and Hard Edge buttons, then the sliders that shape it. */
-export const ColorConfigBody = connectConfig(ColorConfigBodyInner)
+export const ColorConfigBody = connectConfigActions(ColorConfigBodyInner)

@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react'
 import './FrequencyHud.css'
 
-import { connectConfig } from '../config/context/ConfigProvider'
+import { connectConfigActions } from '../config/context/ConfigProvider'
 import { useInfo } from '../config/info/info'
 import { UserSettings } from '../../config/userSettings.config'
 import { DEFAULT_ENABLED_BANDS, ONSET_BANDS, isValidBandSelection } from '../../audioanalysis/onset-bands'
@@ -227,4 +227,4 @@ const FrequencyHudInner = ({ userSettings, updateUserSettings }: FrequencyHudPro
   )
 }
 
-export const FrequencyHud = connectConfig(FrequencyHudInner)
+export const FrequencyHud = connectConfigActions(FrequencyHudInner)

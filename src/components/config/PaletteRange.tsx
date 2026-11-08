@@ -2,7 +2,8 @@ import React, { useCallback, useRef } from 'react'
 import { useInfo } from './info/info'
 import './PaletteRange.css'
 
-import { connectConfig, ConfigContextValue } from './context/ConfigProvider'
+import { connectConfigActions, ConfigContextValue } from './context/ConfigProvider'
+import { useConfigSelector } from './context/useConfigSelector'
 import { AppConfig } from '../../config/configDefaults'
 import { resolveColorState } from '../../config/colorState'
 import { lutToCssGradient } from '../../config/paletteLut'
@@ -19,7 +20,6 @@ type Drag = {
 }
 
 type PaletteRangeProps = {
-  config: AppConfig
   updateConfigItem: ConfigContextValue['updateConfigItem']
   resetConfigItem: ConfigContextValue['resetConfigItem']
 }
@@ -35,11 +35,14 @@ const clamp = (value: number, min: number, max: number): number => Math.min(max,
 const tidy = (value: number): number => Math.round(value * PRECISION) / PRECISION
 const scaled = (value: number): number => Math.round(value * 100)
 
-const PaletteRangeInner = ({ config, updateConfigItem, resetConfigItem }: PaletteRangeProps): React.ReactElement => {
+const selectColor = (config: AppConfig): AppConfig['color'] => config.color
+
+const PaletteRangeInner = ({ updateConfigItem, resetConfigItem }: PaletteRangeProps): React.ReactElement => {
+  const color = useConfigSelector(selectColor)
   const info = useInfo()
-  const { rangeLut, baseLut, phase, cycles, saturation } = resolveColorState(config.color)
-  const start = config.color.rangeStart.value
-  const end = config.color.rangeEnd.value
+  const { rangeLut, baseLut, phase, cycles, saturation } = resolveColorState(color)
+  const start = color.rangeStart.value
+  const end = color.rangeEnd.value
   const wraps = end < start
 
   const dragRef = useRef<Drag | null>(null)
@@ -158,4 +161,4 @@ const PaletteRangeInner = ({ config, updateConfigItem, resetConfigItem }: Palett
  * palette by default). The range shows the colors it selects, so it changes with Cycles, Phase, Reverse and Saturation
  * as well as the handles; the end can pass the start to wrap.
  */
-export const PaletteRange = connectConfig(PaletteRangeInner)
+export const PaletteRange = connectConfigActions(PaletteRangeInner)

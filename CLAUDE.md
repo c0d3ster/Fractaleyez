@@ -72,6 +72,10 @@ A tier change is not one jump: the fractal's and the glow's resolution and the l
 
 A tier is a `QualityProfile`; `createLayerPipeline` subscribes to the controller and applies it (fractal target scale and iteration uniform, bloom scale, video upload rate, logo bicubic magnification), `main.ts` applies the frame cap (analysis and drawing skip together), and `uiTicker.ts` reads `uiTickHz` through `window.getQuality` (the pop-out config window reaches it via `window.opener`). To add a lever, add a field to `QualityProfile` and a value per tier, then apply it in the pipeline. `scripts/bench` takes `--quality=<tier>` to compare tiers (see its README).
 
+### Config UI rendering
+
+The config UI must not re-render as a whole when one slider moves (it shares the main thread with the visualizer, and the expanded config window is rendered by the same React). `ConfigProvider` keeps the config in state and mirrors each committed value into `configStore` (`context/configStore.ts`); a component reads the slice it draws with `useConfigSelector((config) => config.user)` (pass `shallowEqual` when the selector builds an object), and gets the actions and lists from `connectConfigActions` or `useConfigContext`. The context value deliberately does not contain `config`, so it only changes with a list or a user setting: do not add the config, or anything derived from it each render, to it. Callbacks that need the config at call time read `window.config` instead of closing over it. `scripts/bench/ui-check.js` replays a scripted session and compares every control's state before and after a change to this layer, and `scripts/bench/popup-cost.js` measures the main-thread cost of a slider move.
+
 ### Config system
 
 Config is organized into five categories mirrored across `src/config/*.config.ts` (defaults/schema), `src/components/config/*` (UI: sliders, checkboxes, accordion), and the visualization/audio modules that consume them: User, Audio, Effects, Orbit, Particle (see README for what each controls).

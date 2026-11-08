@@ -1,5 +1,6 @@
-import React, { useState, useCallback, useEffect, useMemo, useReducer, useRef } from 'react'
+import React, { useState, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useReducer, useRef } from 'react'
 import { perfProbe } from '../../../visualization/perf'
+import { configStore } from './useConfigSelector'
 import axios from 'axios'
 import { useAuth, useUser } from '@clerk/clerk-react'
 
@@ -239,8 +240,12 @@ const resolveUserReferenceIn = (
   return { config, active }
 }
 
+/**
+ * Everything the config UI can do, and the lists it shows, but not the config itself: the config changes with every slider move, and a context value that
+ * changes with it would re-render every component that reads the context. This value changes only when a list or a user setting does; read the config
+ * with `useConfigSelector`, picking the slice the component draws.
+ */
 export type ConfigContextValue = {
-  config: AppConfig
   updateConfigItem: (category: string, item: string, value: string | boolean | number) => void
   updateVideoClips: (clips: string[]) => void
   updateParticleSprites: (sprites: string[]) => Promise<void>
@@ -283,12 +288,19 @@ export type ConfigContextValue = {
 
 export const ConfigContext = React.createContext<ConfigContextValue | undefined>(undefined)
 
-export const connectConfig = <P extends Partial<ConfigContextValue>>(WrappedComponent: React.ComponentType<P>) =>
-  (props: Omit<P, keyof ConfigContextValue>): React.ReactElement => (
-    <ConfigContext.Consumer>
-      {(context) => <WrappedComponent {...props as P} {...context} />}
-    </ConfigContext.Consumer>
-  )
+/** The actions and lists, without the config (so it does not re-render when the config changes). */
+export const useConfigContext = (): ConfigContextValue => {
+  const context = useContext(ConfigContext)
+  if (!context) throw new Error('useConfigContext needs a ConfigProvider above it')
+  return context
+}
+
+/** Gives a component the context (actions and lists) as props. Config changes do not re-render it: it reads the slice it draws with `useConfigSelector`. */
+export const connectConfigActions = <P extends Partial<ConfigContextValue>>(WrappedComponent: React.ComponentType<P>) =>
+  (props: Omit<P, keyof ConfigContextValue>): React.ReactElement => {
+    const context = useContext(ConfigContext)
+    return <WrappedComponent {...({ ...props, ...context } as unknown as P)} />
+  }
 
 export const ConfigProvider = ({ children }: { children: React.ReactNode }): React.ReactElement => {
   const { getToken } = useAuth()
@@ -300,8 +312,14 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
   const [config, setConfig] = useState<AppConfig>(() => {
     const initial = structuredClone(configDefaults)
     window.config = initial
+    configStore.set(initial)
     return initial
   })
+  // The store the config UI reads follows what has been committed. The provider itself still re-renders on a change, but its children are the same
+  // elements and the context value below does not change, so only the components that read a slice that changed render again.
+  useLayoutEffect(() => {
+    configStore.set(config)
+  }, [config])
 
   // Values the active preset had when it loaded (or was last saved); the target of per-item and per-section reset.
   const baselineRef = useRef<AppConfig>(config)
@@ -778,10 +796,9 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
   }, [updateVideoClips])
 
   // Swaps the active preset's resolved `@user` stand-in back to the sentinel, so a saved preset never stores one user's logo.
-  const userReferenceStandIn: Record<UserReferenceSlot, string | null> = {
-    particle: userReferenceStandInOf(config, activeUserReferenceRef.current, 'particle'),
-    logo: userReferenceStandInOf(config, activeUserReferenceRef.current, 'logo'),
-  }
+  const particleStandIn = userReferenceStandInOf(config, activeUserReferenceRef.current, 'particle')
+  const logoStandIn = userReferenceStandInOf(config, activeUserReferenceRef.current, 'logo')
+  const userReferenceStandIn = useMemo<Record<UserReferenceSlot, string | null>>(() => ({ particle: particleStandIn, logo: logoStandIn }), [particleStandIn, logoStandIn])
 
   const withUserReference = useCallback((cfg: AppConfig): AppConfig => {
     const active = activeUserReferenceRef.current
@@ -830,9 +847,11 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
   }, [userContext.logoParticle, userContext.displayName])
 
   const savePreset = useCallback(async (name: string, pack: string, force?: boolean) => {
+    // The live config, read when saving, so this callback does not change (and re-render everything that holds it) with every config change.
+    const live = window.config
     const token = await getToken()
     if (!token) throw Object.assign(new Error('Not authenticated'), { response: { status: 401, data: { error: 'Not authenticated — try signing out and back in' } } })
-    const storedConfig = toStoredConfig(withUserReference(config), window.getVirtualCameraPosition?.())
+    const storedConfig = toStoredConfig(withUserReference(live), window.getVirtualCameraPosition?.())
     const { data } = await axios.post<{ id: string; name: string; updatedAt?: string | null }>('/api/savePreset', {
       name,
       pack,
@@ -841,8 +860,8 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
     }, {
       headers: { Authorization: `Bearer ${token}` },
     })
-    baselineRef.current = config
-    const sprite = config.particle.sprites.value[0] ?? 'fractaleye.png'
+    baselineRef.current = live
+    const sprite = live.particle.sprites.value[0] ?? 'fractaleye.png'
     const updatedAt = data.updatedAt ?? null
     const newPreset: PresetMeta = { id: data.id, name: data.name, label: toLabel(data.name), pack, sprite, isOwn: true, updatedAt }
     // What was just saved is current: keep it so opening this preset needs no request.
@@ -857,10 +876,46 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
       presets: next.flatMap(({ id, name: presetName, pack: presetPack, packs: presetPacks, sprite: presetSprite, isOwn, updatedAt: presetUpdatedAt }) =>
         id ? [{ id, name: presetName, pack: presetPack, packs: presetPacks, sprite: presetSprite, isOwn, updatedAt: presetUpdatedAt ?? null }] : []),
     })
-  }, [config, getToken, withUserReference, viewerId])
+  }, [getToken, withUserReference, viewerId])
+
+  const contextValue = useMemo<ConfigContextValue>(() => ({
+    updateConfigItem,
+    updateVideoClips,
+    updateParticleSprites,
+    updateLogoSprite,
+    applyUserReference,
+    releaseUserReference,
+    userReferenceStandIn,
+    updateColorList,
+    setLayerEnabled,
+    setLayerOpacity,
+    moveLayer,
+    retrieveConfigPreset,
+    revertConfig,
+    resetConfig,
+    resetConfigItem,
+    resetConfigSection,
+    resetVideoClips,
+    savePreset,
+    isSignedIn: isSignedIn ?? false,
+    currentUserId: user?.id ?? null,
+    getToken,
+    presets: presetList,
+    packs: packList,
+    userSettings,
+    isAdmin: isSignedIn === true && isAdmin,
+    userSprite,
+    userName: displayName,
+    updateUserSettings,
+  }), [
+    updateConfigItem, updateVideoClips, updateParticleSprites, updateLogoSprite, applyUserReference, releaseUserReference, userReferenceStandIn,
+    updateColorList, setLayerEnabled, setLayerOpacity, moveLayer, retrieveConfigPreset, revertConfig, resetConfig, resetConfigItem,
+    resetConfigSection, resetVideoClips, savePreset, isSignedIn, user?.id, getToken, presetList, packList, userSettings, isAdmin, userSprite,
+    displayName, updateUserSettings,
+  ])
 
   return (
-    <ConfigContext.Provider value={{ config, updateConfigItem, updateVideoClips, updateParticleSprites, updateLogoSprite, applyUserReference, releaseUserReference, userReferenceStandIn, updateColorList, setLayerEnabled, setLayerOpacity, moveLayer, retrieveConfigPreset, revertConfig, resetConfig, resetConfigItem, resetConfigSection, resetVideoClips, savePreset, isSignedIn: isSignedIn ?? false, currentUserId: user?.id ?? null, getToken, presets: presetList, packs: packList, userSettings, isAdmin: isSignedIn === true && isAdmin, userSprite, userName: displayName, updateUserSettings }}>
+    <ConfigContext.Provider value={contextValue}>
       {children}
     </ConfigContext.Provider>
   )

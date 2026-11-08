@@ -5,12 +5,11 @@ import { PresetRetrieveEvent } from '../config/context/ConfigProvider'
 const TRIAL_DURATION_S = 30
 
 type UsePremiumTrialOptions = {
-  config: AppConfig
   revertConfig: (snapshot: AppConfig) => void
   retrieveConfigPreset: (event: PresetRetrieveEvent) => Promise<void>
 }
 
-export const usePremiumTrial = ({ config, revertConfig, retrieveConfigPreset }: UsePremiumTrialOptions) => {
+export const usePremiumTrial = ({ revertConfig, retrieveConfigPreset }: UsePremiumTrialOptions) => {
   const snapshotRef = useRef<AppConfig | null>(null)
   const timerRef = useRef<number | null>(null)
   const intervalRef = useRef<number | null>(null)
@@ -31,7 +30,8 @@ export const usePremiumTrial = ({ config, revertConfig, retrieveConfigPreset }: 
 
   const startTrial = useCallback((packName: string, event: PresetRetrieveEvent) => {
     clearTrial()
-    snapshotRef.current = config
+    // The live config at the moment the trial starts, so this hook does not depend on (and re-render with) the config.
+    snapshotRef.current = window.config
     void retrieveConfigPreset(event)
     setTrialPackName(packName)
     setSecondsLeft(TRIAL_DURATION_S)
@@ -46,7 +46,7 @@ export const usePremiumTrial = ({ config, revertConfig, retrieveConfigPreset }: 
       setSecondsLeft(null)
       setModalVisible(true)
     }, TRIAL_DURATION_S * 1000)
-  }, [config, retrieveConfigPreset, clearTrial])
+  }, [retrieveConfigPreset, clearTrial])
 
   const cancelTrial = useCallback(() => {
     clearTrial()

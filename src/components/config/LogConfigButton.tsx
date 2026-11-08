@@ -1,18 +1,15 @@
-import React, { useContext } from 'react'
+import React from 'react'
 import { useInfo } from './info/info'
 
 import { toStoredConfig } from '../../config/storedConfig'
-import { ConfigContext } from './context/ConfigProvider'
 
 /** Logs the current config as slim preset JSON (what a saved preset stores) and copies it to the clipboard. */
-export const LogConfigButton = (): React.ReactElement | null => {
+export const LogConfigButton = (): React.ReactElement => {
   const info = useInfo()
-  const context = useContext(ConfigContext)
-  if (!context) return null
-  const { config } = context
 
+  // The live config is read when the button is pressed, so the button does not re-render as the config changes.
   const logConfig = (): void => {
-    const json = JSON.stringify(toStoredConfig(config, window.getVirtualCameraPosition?.()))
+    const json = JSON.stringify(toStoredConfig(window.config, window.getVirtualCameraPosition?.()))
     console.info(json)
     navigator.clipboard?.writeText(json).catch(() => undefined)
   }

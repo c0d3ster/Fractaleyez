@@ -2,7 +2,8 @@ import React, { useCallback, useRef } from 'react'
 import { useInfo } from '../config/info/info'
 import './ParticleSpriteHud.css'
 
-import { connectConfig, ConfigContextValue } from '../config/context/ConfigProvider'
+import { connectConfigActions, ConfigContextValue } from '../config/context/ConfigProvider'
+import { useConfigSelector } from '../config/context/useConfigSelector'
 import { AppConfig } from '../../config/configDefaults'
 import { BUILTIN_PARTICLE_SPRITES, particleConfig } from '../../config/particle.config'
 import { presetSpriteSrc } from '../../utils/presetSpriteSrc'
@@ -17,7 +18,6 @@ const spriteLabel = (src: string): string => {
 }
 
 type ParticleSpriteHudProps = {
-  config: AppConfig
   updateParticleSprites: (sprites: string[]) => Promise<void>
   applyUserReference: ConfigContextValue['applyUserReference']
   releaseUserReference: ConfigContextValue['releaseUserReference']
@@ -28,9 +28,11 @@ type ParticleSpriteHudProps = {
   getToken: () => Promise<string | null>
 }
 
-const ParticleSpriteHudInner = ({ config, updateParticleSprites, applyUserReference, releaseUserReference, userReferenceStandIn, userSettings, isAdmin, isSignedIn, getToken }: ParticleSpriteHudProps): React.ReactElement => {
+const selectSprites = (config: AppConfig): string[] => config.particle.sprites.value
+
+const ParticleSpriteHudInner = ({ updateParticleSprites, applyUserReference, releaseUserReference, userReferenceStandIn, userSettings, isAdmin, isSignedIn, getToken }: ParticleSpriteHudProps): React.ReactElement => {
   const info = useInfo()
-  const sprites = config.particle.sprites.value
+  const sprites = useConfigSelector(selectSprites)
   const spritesRef = useRef(sprites)
   spritesRef.current = sprites
   const { sprites_MIN: minN, sprites_MAX: maxN } = particleConfig
@@ -164,4 +166,4 @@ const ParticleSpriteHudInner = ({ config, updateParticleSprites, applyUserRefere
   )
 }
 
-export const ParticleSpriteHud = connectConfig(ParticleSpriteHudInner)
+export const ParticleSpriteHud = connectConfigActions(ParticleSpriteHudInner)
