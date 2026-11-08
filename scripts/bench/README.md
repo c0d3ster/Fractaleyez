@@ -88,6 +88,36 @@ costs what; the earlier perf work (#181, #224, #236) found the answer was one an
 Software GL (`BENCH_CHROME_ARGS="--use-angle=swiftshader --enable-unsafe-swiftshader"`) only proves the scripts run: its frames take hundreds of
 milliseconds and say nothing about a real GPU. Use a headed browser on the target hardware (an integrated GPU is where the video and pop-out problems showed).
 
+## Before and after, in one command
+
+```sh
+scripts/bench/ab.sh 997da3b HEAD --runs=3 --popup --quality=quality --scenarios=idle,glow-first,particle-count,popup-drag-speed
+```
+
+Checks each ref out in its own git worktree under `$BENCH_DIR/ab`, builds it with the production webpack config (React in production mode, which is
+what users run and is cheaper than the dev build the other scripts use), serves both on their own ports, runs `hitch.js` against each, alternating
+which side goes first so a drifting machine hits both alike, and prints the median of each metric with the change (`compare-hitch.js`). Remove the worktrees afterwards
+with `git worktree remove --force $BENCH_DIR/ab/base` (and `new`).
+
+- `997da3b` is the right "before" for the perf work on this branch: it sits directly on the original code and adds only the probe, so the rendering is the old rendering
+  but it can report GPU time (the original has no probe to read).
+- Use a headed browser on the hardware you care about: `CHROME_PATH=...`, add `--gpu=nvidia` or leave it off to get the integrated GPU, `--pos=x,y` to pick a monitor.
+  Close other apps. Run on AC power with the same display refresh in both runs. Three runs per side is the minimum for numbers worth believing.
+- GPU rows need a browser that exposes `EXT_disjoint_timer_query_webgl2` (the result says `gpuTimer: 'unavailable'` when it does not, and the GPU rows are then empty; the
+  Windows GPU engine counters from `bench.js` and `gpusumm.js` still work). A privacy-focused browser may hide the extension.
+- Read the rows that matter for this branch: `cpu worst frame` and `display gap max` on `glow-first`, `particle-count`, `particle-levels` and `bundle` (hitches); `cpu` and `gpu ms/frame p50`
+  on `idle` and `popup-idle` (steady cost); `popup long frames`, `popup commits` and `page long frames` on `popup-drag-*` (the expanded config window).
+
+## What the expanded config window costs on its own
+
+```sh
+node scripts/bench/popup-cost.js http://localhost:4102        # a production build served by ab.sh/serve.js, or the dev server
+```
+
+Switches every layer and effect off and measures the main thread while the pop-out is open: idle for 8 s, then five slider drags. `dragPer250Moves.taskMs / 255` is the cost of one slider
+move; `layouts` should be 0 in the page (a hidden sidebar that lays out on every move is wasted work). On the production build of this branch, one move cost about 11 ms of main-thread time (about 5 ms of script)
+because the page tree and the pop-out tree each re-render in full on every change, and the sidebar's hidden config body added about a fifth of that.
+
 ## How much does supersampling buy?
 
 ```sh

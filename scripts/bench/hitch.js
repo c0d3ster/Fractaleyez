@@ -10,6 +10,7 @@
 //   --attribution runs the popup-idle and popup-drag scenarios once per widget hidden and prints one table.
 // The tier is fixed (default quality) so Auto does not step during a run; --quality=auto leaves it on.
 // Paths and browser come from the environment as in bench.js: BENCH_DIR, CHROME_PATH (default: the Chromium Playwright ships),
+// --gpu=nvidia launches with --force_high_performance_gpu (without it a hybrid laptop uses the integrated GPU); --pos=x,y places the window on a monitor.
 // BENCH_URL, BENCH_CHROME_ARGS (e.g. software GL: "--use-angle=swiftshader --enable-unsafe-swiftshader"), PLAYWRIGHT_CORE.
 const path = require('path')
 const fs = require('fs')
@@ -26,6 +27,8 @@ const popup = args.includes('--popup')
 const headless = args.includes('--headless')
 const attribution = args.includes('--attribution')
 const size = flag('size', '1280x800')
+const gpuFlag = flag('gpu', 'default')
+const pos = flag('pos', '0,0')
 const quality = flag('quality', 'quality')
 // The selectors hidden in the pop-out; --attribution changes it one widget at a time.
 let hide = flag('hide', '')
@@ -128,7 +131,8 @@ const launch = async () => {
     args: [
       '--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream',
       ...(fs.existsSync(wav) ? [`--use-file-for-fake-audio-capture=${wav}`] : []),
-      `--window-size=${size.replace('x', ',')}`,
+      `--window-size=${size.replace('x', ',')}`, `--window-position=${pos}`,
+      ...(gpuFlag === 'nvidia' ? ['--force_high_performance_gpu'] : []),
       '--disable-backgrounding-occluded-windows', '--disable-renderer-backgrounding',
       '--disable-features=CalculateNativeWinOcclusion', '--autoplay-policy=no-user-gesture-required', ...EXTRA_ARGS,
     ],
@@ -171,7 +175,7 @@ const runScenario = async (ctx, name, def) => {
 const section = (probe, key) => {
   const cpu = probe.sections[key] && probe.sections[key].cpu
   const gpu = probe.sections[key] && probe.sections[key].gpu
-  return { cpuP95: cpu ? r1(cpu.p95) : null, cpuMax: cpu ? r1(cpu.max) : null, gpuP95: gpu ? r1(gpu.p95) : null, gpuMax: gpu ? r1(gpu.max) : null }
+  return { cpuP50: cpu ? r1(cpu.p50) : null, cpuP95: cpu ? r1(cpu.p95) : null, cpuMax: cpu ? r1(cpu.max) : null, gpuP50: gpu ? r1(gpu.p50) : null, gpuP95: gpu ? r1(gpu.p95) : null, gpuMax: gpu ? r1(gpu.max) : null }
 }
 
 const summarize = (name, { gaps, probe, tier }) => ({
@@ -186,8 +190,10 @@ const summarize = (name, { gaps, probe, tier }) => ({
   over25: gaps.filter((g) => g > 25).length,
   over50: gaps.filter((g) => g > 50).length,
   drawnFrames: probe.frames,
+  cpuP50: probe.cpu ? r1(probe.cpu.p50) : null,
   cpuP95: probe.cpu ? r1(probe.cpu.p95) : null,
   cpuMax: probe.cpu ? r1(probe.cpu.max) : null,
+  gpuFrameP50: probe.gpuFrame ? r1(probe.gpuFrame.p50) : null,
   gpuFrameP95: probe.gpuFrame ? r1(probe.gpuFrame.p95) : null,
   gpuTimer: probe.gpuTimer,
   gpuFaults: probe.gpuFaults,
