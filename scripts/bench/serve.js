@@ -12,19 +12,21 @@ const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/cs
 
 http.createServer((request, response) => {
   const url = decodeURIComponent(request.url.split('?')[0])
-  let file = path.join(dir, url.endsWith('/') ? `${url}index.html` : url)
+  let file = path.join(path.resolve(dir), url.endsWith('/') ? `${url}index.html` : url)
   if (!file.startsWith(path.resolve(dir))) { response.writeHead(403).end(); return }
+  if (url.startsWith('/api/')) { response.writeHead(404).end(); return } // no API here; the app falls back to its bundled defaults
   if (!fs.existsSync(file) || fs.statSync(file).isDirectory()) file = path.join(dir, 'index.html')
   const { size } = fs.statSync(file)
   const type = TYPES[path.extname(file)] || 'application/octet-stream'
+  const charset = /^(text\/|application\/json)/.test(type) ? '; charset=utf-8' : '' // index.html has no meta charset, so without this the bundle decodes as Windows-1252
   const range = /bytes=(\d*)-(\d*)/.exec(request.headers.range || '')
   if (range) {
     const start = range[1] ? Number(range[1]) : 0
     const end = range[2] ? Math.min(Number(range[2]), size - 1) : size - 1
-    response.writeHead(206, { 'Content-Type': type, 'Content-Range': `bytes ${start}-${end}/${size}`, 'Accept-Ranges': 'bytes', 'Content-Length': end - start + 1 })
+    response.writeHead(206, { 'Content-Type': type + charset, 'Content-Range': `bytes ${start}-${end}/${size}`, 'Accept-Ranges': 'bytes', 'Content-Length': end - start + 1 })
     fs.createReadStream(file, { start, end }).pipe(response)
     return
   }
-  response.writeHead(200, { 'Content-Type': type, 'Content-Length': size, 'Accept-Ranges': 'bytes' })
+  response.writeHead(200, { 'Content-Type': type + charset, 'Content-Length': size, 'Accept-Ranges': 'bytes' })
   fs.createReadStream(file).pipe(response)
 }).listen(port, () => console.log(`serving ${dir} on ${port}`))

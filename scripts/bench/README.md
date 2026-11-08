@@ -101,7 +101,9 @@ with `git worktree remove --force $BENCH_DIR/ab/base` (and `new`).
 
 - `997da3b` is the right "before" for the perf work on this branch: it sits directly on the original code and adds only the probe, so the rendering is the old rendering
   but it can report GPU time (the original has no probe to read).
-- Use a headed browser on the hardware you care about: `CHROME_PATH=...`, add `--gpu=nvidia` or leave it off to get the integrated GPU, `--pos=x,y` to pick a monitor.
+- Use a headed browser on the hardware you care about: `CHROME_PATH=...`, then `--gpu=nvidia` or `--gpu=intel` (`--force_low_power_gpu`). Always pass one on a hybrid laptop: the driver may
+  prefer the dedicated GPU, so the default is not reliably the integrated one (check the WebGL renderer if unsure). `--pos=x,y` picks the monitor for the visual and
+  `--popup-pos=x,y` for the pop-out, so it can sit on its own screen as in real use instead of over the visual.
   Close other apps. Run on AC power with the same display refresh in both runs. Three runs per side is the minimum for numbers worth believing.
 - GPU rows need a browser that exposes `EXT_disjoint_timer_query_webgl2` (the result says `gpuTimer: 'unavailable'` when it does not, and the GPU rows are then empty; the
   Windows GPU engine counters from `bench.js` and `gpusumm.js` still work). A privacy-focused browser may hide the extension.
