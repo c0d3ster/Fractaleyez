@@ -47,7 +47,9 @@ export const QUALITY_PROFILES: Record<QualityTier, QualityProfile> = {
   balanced: { frameCapFps: 60, fractalScale: 0.75, fractalIterations: 96, bloomScale: 0.4, videoUploadFps: 30, uiTickHz: 15, logoBicubic: false },
   // What the app drew before there were tiers, except it stops at 120fps: faster than that only pins an integrated GPU and starves the video.
   quality: { frameCapFps: 120, fractalScale: 1, fractalIterations: 128, bloomScale: 0.5, videoUploadFps: null, uiTickHz: 20, logoBicubic: false },
-  ultra: { frameCapFps: null, fractalScale: 1.5, fractalIterations: 192, bloomScale: 0.75, videoUploadFps: null, uiTickHz: 20, logoBicubic: true },
+  // Ultra supersamples the fractal 1.25x. Against a 16-sample reference, 1.25 closes about two thirds of the gap between no supersampling and 2x, and 1.5 only a little
+  // more for 44% more pixels (1.56x against 2.25x); 1.75 is no better than 1.5, because only a whole-number scale gives the GPU's bilinear lookup an even average (see the fractal scale probe in scripts/bench/README.md).
+  ultra: { frameCapFps: null, fractalScale: 1.25, fractalIterations: 192, bloomScale: 0.75, videoUploadFps: null, uiTickHz: 20, logoBicubic: true },
 }
 
 export const QUALITY_LABELS: Record<QualitySetting, string> = {

@@ -88,6 +88,16 @@ costs what; the earlier perf work (#181, #224, #236) found the answer was one an
 Software GL (`BENCH_CHROME_ARGS="--use-angle=swiftshader --enable-unsafe-swiftshader"`) only proves the scripts run: its frames take hundreds of
 milliseconds and say nothing about a real GPU. Use a headed browser on the target hardware (an integrated GPU is where the video and pop-out problems showed).
 
+## How much does supersampling buy?
+
+```sh
+node scripts/bench/scale-probe.js [1,1.25,1.5,1.75,2] [4] [outdir]
+```
+
+Renders one Ultra-tier fractal frame at each scale and measures the error against a true reference (the page drawn `4x` larger without supersampling and averaged in 4x4
+blocks). On the one frame tried: 1.25 closes about two thirds of the gap between 1x and 2x, 1.5 only a little more for 44% more pixels, 1.75 is no better than 1.5, and 2 is clearly best
+because a whole-number scale gives the GPU's bilinear lookup an even 2x2 average. That is why Ultra is 1.25. One frame and one view of the fractal, so try your own presets.
+
 ## Proving a rendering change leaves the picture alone
 
 ```sh

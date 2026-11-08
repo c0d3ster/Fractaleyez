@@ -135,7 +135,9 @@ const compare = (a, b) => {
   process.exit(allSame ? 0 : 2)
 }
 
-;(async () => {
+module.exports = { VIRTUAL_TIME }
+
+if (require.main === module) (async () => {
   if (mode === 'capture' && dirA) await capture(dirA)
   else if (mode === 'compare' && dirA && dirB) compare(dirA, dirB)
   else console.log('usage: node parity.js capture <dir> | node parity.js compare <dirA> <dirB>')
