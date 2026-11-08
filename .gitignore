@@ -28,3 +28,8 @@ scripts/presets.local*.json
 .claude/
 drive-download-*
 scripts/section-eval/__pycache__/
+
+# Raveform dataset and fetched band levels (scripts/section-eval)
+/raveform.zip
+/raveform/
+/raveform-levels/
