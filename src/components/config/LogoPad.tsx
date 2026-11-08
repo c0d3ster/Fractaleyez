@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import './LogoPad.css'
 
-import { connectConfig, ConfigContextValue } from './context/ConfigProvider'
+import { connectConfigActions, ConfigContextValue } from './context/ConfigProvider'
+import { useConfigSelector } from './context/useConfigSelector'
 import { AppConfig } from '../../config/configDefaults'
 import { logoConfig } from '../../config/logo.config'
 import { ImageShape, loadImageShape, SQUARE_SHAPE } from '../../utils/opaqueBounds'
@@ -11,7 +12,6 @@ import { FOCUS_DOT_MAX_PX, FOCUS_DOT_MIN_PX, focusDotFraction, focusSpot, frameR
 import { Pad, PadPoint, screenAspectRatio } from './Pad'
 
 type LogoPadProps = {
-  config: AppConfig
   updateConfigItem: ConfigContextValue['updateConfigItem']
   resetConfigItem: ConfigContextValue['resetConfigItem']
 }
@@ -27,7 +27,9 @@ const toPercent = (fraction: number): string => `${fraction * 100}%`
 // Without the leading zero (.50, not 0.50), so the X, Y and Zoom readouts fit on one line.
 const format = (value: number): string => value.toFixed(2).replace(/^0\./, '.')
 
-const stateOf = ({ logo }: AppConfig, { bounds, aspect }: ImageShape): LogoPadState => ({
+const selectLogo = (config: AppConfig): AppConfig['logo'] => config.logo
+
+const stateOf = (logo: AppConfig['logo'], { bounds, aspect }: ImageShape): LogoPadState => ({
   x: logo.positionX.value,
   y: logo.positionY.value,
   focusX: logo.focusX.value,
@@ -45,21 +47,22 @@ const sizeOf = ({ width, height }: PadPoint): PadSize => ({ width, height })
  * square (or empty pad) to move the logo. Double-click the dot, the square, or empty pad to reset the zoom point, the
  * position, or both.
  */
-const LogoPadInner = ({ config, updateConfigItem, resetConfigItem }: LogoPadProps): React.ReactElement => {
+const LogoPadInner = ({ updateConfigItem, resetConfigItem }: LogoPadProps): React.ReactElement => {
+  const logo = useConfigSelector(selectLogo)
   const grab = useRef<Grab>({ target: 'empty', offset: { x: 0, y: 0 } })
   const firstPress = useRef<{ at: number, target: LogoPadTarget }>({ at: 0, target: 'empty' })
   const aspectRatio = screenAspectRatio()
   // The image frame can have see-through margins, so the box drawn is the part you actually see on screen.
   const [shape, setShape] = useState<ImageShape>(SQUARE_SHAPE)
-  const [sprite = ''] = config.logo.sprite.value
+  const [sprite = ''] = logo.sprite.value
   useEffect(() => {
     let current = true
     setShape(SQUARE_SHAPE)
     if (sprite) void loadImageShape(getResolvedSpriteUrl(sprite)).then((loaded) => { if (current) setShape(loaded) })
     return () => { current = false }
   }, [sprite])
-  const state = stateOf(config, shape)
-  const zoomOn = config.logo.zoom.value
+  const state = stateOf(logo, shape)
+  const zoomOn = logo.zoom.value
 
   const setValues = useCallback((values: Record<string, number>): void => {
     Object.entries(values).forEach(([item, value]) => updateConfigItem('logo', item, String(value)))
@@ -131,4 +134,4 @@ const LogoPadInner = ({ config, updateConfigItem, resetConfigItem }: LogoPadProp
 }
 
 /** The pad for the logo's position on the screen and, with Zoom on, the zoom point in the image. */
-export const LogoPad = connectConfig(LogoPadInner)
+export const LogoPad = connectConfigActions(LogoPadInner)

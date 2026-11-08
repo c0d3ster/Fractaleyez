@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import './Presets.css'
 
-import { connectConfig } from '../config/context/ConfigProvider'
+import { connectConfigActions } from '../config/context/ConfigProvider'
 import { PresetRetrieveEvent, PresetMeta, PackMeta } from '../config/context/ConfigProvider'
 import { AppConfig } from '../../config/configDefaults'
 import { presetSpriteSrc } from '../../utils/presetSpriteSrc'
@@ -17,7 +17,6 @@ const packsOf = ({ pack, packs }: PresetMeta): string[] => (packs?.length ? pack
 type PresetsProps = {
   retrieveConfigPreset: (event: PresetRetrieveEvent) => Promise<void>
   revertConfig: (snapshot: AppConfig) => void
-  config: AppConfig
   presets: PresetMeta[]
   packs?: PackMeta[]
   userSprite?: string
@@ -28,7 +27,7 @@ type PresetsProps = {
   headerActions?: React.ReactNode
 }
 
-const PresetsInner = ({ retrieveConfigPreset, revertConfig, config, presets, packs = [], userSprite, userName = null, expanded = false, onSelect, onPackSelect, headerActions }: PresetsProps): React.ReactElement => {
+const PresetsInner = ({ retrieveConfigPreset, revertConfig, presets, packs = [], userSprite, userName = null, expanded = false, onSelect, onPackSelect, headerActions }: PresetsProps): React.ReactElement => {
   const [activePack, setActivePack] = useState('All')
   const [page, setPage] = useState(0)
   const [paging, setPaging] = useState(false)
@@ -39,7 +38,6 @@ const PresetsInner = ({ retrieveConfigPreset, revertConfig, config, presets, pac
   const packMap = useMemo(() => new Map(packs.map(p => [p.name, p])), [packs])
 
   const { startTrial, cancelTrial, modalVisible, trialPackName, secondsLeft, dismissTrial } = usePremiumTrial({
-    config,
     revertConfig,
     retrieveConfigPreset,
   })
@@ -204,4 +202,4 @@ const PresetsInner = ({ retrieveConfigPreset, revertConfig, config, presets, pac
   )
 }
 
-export const Presets = connectConfig(PresetsInner)
+export const Presets = connectConfigActions(PresetsInner)

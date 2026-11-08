@@ -1,13 +1,14 @@
 import React, { useCallback, useState } from 'react'
 import './PalettePicker.css'
 
-import { connectConfig, ConfigContextValue } from './context/ConfigProvider'
+import { connectConfigActions, ConfigContextValue } from './context/ConfigProvider'
+import { shallowEqual } from './context/configStore'
+import { useConfigSelector } from './context/useConfigSelector'
 import { AppConfig } from '../../config/configDefaults'
 import { colorConfig } from '../../config/color.config'
 import { CUSTOM_PALETTE, PALETTES, RAINBOW_PALETTE } from '../../config/palettes'
 
 type PalettePickerProps = {
-  config: AppConfig
   updateColorList: ConfigContextValue['updateColorList']
 }
 
@@ -27,8 +28,11 @@ const stopsGradient = (stops: readonly string[]): string => `linear-gradient(to 
 const PALETTE_IDS = [...PALETTES.map(({ id }) => id), CUSTOM_PALETTE]
 const PAGE_COUNT = Math.ceil(PALETTE_IDS.length / PALETTES_PER_PAGE)
 
-const PalettePickerInner = ({ config, updateColorList }: PalettePickerProps): React.ReactElement => {
-  const { palette, customStops } = config.color
+// Only the palette choice and the custom colors: a saturation or phase change does not redraw the picker.
+const selectPalette = (config: AppConfig): Pick<AppConfig['color'], 'palette' | 'customStops'> => ({ palette: config.color.palette, customStops: config.color.customStops })
+
+const PalettePickerInner = ({ updateColorList }: PalettePickerProps): React.ReactElement => {
+  const { palette, customStops } = useConfigSelector(selectPalette, shallowEqual)
   const selected = palette.value[0] ?? RAINBOW_PALETTE
   const stops = customStops.value
 
@@ -118,4 +122,4 @@ const PalettePickerInner = ({ config, updateColorList }: PalettePickerProps): Re
 }
 
 /** The palette choices (rainbow, named palettes, custom), eight to a page, with the custom palette's color editor. */
-export const PalettePicker = connectConfig(PalettePickerInner)
+export const PalettePicker = connectConfigActions(PalettePickerInner)

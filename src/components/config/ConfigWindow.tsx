@@ -11,7 +11,7 @@ import { ConfigVideo } from './ConfigVideo'
 import { copyStyles } from '../../styles/AppStyleCopier'
 import { perfProbe } from '../../visualization/perf'
 import { DISPLAY_ORDER } from '../../config/layers'
-import { connectConfig, ConfigContext, ConfigContextValue } from './context/ConfigProvider'
+import { ConfigContext, ConfigContextValue, useConfigContext } from './context/ConfigProvider'
 import { pickNearestScreen } from './popoutScreen'
 import { UserConfigBody } from './UserConfigBody'
 import { ShapePad } from './ShapePad'
@@ -102,40 +102,11 @@ const isTypingTarget = (element: Element | null, key: string): boolean => {
   return element.tagName === 'INPUT' && !NON_TEXT_INPUT_TYPES.includes(element.getAttribute('type') ?? 'text')
 }
 
-type ExternalWindowBridgeProps = ConfigContextValue
+type ExternalWindowBridgeProps = { context: ConfigContextValue }
 
 // Renders inside the external window's React root, bridging ConfigContext from the main window
-const ExternalWindowBridge = ({
-  config,
-  updateConfigItem,
-  updateVideoClips,
-  updateParticleSprites,
-  updateLogoSprite,
-  applyUserReference,
-  releaseUserReference,
-  userReferenceStandIn,
-  updateColorList,
-  setLayerEnabled,
-  setLayerOpacity,
-  moveLayer,
-  retrieveConfigPreset,
-  revertConfig,
-  resetConfig,
-  resetConfigItem,
-  resetConfigSection,
-  resetVideoClips,
-  savePreset,
-  isSignedIn,
-  currentUserId,
-  getToken,
-  presets,
-  packs,
-  userSettings,
-  isAdmin,
-  userSprite,
-  userName,
-  updateUserSettings,
-}: ExternalWindowBridgeProps): React.ReactElement => {
+const ExternalWindowBridge = ({ context }: ExternalWindowBridgeProps): React.ReactElement => {
+  const { updateConfigItem } = context
   const [prefill, setPrefill] = useState<PresetSelection | null>(null)
   // Every commit of the pop-out's tree, and the time from the last config change to it (no-ops unless the perf probe is on).
   useEffect(() => {
@@ -143,39 +114,7 @@ const ExternalWindowBridge = ({
     perfProbe.since('config.change', 'config.change to popup commit')
   })
   return (
-    <ConfigContext.Provider
-      value={{
-        config,
-        updateConfigItem,
-        updateVideoClips,
-        updateParticleSprites,
-        updateLogoSprite,
-        applyUserReference,
-        releaseUserReference,
-        userReferenceStandIn,
-        updateColorList,
-        setLayerEnabled,
-        setLayerOpacity,
-        moveLayer,
-        retrieveConfigPreset,
-        revertConfig,
-        resetConfig,
-        resetConfigItem,
-        resetConfigSection,
-        resetVideoClips,
-        savePreset,
-        isSignedIn,
-        currentUserId,
-        getToken,
-        presets,
-        packs,
-        userSettings,
-        isAdmin,
-        userSprite,
-        userName,
-        updateUserSettings,
-      }}
-    >
+    <ConfigContext.Provider value={context}>
       <InfoProvider>
         <div className='config-window-grid flow-root px-[15px]'>
           <Presets
@@ -228,42 +167,13 @@ const ExternalWindowBridge = ({
   )
 }
 
-type ConfigWindowProps = ConfigContextValue & {
+type ConfigWindowProps = {
   onClose: () => void
 }
 
-const ConfigWindowInner = ({
-  config,
-  updateConfigItem,
-  updateVideoClips,
-  updateParticleSprites,
-  updateLogoSprite,
-  applyUserReference,
-  releaseUserReference,
-  userReferenceStandIn,
-  updateColorList,
-  setLayerEnabled,
-  setLayerOpacity,
-  moveLayer,
-  retrieveConfigPreset,
-  revertConfig,
-  resetConfig,
-  resetConfigItem,
-  resetConfigSection,
-  resetVideoClips,
-  savePreset,
-  isSignedIn,
-  currentUserId,
-  getToken,
-  presets,
-  packs,
-  userSettings,
-  isAdmin,
-  userSprite,
-  userName,
-  updateUserSettings,
-  onClose,
-}: ConfigWindowProps): null => {
+const ConfigWindowInner = ({ onClose }: ConfigWindowProps): null => {
+  // The actions and lists, not the config: this component, and the pop-out's tree under it, must not re-render on every config change.
+  const context = useConfigContext()
   const reactRootRef = useRef<Root | null>(null)
   // Root creation is now async (waits on second-screen resolution) — this flips once the root
   // exists so the render effect below re-fires even if config/presets/etc haven't changed since.
@@ -344,71 +254,10 @@ const ConfigWindowInner = ({
   // Re-render the external root whenever config changes, keeping both windows in sync
   useEffect(() => {
     if (!reactRootRef.current) return
-    reactRootRef.current.render(
-      <ExternalWindowBridge
-        config={config}
-        updateConfigItem={updateConfigItem}
-        updateVideoClips={updateVideoClips}
-        updateParticleSprites={updateParticleSprites}
-        updateLogoSprite={updateLogoSprite}
-        applyUserReference={applyUserReference}
-        releaseUserReference={releaseUserReference}
-        userReferenceStandIn={userReferenceStandIn}
-        updateColorList={updateColorList}
-        setLayerEnabled={setLayerEnabled}
-        setLayerOpacity={setLayerOpacity}
-        moveLayer={moveLayer}
-        retrieveConfigPreset={retrieveConfigPreset}
-        revertConfig={revertConfig}
-        resetConfig={resetConfig}
-        resetConfigItem={resetConfigItem}
-        resetConfigSection={resetConfigSection}
-        resetVideoClips={resetVideoClips}
-        savePreset={savePreset}
-        isSignedIn={isSignedIn}
-        currentUserId={currentUserId}
-        getToken={getToken}
-        presets={presets}
-        packs={packs}
-        userSettings={userSettings}
-        isAdmin={isAdmin}
-        userSprite={userSprite}
-        userName={userName}
-        updateUserSettings={updateUserSettings}
-      />
-    )
-  }, [
-    externalRootReady,
-    config,
-    updateConfigItem,
-    updateVideoClips,
-    updateParticleSprites,
-    updateLogoSprite,
-    applyUserReference,
-    releaseUserReference,
-    userReferenceStandIn,
-    updateColorList,
-    setLayerEnabled,
-    setLayerOpacity,
-    moveLayer,
-    retrieveConfigPreset,
-    resetConfig,
-    resetConfigItem,
-    resetConfigSection,
-    resetVideoClips,
-    savePreset,
-    isSignedIn,
-    currentUserId,
-    getToken,
-    presets,
-    userSettings,
-    isAdmin,
-    userSprite,
-    userName,
-    updateUserSettings,
-  ])
+    reactRootRef.current.render(<ExternalWindowBridge context={context} />)
+  }, [externalRootReady, context])
 
   return null
 }
 
-export const ConfigWindow = connectConfig(ConfigWindowInner)
+export const ConfigWindow = ConfigWindowInner

@@ -2,7 +2,7 @@ import React from 'react'
 import { ConfigSectionItems } from './ConfigSectionItems'
 import { LogoPad } from './LogoPad'
 import { LogoSpritePicker } from './LogoSpritePicker'
-import { connectConfig, ConfigContextValue } from './context/ConfigProvider'
+import { connectConfigActions, ConfigContextValue } from './context/ConfigProvider'
 
 type LogoConfigBodyProps = {
   updateConfigItem: ConfigContextValue['updateConfigItem']
@@ -20,4 +20,4 @@ const LogoConfigBodyInner = ({ updateConfigItem }: LogoConfigBodyProps): React.R
 )
 
 /** The Logo config's layout: the sprite picker, the 3D, Lean and Zoom chips on one line, the sliders, then the position pad. */
-export const LogoConfigBody = connectConfig(LogoConfigBodyInner)
+export const LogoConfigBody = connectConfigActions(LogoConfigBodyInner)

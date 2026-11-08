@@ -4,7 +4,6 @@ import '../styles/tailwind.css'
 import '../styles/App.css'
 
 import { initWithMicrophone } from '../main'
-import { connectConfig } from './config/context/ConfigProvider'
 import { ConfigWindow } from './config/ConfigWindow'
 import { Sidebar } from './sidebar/Sidebar'
 import { TopBar } from './topbar/TopBar'
@@ -31,4 +30,4 @@ const AppInner = (): React.ReactElement => {
   )
 }
 
-export const App = connectConfig(AppInner)
+export const App = AppInner

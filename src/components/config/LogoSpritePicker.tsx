@@ -2,7 +2,8 @@ import React, { useCallback } from 'react'
 import { useInfo } from './info/info'
 import '../huds/ParticleSpriteHud.css'
 
-import { connectConfig, ConfigContextValue } from './context/ConfigProvider'
+import { connectConfigActions, ConfigContextValue } from './context/ConfigProvider'
+import { useConfigSelector } from './context/useConfigSelector'
 import { AppConfig } from '../../config/configDefaults'
 import { BUILTIN_PARTICLE_SPRITES } from '../../config/particle.config'
 import { presetSpriteSrc } from '../../utils/presetSpriteSrc'
@@ -10,7 +11,6 @@ import { useSpriteUpload } from '../huds/useSpriteUpload'
 import { UserSpriteTiles } from '../huds/UserSpriteTiles'
 
 type LogoSpritePickerProps = {
-  config: AppConfig
   updateLogoSprite: (sprite: string) => Promise<void>
   applyUserReference: ConfigContextValue['applyUserReference']
   releaseUserReference: ConfigContextValue['releaseUserReference']
@@ -21,9 +21,11 @@ type LogoSpritePickerProps = {
   getToken: () => Promise<string | null>
 }
 
-const LogoSpritePickerInner = ({ config, updateLogoSprite, applyUserReference, releaseUserReference, userReferenceStandIn, userSettings, isAdmin, isSignedIn, getToken }: LogoSpritePickerProps): React.ReactElement => {
+const selectLogoSprite = (config: AppConfig): string | undefined => config.logo.sprite.value[0]
+
+const LogoSpritePickerInner = ({ updateLogoSprite, applyUserReference, releaseUserReference, userReferenceStandIn, userSettings, isAdmin, isSignedIn, getToken }: LogoSpritePickerProps): React.ReactElement => {
   const info = useInfo()
-  const selected = config.logo.sprite.value[0]
+  const selected = useConfigSelector(selectLogoSprite)
 
   const choose = useCallback((src: string): void => {
     void updateLogoSprite(src)
@@ -73,4 +75,4 @@ const LogoSpritePickerInner = ({ config, updateLogoSprite, applyUserReference, r
   )
 }
 
-export const LogoSpritePicker = connectConfig(LogoSpritePickerInner)
+export const LogoSpritePicker = connectConfigActions(LogoSpritePickerInner)

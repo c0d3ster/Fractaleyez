@@ -8,7 +8,7 @@ import { ColorConfigBody } from './ColorConfigBody'
 import { LogoConfigBody } from './LogoConfigBody'
 import { ShapePad } from './ShapePad'
 import { ParticleSpriteHud } from '../huds'
-import { connectConfig } from './context/ConfigProvider'
+import { connectConfigActions } from './context/ConfigProvider'
 import { DISPLAY_ORDER, DisplayKey } from '../../config/layers'
 
 type OpenCategories = {
@@ -92,4 +92,4 @@ const ConfigAccordionInner = ({ updateConfigItem, openCategories, toggleOpen }: 
   )
 }
 
-export const ConfigAccordion = connectConfig(ConfigAccordionInner)
+export const ConfigAccordion = connectConfigActions(ConfigAccordionInner)

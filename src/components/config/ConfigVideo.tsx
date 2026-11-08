@@ -6,7 +6,7 @@ import { LayerHeader } from './LayerHeader'
 import { ConfigVideoBody } from './ConfigVideoBody'
 import { PerfHud } from '../huds'
 import { ResetIcon } from './ResetIcon'
-import { connectConfig, ConfigContextValue } from './context/ConfigProvider'
+import { connectConfigActions, ConfigContextValue } from './context/ConfigProvider'
 
 type ConfigVideoProps = {
   isOpen: boolean
@@ -46,4 +46,4 @@ const ConfigVideoInner = ({ isOpen, toggleOpen, popup = false, resetVideoClips }
   )
 }
 
-export const ConfigVideo = connectConfig(ConfigVideoInner)
+export const ConfigVideo = connectConfigActions(ConfigVideoInner)

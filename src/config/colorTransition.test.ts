@@ -98,6 +98,15 @@ describe('ColorFollower', () => {
     expect(shown.lut[0]).toBe(90)
   })
 
+  it('does no work while settled on the target', () => {
+    const follower = new ColorFollower()
+    const settled = target({ key: 'steady', lut: lutOf(77) })
+    const first = follower.step(settled, FRAME_MS, CROSSFADE_MS)
+    const before = Array.from(first.lut)
+    for (let i = 0; i < 5; i++) expect(follower.step(settled, FRAME_MS, CROSSFADE_MS)).toBe(first)
+    expect(Array.from(first.lut)).toEqual(before)
+  })
+
   it('does not move when no time passes', () => {
     const follower = new ColorFollower()
     follower.step(target(), FRAME_MS, CROSSFADE_MS)

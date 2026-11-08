@@ -115,8 +115,12 @@ node scripts/bench/popup-cost.js http://localhost:4102        # a production bui
 ```
 
 Switches every layer and effect off and measures the main thread while the pop-out is open: idle for 8 s, then five slider drags. `dragPer250Moves.taskMs / 255` is the cost of one slider
-move; `layouts` should be 0 in the page (a hidden sidebar that lays out on every move is wasted work). On the production build of this branch, one move cost about 11 ms of main-thread time (about 5 ms of script)
-because the page tree and the pop-out tree each re-render in full on every change, and the sidebar's hidden config body added about a fifth of that.
+move; `layouts` should be 0 in the page (a hidden sidebar that lays out on every move is wasted work). On the production build, one move used to cost about 11 ms of main-thread time (about 5 ms of script) because the page tree and the pop-out tree each re-rendered in full
+on every change, and the sidebar's hidden config body added about a fifth of that. With the sidebar body left out while the pop-out is open it is about 9 ms (3.6 script), and with components reading
+slices of the config (`useConfigSelector`) about 6 ms (1.3 script); React's render time in the dev profile fell by 96%. The rest is the browser's own work (events, style, paint, the frame loop).
+
+`ui-check.js` is the safety net for changes to how the config UI renders: it replays a scripted session (real slider drags, a double-click reset, effect chips, layer hotkeys, section resets, the sidebar), saves the state of every
+control and the config after each step, and `compare` shows any difference between two captures. Capture before a change and after it; a refactor of rendering must leave all of them identical.
 
 ## How much does supersampling buy?
 

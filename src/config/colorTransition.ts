@@ -26,6 +26,8 @@ export class ColorFollower {
 
   /** Moves toward `target` for `dtMs` of a `crossfadeMs` fade and returns the colors to draw this frame. */
   step = (target: ColorState, dtMs: number, crossfadeMs: number): DisplayedColor => {
+    // Settled on this very target (the key covers everything the colors depend on): nothing to move, so the palette is not walked on every frame.
+    if (this.started && this.shown.key === target.key) return this.shown
     if (!this.started || crossfadeMs <= 0 || this.exactLut.length !== target.lut.length) return this.snap(target)
     const share = 1 - Math.exp(-TIME_CONSTANTS_PER_CROSSFADE * Math.max(0, dtMs) / crossfadeMs)
     const { shown, exactLut } = this

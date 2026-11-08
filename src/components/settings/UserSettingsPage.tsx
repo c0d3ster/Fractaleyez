@@ -2,7 +2,7 @@ import React, { useCallback, useState } from 'react'
 import { useUser } from '@clerk/clerk-react'
 import './UserSettingsPage.css'
 
-import { connectConfig } from '../config/context/ConfigProvider'
+import { connectConfigActions } from '../config/context/ConfigProvider'
 import { ConfigSlider } from '../config/ConfigSlider'
 import { UserSettings } from '../../config/userSettings.config'
 import {
@@ -103,4 +103,4 @@ const UserSettingsPageInner = ({ userSettings, updateUserSettings }: UserSetting
   )
 }
 
-export const UserSettingsPage = connectConfig(UserSettingsPageInner)
+export const UserSettingsPage = connectConfigActions(UserSettingsPageInner)

@@ -6,7 +6,8 @@ import './ConfigCategory.css'
 import { ConfigSectionItems, isResettableSection } from './ConfigSectionItems'
 import { LayerHeader } from './LayerHeader'
 import { ResetIcon } from './ResetIcon'
-import { connectConfig, ConfigContextValue } from './context/ConfigProvider'
+import { connectConfigActions, ConfigContextValue } from './context/ConfigProvider'
+import { useConfigSelector } from './context/useConfigSelector'
 import { AppConfig, LayerKey } from '../../config/configDefaults'
 import { LAYER_REGISTRY } from '../../config/layers'
 
@@ -24,7 +25,6 @@ const LAYER_KEYS = Object.values(LAYER_REGISTRY).map(({ key }) => key)
 
 type ConfigCategoryProps = {
   name: string
-  config: AppConfig
   isOpen: boolean
   // The pop-out config window: the reset icon sits above the header there, and inside it in the sidebar.
   expanded?: boolean
@@ -39,7 +39,7 @@ type ConfigCategoryProps = {
   children?: React.ReactNode
 }
 
-const ConfigCategoryInner = React.memo(({ name, config, isOpen, expanded = false, toggleOpen, onChange, resetConfigSection, resetVideoClips, popup = false, bare = false, children }: ConfigCategoryProps) => {
+const ConfigCategoryInner = React.memo(({ name, isOpen, expanded = false, toggleOpen, onChange, resetConfigSection, resetVideoClips, popup = false, bare = false, children }: ConfigCategoryProps) => {
   const info = useInfo()
   // A layer's primary section resets every section the layer owns (Orbit also restores Particle); a secondary one resets itself.
   const resetSections = useCallback((): void => {
@@ -77,7 +77,8 @@ const ConfigCategoryInner = React.memo(({ name, config, isOpen, expanded = false
   // A layer's primary section carries the layer header; secondary sections (particle) keep a plain title.
   const headerLayer = LAYER_KEYS.find((key) => key === name)
   const owner = CATEGORY_LAYER[name]
-  const dimmed = owner !== undefined && !config.layers.meta[owner].enabled.value
+  const selectDimmed = useCallback((config: AppConfig): boolean => owner !== undefined && !config.layers.meta[owner].enabled.value, [owner])
+  const dimmed = useConfigSelector(selectDimmed)
 
 
   const resetButton = isResettableSection(name) && (
@@ -119,5 +120,5 @@ const ConfigCategoryInner = React.memo(({ name, config, isOpen, expanded = false
   )
 })
 
-export const ConfigCategory = connectConfig(ConfigCategoryInner)
+export const ConfigCategory = connectConfigActions(ConfigCategoryInner)
 
