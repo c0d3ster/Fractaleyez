@@ -7,7 +7,7 @@
 const path = require('path')
 const fs = require('fs')
 const { chromium } = require(process.env.PLAYWRIGHT_CORE || 'playwright-core')
-const EXTRA_ARGS = (process.env.BENCH_CHROME_ARGS || '--use-angle=swiftshader --enable-unsafe-swiftshader').split(' ').filter(Boolean)
+const EXTRA_ARGS = (process.env.BENCH_CHROME_ARGS || '').split(' ').filter(Boolean)
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 const [mode, dirA, dirB] = process.argv.slice(2)
 const url = process.argv[4] && !process.argv[4].startsWith('--') ? process.argv[4] : (process.env.BENCH_URL || 'http://localhost:3000')
