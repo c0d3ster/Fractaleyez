@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect, useMemo, useReducer, useRef } from 'react'
+import { perfProbe } from '../../../visualization/perf'
 import axios from 'axios'
 import { useAuth, useUser } from '@clerk/clerk-react'
 
@@ -486,6 +487,8 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
     const parsed = typeof value === 'string' ? parseFloat(value) : value
     const parsedValue = typeof parsed === 'number' && isNaN(parsed) ? value : parsed
 
+    // Measured against the pop-out window's next commit (see ExternalWindowBridge): how long a change takes to show in the config window.
+    perfProbe.stamp('config.change')
     setConfig((prev) => {
       // category/item are dynamic DOM input `name` attributes, not statically known keys of AppConfig
       const sections = prev as unknown as Record<string, Record<string, ConfigItem>>

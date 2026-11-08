@@ -7,6 +7,7 @@ import { Layer } from './layer'
 import { getParticleCrossfadeDurationMs } from '../../config/visualizer.config'
 import { SUPERSAMPLE_MAX_SIDE_PX } from '../../config/quality.config'
 import { stepOpacity } from './fade'
+import { perfProbe } from '../perf'
 import { planLayers, targetOpacity } from './plan'
 
 export type LayerCompositorOptions = {
@@ -61,12 +62,16 @@ export class LayerCompositor {
 
   /** Draws every planned layer into its target and points the composite pass at them. */
   renderLayers = (deltaTime: number, audio: AudioAnalysedDataForVisualization, config: LayersConfigSection): void => {
+    perfProbe.begin('layers.plan')
     const planned = planLayers(config, this.stepOpacities(deltaTime, config)).filter(({ key }) => this.layers[key]?.isActive?.() ?? Boolean(this.layers[key]))
+    perfProbe.end('layers.plan')
     const opacities: number[] = this.material.uniforms.uOpacity!.value
     const blends: number[] = this.material.uniforms.uBlend!.value
     planned.forEach(({ key, opacity, blendMode }, slot) => {
       const target = this.getTarget(key)
+      perfProbe.begin(`layer.${key}`, true)
       this.layers[key]!.render(target, deltaTime, audio)
+      perfProbe.end(`layer.${key}`)
       this.material.uniforms[`uLayer${slot}`]!.value = target.texture
       opacities[slot] = opacity
       blends[slot] = BLEND_CODES[blendMode]

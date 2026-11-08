@@ -9,6 +9,7 @@ import { ConfigSectionItems } from './ConfigSectionItems'
 import { ConfigSubAccordion } from './ConfigSubAccordion'
 import { ConfigVideo } from './ConfigVideo'
 import { copyStyles } from '../../styles/AppStyleCopier'
+import { perfProbe } from '../../visualization/perf'
 import { DISPLAY_ORDER } from '../../config/layers'
 import { connectConfig, ConfigContext, ConfigContextValue } from './context/ConfigProvider'
 import { pickNearestScreen } from './popoutScreen'
@@ -136,6 +137,11 @@ const ExternalWindowBridge = ({
   updateUserSettings,
 }: ExternalWindowBridgeProps): React.ReactElement => {
   const [prefill, setPrefill] = useState<PresetSelection | null>(null)
+  // Every commit of the pop-out's tree, and the time from the last config change to it (no-ops unless the perf probe is on).
+  useEffect(() => {
+    perfProbe.count('popup.commit')
+    perfProbe.since('config.change', 'config.change to popup commit')
+  })
   return (
     <ConfigContext.Provider
       value={{
@@ -309,6 +315,8 @@ const ConfigWindowInner = ({
       externalWindow.document.addEventListener('keyup', forwardKey)
       window.addEventListener('beforeunload', closeExternalWindow)
       copyStyles(document, externalWindow.document)
+      // The pop-out has its own frames (style, layout, paint) that the page's long-frame list does not include.
+      if (perfProbe.isEnabled()) perfProbe.watchWindow('popup', externalWindow)
 
       reactRootRef.current = createRoot(container)
       setExternalRootReady(true)
@@ -326,6 +334,7 @@ const ConfigWindowInner = ({
       externalWindow?.removeEventListener('beforeunload', onClose)
       externalWindow?.document.removeEventListener('keydown', forwardKey)
       externalWindow?.document.removeEventListener('keyup', forwardKey)
+      perfProbe.unwatchWindow('popup')
       reactRootRef.current?.unmount()
       reactRootRef.current = null
       externalWindow?.close()

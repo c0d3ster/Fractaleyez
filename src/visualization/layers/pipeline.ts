@@ -2,6 +2,7 @@ import * as THREE from 'three'
 
 import { AudioAnalysedDataForVisualization } from '../../audioanalysis/audio-analysed-data'
 import { QualityProfile } from '../../config/quality.config'
+import { perfProbe } from '../perf'
 import { QualityController } from '../quality-controller'
 import { LayerCompositor } from './compositor'
 import { FractalLayer } from './fractal-layer'
@@ -25,6 +26,10 @@ export const createLayerPipeline = (quality: QualityController): LayerPipeline =
   renderer.domElement.style.position = 'fixed'
   renderer.domElement.style.inset = '0'
   document.body.appendChild(renderer.domElement)
+  perfProbe.attachGl(renderer.getContext())
+  perfProbe.addGauge('three.geometries', () => renderer.info.memory.geometries)
+  perfProbe.addGauge('three.textures', () => renderer.info.memory.textures)
+  perfProbe.addGauge('three.programs', () => renderer.info.programs?.length ?? 0)
 
   const orbit = new OrbitLayer(renderer)
   const fractal = new FractalLayer(renderer)
@@ -59,7 +64,9 @@ export const createLayerPipeline = (quality: QualityController): LayerPipeline =
   return {
     render: (deltaTime, audio) => {
       compositor.renderLayers(deltaTime, audio, window.config.layers)
+      perfProbe.begin('camera')
       orbit.stepCamera(deltaTime)
+      perfProbe.end('camera')
       effects.render(audio)
     },
     getCameraSteer: () => {
