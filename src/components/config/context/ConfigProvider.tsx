@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useReducer, useRef } from 'react'
 import { perfProbe } from '../../../visualization/perf'
+import { autoMode, isAutomatedEffectItem } from '../../../automode'
 import { configStore } from './useConfigSelector'
 import axios from 'axios'
 import { useAuth, useUser } from '@clerk/clerk-react'
@@ -504,6 +505,8 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
   const updateConfigItem = useCallback((category: string, item: string, value: string | boolean | number) => {
     const parsed = typeof value === 'string' ? parseFloat(value) : value
     const parsedValue = typeof parsed === 'number' && isNaN(parsed) ? value : parsed
+    // Changing something Auto is steering is taking over from it.
+    if (isAutomatedEffectItem(category, item)) autoMode.takeOver()
 
     // Measured against the pop-out window's next commit (see ExternalWindowBridge): how long a change takes to show in the config window.
     perfProbe.stamp('config.change')
@@ -710,6 +713,8 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
     const name = event.currentTarget?.dataset?.name
     const id = event.currentTarget?.dataset?.id
     if (!name) return
+    // Picking a preset is a deliberate choice, so Auto steps back.
+    autoMode.takeOver()
 
     // The default preset is configDefaults: no id, nothing to fetch, nothing to go stale. Every other preset is cached by id with the
     // updatedAt it had when fetched, and a copy the list says has changed is fetched again.

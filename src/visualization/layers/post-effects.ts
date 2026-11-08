@@ -5,6 +5,8 @@ import { AudioAnalysedDataForVisualization } from '../../audioanalysis/audio-ana
 import { CAMERA_STEER_SCREEN_FRACTION_PER_PAD_UNIT } from '../../config/visualizer.config'
 import { perfProbe } from '../perf'
 import { KaleidoscopeEffect } from './kaleidoscope-effect'
+import { autoMode } from '../../automode'
+import { sectionTracker } from '../../audioanalysis/sections'
 
 // The shockwave effect projects its position through a fixed camera at this distance and field of view,
 // onto a plane at this depth (the camera's focus point depth).
@@ -109,7 +111,10 @@ export class PostEffects {
   render = (audio: AudioAnalysedDataForVisualization): void => {
     const { kaleidoscope, kaleidoscopeCount, kaleidoscopeMode, kaleidoscopeSource } = window.config.effects
     const mode = Math.round(kaleidoscopeMode.value)
-    this.kaleidoscopeEffect.setFold(kaleidoscope.value ? Math.round(kaleidoscopeCount.value) : 1, mode, kaleidoscopeSource.value)
+    // Auto, while it is on, decides the fold (on and how many wedges); the stored settings stay as they are. Mode and source are still the user's.
+    const auto = autoMode.kaleidoscope(sectionTracker.getState(), performance.now())
+    const count = auto ? (auto.on ? auto.count : 1) : kaleidoscope.value ? Math.round(kaleidoscopeCount.value) : 1
+    this.kaleidoscopeEffect.setFold(count, mode, kaleidoscopeSource.value)
     this.shockwaveEffect.speed =SHOCKWAVE_BASE_SPEED + (window.config.user.speed.value / 15) + audio.beat.value * 1.25
     const glow = window.config.effects.glow.value
     this.syncGlow(glow)
