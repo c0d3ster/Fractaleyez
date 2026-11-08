@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 
-/** Shared by every material that samples its map bicubically: `uBicubic` is 1 to turn it on, `uMapSize` is the map's size in texels. */
+/** Shared by every material that samples its map bicubically: `uBicubic` is how much of the bicubic lookup is mixed in (0 off, 1 fully on), `uMapSize` is the map's size in texels. */
 export type BicubicUniforms = {
   uBicubic: { value: number }
   uMapSize: { value: THREE.Vector2 }
@@ -50,10 +50,10 @@ const BICUBIC_PARS = /* glsl */ `
 const BICUBIC_MAP_FRAGMENT = /* glsl */ `
   #ifdef USE_MAP
     vec4 texelColor = texture2D( map, vUv );
-    if ( uBicubic > 0.5 ) {
+    if ( uBicubic > 0.001 ) {
       vec2 dx = dFdx( vUv * uMapSize );
       vec2 dy = dFdy( vUv * uMapSize );
-      if ( max( dot( dx, dx ), dot( dy, dy ) ) < 1.0 ) texelColor = sampleCatmullRom( map, vUv, uMapSize );
+      if ( max( dot( dx, dx ), dot( dy, dy ) ) < 1.0 ) texelColor = mix( texelColor, sampleCatmullRom( map, vUv, uMapSize ), uBicubic );
     }
     texelColor = mapTexelToLinear( texelColor );
     diffuseColor *= texelColor;
@@ -61,8 +61,8 @@ const BICUBIC_MAP_FRAGMENT = /* glsl */ `
 `
 
 /**
- * Lets a MeshBasicMaterial sample its map bicubically while `uniforms.uBicubic` is 1. With it at 0 the lookup is the
- * stock one. Needs derivatives in the fragment shader, which WebGL2 has built in, so callers check `isWebGL2` first.
+ * Lets a MeshBasicMaterial sample its map bicubically by the amount in `uniforms.uBicubic` (a mix, so a tier change can fade it in or out).
+ * With it at 0 the lookup is the stock one. Needs derivatives in the fragment shader, which WebGL2 has built in, so callers check `isWebGL2` first.
  */
 export const enableBicubicMap = (material: THREE.MeshBasicMaterial, uniforms: BicubicUniforms): void => {
   material.onBeforeCompile = (shader) => {

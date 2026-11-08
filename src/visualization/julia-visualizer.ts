@@ -5,7 +5,7 @@ import { juliaFragmentShader, juliaVertexShader } from './shaders/julia-fragment
 import { JULIA_MAP_VIEW, JULIA_TOUR } from './julia-tour'
 import { userConfig } from '../config/user.config'
 import { FRACTAL_MAX_ITERATIONS, QUALITY_PROFILES } from '../config/quality.config'
-import { resolveColorState } from '../config/colorState'
+import { getDisplayedColor } from '../config/displayedColor'
 import { LUT_SIZE } from '../config/paletteLut'
 import { JULIA_SCALE, SCALE_UNITS_PER_SLIDER_STEP } from '../config/juliaScale.config'
 import { stepToward } from './step-toward'
@@ -465,7 +465,7 @@ export class JuliaVisualizer {
   // current palette hue and saturation so the shape pad can match the visualizer's colors.
   getShape(): { re: number; im: number; manual: boolean; hue: number; saturation: number; targetRe: number; targetIm: number } {
     const hue = this.huePhase
-    const saturation = window.config.color.saturation.value
+    const saturation = getDisplayedColor().saturation
     if (this.hasShape) {
       // The shape trails its target: in manual mode that is where the pointer last put it (plus any
       // Switcheroo hop), on the tour it is the Tour slider's point plus the hop.
@@ -757,8 +757,8 @@ export class JuliaVisualizer {
     this.cycloneAmount += ((effects.cyclone.value ? 1 : 0) - this.cycloneAmount) * (1 - Math.pow(0.5, dt / CYCLONE_HALF_LIFE_SECONDS))
     uniforms.uCyclone!.value = this.cycloneAmount
     uniforms.uGlow!.value = glow
-    uniforms.uSaturation!.value = window.config.color.saturation.value
-    const color = resolveColorState(window.config.color)
+    const color = getDisplayedColor()
+    uniforms.uSaturation!.value = color.saturation
     uniforms.uPaletteCycles!.value = color.cycles
     uniforms.uPalettePhase!.value = color.phase
     if (color.key !== this.paletteKey) {

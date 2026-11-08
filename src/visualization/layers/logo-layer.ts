@@ -148,9 +148,9 @@ export class LogoLayer implements Layer {
     this.renderer.setRenderTarget(null)
   }
 
-  /** On, the faces and zoom copies are sampled bicubically where they are drawn larger than the image itself. */
-  setSmoothMagnification = (on: boolean): void => {
-    this.bicubic.uBicubic.value = on ? 1 : 0
+  /** How much the faces and zoom copies are sampled bicubically where they are drawn larger than the image itself: 0 is the GPU's bilinear filter, 1 is fully bicubic, in between mixes the two. */
+  setSmoothMagnification = (amount: number): void => {
+    this.bicubic.uBicubic.value = amount
   }
 
   resize = (): void => {
