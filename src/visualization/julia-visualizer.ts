@@ -8,9 +8,13 @@ import { FRACTAL_MAX_ITERATIONS, QUALITY_PROFILES } from '../config/quality.conf
 import { resolveColorState } from '../config/colorState'
 import { LUT_SIZE } from '../config/paletteLut'
 import { JULIA_SCALE, SCALE_UNITS_PER_SLIDER_STEP } from '../config/juliaScale.config'
+import { stepToward } from './step-toward'
 import { SHAPE_EASE_SECONDS, SHAPE_MAX_TRANSITION_SECONDS, SHAPE_VELOCITY_HALF_LIFE_SECONDS, ShapeGlider } from './shape-glider'
 
 const TOUR = JULIA_TOUR
+
+// A tier change moves the iteration cap this fast (Quality to Balanced, 128 to 96, takes about half a second).
+const ITERATION_STEP_PER_SECOND = 64
 
 // Switcheroo hops to a neighboring look on each beat, never straying more than MAX_HOPS hops from the
 // slider's home position. The hop size grows with Speed but slower than linearly (the glide rate already
@@ -306,6 +310,9 @@ export class JuliaVisualizer {
   private paletteKey = ''
   private cycloneAmount = 0
   private hasStartedLoop = false
+  // The iteration cap the tier asks for, and the one the shader runs now (null until the first tier is applied).
+  private iterationTarget = QUALITY_PROFILES.quality.fractalIterations
+  private iterationCurrent: number | null = null
 
   // The small drift/audio offset on top of the tour's c for the CURRENT loop. It only steps toward its
   // (drift + audio) target at the wrap instant -- self-similarity wants c steady across a wrap, otherwise
@@ -392,10 +399,25 @@ export class JuliaVisualizer {
     this.material.uniforms.uAspect!.value = window.innerWidth / window.innerHeight
   }
 
-  /** How many escape-time iterations each pixel runs at most; the quality tier sets it. */
+  /** Compiles the fractal shader now. Its long loop takes a while to compile, and left until the layer is first switched on that shows as a freeze. */
+  warm(renderer: THREE.WebGLRenderer): void {
+    if (this.scene && this.camera) renderer.compile(this.scene, this.camera)
+  }
+
+  /**
+   * How many escape-time iterations each pixel runs at most; the quality tier sets it. The cap is the thickness of the black inside the
+   * set and of the detail at its edge, so a tier change moves it at `ITERATION_STEP_PER_SECOND` instead of snapping, which would redraw
+   * the whole picture in one frame. The first value applies at once.
+   */
   setMaxIterations(iterations: number): void {
     if (!this.material) return
-    this.material.uniforms.uMaxIter!.value = Math.min(FRACTAL_MAX_ITERATIONS, Math.max(1, iterations))
+    this.iterationTarget = Math.min(FRACTAL_MAX_ITERATIONS, Math.max(1, iterations))
+    if (this.iterationCurrent === null) this.applyIterations(this.iterationTarget)
+  }
+
+  private applyIterations = (iterations: number): void => {
+    this.iterationCurrent = iterations
+    this.material!.uniforms.uMaxIter!.value = iterations
   }
 
   private emaTowards(current: number, target: number, dtSeconds: number): number {
@@ -531,6 +553,9 @@ export class JuliaVisualizer {
   update(deltaTime: number, audioData: AudioAnalysedDataForVisualization): void {
     if (!this.material) return
     const dt = deltaTime / 1000
+    if (this.iterationCurrent !== null && this.iterationCurrent !== this.iterationTarget) {
+      this.applyIterations(stepToward(this.iterationCurrent, this.iterationTarget, ITERATION_STEP_PER_SECOND * dt))
+    }
 
     const bands = audioData.multibandEnergy ?? []
     const bassRaw = (bands[0] ?? 0) / 255

@@ -8,6 +8,7 @@ import { userConfig } from '../config/user.config'
 import { ColorState, resolveColorState } from '../config/colorState'
 import { sampleLut } from '../config/paletteLut'
 import { getMusicSpeedMultiplier } from './music-speed'
+import { geometryGroup, isReshapedOnBeat } from './orbit-geometry-groups'
 
 /*
  * ORIGINAL AUTHOR: Iacopo Sassarini
@@ -126,14 +127,12 @@ export class HopalongVisualizer {
 
     this.generateOrbit()
 
+    // Systems of one subset that Switcheroo always reshapes together share a geometry (see orbit-geometry-groups.ts).
+    const sharedGeometries = new Map<number, THREE.BufferGeometry>()
+
     for (let level = 0; level < this.levels; level++) {
       for (let s = 0; s < this.layers; s++) {
-        const points: THREE.Vector3[] = []
-        for (let i = 0; i < this.particlesPerLayer; i++) {
-          const { subsets } = this.orbit
-          points.push(subsets[s]![i]!.vertex)
-        }
-        const geometry = new THREE.BufferGeometry().setFromPoints(points)
+        const geometry = this.sharedGeometry(sharedGeometries, s, this.objects.length)
 
         particleIndex = count % this.sprites.length
         const spriteUrl = this.sprites[particleIndex]!
@@ -186,6 +185,8 @@ export class HopalongVisualizer {
 
     let count = 0
     let switcherooGenerated = false
+    // A geometry shared by several systems is rewritten and uploaded once.
+    const reshaped = reshapeOnBeat ? new Set<THREE.BufferGeometry>() : null
 
     this.objects.forEach((obj, index) => {
       const wasAudioPeak = this.audioPeak
@@ -201,18 +202,21 @@ export class HopalongVisualizer {
       // Switcheroo reshapes obj's own buffer to the current orbit -- only ever the primary
       // (incoming) object. Applying it to an in-flight orbit fade's outgoing object would
       // reshape it into the *new* orbit mid-fade, defeating the crossfade entirely.
-      if (reshapeOnBeat && count % 2 === 0) {
+      if (reshaped && isReshapedOnBeat(count)) {
         if (!switcherooGenerated) {
           this.generateOrbit()
           switcherooGenerated = true
         }
-        const currentSubset = this.orbit.subsets[obj.mySubset]!
-        const posArray = obj.geometry.attributes.position!.array as Float32Array
-        for (let i = 0; i < this.particlesPerLayer; i++) {
-          posArray[i * 3] = currentSubset[i]!.vertex.x
-          posArray[i * 3 + 1] = currentSubset[i]!.vertex.y
+        if (!reshaped.has(obj.geometry)) {
+          reshaped.add(obj.geometry)
+          const currentSubset = this.orbit.subsets[obj.mySubset]!
+          const posArray = obj.geometry.attributes.position!.array as Float32Array
+          for (let i = 0; i < this.particlesPerLayer; i++) {
+            posArray[i * 3] = currentSubset[i]!.vertex.x
+            posArray[i * 3 + 1] = currentSubset[i]!.vertex.y
+          }
+          obj.geometry.attributes.position!.needsUpdate = true
         }
-        obj.geometry.attributes.position!.needsUpdate = true
       }
 
       this.applyParticleMotion(obj, count, musicSpeedMultiplier, wasAudioPeak)
@@ -293,6 +297,16 @@ export class HopalongVisualizer {
     }
   }
 
+  /** The geometry for the system at `objectIndex` of `subset`, built from the current orbit the first time its group asks for it. */
+  private sharedGeometry = (geometries: Map<number, THREE.BufferGeometry>, subset: number, objectIndex: number): THREE.BufferGeometry => {
+    const group = geometryGroup(subset, objectIndex)
+    const existing = geometries.get(group)
+    if (existing) return existing
+    const geometry = new THREE.BufferGeometry().setFromPoints(this.orbit.subsets[subset]!.map((point) => point.vertex))
+    geometries.set(group, geometry)
+    return geometry
+  }
+
   getScene(): THREE.Scene {
     return this.scene
   }
@@ -358,9 +372,9 @@ export class HopalongVisualizer {
     this.setObjectsOpacity(this.objects, 1)
 
     const outgoing = this.objects
-    const incoming: ParticleSystem[] = outgoing.map((obj) => {
-      const currentSubset = this.orbit.subsets[obj.mySubset]!
-      const geometry = new THREE.BufferGeometry().setFromPoints(currentSubset.map((point) => point.vertex))
+    const sharedGeometries = new Map<number, THREE.BufferGeometry>()
+    const incoming: ParticleSystem[] = outgoing.map((obj, index) => {
+      const geometry = this.sharedGeometry(sharedGeometries, obj.mySubset, index)
       const sprite = acquireSpriteTexture(getResolvedSpriteUrl(obj.mySpriteUrl))
       const material = new THREE.PointsMaterial({
         size: this.particleSize,

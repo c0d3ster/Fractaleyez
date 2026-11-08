@@ -14,6 +14,9 @@ const SHOCKWAVE_PLANE_Z = -5
 // Added to the Speed slider and beat terms so the wave never crawls at a low Speed.
 const SHOCKWAVE_BASE_SPEED = 0.05
 
+/** postprocessing sets `active` while a wave is running (true from `explode()` until it has crossed `maxRadius`) but leaves it out of its type definitions. */
+type RunningShockWave = ShockWaveEffect & { readonly active: boolean }
+
 /** Times a pass's render call (CPU and GPU) under a name in the perf probe; a no-op while the probe is off. */
 const timePass = (pass: Pass, name: string): void => {
   const render = pass.render.bind(pass)
@@ -29,7 +32,7 @@ export class PostEffects {
   private readonly composer: EffectComposer
   private readonly bloomEffect = new BloomEffect()
   private readonly kaleidoscopeEffect = new KaleidoscopeEffect()
-  private readonly shockwaveEffect: ShockWaveEffect
+  private readonly shockwaveEffect: RunningShockWave
   // Two passes over the same kaleidoscope and shockwave, one with bloom and one without; Glow picks which runs. A bloom held at
   // zero opacity still blurs the whole frame, so with Glow off it is not in the pass at all. The one not in use never renders, so it never compiles.
   private readonly glowPass: EffectPass
@@ -40,9 +43,9 @@ export class PostEffects {
   private readonly clock = new THREE.Clock()
 
   constructor(
-    renderer: THREE.WebGLRenderer,
-    scene: THREE.Scene,
-    camera: THREE.Camera,
+    private readonly renderer: THREE.WebGLRenderer,
+    private readonly scene: THREE.Scene,
+    private readonly camera: THREE.Camera,
     private readonly getCameraPosition: () => { x: number; y: number },
   ) {
     // The composite is one full-screen quad, so the composer's buffers need no depth.
@@ -55,7 +58,8 @@ export class PostEffects {
     fakeCamera.position.z = SHOCKWAVE_CAMERA_Z
 
     const options = { waveSize: .15, speed: .5, amplitude: .2, maxRadius: 2 }
-    this.shockwaveEffect = new ShockWaveEffect(fakeCamera, this.shockwavePosition, options)
+    // The library sets `active` at runtime, so the instance is the wider type (see RunningShockWave).
+    this.shockwaveEffect = new ShockWaveEffect(fakeCamera, this.shockwavePosition, options) as RunningShockWave
 
     // Kaleidoscope goes first so the shockwave and bloom act on the folded image and repeat symmetrically.
     this.glowPass = new EffectPass(camera, this.kaleidoscopeEffect, this.shockwaveEffect, this.bloomEffect)
@@ -114,7 +118,34 @@ export class PostEffects {
     this.aimShockwaveAtCameraPointer()
     // Which bands can set off a beat is chosen in the Frequency HUD and applied by the beat detector itself.
     if (audio.beat.fresh && window.config.effects.shockwave.value) this.triggerShockwave()
-    this.composer.render(this.clock.getDelta())
+    // Read every frame, drawn through the composer or not: the clock hands out the time since its last read, and a morph or a wave that
+    // starts after a long idle stretch must not get all of that time in its first frame and finish at once.
+    const deltaTime = this.clock.getDelta()
+    if (!glow && this.isIdle()) this.drawCompositeDirect()
+    else this.composer.render(deltaTime)
+  }
+
+  /** With nothing to add, the effect pass would copy the composite to the screen unchanged, at the cost of a second full-screen pass and its buffer. */
+  private isIdle = (): boolean => this.kaleidoscopeEffect.isIdle() && !this.shockwaveEffect.active
+
+  private drawCompositeDirect = (): void => {
+    perfProbe.begin('post.composite', true)
+    this.renderer.setRenderTarget(null)
+    this.renderer.render(this.scene, this.camera)
+    perfProbe.end('post.composite')
+  }
+
+  /**
+   * Draws one frame through each effect pass (with and without Glow) so their shaders compile now, behind the startup load, instead of the
+   * first time Glow is switched. Nothing shows: the composite is black until a layer has drawn.
+   */
+  warm = (): void => {
+    const glow = this.glowPass.enabled
+    ;[true, false].forEach((withGlow) => {
+      this.syncGlow(withGlow)
+      this.composer.render(0)
+    })
+    this.syncGlow(glow)
   }
 
   /** The glow's blur runs at this fraction of the screen size. */

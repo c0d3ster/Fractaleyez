@@ -41,6 +41,9 @@ export const createLayerPipeline = (quality: QualityController): LayerPipeline =
   const getVisualCenter = (): { x: number; y: number } =>
     window.config.layers.meta.fractal.enabled.value ? fractal.getSteerPosition() : orbit.getCameraTrailPosition()
   const effects = new PostEffects(renderer, compositor.getScene(), compositor.getCamera(), getVisualCenter)
+  // Shaders that would otherwise compile the first time a layer or effect is switched on (a freeze of a few hundred ms) compile now, during startup.
+  fractal.warm()
+  effects.warm()
 
   // The tier sets how much each layer and effect spends; it is applied now and again whenever Auto or the user changes it.
   const applyProfile = (_tier: unknown, profile: QualityProfile): void => {
