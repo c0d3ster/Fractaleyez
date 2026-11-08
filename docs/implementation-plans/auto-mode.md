@@ -8,6 +8,16 @@ Auto does not replace or retune the audio reactivity. That keeps running underne
 
 It depends on `song-sections.md`, which produces the signal it reads from `window.getSongSection`: `{ section, intensity, buildupProgress, sinceMs, dropCount, sinceDropMs, confidence, songIndex, songMs }`. A change in `dropCount` is the drop event (the one-shot moment), `section === 'drop'` is the full-energy stretch after it, and a change in `songIndex` is a new song. That analysis is a separate effort and a prerequisite, now measured against expert labels (see that plan for how often each label is right). Auto should lean on what is most reliable: the buildup before a drop (shown before about 80% of drops) and the drop section, and treat a single drop event as a cue that is right about 4 times in 10, so a missed or extra one should never look broken (prefer changes that also read well a few seconds late).
 
+## Status
+
+Step 2 and 3 of the MVP are in, for one target: the **kaleidoscope** (effects category). Code: `src/automode/`.
+
+- `AutoMode` (singleton `autoMode`) is on by default and holds nothing but the on/off switch. It never writes the config: `post-effects.ts` asks `autoMode.kaleidoscope(...)` each frame and, while Auto is on, draws that fold (on or off and the wedge count) instead of the stored kaleidoscope settings. Mode and source stay the user's. Turning Auto off puts the stored settings straight back.
+- Mapping (`kaleidoscope-target.ts`): off in groove, break, intro, outro, quiet and before a song is playing; a buildup adds mirrors as `buildupProgress` climbs (2, 4, 6, 8); the turnaround holds 8; a drop lands on 16 and settles to 8 after 6 s.
+- Built to survive wrong labels: a change has to be wanted for 1.2 s and the last one has to have shown for 2.5 s, so a flickering label never reaches the screen. A drop event skips the wait (late reads fine). A new song resets to off. The fold itself morphs over the user's crossfade time.
+- Take-over: changing any `effects` item that starts with `kaleidoscope`, or choosing a preset (including Reset), turns Auto off. The Auto chip under the Section strip shows and flips the state. It is not persisted: a reload starts with Auto on.
+- Not yet: rotation speed (the effect has none), layers, the per-category states of phase 2, a place for the switch outside the Section HUD, and any check on live music beyond the unit tests. Next target: layers fading with the section.
+
 ## Categories
 
 Auto works on whole categories, never single controls, so only so much changes at once. The categories are:
@@ -44,8 +54,8 @@ Each automated target gets a small descriptor (its category, what it controls, i
 
 ## Steps
 
-1. Wait for `song-sections.md` step 2 (buildup and drop tuned on real tracks).
-2. Auto switch, section-to-target descriptors and easing, wired to a small subset (kaleidoscope under effects, layers).
-3. Take-over rules: manual change or preset select turns Auto off.
+1. Wait for `song-sections.md` step 2 (buildup and drop tuned on real tracks). Done enough to start; labels are still imperfect, hence the smoothing above.
+2. Auto switch, section-to-target descriptors and easing, wired to a small subset (kaleidoscope under effects done; layers next).
+3. Take-over rules: manual change or preset select turns Auto off (done for the kaleidoscope).
 4. Phase 2: per-category states.
 5. Fill out the categories: the rest of effects, presets, then global settings (user).
