@@ -5,7 +5,9 @@ import { ConfirmModal } from '../common/ConfirmModal'
 import { ConfigSlider } from './ConfigSlider'
 import { ConfigCheckbox } from './ConfigCheckbox'
 import { ConfigStepperToggle } from './ConfigStepperToggle'
+import { HeadingDial } from './HeadingDial'
 import { KaleidoscopeDial } from './KaleidoscopeDial'
+import { Heading, logoHeading, userHeading } from '../../config/heading'
 import { EFFECT_KEYS, EffectKey, MotionEffects } from './useGalaxyMotion'
 import { connectConfigActions, ConfigContextValue, ConfigSectionKey } from './context/ConfigProvider'
 import { shallowEqual } from './context/configStore'
@@ -45,6 +47,12 @@ const STEPPER_AMOUNT_ITEMS: readonly string[] = [...Object.values(STEPPER_AMOUNT
 // Items a pad edits (the logo's position and zoom focus): stored like any slider, but they get no row of their own.
 const PAD_ITEMS: Partial<Record<string, readonly string[]>> = {
   logo: ['positionX', 'positionY', 'focusX', 'focusY'],
+}
+
+// Speed sliders that turn something, which get a compass under them showing and setting which way it points.
+const HEADINGS: Partial<Record<string, Heading>> = {
+  'user.rotationSpeed': userHeading,
+  'logo.spinSpeed': logoHeading,
 }
 
 // Sections whose items live in the preset and can be reset to its loaded values (video is reset by ConfigVideo, since
@@ -261,7 +269,8 @@ const ConfigSectionItemsInner = ({ name, only, onChange, resetConfigItem, isSign
         }
         if (type === 'slider') {
           const { min, max, step } = item as SliderItem
-          return (
+          const heading = HEADINGS[`${name}.${configItem}`]
+          const slider = (
             <ConfigSlider
               name={configItem}
               label={label}
@@ -278,6 +287,13 @@ const ConfigSectionItemsInner = ({ name, only, onChange, resetConfigItem, isSign
               onChange={handleChange}
               onReset={handleItemReset}
             />
+          )
+          if (!heading) return slider
+          return (
+            <React.Fragment key={configItem}>
+              {slider}
+              <HeadingDial heading={heading} label={label} />
+            </React.Fragment>
           )
         }
         return null

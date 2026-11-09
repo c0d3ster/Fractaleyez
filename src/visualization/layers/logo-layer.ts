@@ -6,6 +6,8 @@ import { acquireSpriteTexture, releaseSpriteTexture } from '../../utils/textureC
 import { logoConfig } from '../../config/logo.config'
 import { getParticleCrossfadeDurationMs } from '../../config/visualizer.config'
 import { userConfig } from '../../config/user.config'
+import { logoHeading, wrapAngle } from '../../config/heading'
+import { HeadingFollower } from '../../config/headingFollower'
 import { CameraManager } from '../camera-manager'
 import { getMusicSpeedMultiplier } from '../music-speed'
 import { createBicubicUniforms, enableBicubicMap } from './bicubic-map'
@@ -112,6 +114,9 @@ export class LogoLayer implements Layer {
   private zoomMix = 0
   // The first frame with an image takes the Zoom switch as it is, so a logo that loads zoomed does not start plain and fade.
   private zoomMixPlaced = false
+  /** How far the logo has turned (radians clockwise): the spin in the screen plane when flat, around the vertical axis in 3D. */
+  private bearing = 0
+  private readonly headingFollower = new HeadingFollower(logoHeading)
   private readonly faces: THREE.MeshBasicMaterial[] = this.slices.filter((_, i) => isFace(i))
   private readonly sides: THREE.MeshBasicMaterial[] = this.slices.filter((_, i) => !isFace(i))
   private spriteUrl = ''
@@ -266,8 +271,11 @@ export class LogoLayer implements Layer {
     this.sides.forEach((material) => { material.visible = is3D && !isZooming })
     this.faces.forEach((material, i) => { material.visible = this.zoomMix < 1 && (is3D || i === this.faces.length - 1) })
     this.zoomCopies.forEach((mesh) => { mesh.visible = isZooming })
-    this.logo.rotation.y = is3D ? (this.logo.rotation.y + spin) % (2 * Math.PI) : 0
-    this.logo.rotation.z = is3D ? 0 : (this.logo.rotation.z - spin) % (2 * Math.PI)
+    // A drag on the Spin dial turns the logo by the difference at once; the speed carries on from there.
+    this.bearing = wrapAngle(this.bearing + this.headingFollower.takeTurn(this.bearing) + spin)
+    logoHeading.report(this.bearing)
+    this.logo.rotation.y = is3D ? this.bearing : 0
+    this.logo.rotation.z = is3D ? 0 : -this.bearing
     // Turns toward where the camera has got to: its direction sets the way the logo leans (pad units, y down) and how
     // far it is through its swing sets how far. The angle at the edge of the swing also grows with Sway, but on a
     // curve (see SWAY_LEAN_EXPONENT), so a small Sway still leans clearly and none leans not at all.
