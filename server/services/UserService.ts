@@ -1,14 +1,7 @@
 import type { UserJSON } from '@clerk/backend'
-import { createClerkClient } from '@clerk/backend'
 import { userRepository } from '../repositories/UserRepository'
-import { requireEnv } from '../env'
+import { getClerkClient } from '../clerk'
 import { IUser, UserSettings } from '../models/User'
-
-let clerkClient: ReturnType<typeof createClerkClient> | null = null
-const getClerkClient = (): ReturnType<typeof createClerkClient> => {
-  clerkClient ??= createClerkClient({ secretKey: requireEnv.CLERK_SECRET_KEY() })
-  return clerkClient
-}
 
 const primaryEmailLocalPart = (user: UserJSON): string | null => {
   const primary = user.email_addresses.find(e => e.id === user.primary_email_address_id)

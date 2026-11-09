@@ -10,6 +10,7 @@ import { createPackHandler } from './routes/createPackHandler'
 import { uploadParticleHandler, MAX_UPLOAD_BYTES } from './routes/uploadParticleHandler'
 import { meHandler, updateMeHandler } from './routes/meHandler'
 import { clerkWebhookHandler, MAX_WEBHOOK_BYTES } from './routes/clerkWebhookHandler'
+import { MAX_LISTEN_BYTES, saveListenHandler, spotifyTokenHandler } from './routes/listensHandler'
 
 const BUILD_DIR = path.join(__dirname, '../public/')
 
@@ -20,10 +21,14 @@ app.use(express.static(BUILD_DIR))
 // body to verify the signature, so this route must get it as a Buffer, not pre-parsed JSON.
 app.post('/api/clerkWebhook', express.raw({ type: 'application/json', limit: MAX_WEBHOOK_BYTES }), clerkWebhookHandler)
 
+// Also before the global json parser: a listen upload is far over its 100 KB default.
+app.post('/api/listens', express.json({ limit: MAX_LISTEN_BYTES }), saveListenHandler)
+
 app.use(express.urlencoded({ extended: true }))
 app.use(express.json())
 
 app.get('/api/me', meHandler)
+app.get('/api/spotify/token', spotifyTokenHandler)
 app.patch('/api/me', updateMeHandler)
 app.get('/api/presets', presetsHandler)
 app.get('/api/preset', presetHandler)
