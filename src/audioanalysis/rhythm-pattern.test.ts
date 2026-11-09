@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { nameRhythm, readRhythm, RhythmInput, RhythmLabeler, tempoRange } from './rhythm-pattern'
+import { nameRhythm, readRhythm, RhythmInput, RhythmLabeler } from './rhythm-pattern'
 
 const BEAT = 60000 / 128
 const WINDOW_MS = 12000
@@ -53,28 +53,16 @@ describe('readRhythm', () => {
   })
 })
 
-describe('tempoRange', () => {
-  it('names the tempo range a pattern is played at, and nothing between ranges', () => {
-    expect(tempoRange('four on the floor', 124)).toBe('house & techno tempo')
-    expect(tempoRange('four on the floor', 140)).toBe('trance tempo')
-    expect(tempoRange('four on the floor', 133)).toBeNull()
-    expect(tempoRange('breakbeat', 174)).toBe('drum & bass tempo')
-    expect(tempoRange('breakbeat', 128)).toBeNull()
-    expect(tempoRange('two-step', 172)).toBe('drum & bass tempo')
-    expect(tempoRange('four on the floor', null)).toBeNull()
-  })
-})
-
 describe('RhythmLabeler', () => {
   // Reads the labeler every 500 ms, `count` times, from `start`.
   const run = (labeler: RhythmLabeler, reading: RhythmInput, start: number, count: number): string[] =>
     Array.from({ length: count }, (_, i) => labeler.read(reading, start + i * 500).text)
 
-  it('shows a name after 2 s of confident readings, with its tempo range', () => {
+  it('shows a name after 2 s of confident readings', () => {
     const labeler = new RhythmLabeler()
     const texts = run(labeler, input(FOUR), 0, 5)
     expect(texts.slice(0, 3)).toEqual(['', '', ''])
-    expect(texts[3]).toBe('four on the floor · house & techno tempo')
+    expect(texts[3]).toBe('four on the floor')
   })
 
   it('keeps the name through a short gap and clears it after 3 s without it', () => {
@@ -89,6 +77,6 @@ describe('RhythmLabeler', () => {
     const labeler = new RhythmLabeler()
     for (let t = 0; t < 1400; t += 50) labeler.read(input(FOUR), t)
     expect(labeler.read(input(FOUR), 1450).text).toBe('')
-    expect(labeler.read(input(FOUR), 1500).text).toBe('four on the floor · house & techno tempo')
+    expect(labeler.read(input(FOUR), 1500).text).toBe('four on the floor')
   })
 })

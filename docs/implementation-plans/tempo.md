@@ -128,7 +128,7 @@ The names above were shown whenever the drums played, so "syncopated" fired in e
 - **Model.** `readRhythm` (`rhythm-pattern.ts`) is a multinomial logistic regression (`rhythm-model.json`, fitted by `scripts/section-eval/rhythm-fit.py`) over 61 features of the last 12 s: per band, hits per beat and how often its hits repeat 1/4, 1/3, 1/2, 3/4, 1, 1.5, 2, 2.5, 3 and 4 beats later (40 ms tolerance), and where the hats fall after the kick. Classes four on the floor, breakbeat (drum and bass, breaks) and half time (dubstep). The BPM is not a feature, so the name says what the drums do, not what the tempo suggests. Half time is never shown; it is there so dubstep-like readings have somewhere to go.
 - **Names and thresholds.** Four on the floor at confidence 0.7 (chosen on the tune half for at least 90% precision on every set), breakbeat at 0.85 (about 80% precision, chosen for coverage), two-step at 0.95 (a breakbeat read that surely is nearly always drum and bass, whose kick plays 1 and the "and" of 3).
 - **Hold.** `RhythmLabeler` reads every 500 ms however often it is asked. A name shows after 4 confident readings in a row (2 s), and clears after 6 readings without it (3 s), so a fill or a dropped kick does not blank it.
-- **Tempo ranges.** Four on the floor at 115 to 130 BPM is "house & techno tempo", at 137 to 150 "trance tempo"; breakbeat and two-step at 160 to 185 "drum & bass tempo". Nothing between ranges: at 130 to 137 techno, trance and mainstage overlap too much to say. The ranges come from the labelled tempos per genre in GiantSteps and Raveform (techno median 126, house 122 to 125, trance 132 to 139, psy trance 147, drum and bass 172 to 174). "House tempo" alone was tried first: the readings it labelled were house genres only 34 to 50% of the time, because techno sits at the same tempo.
+- **Tempo ranges (removed 2026-11-09, the user did not want the text in the Beat HUD; kept here for the record).** Four on the floor at 115 to 130 BPM is "house & techno tempo", at 137 to 150 "trance tempo"; breakbeat and two-step at 160 to 185 "drum & bass tempo". Nothing between ranges: at 130 to 137 techno, trance and mainstage overlap too much to say. The ranges come from the labelled tempos per genre in GiantSteps and Raveform (techno median 126, house 122 to 125, trance 132 to 139, psy trance 147, drum and bass 172 to 174). "House tempo" alone was tried first: the readings it labelled were house genres only 34 to 50% of the time, because techno sits at the same tempo.
 
 Held-out half (Raveform folds 4 to 7, the odd md5 half of GiantSteps), as the Beat HUD shows it (the old line with its 6-reading hold). Precision: right among readings with a name. Coverage: share of readings of tracks with a genre proxy that show a name.
 
@@ -164,7 +164,7 @@ What did not make the bar, and why:
 
 ### Wiring
 
-`window.getRhythmLabel()` (main.ts) returns the held label (`{ pattern, tempoRange, confidence, text }`) and the Beat HUD shows its `text`. `window.getRhythmPattern()` returns the unheld name. Cost: `BeatMonitor` keeps five short lists of onset times; every 500 ms the labeler walks each band's list 10 times and does a 61 by 3 dot product.
+`window.getRhythmLabel()` (main.ts) returns the held label (`{ pattern, confidence, text }`) and the Beat HUD shows its `text`. `window.getRhythmPattern()` returns the unheld name. Cost: `BeatMonitor` keeps five short lists of onset times; every 500 ms the labeler walks each band's list 10 times and does a 61 by 3 dot product.
 
 ## Next
 

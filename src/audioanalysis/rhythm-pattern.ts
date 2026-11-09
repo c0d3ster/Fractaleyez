@@ -139,27 +139,9 @@ export const readRhythm = (input: RhythmInput, options: Partial<RhythmOptions> =
 /** The name alone, or null when no name is confident enough (a breakdown, silence, a rhythm the model does not know). */
 export const nameRhythm = (input: RhythmInput, options: Partial<RhythmOptions> = {}): RhythmPattern | null => readRhythm(input, options).pattern
 
-// Tempo ranges for each pattern, chosen from the labelled tempos and genres of GiantSteps and Raveform (tempo.md). They say what the tempo is
-// typical of, not what the genre is. Lower bound inclusive, upper exclusive. Between ranges there is no suffix.
-const TEMPO_RANGES: Record<RhythmPattern, ReadonlyArray<{ from: number; to: number; text: string }>> = {
-  'four on the floor': [
-    { from: 115, to: 130, text: 'house & techno tempo' },
-    { from: 137, to: 150, text: 'trance tempo' },
-  ],
-  breakbeat: [{ from: 160, to: 185, text: 'drum & bass tempo' }],
-  'two-step': [{ from: 160, to: 185, text: 'drum & bass tempo' }],
-}
-
-/** The tempo range a pattern's BPM falls in ("house & techno tempo"), or null outside every range. */
-export const tempoRange = (pattern: RhythmPattern, bpm: number | null): string | null => {
-  if (bpm === null) return null
-  return TEMPO_RANGES[pattern].find(({ from, to }) => bpm >= from && bpm < to)?.text ?? null
-}
-
-/** The line the Beat HUD shows: the held pattern and the tempo range it is played at. */
+/** The line the Beat HUD shows: the held pattern. */
 export type RhythmLabel = {
   pattern: RhythmPattern | null
-  tempoRange: string | null
   confidence: number
   text: string
 }
@@ -175,7 +157,7 @@ export type RhythmHoldOptions = {
 
 export const DEFAULT_RHYTHM_HOLD: RhythmHoldOptions = { stepMs: 500, enterReadings: 4, leaveReadings: 6 }
 
-const EMPTY_LABEL: RhythmLabel = { pattern: null, tempoRange: null, confidence: 0, text: '' }
+const EMPTY_LABEL: RhythmLabel = { pattern: null, confidence: 0, text: '' }
 
 /**
  * Holds the rhythm name so it does not flicker: a new name shows after it has been read confidently a few readings in a row, and a shown
@@ -202,14 +184,12 @@ export class RhythmLabeler {
     this.lastStepMs = nowMs
     const reading = readRhythm(input, this.options)
     this.step(reading.pattern)
-    const bpm = input.periodMs === null || input.periodMs <= 0 ? null : 60000 / input.periodMs
     if (this.shown === null) {
       this.label = EMPTY_LABEL
       return this.label
     }
-    const range = tempoRange(this.shown, bpm)
     const confidence = reading.pattern === this.shown ? reading.confidence : 0
-    this.label = { pattern: this.shown, tempoRange: range, confidence, text: range === null ? this.shown : `${this.shown} · ${range}` }
+    this.label = { pattern: this.shown, confidence, text: this.shown }
     return this.label
   }
 
