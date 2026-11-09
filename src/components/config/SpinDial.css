@@ -1,7 +1,21 @@
+/* One row: the name at the start, the value at the end, and the dial centered between them, as tall as a label and its
+   slider together. */
 .spin-dial-wrapper {
+  display: flex;
+  align-items: center;
   padding: 0 1rem;
-  margin-bottom: 1rem;
-  overflow: auto;
+  margin-bottom: .5rem;
+}
+
+.spin-dial-wrapper .slider-name,
+.spin-dial-wrapper .slider-value {
+  float: none;
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.spin-dial-wrapper .slider-value {
+  text-align: right;
 }
 
 .config-window-root .spin-dial-wrapper .slider-name {
@@ -10,10 +24,9 @@
 
 .spin-dial {
   position: relative;
-  clear: both;
-  width: 120px;
-  height: 120px;
-  margin: .25rem auto 0;
+  flex: none;
+  width: 84px;
+  height: 84px;
   cursor: pointer;
   touch-action: none;
   user-select: none;
@@ -50,10 +63,20 @@
   stroke-linecap: round;
 }
 
+/* The whole range, faintly, so it is clear where it gets intense before getting there. */
+.spin-dial-zones {
+  opacity: .15;
+}
+
+.spin-dial-zone,
 .spin-dial-fill {
   fill: none;
-  stroke: #7fcf7f;
   stroke-width: 7;
+}
+
+/* The piece at each end is rounded like the track under it, so the track's rounded end takes the end's color too. */
+.spin-dial-zone--end,
+.spin-dial-fill--end {
   stroke-linecap: round;
 }
 
@@ -62,21 +85,13 @@
   stroke-width: 1;
 }
 
-.spin-dial-handle {
-  fill: rgba(220, 220, 220, .95);
-  stroke: #7fcf7f;
-  stroke-width: 1.5;
+.spin-dial-needle {
+  stroke-width: 2.5;
+  stroke-linecap: round;
 }
 
 .spin-dial-bearing {
   fill: rgba(220, 220, 220, .95);
-}
-
-.spin-dial-value {
-  fill: rgba(235, 235, 235, .95);
-  font-size: 15px;
-  font-weight: bold;
-  pointer-events: none;
 }
 
 .spin-dial:active .spin-dial-bearing {
