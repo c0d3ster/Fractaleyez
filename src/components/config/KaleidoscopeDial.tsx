@@ -3,6 +3,8 @@ import { useInfo } from './info/info'
 import { ColorState } from '../../config/colorState'
 import { Arm, armOf, colorShiftOffset, coords, dotScaleOf, GLOW_ALONG, lighten, paletteRgb, RADIUS, ShapeVariant, starScaleOf, starsPerArm, TAU, toCss } from './kaleidoscopeGalaxy'
 import { EffectChips, EffectChipsHandle } from './EffectChips'
+import { ghostKey } from '../../utils/ghostStore'
+import { useGhost } from './context/useGhost'
 import { StripCanvas } from './StripCanvas'
 import { StripPlacement, StripScene } from './stripPainting'
 import { EffectKey, LAPS_PER_SEC_PER_UNIT, MotionEffects, RING_END_RADIUS, useGalaxyMotion } from './useGalaxyMotion'
@@ -258,10 +260,17 @@ export const KaleidoscopeDial = React.memo(({ count, min, max, step, kaleidoscop
     vertical: mode === VERTICAL,
     strips: stripPlacements,
   }
-  const rimHandle = coords(-SWEEP * (count - min) / (max - min), RADIUS)
-  // Around the square the handle slides along its edge, on the same ray from the center.
-  const edgeScale = SQUARE_HALF / Math.max(Math.abs(rimHandle.x), Math.abs(rimHandle.y))
-  const handle = stripped ? { x: rimHandle.x * edgeScale, y: rimHandle.y * edgeScale } : rimHandle
+  const handleFor = (value: number): { x: number, y: number } => {
+    const rimHandle = coords(-SWEEP * (value - min) / (max - min), RADIUS)
+    if (!stripped) return rimHandle
+    // Around the square the handle slides along its edge, on the same ray from the center.
+    const edgeScale = SQUARE_HALF / Math.max(Math.abs(rimHandle.x), Math.abs(rimHandle.y))
+    return { x: rimHandle.x * edgeScale, y: rimHandle.y * edgeScale }
+  }
+  const handle = handleFor(count)
+  // Where Auto mode has the mirror count right now: a faded handle beside the real one, which stays on the stored count.
+  const autoCount = useGhost(ghostKey('effects', 'kaleidoscopeCount'))
+  const ghostHandle = typeof autoCount === 'number' && autoCount !== count ? handleFor(autoCount) : null
 
   // What a drag is doing: turning the knob (the count), or, in the strip modes, moving the source strip by pressing inside the square.
   const dragging = useRef<'count' | 'source'>('count')
@@ -374,6 +383,7 @@ export const KaleidoscopeDial = React.memo(({ count, min, max, step, kaleidoscop
               ? <line key={i} className='kaleidoscope-dial-seam' x1={at} y1={-SQUARE_HALF} x2={at} y2={SQUARE_HALF} />
               : <line key={i} className='kaleidoscope-dial-seam' x1={-SQUARE_HALF} y1={at} x2={SQUARE_HALF} y2={at} />
           })}
+          {ghostHandle && <circle className='kaleidoscope-dial-handle-ghost' cx={ghostHandle.x} cy={ghostHandle.y} r={HANDLE_RADIUS} />}
           <circle className='kaleidoscope-dial-handle-halo' cx={handle.x} cy={handle.y} r={HANDLE_RADIUS + 2} />
           <circle className='kaleidoscope-dial-handle' cx={handle.x} cy={handle.y} r={HANDLE_RADIUS} />
         </svg>

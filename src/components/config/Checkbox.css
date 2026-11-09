@@ -57,6 +57,18 @@
   color: white;
 }
 
+/* What something else (Auto mode) wants the switch to be, shown without changing it: off but wanted on is a faint green,
+   on but wanted off is dimmed. */
+.config-checkbox-container--ghost-on input:not(:checked) + label {
+  background: rgba(0, 85, 0, .2);
+  border-color: rgba(0, 85, 0, .35);
+  color: #333;
+}
+
+.config-checkbox-container--ghost-off input:checked + label {
+  opacity: .55;
+}
+
 /* Save-button green hover only for effects + video clip toggles (see category-container--effects / --video), and only
    where hovering is real: a touch leaves a label stuck in :hover (see inputType.ts and EffectChips.css). */
 @media (hover: hover) {
