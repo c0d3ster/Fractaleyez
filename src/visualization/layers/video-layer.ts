@@ -1,6 +1,8 @@
 import * as THREE from 'three'
 
+import { isLiveClip } from '../../config/video.config'
 import { getParticleCrossfadeDurationMs } from '../../config/visualizer.config'
+import { cameraSource } from '../camera-source'
 import { loadTracker } from '../load-tracker'
 import { videoStutters } from '../stutter-monitor'
 import { videoFrameSignal } from '../video-frame-signal'
@@ -52,6 +54,8 @@ type VideoSlot = {
   onEnded: () => void
   onPaused: () => void
   onPlaying: () => void
+  // The live camera entry: lets go of the shared camera stream (null for a clip).
+  releaseLive: (() => void) | null
 }
 
 /**
@@ -66,6 +70,9 @@ type VideoSlot = {
  * forward with a seek each frame (`stepIncoming`): Chrome drops the whole page to 30fps while two videos play at once, and
  * a paused one does not count. It is stepped rather than the outgoing clip because the start of a clip is right after a
  * keyframe, so each seek decodes a few frames, where near the end it decodes seconds of them.
+ *
+ * The `realtime` entry (`LIVE_CLIP`) is the camera feed from `cameraSource` in place of a file. It has no end, so it plays
+ * until it is unselected, and crossfades in and out like a clip; it cannot be seeked, so while fading in it plays.
  */
 export class VideoLayer implements Layer {
   private readonly scene = new THREE.Scene()
@@ -226,7 +233,8 @@ export class VideoLayer implements Layer {
   /** `autoplay` false loads the clip and leaves it paused on its first frame, offset from the playing clip, until it takes over (`promoteIncoming` plays it). */
   private createSlot = (src: string, autoplay = true): VideoSlot => {
     const video = document.createElement('video')
-    video.src = src
+    const live = isLiveClip(src)
+    if (!live) video.src = src
     video.preload = 'auto'
     // Started with play() rather than the autoplay attribute: Chrome auto-pauses muted autoplay videos that
     // aren't sufficiently in view, and this one is only a 2px dot. Muted so playback is always allowed (and the clip's audio can't feed back into the mic).
@@ -246,7 +254,8 @@ export class VideoLayer implements Layer {
       pointerEvents: 'none',
     })
     document.body.appendChild(video)
-    if (autoplay) video.play().catch(() => undefined)
+    // A live feed cannot be stepped like a paused clip, so it plays even while it is the incoming one.
+    if (autoplay && !live) video.play().catch(() => undefined)
 
     // A plain texture with our own frame callback instead of THREE.VideoTexture: that one starts a
     // requestVideoFrameCallback loop that dispose() never cancels. The callback only marks the texture dirty
@@ -272,6 +281,19 @@ export class VideoLayer implements Layer {
       onPlaying: () => {
         slot.resumeAttempts = 0
       },
+      releaseLive: null,
+    }
+    if (live) {
+      slot.releaseLive = cameraSource.acquire(
+        (stream) => {
+          video.srcObject = stream
+          video.play().catch(() => undefined)
+        },
+        // No feed will arrive (blocked or no camera; the UI shows why): stop holding Auto in "loading" for it.
+        () => {
+          if (slot === this.current) this.finishLoad()
+        },
+      )
     }
     const onFrame = (now: DOMHighResTimeStamp, { mediaTime }: VideoFrameCallbackMetadata): void => {
       if (this.endLoad && slot === this.current) this.finishLoad()
@@ -307,7 +329,10 @@ export class VideoLayer implements Layer {
     slot.resumeTimer = undefined
     slot.resumeAttempts = 0
     video.pause()
+    slot.releaseLive?.()
+    slot.releaseLive = null
     const release = (): void => {
+      video.srcObject = null
       video.removeAttribute('src')
       video.load()
       video.remove()
@@ -367,7 +392,7 @@ export class VideoLayer implements Layer {
   /** Moves the paused incoming clip forward by this frame's time; while the last seek is still decoding it skips one rather than queue behind it. */
   private stepIncoming = (video: HTMLVideoElement, deltaMs: number): void => {
     this.incomingStepMs += deltaMs
-    if (video.seeking) return
+    if (video.srcObject || video.seeking) return
     const lastMs = Number.isFinite(video.duration) ? video.duration * 1000 - STEP_END_MARGIN_MS : this.incomingStepMs
     video.currentTime = Math.min(this.incomingStepMs, lastMs) / 1000
   }
@@ -432,7 +457,7 @@ export class VideoLayer implements Layer {
     if (current) this.disposeSlot(current, true)
     // It plays on from where it was stepped to, in the corner the playing clip uses.
     incoming.video.style.left = '0'
-    incoming.video.play().catch(() => undefined)
+    if (incoming.video.paused) incoming.video.play().catch(() => undefined)
     this.current = incoming
     this.incoming = null
     this.fade = 0
@@ -459,6 +484,12 @@ export class VideoLayer implements Layer {
       return
     }
     // No crossfade (duration 0, or the clip was too short to reach it): a plain cut to the next clip.
+    const next = this.nextClip()
+    // The camera needs its own element (a stream, not a file): hand over to it through the crossfade, which waits for its first frame.
+    if (next && isLiveClip(next.src)) {
+      this.startIncoming()
+      return
+    }
     this.discardPrepared()
     window.config.video.index = (window.config.video.index + 1) % clips.length
     slot.src = clips[window.config.video.index]!

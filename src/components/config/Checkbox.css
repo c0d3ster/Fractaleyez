@@ -94,3 +94,31 @@
   flex-shrink: 0;
   font-variant-numeric: tabular-nums;
 }
+
+.clip-live {
+  opacity: 1;
+  color: #ff6b6b;
+}
+
+.config-checkbox-container input:checked + label .clip-live {
+  color: #ffb3b3;
+}
+
+.clip-live-error {
+  margin: -0.5rem 1rem 0.75rem;
+  font-size: 0.8rem;
+  color: #ff8a8a;
+  text-align: center;
+}
+
+.clip-camera-select {
+  display: block;
+  width: calc(100% - 2rem);
+  margin: -0.25rem 1rem 1rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid #ccc;
+  background: #EEE;
+  color: #555;
+  font-size: 14px;
+}

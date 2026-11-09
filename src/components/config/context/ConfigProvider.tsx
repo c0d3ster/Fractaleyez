@@ -9,6 +9,7 @@ import { AppConfig, BlendMode, ConfigItem, LayerKey, ParticleConfigSection, conf
 import { LAYER_CAP } from '../../../config/layers'
 import { mergeLayers, presentLayers } from '../../../config/mergeLayers'
 import { particleConfig } from '../../../config/particle.config'
+import { normalizeClips } from '../../../config/video.config'
 import { getResolvedSpriteUrl, warmSpriteCache } from '../../../utils/spriteCache'
 import { ApiPack, ApiPreset, readPresetListCache, updatePresetListCache } from '../../../utils/presetListCache'
 import { isCurrent, readCachedPresetBody, writeCachedPresetBody } from '../../../utils/presetBodyCache'
@@ -152,7 +153,7 @@ const mergeVideo = (loaded: unknown): AppConfig['video'] => {
     return { clips: [], allClips: catalog, index: 0 }
   }
   const l = loaded as Record<string, unknown>
-  const clips = Array.isArray(l.clips) ? (l.clips as string[]) : []
+  const clips = Array.isArray(l.clips) ? normalizeClips(l.clips as string[]) : []
   const allClips = [...new Set([...catalog, ...clips])]
   const indexRaw = typeof l.index === 'number' && Number.isFinite(l.index) ? Math.floor(l.index) : 0
   const index = clips.length === 0 ? 0 : Math.min(Math.max(0, indexRaw), clips.length - 1)
