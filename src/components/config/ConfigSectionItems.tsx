@@ -24,7 +24,9 @@ import {
   particleLoadZones,
   PARTICLE_LOAD_RED,
   totalParticles,
+  ZONE_COLORS,
 } from '../../config/particleLoad.config'
+import { userConfig } from '../../config/user.config'
 
 // Per-field overrides for how a slider's raw numeric value is displayed; the raw value
 // itself (min/max/step/onChange) is untouched, only the text shown next to the slider.
@@ -36,6 +38,16 @@ const SLIDER_DISPLAY_FORMATTERS: Partial<Record<string, (value: number) => strin
 // Sliders whose track is painted in zones (Scale: the Julia view's regimes).
 const SLIDER_ZONES: Partial<Record<string, readonly SliderZone[]>> = {
   scaleFactor: SCALE_ZONES,
+}
+
+// Speed fades green to yellow to red as it gets more intense, like the spin dials' gauge. Unlike Scale's zones it
+// matters to every layer, so it is always painted.
+const SPEED_MIDDLE = (userConfig.speed_MIN + userConfig.speed_MAX) / 2
+const ALWAYS_ZONES: Partial<Record<string, readonly SliderZone[]>> = {
+  speed: [
+    { upTo: SPEED_MIDDLE, color: ZONE_COLORS.safe, toColor: ZONE_COLORS.heavy },
+    { upTo: userConfig.speed_MAX, color: ZONE_COLORS.heavy, toColor: ZONE_COLORS.red },
+  ],
 }
 
 // Checkboxes drawn as a stepper tile, mapped to the slider item that holds their amount (the slider gets no row of its own).
@@ -297,7 +309,7 @@ const ConfigSectionItemsInner = ({ name, only, onChange, resetConfigItem, isSign
               displayValue={SLIDER_DISPLAY_FORMATTERS[configItem]?.(value as number)}
               zones={name === 'particle' && isParticleLoadKey(configItem)
                 ? particleLoadZones(loadInputs, configItem, min, max)
-                : fractalOn ? SLIDER_ZONES[configItem] : undefined}
+                : ALWAYS_ZONES[configItem] ?? (fractalOn ? SLIDER_ZONES[configItem] : undefined)}
               min={min}
               max={max}
               step={step}

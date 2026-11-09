@@ -42,7 +42,8 @@ export const maxValueUnderLoad = (inputs: ParticleLoadInputs, key: ParticleLoadK
   return low
 }
 
-const ZONE_COLORS = {
+/** Muted green, khaki and brick: calm to intense, on a slider track. Shared with any slider that paints how hard it is pushed. */
+export const ZONE_COLORS = {
   safe: '#56705a',
   heavy: '#8a7d52',
   red: '#8a5552',
