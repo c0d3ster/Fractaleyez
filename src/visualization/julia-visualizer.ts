@@ -492,6 +492,11 @@ export class JuliaVisualizer {
     ghostStore.set(TOUR_GHOST, hopped ? tour.min + along * (tour.max - tour.min) : null)
   }
 
+  /** Clears the Tour ghost while the layer is hidden: `update` stops running then, so nothing else would take it down. */
+  clearTourGhost(): void {
+    ghostStore.set(TOUR_GHOST, null)
+  }
+
   private currentTourTarget(): number {
     return Math.max(0, Math.min(TOUR.length - 1, getShapePosition() * (TOUR.length - 1) + this.switcherooHop))
   }

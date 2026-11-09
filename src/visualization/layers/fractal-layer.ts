@@ -27,6 +27,11 @@ export class FractalLayer implements Layer {
 
   getSteerPosition = (): { x: number; y: number } => this.visualizer.getSteerPosition()
 
+  // A hidden layer is not updated, so a Switcheroo hop's Tour ghost would stay on the dimmed slider.
+  onHidden = (): void => {
+    this.visualizer.clearTourGhost()
+  }
+
   // The visualizer tracks window size itself (uAspect); only the target size changes, and the compositor owns that.
   resize = (): void => {}
 

@@ -473,6 +473,9 @@ export class VideoLayer implements Layer {
     this.incomingMaterial.needsUpdate = true
     this.incomingMaterial.opacity = 0
     this.incomingQuad.visible = false
+    // A clip shorter than the crossfade ends while it fades in, when it is not yet current, so its own `ended` was ignored and none
+    // follows: move on to the next clip now instead of holding its last frame.
+    if (this.current.video.ended) this.onEnded(this.current)
   }
 
   private onEnded = (slot: VideoSlot): void => {
