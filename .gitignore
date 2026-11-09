@@ -33,3 +33,6 @@ scripts/section-eval/__pycache__/
 /raveform.zip
 /raveform/
 /raveform-levels/
+
+# Songs pulled by scripts/section-eval/fetch-listens.mts
+/scripts/section-eval/listens/
