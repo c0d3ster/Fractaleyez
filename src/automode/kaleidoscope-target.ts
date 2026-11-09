@@ -1,4 +1,5 @@
 import type { SectionState } from '../audioanalysis/sections'
+import type { RollLevel } from './roll-rate'
 
 /** What Auto wants the kaleidoscope to do: `on` false is no fold; `count` is the number of wedges (even). */
 export type KaleidoscopeFold = { on: boolean, count: number }
@@ -7,6 +8,9 @@ const OFF: KaleidoscopeFold = { on: false, count: 2 }
 
 // Wedges while a buildup climbs: more mirrors as the tension rises.
 const BUILDUP_COUNTS = [2, 4, 6, 8] as const
+// When the snare is rolling, the mirrors follow how fast it rolls instead: the start of a buildup is 2, then each time the roll doubles
+// its speed (quarters, eighths, sixteenths) it steps up, on the beat it happens. With no roll to read, the buildup's progress decides.
+const ROLL_COUNTS: Readonly<Record<RollLevel, number>> = { 1: 4, 2: 6, 3: 8 }
 // The drop lands big, then settles to a calmer fold for the rest of the drop.
 const DROP_PEAK_COUNT = 16
 const DROP_SETTLED_COUNT = 8
@@ -22,10 +26,11 @@ export const DEFAULT_TUNING: KaleidoscopeTuning = { wantMs: 0, dwellMs: 2500, be
 
 const same = (a: KaleidoscopeFold, b: KaleidoscopeFold): boolean => a.on === b.on && a.count === b.count
 
-/** What the section alone asks for, before any smoothing. */
-export const wantedFold = (state: SectionState): KaleidoscopeFold => {
+/** What the section alone asks for, before any smoothing. `roll` is how fast the snare is rolling, if it is (see roll-rate.ts). */
+export const wantedFold = (state: SectionState, roll: RollLevel | null = null): KaleidoscopeFold => {
   if (state.songMs === null) return OFF
   if (state.section === 'buildup') {
+    if (roll !== null) return { on: true, count: ROLL_COUNTS[roll] }
     const index = Math.min(BUILDUP_COUNTS.length - 1, Math.floor(state.buildupProgress * BUILDUP_COUNTS.length))
     return { on: true, count: BUILDUP_COUNTS[index] ?? 2 }
   }
@@ -47,12 +52,14 @@ export class KaleidoscopeAuto {
   private decidedAt: number | null = null
   private lastDropCount: number | null = null
   private lastSongIndex: number | null = null
+  /** The most wedges asked for in the buildup under way: a roll that thins out or a hit the detector missed never takes mirrors away. */
+  private buildupFloor = 0
 
   constructor(private readonly tuning: KaleidoscopeTuning = DEFAULT_TUNING) {}
 
-  /** `beat` is true on the frame a beat is detected: a decided change is shown on one, not between them. */
-  step = (state: SectionState, nowMs: number, beat: boolean): KaleidoscopeFold => {
-    const wanted = wantedFold(state)
+  /** `beat` is true on the frame a beat is detected: a decided change is shown on one, not between them. `roll` is the snare's note value while it rolls. */
+  step = (state: SectionState, nowMs: number, beat: boolean, roll: RollLevel | null = null): KaleidoscopeFold => {
+    const wanted = this.withFloor(wantedFold(state, roll), state)
     // A drop is a moment to land on, so it skips the wait (late is fine: it reads well a few seconds on). A new song starts clean.
     const dropped = this.lastDropCount !== null && state.dropCount > this.lastDropCount && state.section === 'drop'
     const newSong = this.lastSongIndex !== null && state.songIndex !== this.lastSongIndex
@@ -79,6 +86,17 @@ export class KaleidoscopeAuto {
     this.decidedAt = null
     this.lastDropCount = null
     this.lastSongIndex = null
+    this.buildupFloor = 0
+  }
+
+  /** Within one buildup the count only goes up. */
+  private withFloor = (wanted: KaleidoscopeFold, state: SectionState): KaleidoscopeFold => {
+    if (state.section !== 'buildup' || !wanted.on) {
+      this.buildupFloor = 0
+      return wanted
+    }
+    this.buildupFloor = Math.max(this.buildupFloor, wanted.count)
+    return { on: true, count: this.buildupFloor }
   }
 
   /** A wish has to be held for a while, and the last change shown for a while, before it is decided. */
@@ -88,7 +106,10 @@ export class KaleidoscopeAuto {
       this.pendingSince = nowMs
       return
     }
-    if (nowMs - this.pendingSince >= this.tuning.wantMs && nowMs - this.changedAt >= this.tuning.dwellMs) this.decide(nowMs)
+    // Adding mirrors to a fold that is already showing cannot flip back and forth, so it does not wait out the dwell: the steps of a
+    // roll come a beat or two apart and have to land when the roll speeds up.
+    const climbing = wanted.on && this.current.on && wanted.count > this.current.count
+    if (nowMs - this.pendingSince >= this.tuning.wantMs && (climbing || nowMs - this.changedAt >= this.tuning.dwellMs)) this.decide(nowMs)
   }
 
   private decide = (nowMs: number): void => {

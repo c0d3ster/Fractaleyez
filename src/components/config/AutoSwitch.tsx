@@ -1,5 +1,6 @@
 import React, { useSyncExternalStore } from 'react'
-import { autoMode } from '../../automode'
+import { autoMode, ROLL_GHOST } from '../../automode'
+import { useGhost } from './context/useGhost'
 import { useInfo } from './info/info'
 import './AutoSwitch.css'
 
@@ -10,6 +11,8 @@ import './AutoSwitch.css'
 export const AutoSwitch = (): React.ReactElement => {
   const info = useInfo()
   const on = useSyncExternalStore(autoMode.subscribe, autoMode.isEnabled)
+  // The note value of the snare roll while Auto reads one in a buildup (4, 8 or 16), so a roll it misses can be seen.
+  const roll = useGhost(ROLL_GHOST)
   return (
     <div className='auto-switch'>
       <button
@@ -17,9 +20,9 @@ export const AutoSwitch = (): React.ReactElement => {
         className={`auto-switch-button${on ? ' auto-switch-button--on' : ''}`}
         aria-pressed={on}
         onClick={() => autoMode.setEnabled(!on)}
-        {...info('Auto mode. While it is on, the kaleidoscope follows the song: mirrors build up through a buildup, land big on a drop and settle, and go away in a groove or a break, switching on the beat. The green outlines in the config show what Auto is doing, and your settings stay as they are. It turns itself off when you change the kaleidoscope or pick a preset, and your settings come back. Click to turn it on again.')}
+        {...info('Auto mode. While it is on, the kaleidoscope follows the song: mirrors build up through a buildup (stepping up as the snare roll doubles its speed, when there is one; the switch then shows the note value it hears), land big on a drop and settle, and go away in a groove or a break, switching on the beat. The green outlines in the config show what Auto is doing, and your settings stay as they are. It turns itself off when you change the kaleidoscope or pick a preset, and your settings come back. Click to turn it on again.')}
       >
-        Auto
+        Auto{typeof roll === 'number' ? ` · 1/${roll}` : ''}
       </button>
     </div>
   )
