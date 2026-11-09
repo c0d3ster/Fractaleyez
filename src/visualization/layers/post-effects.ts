@@ -131,6 +131,8 @@ export class PostEffects {
     this.aimShockwaveAtCameraPointer()
     // Which bands can set off a beat is chosen in the Frequency HUD and applied by the beat detector itself.
     if (audio.beat.fresh && window.config.effects.shockwave.value) this.triggerShockwave()
+    // Auto marks the jump to the drop's big fold with a single wave, Shockwave on or off.
+    else if (autoMode.dropShockwave()) this.triggerShockwave()
     // Read every frame, drawn through the composer or not: the clock hands out the time since its last read, and a morph or a wave that
     // starts after a long idle stretch must not get all of that time in its first frame and finish at once.
     const deltaTime = this.clock.getDelta()

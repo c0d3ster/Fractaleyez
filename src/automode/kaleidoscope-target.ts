@@ -54,11 +54,14 @@ export class KaleidoscopeAuto {
   private lastSongIndex: number | null = null
   /** The most wedges asked for in the buildup under way: a roll that thins out or a hit the detector missed never takes mirrors away. */
   private buildupFloor = 0
+  /** True for the one step that first showed the drop's big fold. */
+  private landedPeak = false
 
   constructor(private readonly tuning: KaleidoscopeTuning = DEFAULT_TUNING) {}
 
   /** `beat` is true on the frame a beat is detected: a decided change is shown on one, not between them. `roll` is the snare's note value while it rolls. */
   step = (state: SectionState, nowMs: number, beat: boolean, roll: RollLevel | null = null): KaleidoscopeFold => {
+    this.landedPeak = false
     const wanted = this.withFloor(wantedFold(state, roll), state)
     // A drop is a moment to land on, so it skips the wait (late is fine: it reads well a few seconds on). A new song starts clean.
     const dropped = this.lastDropCount !== null && state.dropCount > this.lastDropCount && state.section === 'drop'
@@ -79,7 +82,11 @@ export class KaleidoscopeAuto {
     return this.current
   }
 
+  /** Whether the last step is the one that brought in the drop's big fold: the moment a drop lands on screen, once per drop. */
+  landedDrop = (): boolean => this.landedPeak
+
   reset = (): void => {
+    this.landedPeak = false
     this.current = OFF
     this.changedAt = Number.NEGATIVE_INFINITY
     this.pending = null
@@ -118,6 +125,8 @@ export class KaleidoscopeAuto {
   }
 
   private apply = (fold: KaleidoscopeFold, nowMs: number): KaleidoscopeFold => {
+    const isPeak = (f: KaleidoscopeFold): boolean => f.on && f.count === DROP_PEAK_COUNT
+    this.landedPeak = isPeak(fold) && !isPeak(this.current)
     this.current = fold
     this.changedAt = nowMs
     this.pending = null
