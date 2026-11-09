@@ -7,6 +7,7 @@ import { initWithMicrophone } from '../main'
 import { ConfigWindow } from './config/ConfigWindow'
 import { Sidebar } from './sidebar/Sidebar'
 import { TopBar } from './topbar/TopBar'
+import { ListenRecorderBridge } from './settings/ListenRecorderBridge'
 
 const AppInner = (): React.ReactElement => {
   const [configWindowVisible, setConfigWindowVisible] = useState(false)
@@ -26,6 +27,7 @@ const AppInner = (): React.ReactElement => {
         setConfigWindow={toggleConfigWindow}
         configWindowVisible={configWindowVisible} />
       <TopBar />
+      <ListenRecorderBridge />
     </div>
   )
 }

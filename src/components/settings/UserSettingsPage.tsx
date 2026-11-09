@@ -3,6 +3,7 @@ import { useUser } from '@clerk/clerk-react'
 import './UserSettingsPage.css'
 
 import { connectConfigActions } from '../config/context/ConfigProvider'
+import { ListenRecorderSettings } from './ListenRecorderSettings'
 import { ConfigSlider } from '../config/ConfigSlider'
 import { UserSettings } from '../../config/userSettings.config'
 import {
@@ -21,6 +22,7 @@ import {
 const CROSSFADE_DURATION_STEP_MS = 50
 
 type UserSettingsPageProps = {
+  isAdmin: boolean
   userSettings: UserSettings | null
   updateUserSettings: (patch: Partial<UserSettings>) => void
 }
@@ -28,7 +30,7 @@ type UserSettingsPageProps = {
 // Rendered as a custom tab inside Clerk's UserButton "Manage account" modal (see TopBar) --
 // Clerk only mounts this when a signed-in user has that modal open, so there's no isSignedIn
 // gate or open/close state to manage here, unlike the old floating gear-button panel.
-const UserSettingsPageInner = ({ userSettings, updateUserSettings }: UserSettingsPageProps): React.ReactElement => {
+const UserSettingsPageInner = ({ isAdmin, userSettings, updateUserSettings }: UserSettingsPageProps): React.ReactElement => {
   const { user } = useUser()
   // Tracks the slider's position while dragging without pushing every tick through
   // updateUserSettings (which re-renders the whole ConfigProvider tree and schedules a
@@ -99,6 +101,7 @@ const UserSettingsPageInner = ({ userSettings, updateUserSettings }: UserSetting
         </div>
         <span className='user-settings-page__logo-hint'>Change it from your account photo on the Profile tab</span>
       </div>
+      {isAdmin ? <ListenRecorderSettings /> : null}
     </div>
   )
 }
