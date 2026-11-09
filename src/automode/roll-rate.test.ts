@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { RollReader, rollLevel } from './roll-rate'
+import { RollReader, rollLevel, type RollLevel } from './roll-rate'
 
 const PERIOD = 500 // 120 BPM
 
@@ -13,10 +13,10 @@ const hitsEvery = (gapMs: number, count: number, endMs: number): number[][] => [
 ]
 
 describe('rollLevel', () => {
-  it('reads quarters and eighths from the gap against the beat, and anything faster as eighths', () => {
+  it('reads quarters, eighths and sixteenths from the gap against the beat', () => {
     expect(rollLevel(hitsEvery(500, 4, 5000), PERIOD, 5000)).toBe(4)
     expect(rollLevel(hitsEvery(250, 6, 5000), PERIOD, 5000)).toBe(8)
-    expect(rollLevel(hitsEvery(125, 10, 5000), PERIOD, 5000)).toBe(8)
+    expect(rollLevel(hitsEvery(125, 10, 5000), PERIOD, 5000)).toBe(16)
   })
 
   it('needs a tempo to measure against', () => {
@@ -55,8 +55,8 @@ describe('rollLevel', () => {
 
 describe('RollReader', () => {
   // Reads every 20 ms from `from` to `to` over the same hits, returning what it showed at each read.
-  const readOver = (reader: RollReader, hits: number[][], from: number, to: number): Array<4 | 8 | null> => {
-    const shown: Array<4 | 8 | null> = []
+  const readOver = (reader: RollReader, hits: number[][], from: number, to: number): Array<RollLevel | null> => {
+    const shown: Array<RollLevel | null> = []
     for (let t = from; t <= to; t += 20) shown.push(reader.read(hits.map((band) => band.filter((time) => time <= t)), PERIOD, t))
     return shown
   }

@@ -17,7 +17,7 @@ export const AutoSwitch = (): React.ReactElement => {
         className={`auto-switch-button${on ? ' auto-switch-button--on' : ''}`}
         aria-pressed={on}
         onClick={() => autoMode.setEnabled(!on)}
-        {...info('Auto mode. While it is on, the kaleidoscope follows the song: mirrors build up through a buildup (stepping up as the snare roll goes from quarters to eighths, when there is one; the Beat HUD shows the note value it hears), land big on a drop and settle, and go away in a groove or a break, switching on the beat. The green outlines in the config show what Auto is doing, and your settings stay as they are. It turns itself off when you change the kaleidoscope or pick a preset, and your settings come back. Click to turn it on again.')}
+        {...info('Auto mode. While it is on, the kaleidoscope follows the song: mirrors build up through a buildup (stepping up as the snare roll goes quarters, eighths, sixteenths, when there is one; the Beat HUD shows the note value it hears), land big on a drop and settle, and go away in a groove or a break, switching on the beat. The green outlines in the config show what Auto is doing, and your settings stay as they are. It turns itself off when you change the kaleidoscope or pick a preset, and your settings come back. Click to turn it on again.')}
       >
         Auto
       </button>

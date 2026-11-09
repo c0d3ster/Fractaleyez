@@ -117,7 +117,7 @@ const follow = (current: number, target: number, dtMs: number, tauMs: number): n
 const toDb = (level: number): number => 20 * Math.log10(Math.max(level, SILENCE_LEVEL / 10))
 const fromDb = (db: number): number => 10 ** (db / 20)
 
-/** One band's onsets: its level in dB against the recent maximum (see the notes at the top). Exported for the drum hit classifier's own window (drum-hits.ts). */
+/** One band's onsets: its level in dB against the recent maximum (see the notes at the top). Exported for the drum hit classifier's and the roll reader's own windows (drum-hits.ts, roll-onsets.ts). */
 export class BandTracker {
   private floorDb: number | null = null
 
