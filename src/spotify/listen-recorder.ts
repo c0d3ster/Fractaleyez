@@ -13,7 +13,10 @@ import { DEFAULT_ENABLED_BANDS } from '../audioanalysis/onset-bands'
 import { PlayerSample, parsePlayback } from './player-sample'
 import { SongListen, SongSegmenter } from './song-segmenter'
 
-export const SPOTIFY_SCOPES = ['user-read-currently-playing', 'user-read-playback-state']
+/** What recording needs: reading what plays and the player's state. */
+const RECORD_SCOPES = ['user-read-currently-playing', 'user-read-playback-state']
+/** What the grant asks for: also playback control, so the label review page can jump Spotify to a spot in the song. */
+export const SPOTIFY_SCOPES = [...RECORD_SCOPES, 'user-modify-playback-state']
 
 const POLL_MS = 1500
 const PAD_MS = 15000
@@ -202,7 +205,7 @@ export class ListenRecorder {
     const body: unknown = await res.json()
     if (!isTokenResponse(body)) throw new Error('Spotify token: unexpected response')
     const scopes = body.scopes ?? []
-    if (!SPOTIFY_SCOPES.every((scope) => scopes.includes(scope))) {
+    if (!RECORD_SCOPES.every((scope) => scopes.includes(scope))) {
       this.update({ status: 'needs-permission' })
       return null
     }
