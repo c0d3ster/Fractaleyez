@@ -60,6 +60,12 @@ export class AutoMode {
     this.ghosts.set(KALEIDOSCOPE_COUNT_GHOST, fold.on ? fold.count : null)
     return fold
   }
+
+  /**
+   * True on the frame the drop's big fold first shows (read after `kaleidoscope`): one shockwave marks the jump to it. Only that one, not
+   * the Shockwave effect, which would fire on every beat, and never while Auto is off.
+   */
+  dropShockwave = (): boolean => this.enabled && this.kaleidoscopeAuto.landedDrop()
 }
 
 export const autoMode = new AutoMode()

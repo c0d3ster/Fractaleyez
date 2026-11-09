@@ -115,6 +115,22 @@ describe('KaleidoscopeAuto', () => {
     expect(auto.step(building, 2100, false).on).toBe(true)
   })
 
+  it('says a drop landed on the one step that brings in the big fold, and again on the next drop', () => {
+    const auto = new KaleidoscopeAuto(WITH_HOLD)
+    auto.step(state({}), 0, true)
+    expect(auto.landedDrop()).toBe(false)
+    auto.step(state({ section: 'drop', dropCount: 1, sinceDropMs: 0 }), 100, true)
+    expect(auto.landedDrop()).toBe(true)
+    auto.step(state({ section: 'drop', dropCount: 1, sinceDropMs: 500 }), 600, true)
+    expect(auto.landedDrop()).toBe(false)
+    // Settled to 8 (wanted from 7100, shown once the hold is over), then a second drop brings 16 back.
+    auto.step(state({ section: 'drop', dropCount: 1, sinceDropMs: 7000 }), 7100, true)
+    expect(auto.step(state({ section: 'drop', dropCount: 1, sinceDropMs: 7000 }), 8500, true)).toEqual({ on: true, count: 8 })
+    expect(auto.landedDrop()).toBe(false)
+    auto.step(state({ section: 'drop', dropCount: 2, sinceDropMs: 0 }), 9000, true)
+    expect(auto.landedDrop()).toBe(true)
+  })
+
   it('lands a drop on the first beat after it, without the usual wait', () => {
     const auto = new KaleidoscopeAuto(WITH_HOLD)
     auto.step(state({}), 0, false)
@@ -188,6 +204,23 @@ describe('KaleidoscopeAuto', () => {
 })
 
 describe('AutoMode', () => {
+  it('asks for one shockwave on the frame a drop lands, and none while off', () => {
+    const mode = new AutoMode(new GhostStore())
+    const drop = state({ section: 'drop', dropCount: 1, sinceDropMs: 0 })
+    mode.kaleidoscope(state({}), 0, true)
+    expect(mode.dropShockwave()).toBe(false)
+    mode.kaleidoscope(drop, 100, true)
+    expect(mode.dropShockwave()).toBe(true)
+    mode.kaleidoscope(drop, 120, true)
+    expect(mode.dropShockwave()).toBe(false)
+
+    const off = new AutoMode(new GhostStore())
+    off.kaleidoscope(state({}), 0, true)
+    off.kaleidoscope(drop, 100, true)
+    off.takeOver()
+    expect(off.dropShockwave()).toBe(false)
+  })
+
   it('is on by default and gives a fold only while on', () => {
     const mode = new AutoMode()
     const drop = state({ section: 'drop', dropCount: 1, sinceDropMs: 0 })
