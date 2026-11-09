@@ -1,8 +1,11 @@
 import { AUTO_BUSY_SETTLE_MS } from '../config/quality.config'
 import { loadTracker } from './load-tracker'
 
-/** A gap between frames longer than this is a stutter you can see. */
-export const STUTTER_MS = 50
+/**
+ * A gap between frames longer than this is a stutter you can see. At 50 ms a 24 fps clip on a 60 Hz screen counted all the time: it is
+ * shown for 2 and then 3 refreshes (33 and 50 ms), and timing jitter pushed the 50 ms ones over. Over 100 ms is two or more frames missing.
+ */
+export const STUTTER_MS = 100
 /** The Performance panel counts stutters over this long. */
 export const STUTTER_WINDOW_MS = 60000
 
