@@ -25,6 +25,8 @@ type LayerHeaderProps = {
   /** Sidebar only: makes a plain click toggle the body. */
   collapsible?: boolean
   onToggleOpen?: () => void
+  /** Pop-out only: the opacity reads above the header, over the power button, which leaves the header room for a bigger name and order controls. */
+  percentAbove?: boolean
 }
 
 type DragState = {
@@ -49,6 +51,7 @@ const LayerHeaderInner = ({
   onReset,
   collapsible = false,
   onToggleOpen,
+  percentAbove = false,
 }: LayerHeaderProps): React.ReactElement => {
   const info = useInfo()
   const fillRef = useRef<HTMLDivElement>(null)
@@ -153,68 +156,76 @@ const LayerHeaderInner = ({
   const percent = Math.round(opacity * 100)
 
   return (
-    <div
-      className={classNames('category-title', 'layer-header', { 'layer-header--off': !enabled })}
-      role='slider'
-      tabIndex={0}
-      aria-label={`${title} opacity`}
-      aria-valuemin={0}
-      aria-valuemax={100}
-      aria-valuenow={percent}
-      aria-valuetext={`${percent}%${enabled ? '' : ', off'}`}
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      onPointerCancel={onPointerUp}
-      onKeyDown={onKeyDown}
-    >
-      <div className='layer-header__fill' ref={fillRef} style={{ transform: `scaleX(${initialFill})` }} />
-      <button
-        type='button'
-        className={classNames('layer-header__power', { 'layer-header__power--on': enabled })}
-        aria-label={`${enabled ? 'Disable' : 'Enable'} ${title}`}
-        aria-pressed={enabled}
-        disabled={atCap}
-        {...info(atCap ? `Layer limit reached (${LAYER_CAP}). Turn another layer off first.` : undefined)}
-        onPointerDown={stop}
-        onPointerUp={stop}
-        onClick={(event) => {
-          stop(event)
-          setLayerEnabled(layerKey, !enabled)
-        }}
+    <>
+      <div
+        className={classNames('category-title', 'layer-header', { 'layer-header--off': !enabled, 'layer-header--percent-above': percentAbove })}
+        role='slider'
+        tabIndex={0}
+        aria-label={`${title} opacity`}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={percent}
+        aria-valuetext={`${percent}%${enabled ? '' : ', off'}`}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
+        onKeyDown={onKeyDown}
       >
-        <svg viewBox='0 -0.5 16 16' width='16' height='16' aria-hidden='true' fill='none' stroke='currentColor' strokeWidth='1.8' strokeLinecap='round'>
-          <path d='M8 1.5v6' />
-          <path d='M4.4 3.8a5.5 5.5 0 1 0 7.2 0' />
-        </svg>
-      </button>
-      <span className='layer-header__name'>{title}</span>
-      <span className='layer-header__percent'>{percent}%</span>
-      <span className='layer-header__stepper' onPointerDown={stop} onPointerUp={stop}>
-        <button type='button' aria-label={`Move ${title} back`} disabled={index <= 0} onClick={() => move(index - 1)}>-</button>
-        <button type='button' className='layer-header__badge' aria-label={`${title} is layer ${index}; click to move it forward`} {...info('Layer order')} onClick={cycle}>
-          {index}
-        </button>
-        <button type='button' aria-label={`Move ${title} forward`} disabled={index >= order.length - 1} onClick={() => move(index + 1)}>+</button>
-      </span>
-      {/* Last, so it sits at the header's right edge where the reset icon always was; the rest sits to its left. */}
-      {onReset && (
+        <div className='layer-header__fill' ref={fillRef} style={{ transform: `scaleX(${initialFill})` }} />
         <button
           type='button'
-          className='layer-header__reset'
-          {...info('Reset this section to the preset')}
-          aria-label={`Reset ${title} config`}
+          className={classNames('layer-header__power', { 'layer-header__power--on': enabled })}
+          aria-label={`${enabled ? 'Disable' : 'Enable'} ${title}`}
+          aria-pressed={enabled}
+          disabled={atCap}
+          {...info(atCap ? `Layer limit reached (${LAYER_CAP}). Turn another layer off first.` : undefined)}
           onPointerDown={stop}
           onPointerUp={stop}
           onClick={(event) => {
             stop(event)
-            onReset()
+            setLayerEnabled(layerKey, !enabled)
           }}
         >
-          <ResetIcon />
+          <svg viewBox='0 -0.5 16 16' width='16' height='16' aria-hidden='true' fill='none' stroke='currentColor' strokeWidth='1.8' strokeLinecap='round'>
+            <path d='M8 1.5v6' />
+            <path d='M4.4 3.8a5.5 5.5 0 1 0 7.2 0' />
+          </svg>
         </button>
+        <span className='layer-header__name'>{title}</span>
+        {!percentAbove && <span className='layer-header__percent'>{percent}%</span>}
+        <span className='layer-header__stepper' onPointerDown={stop} onPointerUp={stop}>
+          <button type='button' aria-label={`Move ${title} back`} disabled={index <= 0} onClick={() => move(index - 1)}>-</button>
+          <button type='button' className='layer-header__badge' aria-label={`${title} is layer ${index}; click to move it forward`} {...info('Layer order')} onClick={cycle}>
+            {index}
+          </button>
+          <button type='button' aria-label={`Move ${title} forward`} disabled={index >= order.length - 1} onClick={() => move(index + 1)}>+</button>
+        </span>
+        {/* Last, so it sits at the header's right edge where the reset icon always was; the rest sits to its left. */}
+        {onReset && (
+          <button
+            type='button'
+            className='layer-header__reset'
+            {...info('Reset this section to the preset')}
+            aria-label={`Reset ${title} config`}
+            onPointerDown={stop}
+            onPointerUp={stop}
+            onClick={(event) => {
+              stop(event)
+              onReset()
+            }}
+          >
+            <ResetIcon />
+          </button>
+        )}
+      </div>
+      {/* Outside the header, which clips what overflows it; placed against the container like the pop-out's reset button. */}
+      {percentAbove && (
+        <span className={classNames('layer-header__percent', 'layer-header__percent--above', { 'layer-header__percent--off': !enabled })} aria-hidden='true'>
+          {percent}%
+        </span>
       )}
-    </div>
+    </>
   )
 }
 
