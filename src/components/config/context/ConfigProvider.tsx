@@ -5,7 +5,7 @@ import axios from 'axios'
 import { useAuth, useUser } from '@clerk/clerk-react'
 
 import { cameraStart, keepDisabledLayerSections, toStoredConfig } from '../../../config/storedConfig'
-import { AppConfig, ConfigItem, LayerKey, ParticleConfigSection, configDefaults } from '../../../config/configDefaults'
+import { AppConfig, BlendMode, ConfigItem, LayerKey, ParticleConfigSection, configDefaults } from '../../../config/configDefaults'
 import { LAYER_CAP } from '../../../config/layers'
 import { mergeLayers, presentLayers } from '../../../config/mergeLayers'
 import { particleConfig } from '../../../config/particle.config'
@@ -260,6 +260,7 @@ export type ConfigContextValue = {
   updateColorList: (item: 'palette' | 'customStops', values: string[]) => void
   setLayerEnabled: (key: LayerKey, enabled: boolean) => boolean
   setLayerOpacity: (key: LayerKey, opacity: number) => void
+  setLayerBlendMode: (key: LayerKey, blendMode: BlendMode) => void
   moveLayer: (key: LayerKey, toIndex: number) => void
   retrieveConfigPreset: (event: PresetRetrieveEvent) => Promise<void>
   revertConfig: (snapshot: AppConfig) => void
@@ -667,6 +668,18 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
     })
   }, [])
 
+  const setLayerBlendMode = useCallback((key: LayerKey, blendMode: BlendMode) => {
+    setConfig((prev) => {
+      if (prev.layers.meta[key].blendMode === blendMode) return prev
+      const n: AppConfig = {
+        ...prev,
+        layers: { ...prev.layers, meta: { ...prev.layers.meta, [key]: { ...prev.layers.meta[key], blendMode } } },
+      }
+      window.config = n
+      return n
+    })
+  }, [])
+
   const moveLayer = useCallback((key: LayerKey, toIndex: number) => {
     setConfig((prev) => {
       const from = prev.layers.order.indexOf(key)
@@ -889,6 +902,7 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
     updateColorList,
     setLayerEnabled,
     setLayerOpacity,
+    setLayerBlendMode,
     moveLayer,
     retrieveConfigPreset,
     revertConfig,
@@ -909,7 +923,7 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
     updateUserSettings,
   }), [
     updateConfigItem, updateVideoClips, updateParticleSprites, updateLogoSprite, applyUserReference, releaseUserReference, userReferenceStandIn,
-    updateColorList, setLayerEnabled, setLayerOpacity, moveLayer, retrieveConfigPreset, revertConfig, resetConfig, resetConfigItem,
+    updateColorList, setLayerEnabled, setLayerOpacity, setLayerBlendMode, moveLayer, retrieveConfigPreset, revertConfig, resetConfig, resetConfigItem,
     resetConfigSection, resetVideoClips, savePreset, isSignedIn, user?.id, getToken, presetList, packList, userSettings, isAdmin, userSprite,
     displayName, updateUserSettings,
   ])

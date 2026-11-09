@@ -54,6 +54,12 @@ describe('mergeLayers', () => {
     expect(out.meta.fractal.opacity.value).toBe(configDefaults.layers.meta.fractal.opacity.value)
   })
 
+  it('reads every blend mode, including add', () => {
+    const out = mergeLayers({ meta: { video: { blendMode: 'add' }, fractal: { blendMode: 'over' } } }, { ...none, video: true, fractal: true })
+    expect(out.meta.video.blendMode).toBe('add')
+    expect(out.meta.fractal.blendMode).toBe('over')
+  })
+
   it('still reads the older item-object shape', () => {
     const out = mergeLayers(
       {

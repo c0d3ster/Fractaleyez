@@ -1,0 +1,81 @@
+/* Pop-out: in the margin above the layer header, centered between the opacity readout and the reset button.
+   em, not rem, so it scales with the pop-out's bigger container font. */
+.layer-blend {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: 5px; /* centers it on the opacity readout and reset button beside it */
+  display: inline-flex;
+  align-items: center;
+  color: rgba(220, 220, 220, .7);
+  cursor: pointer;
+}
+
+.layer-blend__select {
+  appearance: none;
+  -webkit-appearance: none;
+  display: block;
+  margin: 0;
+  padding: .05em 1.4em .05em .55em;
+  border: none;
+  border-radius: 1em;
+  background: rgba(40, 40, 40, .9);
+  color: inherit;
+  font: inherit;
+  font-size: 1em;
+  line-height: 1.1;
+  cursor: pointer;
+}
+
+/* The open list is drawn by the browser; keep its rows readable on the dark select. */
+.layer-blend__select option {
+  background: #282828;
+  color: #ddd;
+}
+
+.layer-blend__select:focus-visible {
+  outline: 1px solid #93c5fd;
+  color: white;
+}
+
+.layer-blend__caret {
+  position: absolute;
+  right: .5em;
+  pointer-events: none;
+}
+
+@media (hover: hover) {
+  :where(html:not([data-input='touch'])) .layer-blend:hover {
+    color: white;
+  }
+
+  :where(html:not([data-input='touch'])) .layer-blend:hover .layer-blend__select {
+    background: #555;
+  }
+}
+
+/* Sidebar: inside the header bar, left of the opacity readout. */
+.layer-blend--inline {
+  position: relative;
+  bottom: auto;
+  left: auto;
+  transform: none;
+  margin-bottom: 0;
+}
+
+.layer-blend--inline .layer-blend__select {
+  font-size: .9rem; /* the same size as the opacity readout beside it */
+  padding: .1em 1.5em .1em .6em;
+  background: rgba(255, 255, 255, .15);
+}
+
+@media (hover: hover) {
+  :where(html:not([data-input='touch'])) .layer-blend--inline:hover .layer-blend__select {
+    background: rgba(255, 255, 255, .3);
+  }
+}
+
+.layer-blend--off {
+  opacity: .6;
+}

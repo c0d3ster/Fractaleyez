@@ -109,12 +109,14 @@ export type VideoConfigSection = {
 export type StoredVideoSection = Pick<VideoConfigSection, 'clips'> & Partial<Pick<VideoConfigSection, 'index'>>
 
 export type LayerKey = 'video' | 'fractal' | 'orbit' | 'logo' // widened as layer types are added
-export type BlendMode = 'mask' | 'screen' | 'over' // fixed per layer for now (see createLayerMeta); no UI until it is configurable
+/** Every blend mode, in the order the layer header's picker shows them. Each layer's default is set in createLayerMeta. */
+export const BLEND_MODES = ['mask', 'over', 'screen', 'add'] as const
+export type BlendMode = typeof BLEND_MODES[number]
 
 export type LayerMeta = {
   enabled: CheckboxItem
   opacity: SliderItem
-  blendMode: BlendMode // not a ConfigItem; not stored or loaded, always the layer's default
+  blendMode: BlendMode // not a ConfigItem: a bare value, stored only when it differs from the layer's default
 }
 
 export type LayersConfigSection = {
