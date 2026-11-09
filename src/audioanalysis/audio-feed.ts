@@ -48,7 +48,7 @@ export class AudioFeed {
     })
     snapshot.beat = onset.beat
     const now = performance.now()
-    beatMonitor.record({ t: now, bands: onset.bands, beatBand: onset.beatBand })
+    beatMonitor.record({ t: now, bands: onset.bands, beatBand: onset.beatBand, rebandTo: onset.rebandTo })
     // Not before the first sound (the audio context waits for a click): the drum warm-up and the riser's and sweep's histories would
     // otherwise pass on silence, and the music coming up from it would read as a hit in every band and as a rise.
     if (!this.heardSound && !this.isSilent()) this.heardSound = true

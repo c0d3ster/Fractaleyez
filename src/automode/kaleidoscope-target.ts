@@ -8,9 +8,9 @@ const OFF: KaleidoscopeFold = { on: false, count: 2 }
 
 // Wedges while a buildup climbs: more mirrors as the tension rises.
 const BUILDUP_COUNTS = [2, 4, 6, 8] as const
-// When the snare is rolling, the mirrors follow how fast it rolls instead: the start of a buildup is 2, then each time the roll doubles
-// its speed (quarters, eighths, sixteenths) it steps up, on the beat it happens. With no roll to read, the buildup's progress decides.
-const ROLL_COUNTS: Readonly<Record<RollLevel, number>> = { 1: 4, 2: 6, 3: 8 }
+// When the snare is rolling, the mirrors follow how fast it rolls instead: the start of a buildup is 2, quarters 4 and eighths 6, each on
+// the beat it happens. With no roll to read, the buildup's progress decides.
+const ROLL_COUNTS: Readonly<Record<RollLevel, number>> = { 4: 4, 8: 6 }
 // The drop lands big, then settles to a calmer fold for the rest of the drop.
 const DROP_PEAK_COUNT = 16
 const DROP_SETTLED_COUNT = 8

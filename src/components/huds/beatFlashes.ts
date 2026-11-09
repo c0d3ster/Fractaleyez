@@ -22,7 +22,9 @@ export const beatFlashes = (samples: readonly BeatSample[], now: number, bandCou
   for (let i = samples.length - 1; i >= 0; i--) {
     const sample = samples[i]!
     if (now - sample.t > HIT_FLASH_MS) break
-    const { beatBand } = sample
+    const { beatBand, rebandTo } = sample
+    // A beat handed to a lower band a frame or two late (rebandTo, onset-detector.ts) flashes that band too.
+    if (rebandTo != null && flashes[rebandTo] === 0) flashes[rebandTo] = flashOf(sample.t)
     if (beatBand === null) continue
     if (flashes[beatBand] === 0) flashes[beatBand] = flashOf(sample.t)
     if (beatBand !== BASS && flashes[BASS] === 0 && bassOnsets.some((t) => Math.abs(t - sample.t) <= BASS_CREDIT_MS)) {

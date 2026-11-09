@@ -36,6 +36,12 @@ describe('beatFlashes', () => {
     expect(beatFlashes([sample(1000, null, true)], 1010, BANDS)[0]).toBe(0)
   })
 
+  it('flashes the band a beat was handed to (rebandTo)', () => {
+    const flashes = beatFlashes([sample(1000, 3), { ...sample(1030, null), rebandTo: 2 }], 1050, BANDS)
+    expect(flashes[2]).toBeGreaterThan(0)
+    expect(flashes[3]).toBeGreaterThan(0)
+  })
+
   it('is dark once the flash time has passed', () => {
     expect(beatFlashes([sample(1000, 3), sample(1020, null, true)], 1000 + HIT_FLASH_MS + 1, BANDS)).toEqual([0, 0, 0, 0, 0])
   })

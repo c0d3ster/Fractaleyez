@@ -31,6 +31,8 @@ export type BeatSample = {
   bands: BandSample[]
   /** Index of the band that set off a beat on this frame, or null. */
   beatBand: number | null
+  /** The band the last beat belongs to after all, on the frame a lower band's own hit shows it (see OnsetReading.rebandTo), or null. */
+  rebandTo?: number | null
 }
 
 export type BeatTimeline = {

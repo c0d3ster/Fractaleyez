@@ -30,6 +30,9 @@ const MIN_LEVEL_OF_LOUDNESS = 0.25
 const SILENCE_LEVEL = 0.02
 const WARMUP_MS = 1000
 const HISTORY_SLOTS = 64
+// How long after a beat a lower band's own hit still claims it (see OnsetReading.rebandTo): the bass band's 46 ms window plus its follower
+// lag behind the hi band's 23 ms one, with room to spare.
+const REBAND_MS = 80
 
 /**
  * The noise floor gate. Steady noise (a fan, room hiss) makes a narrow band's level swing a few dB from one window to the next on its own:
@@ -95,6 +98,12 @@ export type OnsetReading = {
   beatBand: number | null
   /** True on the frame an analysis beat fires (ANALYSIS_ONSET), whatever the user's settings. */
   analysisBeat: boolean
+  /**
+   * The band the last beat belongs to after all, on the frame that shows it (null otherwise): a kick's click reaches the hi band a frame or
+   * two before its boom reaches the bass band (whose window is twice as long), so the hi band fires first. When a lower enabled band's own
+   * hit lands within REBAND_MS after, the beat was that band's. Only what the HUDs color a hit by; the beat's timing stays.
+   */
+  rebandTo: number | null
 }
 
 /** The rise in dB a hit must clear its reference by, for the Threshold slider's value. */
@@ -189,6 +198,7 @@ export class OnsetDetector {
   private clockMs = 0
   private lastBeatMs = -Infinity
   private lastAnalysisBeatMs = -Infinity
+  private lastBeatBand = -1
   private beatEnergy = 0
 
   constructor(bandCount: number, options: Partial<OnsetDetectorOptions> = {}) {
@@ -209,9 +219,17 @@ export class OnsetDetector {
     const counts = (i: number): boolean => !noiseGate || i !== 0 || bassNeedsLoDb <= 0 || loRise >= bassNeedsLoDb
     const edgeBand = steps.findIndex(({ risingEdge }, i) => risingEdge && (params.enabledBands[i] ?? false) && counts(i))
     const fresh = canFire && edgeBand >= 0
+    let rebandTo: number | null = null
     if (fresh) {
       this.lastBeatMs = this.clockMs
+      this.lastBeatBand = edgeBand
       this.beatEnergy = fullBandEnergy
+    } else if (this.lastBeatBand > 0 && this.clockMs - this.lastBeatMs <= REBAND_MS) {
+      const lower = steps.findIndex(({ risingEdge }, i) => i < this.lastBeatBand && risingEdge && (params.enabledBands[i] ?? false) && counts(i))
+      if (lower >= 0) {
+        this.lastBeatBand = lower
+        rebandTo = lower
+      }
     }
 
     const analysisBeat = this.clockMs > WARMUP_MS
@@ -225,6 +243,7 @@ export class OnsetDetector {
       bands: steps.map(({ reading }) => reading),
       beatBand: fresh ? edgeBand : null,
       analysisBeat,
+      rebandTo,
     }
   }
 }
