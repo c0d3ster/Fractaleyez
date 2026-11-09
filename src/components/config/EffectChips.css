@@ -111,14 +111,14 @@
   color: white;
 }
 
-/* What Auto mode wants the chip to be, shown without changing it: off but wanted on gets a green outline, on but wanted off is dimmed. */
+/* What Auto mode wants the chip to be, shown without changing it: off but wanted on gets a green outline, on but wanted off gets a light gray dashed one. */
 .effect-chip--ghost-on:not(.effect-chip--on) {
   border-color: #3ddc84;
   box-shadow: inset 0 0 0 1px #3ddc84;
 }
 
 .effect-chip--ghost-off.effect-chip--on {
-  opacity: .55;
+  border: 1px dashed #bbb;
 }
 
 /* The flash on a beat is this overlay's opacity (see EffectChips) plus a scale on the chip. Both run off the main thread, which a brightness filter does not. */
