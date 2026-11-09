@@ -12,13 +12,13 @@ const DROP_PEAK_COUNT = 16
 const DROP_SETTLED_COUNT = 8
 const DROP_PEAK_MS = 6000
 
-// The labels are wrong often enough on the small moments that a change has to be wanted for a while, and the last
-// one has to have been showing a while. A flicker of the label then never reaches the screen.
-const WANT_MS = 1200
-const DWELL_MS = 2500
-// A change that has been decided waits for the next beat so it lands on the music. If none comes in this long (no steady
-// beat, or the detector missed it) it goes ahead anyway rather than hang.
-const BEAT_WAIT_MS = 600
+// The labels are wrong often enough on the small moments that a change could be made to wait: wanted for `wantMs` before it is
+// decided, and the last one shown for `dwellMs` before another. A decided change then goes out on the next beat, or after
+// `beatWaitMs` if none comes, so it lands on the music. None of these numbers are measured. The hold is off for now (try it
+// instant first; the section model already waits about half a second before it says "buildup"); 1200 was the first guess.
+export type KaleidoscopeTuning = { wantMs: number, dwellMs: number, beatWaitMs: number }
+
+export const DEFAULT_TUNING: KaleidoscopeTuning = { wantMs: 0, dwellMs: 2500, beatWaitMs: 600 }
 
 const same = (a: KaleidoscopeFold, b: KaleidoscopeFold): boolean => a.on === b.on && a.count === b.count
 
@@ -48,6 +48,8 @@ export class KaleidoscopeAuto {
   private lastDropCount: number | null = null
   private lastSongIndex: number | null = null
 
+  constructor(private readonly tuning: KaleidoscopeTuning = DEFAULT_TUNING) {}
+
   /** `beat` is true on the frame a beat is detected: a decided change is shown on one, not between them. */
   step = (state: SectionState, nowMs: number, beat: boolean): KaleidoscopeFold => {
     const wanted = wantedFold(state)
@@ -66,7 +68,7 @@ export class KaleidoscopeAuto {
     if (dropped) this.decide(nowMs)
     else if (this.decidedAt === null) this.considerChange(wanted, nowMs)
     // Decided: it goes out on the next beat. The wish may have moved on while it waited, so it is the latest wish that shows.
-    if (this.decidedAt !== null && (beat || nowMs - this.decidedAt >= BEAT_WAIT_MS)) return this.apply(wanted, nowMs)
+    if (this.decidedAt !== null && (beat || nowMs - this.decidedAt >= this.tuning.beatWaitMs)) return this.apply(wanted, nowMs)
     return this.current
   }
 
@@ -86,7 +88,7 @@ export class KaleidoscopeAuto {
       this.pendingSince = nowMs
       return
     }
-    if (nowMs - this.pendingSince >= WANT_MS && nowMs - this.changedAt >= DWELL_MS) this.decide(nowMs)
+    if (nowMs - this.pendingSince >= this.tuning.wantMs && nowMs - this.changedAt >= this.tuning.dwellMs) this.decide(nowMs)
   }
 
   private decide = (nowMs: number): void => {

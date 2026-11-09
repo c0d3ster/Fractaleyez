@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest'
 import type { SectionState } from '../audioanalysis/sections'
 import { GhostStore } from '../utils/ghostStore'
 import { AutoMode, isAutomatedEffectItem } from './auto-mode'
-import { KaleidoscopeAuto, wantedFold } from './kaleidoscope-target'
+import { DEFAULT_TUNING, KaleidoscopeAuto, type KaleidoscopeTuning, wantedFold } from './kaleidoscope-target'
+
+// The hold the first version used, kept under test so it can be switched back on (the default is no hold).
+const WITH_HOLD: KaleidoscopeTuning = { ...DEFAULT_TUNING, wantMs: 1200 }
 
 const state = (patch: Partial<SectionState>): SectionState => ({
   section: 'groove',
@@ -39,7 +42,7 @@ describe('wantedFold', () => {
 
 describe('KaleidoscopeAuto', () => {
   it('ignores a label that flickers for under a second', () => {
-    const auto = new KaleidoscopeAuto()
+    const auto = new KaleidoscopeAuto(WITH_HOLD)
     auto.step(state({}), 0, true)
     expect(auto.step(state({ section: 'buildup', buildupProgress: 0.5 }), 100, true).on).toBe(false)
     expect(auto.step(state({}), 600, true).on).toBe(false)
@@ -47,7 +50,7 @@ describe('KaleidoscopeAuto', () => {
   })
 
   it('follows a buildup that lasts', () => {
-    const auto = new KaleidoscopeAuto()
+    const auto = new KaleidoscopeAuto(WITH_HOLD)
     auto.step(state({}), 0, true)
     const building = state({ section: 'buildup', buildupProgress: 0.5 })
     auto.step(building, 100, true)
@@ -55,7 +58,7 @@ describe('KaleidoscopeAuto', () => {
   })
 
   it('goes straight to the big fold when a drop lands, then settles', () => {
-    const auto = new KaleidoscopeAuto()
+    const auto = new KaleidoscopeAuto(WITH_HOLD)
     auto.step(state({}), 0, true)
     expect(auto.step(state({ section: 'drop', dropCount: 1, sinceDropMs: 0 }), 100, true)).toEqual({ on: true, count: 16 })
     expect(auto.step(state({ section: 'drop', dropCount: 1, sinceDropMs: 7000 }), 7100, true)).toEqual({ on: true, count: 16 })
@@ -63,7 +66,7 @@ describe('KaleidoscopeAuto', () => {
   })
 
   it('does not change twice inside the dwell time', () => {
-    const auto = new KaleidoscopeAuto()
+    const auto = new KaleidoscopeAuto(WITH_HOLD)
     auto.step(state({}), 0, true)
     auto.step(state({ section: 'drop', dropCount: 1, sinceDropMs: 0 }), 100, true)
     const groove = state({ dropCount: 1 })
@@ -72,8 +75,16 @@ describe('KaleidoscopeAuto', () => {
     expect(auto.step(groove, 3000, true).on).toBe(false)
   })
 
-  it('shows a decided change on the next beat, not between beats', () => {
+  it('with no hold (the default), follows a buildup as soon as there is a beat', () => {
     const auto = new KaleidoscopeAuto()
+    auto.step(state({}), 0, false)
+    const building = state({ section: 'buildup', buildupProgress: 0.1 })
+    auto.step(building, 100, false)
+    expect(auto.step(building, 200, true)).toEqual({ on: true, count: 2 })
+  })
+
+  it('shows a decided change on the next beat, not between beats', () => {
+    const auto = new KaleidoscopeAuto(WITH_HOLD)
     auto.step(state({}), 0, false)
     const building = state({ section: 'buildup', buildupProgress: 0.5 })
     auto.step(building, 100, false)
@@ -84,7 +95,7 @@ describe('KaleidoscopeAuto', () => {
   })
 
   it('goes ahead without a beat after a short wait instead of hanging', () => {
-    const auto = new KaleidoscopeAuto()
+    const auto = new KaleidoscopeAuto(WITH_HOLD)
     auto.step(state({}), 0, false)
     const building = state({ section: 'buildup', buildupProgress: 0.5 })
     auto.step(building, 100, false)
@@ -94,7 +105,7 @@ describe('KaleidoscopeAuto', () => {
   })
 
   it('lands a drop on the first beat after it, without the usual wait', () => {
-    const auto = new KaleidoscopeAuto()
+    const auto = new KaleidoscopeAuto(WITH_HOLD)
     auto.step(state({}), 0, false)
     const drop = state({ section: 'drop', dropCount: 1, sinceDropMs: 0 })
     expect(auto.step(drop, 100, false).on).toBe(false)
@@ -102,7 +113,7 @@ describe('KaleidoscopeAuto', () => {
   })
 
   it('drops a decided change if the wish goes back to what is showing before the beat', () => {
-    const auto = new KaleidoscopeAuto()
+    const auto = new KaleidoscopeAuto(WITH_HOLD)
     auto.step(state({}), 0, false)
     const building = state({ section: 'buildup', buildupProgress: 0.5 })
     auto.step(building, 100, false)
@@ -112,7 +123,7 @@ describe('KaleidoscopeAuto', () => {
   })
 
   it('starts clean on a new song', () => {
-    const auto = new KaleidoscopeAuto()
+    const auto = new KaleidoscopeAuto(WITH_HOLD)
     auto.step(state({}), 0, true)
     auto.step(state({ section: 'drop', dropCount: 1, sinceDropMs: 0 }), 100, true)
     expect(auto.step(state({ section: 'drop', dropCount: 1, songIndex: 2 }), 200, true).on).toBe(false)
