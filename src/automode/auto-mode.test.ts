@@ -40,43 +40,82 @@ describe('wantedFold', () => {
 describe('KaleidoscopeAuto', () => {
   it('ignores a label that flickers for under a second', () => {
     const auto = new KaleidoscopeAuto()
-    auto.step(state({}), 0)
-    expect(auto.step(state({ section: 'buildup', buildupProgress: 0.5 }), 100).on).toBe(false)
-    expect(auto.step(state({}), 600).on).toBe(false)
-    expect(auto.step(state({}), 5000).on).toBe(false)
+    auto.step(state({}), 0, true)
+    expect(auto.step(state({ section: 'buildup', buildupProgress: 0.5 }), 100, true).on).toBe(false)
+    expect(auto.step(state({}), 600, true).on).toBe(false)
+    expect(auto.step(state({}), 5000, true).on).toBe(false)
   })
 
   it('follows a buildup that lasts', () => {
     const auto = new KaleidoscopeAuto()
-    auto.step(state({}), 0)
+    auto.step(state({}), 0, true)
     const building = state({ section: 'buildup', buildupProgress: 0.5 })
-    auto.step(building, 100)
-    expect(auto.step(building, 1500)).toEqual({ on: true, count: 6 })
+    auto.step(building, 100, true)
+    expect(auto.step(building, 1500, true)).toEqual({ on: true, count: 6 })
   })
 
   it('goes straight to the big fold when a drop lands, then settles', () => {
     const auto = new KaleidoscopeAuto()
-    auto.step(state({}), 0)
-    expect(auto.step(state({ section: 'drop', dropCount: 1, sinceDropMs: 0 }), 100)).toEqual({ on: true, count: 16 })
-    expect(auto.step(state({ section: 'drop', dropCount: 1, sinceDropMs: 7000 }), 7100)).toEqual({ on: true, count: 16 })
-    expect(auto.step(state({ section: 'drop', dropCount: 1, sinceDropMs: 7000 }), 8500)).toEqual({ on: true, count: 8 })
+    auto.step(state({}), 0, true)
+    expect(auto.step(state({ section: 'drop', dropCount: 1, sinceDropMs: 0 }), 100, true)).toEqual({ on: true, count: 16 })
+    expect(auto.step(state({ section: 'drop', dropCount: 1, sinceDropMs: 7000 }), 7100, true)).toEqual({ on: true, count: 16 })
+    expect(auto.step(state({ section: 'drop', dropCount: 1, sinceDropMs: 7000 }), 8500, true)).toEqual({ on: true, count: 8 })
   })
 
   it('does not change twice inside the dwell time', () => {
     const auto = new KaleidoscopeAuto()
-    auto.step(state({}), 0)
-    auto.step(state({ section: 'drop', dropCount: 1, sinceDropMs: 0 }), 100)
+    auto.step(state({}), 0, true)
+    auto.step(state({ section: 'drop', dropCount: 1, sinceDropMs: 0 }), 100, true)
     const groove = state({ dropCount: 1 })
-    auto.step(groove, 200)
-    expect(auto.step(groove, 1600).on).toBe(true)
-    expect(auto.step(groove, 3000).on).toBe(false)
+    auto.step(groove, 200, true)
+    expect(auto.step(groove, 1600, true).on).toBe(true)
+    expect(auto.step(groove, 3000, true).on).toBe(false)
+  })
+
+  it('shows a decided change on the next beat, not between beats', () => {
+    const auto = new KaleidoscopeAuto()
+    auto.step(state({}), 0, false)
+    const building = state({ section: 'buildup', buildupProgress: 0.5 })
+    auto.step(building, 100, false)
+    // Wanted long enough, but no beat yet: still showing the old fold.
+    expect(auto.step(building, 1400, false).on).toBe(false)
+    expect(auto.step(building, 1500, false).on).toBe(false)
+    expect(auto.step(building, 1600, true)).toEqual({ on: true, count: 6 })
+  })
+
+  it('goes ahead without a beat after a short wait instead of hanging', () => {
+    const auto = new KaleidoscopeAuto()
+    auto.step(state({}), 0, false)
+    const building = state({ section: 'buildup', buildupProgress: 0.5 })
+    auto.step(building, 100, false)
+    expect(auto.step(building, 1400, false).on).toBe(false)
+    expect(auto.step(building, 1900, false).on).toBe(false)
+    expect(auto.step(building, 2100, false).on).toBe(true)
+  })
+
+  it('lands a drop on the first beat after it, without the usual wait', () => {
+    const auto = new KaleidoscopeAuto()
+    auto.step(state({}), 0, false)
+    const drop = state({ section: 'drop', dropCount: 1, sinceDropMs: 0 })
+    expect(auto.step(drop, 100, false).on).toBe(false)
+    expect(auto.step(drop, 250, true)).toEqual({ on: true, count: 16 })
+  })
+
+  it('drops a decided change if the wish goes back to what is showing before the beat', () => {
+    const auto = new KaleidoscopeAuto()
+    auto.step(state({}), 0, false)
+    const building = state({ section: 'buildup', buildupProgress: 0.5 })
+    auto.step(building, 100, false)
+    auto.step(building, 1400, false)
+    expect(auto.step(state({}), 1500, false).on).toBe(false)
+    expect(auto.step(state({}), 1600, true).on).toBe(false)
   })
 
   it('starts clean on a new song', () => {
     const auto = new KaleidoscopeAuto()
-    auto.step(state({}), 0)
-    auto.step(state({ section: 'drop', dropCount: 1, sinceDropMs: 0 }), 100)
-    expect(auto.step(state({ section: 'drop', dropCount: 1, songIndex: 2 }), 200).on).toBe(false)
+    auto.step(state({}), 0, true)
+    auto.step(state({ section: 'drop', dropCount: 1, sinceDropMs: 0 }), 100, true)
+    expect(auto.step(state({ section: 'drop', dropCount: 1, songIndex: 2 }), 200, true).on).toBe(false)
   })
 })
 
@@ -84,11 +123,11 @@ describe('AutoMode', () => {
   it('is on by default and gives a fold only while on', () => {
     const mode = new AutoMode()
     const drop = state({ section: 'drop', dropCount: 1, sinceDropMs: 0 })
-    mode.kaleidoscope(state({}), 0)
-    expect(mode.kaleidoscope(drop, 100)?.on).toBe(true)
+    mode.kaleidoscope(state({}), 0, true)
+    expect(mode.kaleidoscope(drop, 100, true)?.on).toBe(true)
     mode.takeOver()
     expect(mode.isEnabled()).toBe(false)
-    expect(mode.kaleidoscope(drop, 200)).toBeNull()
+    expect(mode.kaleidoscope(drop, 200, true)).toBeNull()
   })
 
   it('tells listeners when it switches, and only then', () => {
@@ -108,10 +147,10 @@ describe('AutoMode', () => {
   it('shows what it is doing as ghosts, and takes them away when it steps back', () => {
     const ghosts = new GhostStore()
     const mode = new AutoMode(ghosts)
-    mode.kaleidoscope(state({}), 0)
+    mode.kaleidoscope(state({}), 0, true)
     expect(ghosts.get('effects.kaleidoscope')).toBe(false)
     expect(ghosts.get('effects.kaleidoscopeCount')).toBeNull()
-    mode.kaleidoscope(state({ section: 'drop', dropCount: 1, sinceDropMs: 0 }), 100)
+    mode.kaleidoscope(state({ section: 'drop', dropCount: 1, sinceDropMs: 0 }), 100, true)
     expect(ghosts.get('effects.kaleidoscope')).toBe(true)
     expect(ghosts.get('effects.kaleidoscopeCount')).toBe(16)
     mode.takeOver()

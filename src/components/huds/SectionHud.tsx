@@ -1,9 +1,8 @@
-import React, { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useInfo } from '../config/info/info'
 import './SectionHud.css'
 
 import { SectionState, SectionSlot, SongSection } from '../../audioanalysis/sections'
-import { autoMode } from '../../automode'
 import { subscribeUiTick } from '../../utils/uiTicker'
 import { listenWheel, zoomView } from './wheelZoom'
 
@@ -79,7 +78,6 @@ const drawStrip = (ctx: CanvasRenderingContext2D, slots: readonly SectionSlot[],
 
 export const SectionHud = (): React.ReactElement => {
   const info = useInfo()
-  const autoOn = useSyncExternalStore(autoMode.subscribe, autoMode.isEnabled)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [state, setState] = useState<SectionState | null>(null)
   const viewMsRef = useRef(DEFAULT_VIEW_MS)
@@ -137,21 +135,9 @@ export const SectionHud = (): React.ReactElement => {
       <div className='section-hud' {...info('The last minute (scroll to zoom from 30 seconds to 2 minutes, double-click to reset). The line is the level of the song against its loudest moment, the colors are the sections: cyan intro, green groove, yellow buildup, white turnaround, blue break, red drop, purple outro, grey quiet.')}>
         <canvas ref={canvasRef} width={W} height={H} className='section-hud-canvas' onDoubleClick={handleDoubleClick} />
       </div>
-      <div className='section-hud-footer'>
-        <span />
-        <span className='section-hud-name' {...info('The part of the song this looks like: intro (the start, before anything has built or dropped), groove, buildup (tension rising toward a drop), turnaround (the music cutting out during a buildup; about 1 in 4 turns into a drop), break (the low end pulled back, calmer), drop (the full-energy part after the drop lands, until the next break or buildup), outro (a fade late in the song) or quiet (silence, or no steady beat). A model trained on expert-labelled tracks makes the call, so it can be wrong; the next song starts over at intro.')}>
-          {state?.section ?? ''}
-        </span>
-        <button
-          type='button'
-          className={`section-hud-auto${autoOn ? ' on' : ''}`}
-          aria-pressed={autoOn}
-          onClick={() => autoMode.setEnabled(!autoOn)}
-          {...info('Auto mode. While it is on, the kaleidoscope follows the song: mirrors build up through a buildup, land big on a drop and settle, and go away in a groove or a break. It turns itself off when you change the kaleidoscope or pick a preset, and your settings come back. Click to turn it on again. More controls will follow it over time.')}
-        >
-          Auto
-        </button>
-      </div>
+      <span className='section-hud-name' {...info('The part of the song this looks like: intro (the start, before anything has built or dropped), groove, buildup (tension rising toward a drop), turnaround (the music cutting out during a buildup; about 1 in 4 turns into a drop), break (the low end pulled back, calmer), drop (the full-energy part after the drop lands, until the next break or buildup), outro (a fade late in the song) or quiet (silence, or no steady beat). A model trained on expert-labelled tracks makes the call, so it can be wrong; the next song starts over at intro.')}>
+        {state?.section ?? ''}
+      </span>
     </div>
   )
 }

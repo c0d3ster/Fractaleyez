@@ -1,0 +1,40 @@
+.auto-switch {
+  display: flex;
+  justify-content: center;
+  margin: 1rem 0 1.5rem;
+}
+
+/* A pill like the other switches: grey when off, the app's green when on. */
+.auto-switch-button {
+  font: inherit;
+  font-size: 15px;
+  font-weight: bold;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  padding: .4em 1.6em;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: #EEE;
+  color: #555;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.auto-switch-button--on {
+  background: #005500;
+  color: white;
+}
+
+@media (hover: hover) {
+  :where(html:not([data-input='touch'])) .auto-switch-button:hover {
+    background: #004400;
+    border-color: #004400;
+    color: #ccc;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auto-switch-button {
+    transition: none;
+  }
+}
