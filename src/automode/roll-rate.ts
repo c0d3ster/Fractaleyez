@@ -21,6 +21,9 @@ const QUARTER_FLOOR = Math.SQRT1_2
 // unread for this many beats, so a stray hit or a skipped one does not flash it away or swap it.
 const ENTER_BEATS = 0.5
 const LEAVE_BEATS = 1
+// How often `tick` reads (ms). Each read copies a few hundred onsets and sorts the snare's: about 5 us, so every frame at 240 Hz was about
+// 1.3 ms a second of main thread plus the garbage. The hold works in half beats (234 ms at 128 BPM), so 20 reads a second change nothing seen.
+const READ_EVERY_MS = 50
 
 /** The hits of the given bands within `sinceMs`, oldest first, with the same hit seen in two bands counted once. */
 const recentHits = (bandOnsets: ReadonlyArray<readonly number[]>, bands: readonly number[], sinceMs: number): number[] => {
@@ -47,7 +50,6 @@ export const rollLevel = (bandOnsets: ReadonlyArray<readonly number[]>, periodMs
 
 /**
  * The roll as it is shown and steered by: `rollLevel` read every frame, held so it does not flicker (see ENTER_BEATS and LEAVE_BEATS).
- * Reset it when the buildup ends, so the next one starts from nothing.
  */
 export class RollReader {
   private shown: RollLevel | null = null
@@ -55,6 +57,7 @@ export class RollReader {
   private candidate: RollLevel | null = null
   private candidateSinceMs = 0
   private candidateLastMs = 0
+  private lastReadMs = Number.NEGATIVE_INFINITY
 
   /** The held note value. The raw reading drops out for a frame now and then, so a short gap neither resets a value on its way in nor clears the shown one. */
   read = (bandOnsets: ReadonlyArray<readonly number[]>, periodMs: number | null, nowMs: number): RollLevel | null => {
@@ -83,10 +86,27 @@ export class RollReader {
     return this.shown
   }
 
+  /**
+   * `read`, at most every READ_EVERY_MS; between reads the held value. Safe to call every frame: the onsets are only fetched (a copy of
+   * each band's list) when a read is due.
+   */
+  tick = (onsets: () => ReadonlyArray<readonly number[]>, periodMs: number | null, nowMs: number): RollLevel | null => {
+    if (nowMs - this.lastReadMs < READ_EVERY_MS) return this.shown
+    this.lastReadMs = nowMs
+    return this.read(onsets(), periodMs, nowMs)
+  }
+
+  /** What `read` last returned, for showing it without reading again. */
+  current = (): RollLevel | null => this.shown
+
   reset = (): null => {
     this.shown = null
     this.lastSeenMs = Number.NEGATIVE_INFINITY
     this.candidate = null
+    this.lastReadMs = Number.NEGATIVE_INFINITY
     return null
   }
 }
+
+/** The page's snare roll, ticked every frame (post-effects, read 20 times a second) whatever Auto is doing, so the Beat HUD shows it all the time. */
+export const snareRoll = new RollReader()

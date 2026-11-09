@@ -7,8 +7,6 @@ import type { RollLevel } from './roll-rate'
 const AUTO_GHOST_PREFIX = 'effects.'
 const KALEIDOSCOPE_GHOST = ghostKey('effects', 'kaleidoscope')
 const KALEIDOSCOPE_COUNT_GHOST = ghostKey('effects', 'kaleidoscopeCount')
-/** The snare roll's note value (4 or 8) while one is read, for the Beat HUD to show. */
-export const ROLL_GHOST = ghostKey('auto', 'roll')
 
 /**
  * Auto mode: the visualizer follows the song on its own, until the user takes over. It is on by default, and it
@@ -34,7 +32,6 @@ export class AutoMode {
     // Off, there is nothing to show: the stored settings are what is drawn again.
     else {
       this.ghosts.clear(AUTO_GHOST_PREFIX)
-      this.ghosts.clear('auto.')
     }
     this.listeners.forEach((listener) => listener())
   }
@@ -53,8 +50,6 @@ export class AutoMode {
   kaleidoscope = (state: SectionState, nowMs: number, beat: boolean, roll: RollLevel | null = null): KaleidoscopeFold | null => {
     if (!this.enabled) return null
     const fold = this.kaleidoscopeAuto.step(state, nowMs, beat, roll)
-    // What the drums are rolling at, shown by the Beat HUD while it is read, so a roll that is missed can be seen.
-    this.ghosts.set(ROLL_GHOST, roll)
     // The config shows this beside the stored switch and count. A count only means something while the fold is on.
     this.ghosts.set(KALEIDOSCOPE_GHOST, fold.on)
     this.ghosts.set(KALEIDOSCOPE_COUNT_GHOST, fold.on ? fold.count : null)
