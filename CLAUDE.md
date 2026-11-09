@@ -85,3 +85,7 @@ Config is organized into five categories mirrored across `src/config/*.config.ts
 `.eslintrc` already enforces the global arrow-functions/single-quotes/no-semicolons/2-space style for this repo (`prefer-arrow`, `semi: never`, `quotes: single`, `indent: 2`, `no-var`) — run `pnpm lint` after changes. TypeScript is strict (`strict`, `noUncheckedIndexedAccess`, `noUnusedLocals`, `noImplicitOverride`, etc. — see `tsconfig.json`); run `pnpm typecheck` before considering `src/**` changes done. Note `tsconfig.json`'s `include` is `src/**/*` only — `pnpm typecheck` does not type-check `server/` or `api/`, which have no dedicated type-check script; rely on your editor's TS server or `tsc --noEmit` against `api/tsconfig.json` for those.
 
 One repo-specific exception to the global named-exports-only rule: files under `api/*.ts` use `export default` because Vercel serverless functions require it (same shape as the Next.js `page.tsx`/`layout.tsx` exception — default export on its own, everything else in the file stays a named export).
+
+## Branch names
+
+Name branches `<type>/<short-kebab-description>`, with the type taken from the commit types in use (`feat`, `fix`, `perf`, `chore`, `docs`, `refactor`, `test`), e.g. `feat/auto-mode-mvp` or `fix/audio-source-reconnect`. The description says what the branch does. Never use a random or generated name (such as `claude/wizardly-turing-ghovqa`). If a session or tool hands you a generated branch name, create and push a descriptive one instead, unless the user says to use the given one.
