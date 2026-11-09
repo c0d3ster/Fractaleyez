@@ -25,8 +25,6 @@ const PREPARE_LEAD_MS = 3000
 const WARM_LEAD_MS = 3000
 // The prepared clip sits a few pixels to the side so it is not covered by the playing one (Chrome stalls a covered video).
 const PREPARED_OFFSET_PX = 3
-// The incoming clip is stepped no closer than this to its end, so a seek never lands past the last frame and ends it.
-const STEP_END_MARGIN_MS = 50
 // A decoded frame is uploaded when at least this share of the upload interval has passed on the clip's own timeline (not the
 // wall clock, whose few-ms callback jitter threw away one frame in five of a 29.97fps clip held to 30). A little under 1 so a
 // 30fps clip is never thinned to 15fps, while a 60fps clip still uploads every other frame.
@@ -61,11 +59,8 @@ type VideoSlot = {
  * so the video keeps playing until the layer reports it is fully hidden (`onHidden`), then it is freed and a disabled
  * layer decodes nothing.
  *
- * When a clip is within the crossfade duration of its end, the next clip fades in over it for the same shared crossfade
- * duration, then takes over. Duration 0 keeps the plain cut. During the fade the incoming clip stays paused and is stepped
- * forward with a seek each frame (`stepIncoming`): Chrome drops the whole page to 30fps while two videos play at once, and
- * a paused one does not count. It is stepped rather than the outgoing clip because the start of a clip is right after a
- * keyframe, so each seek decodes a few frames, where near the end it decodes seconds of them.
+ * When a clip is within the crossfade duration of its end, the next clip starts underneath it and fades in over the same
+ * shared crossfade duration, then takes over. Duration 0 keeps the plain cut.
  */
 export class VideoLayer implements Layer {
   private readonly scene = new THREE.Scene()
@@ -86,9 +81,6 @@ export class VideoLayer implements Layer {
   // The clip after the current one, created early and held paused until the crossfade starts.
   private prepared: VideoSlot | null = null
   private incomingIndex = 0
-  // Media time (ms) the paused incoming clip has been stepped to; it starts playing from here when it takes over.
-  private incomingStepMs = 0
-  private incomingHasFrame = false
   private fade = 0
   private teardownWhenHidden = false
   // Least time between texture uploads; 0 uploads every decoded frame.
@@ -223,7 +215,7 @@ export class VideoLayer implements Layer {
     this.currentMaterial.needsUpdate = true
   }
 
-  /** `autoplay` false loads the clip and leaves it paused on its first frame, offset from the playing clip, until it takes over (`promoteIncoming` plays it). */
+  /** `autoplay` false loads the clip and leaves it paused on its first frame, offset from the playing clip, until `startIncoming` plays it. */
   private createSlot = (src: string, autoplay = true): VideoSlot => {
     const video = document.createElement('video')
     video.src = src
@@ -353,23 +345,10 @@ export class VideoLayer implements Layer {
       }
       return
     }
-    // Hold at 0 until the incoming clip has a frame, so the fade never goes through black. Only until the first one: each step's
-    // seek drops readyState for a moment while it decodes, and the last frame stays on screen meanwhile, so the fade carries on.
-    if (incoming.video.readyState >= HAVE_CURRENT_DATA) this.incomingHasFrame = true
-    if (this.incomingHasFrame) {
-      this.stepIncoming(incoming.video, deltaMs)
-      this.fade = stepOpacity(this.fade, 1, deltaMs, crossfadeMs)
-    }
+    // Hold at 0 until the incoming clip has a frame, so the fade never goes through black.
+    if (incoming.video.readyState >= HAVE_CURRENT_DATA) this.fade = stepOpacity(this.fade, 1, deltaMs, crossfadeMs)
     this.incomingMaterial.opacity = this.fade
     if (this.fade >= 1) this.promoteIncoming()
-  }
-
-  /** Moves the paused incoming clip forward by this frame's time; while the last seek is still decoding it skips one rather than queue behind it. */
-  private stepIncoming = (video: HTMLVideoElement, deltaMs: number): void => {
-    this.incomingStepMs += deltaMs
-    if (video.seeking) return
-    const lastMs = Number.isFinite(video.duration) ? video.duration * 1000 - STEP_END_MARGIN_MS : this.incomingStepMs
-    video.currentTime = Math.min(this.incomingStepMs, lastMs) / 1000
   }
 
   /** The clip that follows the current one in the selection, or null with nothing selected. */
@@ -398,14 +377,16 @@ export class VideoLayer implements Layer {
     this.prepared = null
   }
 
-  /** The prepared clip when it is the one wanted next, otherwise a clip created now; either way paused on its first frame, beside the playing one. */
+  /** The prepared clip when it is the one wanted next, started playing from its first frame; otherwise a clip created now. */
   private takeOrCreateSlot = (src: string): VideoSlot => {
     const { prepared } = this
     if (!prepared || prepared.src !== src) {
       this.discardPrepared()
-      return this.createSlot(src, false)
+      return this.createSlot(src)
     }
     this.prepared = null
+    prepared.video.style.left = '0'
+    prepared.video.play().catch(() => undefined)
     return prepared
   }
 
@@ -415,8 +396,6 @@ export class VideoLayer implements Layer {
     if (!next) return
     this.incoming = this.takeOrCreateSlot(next.src)
     this.incomingIndex = next.index
-    this.incomingStepMs = 0
-    this.incomingHasFrame = false
     this.fade = 0
     this.incomingMaterial.map = this.incoming.texture
     this.incomingMaterial.opacity = 0
@@ -430,9 +409,6 @@ export class VideoLayer implements Layer {
     const { current, incoming } = this
     if (!incoming) return
     if (current) this.disposeSlot(current, true)
-    // It plays on from where it was stepped to, in the corner the playing clip uses.
-    incoming.video.style.left = '0'
-    incoming.video.play().catch(() => undefined)
     this.current = incoming
     this.incoming = null
     this.fade = 0
