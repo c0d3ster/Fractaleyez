@@ -39,7 +39,7 @@ const SHIFT_KEY_STEPS = 10
 const DEAD_ZONE = 4
 // The bearing arrow, pointing out from the ring at a bearing of 0 (it is turned from there), its tip kept inside the dial.
 // The readout sits in the gap at the bottom of the gauge, between the arc's two ends and clear of the bearing arrow.
-const READOUT_Y = 27
+const READOUT_Y = 25
 const BEARING_ARROW = `M 0 ${-RING_RADIUS - 5.5} L -6.75 ${-RING_RADIUS + 8} L 0 ${-RING_RADIUS + 4.25} L 6.75 ${-RING_RADIUS + 8} Z`
 
 type Grab = 'ring' | 'speed'
