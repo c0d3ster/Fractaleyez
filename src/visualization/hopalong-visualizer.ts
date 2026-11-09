@@ -5,6 +5,8 @@ import { getResolvedSpriteUrl } from '../utils/spriteCache'
 import { acquireSpriteTexture, releaseSpriteTexture } from '../utils/textureCache'
 import { getParticleCrossfadeDurationMs, MAX_CROSSFADE_GENERATIONS } from '../config/visualizer.config'
 import { userConfig } from '../config/user.config'
+import { userHeading, wrapAngle } from '../config/heading'
+import { HeadingFollower } from '../config/headingFollower'
 import { DisplayedColor } from '../config/colorTransition'
 import { getDisplayedColor } from '../config/displayedColor'
 import { sampleLut } from '../config/paletteLut'
@@ -76,6 +78,9 @@ export class HopalongVisualizer {
   private orbitFades: OrbitFade[]
   /** Current (newest) orbit shape's own fade-in progress. */
   private orbitIncomingElapsedMs: number
+  /** How far the clockwise group of systems has turned (radians clockwise), which the Rotation dial draws. */
+  private bearing = 0
+  private readonly headingFollower = new HeadingFollower(userHeading)
 
   constructor() {
     this.particlesPerLayer = window.config.particle.particlesPerLayer.value
@@ -186,6 +191,17 @@ export class HopalongVisualizer {
 
     const musicSpeedMultiplier = getMusicSpeedMultiplier(audioData)
 
+    // Seconds-based like Julia (deltaTime is in ms), so the spin rate doesn't depend on the frame rate. The turn is what a
+    // drag on the Rotation dial still owes; every system takes it the way it takes the step, so Cyclone's opposite
+    // groups turn opposite ways and the dial follows the clockwise group.
+    const rotationStep = window.config.user.rotationSpeed.value * userConfig.rotationSpeed_RAD_PER_SEC_PER_UNIT
+      * musicSpeedMultiplier * (this.deltaTime / 1000)
+    const turn = this.headingFollower.takeTurn(this.bearing)
+    const spin = rotationStep + turn
+    this.bearing = wrapAngle(this.bearing + spin)
+    // A visualizer fading out is not the one on screen, so it must not move the dial.
+    if (!this.frozen) userHeading.report(this.bearing)
+
     let count = 0
     let switcherooGenerated = false
     // A geometry shared by several systems is rewritten and uploaded once.
@@ -222,7 +238,7 @@ export class HopalongVisualizer {
         }
       }
 
-      this.applyParticleMotion(obj, count, musicSpeedMultiplier, wasAudioPeak)
+      this.applyParticleMotion(obj, count, musicSpeedMultiplier, wasAudioPeak, spin)
 
       // Every still-fading orbit generation's outgoing objects should keep drifting/rotating/
       // color-shifting just like they would have without the fade -- only their shape and
@@ -231,7 +247,7 @@ export class HopalongVisualizer {
       this.orbitFades.forEach((fade) => {
         const outgoingObj = fade.outgoing[index]
         if (outgoingObj) {
-          this.applyParticleMotion(outgoingObj, count, musicSpeedMultiplier, wasAudioPeak)
+          this.applyParticleMotion(outgoingObj, count, musicSpeedMultiplier, wasAudioPeak, spin)
         }
       })
 
@@ -271,7 +287,8 @@ export class HopalongVisualizer {
     this.orbitFades.forEach((fade) => fade.outgoing.forEach(recolor))
   }
 
-  private applyParticleMotion = (obj: ParticleSystem, count: number, musicSpeedMultiplier: number, applyPeakEffects: boolean): void => {
+  /** `spin` is how far this frame turns the clockwise group (the Rotation step plus any turn a drag on the dial asked for). */
+  private applyParticleMotion = (obj: ParticleSystem, count: number, musicSpeedMultiplier: number, applyPeakEffects: boolean, spin: number): void => {
     // Per-second like the rotation below; delta is clamped to maxMotionDeltaMs.
     const zStep = window.config.user.speed.value * musicSpeedMultiplier * userConfig.speed_UNITS_PER_SEC_PER_UNIT
       * (Math.min(this.deltaTime, maxMotionDeltaMs) / 1000)
@@ -287,18 +304,15 @@ export class HopalongVisualizer {
       obj.position.setZ(-(this.levels - 1) * this.levelDepth + this.levelDepth)
     }
 
-    // Seconds-based like Julia (deltaTime is in ms), so the spin rate doesn't depend on the frame rate.
-    const rotationStep = window.config.user.rotationSpeed.value * userConfig.rotationSpeed_RAD_PER_SEC_PER_UNIT
-      * musicSpeedMultiplier * (this.deltaTime / 1000)
     if (window.config.effects.cyclone.value) {
       if (count % 3 === 0) {
-        obj.rotation.z -= rotationStep
+        obj.rotation.z -= spin
       } else if (count % 3 === 1) {
-        obj.rotation.z += rotationStep
+        obj.rotation.z += spin
       }
     } else {
       // rotation.z grows counter-clockwise, so subtract: a positive Rotation (slider to the right) is clockwise.
-      obj.rotation.z -= rotationStep
+      obj.rotation.z -= spin
     }
   }
 

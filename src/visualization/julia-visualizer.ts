@@ -4,6 +4,8 @@ import { AudioAnalysedDataForVisualization } from '../audioanalysis/audio-analys
 import { juliaFragmentShader, juliaVertexShader } from './shaders/julia-fragment.glsl'
 import { JULIA_MAP_VIEW, JULIA_TOUR } from './julia-tour'
 import { userConfig } from '../config/user.config'
+import { userHeading } from '../config/heading'
+import { HeadingFollower } from '../config/headingFollower'
 import { FRACTAL_MAX_ITERATIONS, QUALITY_PROFILES } from '../config/quality.config'
 import { getDisplayedColor } from '../config/displayedColor'
 import { LUT_SIZE } from '../config/paletteLut'
@@ -294,6 +296,7 @@ export class JuliaVisualizer {
   private smoothTreble = 0
   private smoothEnergy = 0
   private rotation = 0
+  private readonly headingFollower = new HeadingFollower(userHeading)
   private steerX = 0
   private steerY = 0
   private driftPhase = 0
@@ -585,7 +588,10 @@ export class JuliaVisualizer {
     const wobWobFactor = effects.wobWob.value ? 1 - WOBWOB_RECOIL * peakValue : 1
     const progressDelta = BASE_LOOP_SPEED * (speed.value / SPEED_DEFAULT) * musicSpeedMultiplier * wobWobFactor * dt
     this.loopProgress += progressDelta
-    this.rotation = (this.rotation + rotationSpeed.value * userConfig.rotationSpeed_RAD_PER_SEC_PER_UNIT * dt) % (Math.PI * 2)
+    // A drag on the Rotation dial turns the view by the difference at once; the speed carries on from there.
+    const turn = this.headingFollower.takeTurn(this.rotation)
+    this.rotation = (this.rotation + turn + rotationSpeed.value * userConfig.rotationSpeed_RAD_PER_SEC_PER_UNIT * dt) % (Math.PI * 2)
+    userHeading.report(this.rotation)
 
     const wrapIndex = Math.floor(this.loopProgress)
     const wrapped = !this.hasStartedLoop || wrapIndex !== this.lastWrapIndex
