@@ -1,13 +1,13 @@
 import type { SectionState } from '../audioanalysis/sections'
 import { ghostKey, ghostStore, type GhostStore } from '../utils/ghostStore'
 import { KaleidoscopeAuto, type KaleidoscopeFold } from './kaleidoscope-target'
-import { rollDenominator, type RollLevel } from './roll-rate'
+import type { RollLevel } from './roll-rate'
 
 // What Auto publishes for the config to draw. Everything it steers sits in the Effects section for now.
 const AUTO_GHOST_PREFIX = 'effects.'
 const KALEIDOSCOPE_GHOST = ghostKey('effects', 'kaleidoscope')
 const KALEIDOSCOPE_COUNT_GHOST = ghostKey('effects', 'kaleidoscopeCount')
-/** The snare roll's note value (4, 8 or 16) while one is read, for the Auto switch to show. */
+/** The snare roll's note value (4 or 8) while one is read, for the Auto switch to show. */
 export const ROLL_GHOST = ghostKey('auto', 'roll')
 
 /**
@@ -54,7 +54,7 @@ export class AutoMode {
     if (!this.enabled) return null
     const fold = this.kaleidoscopeAuto.step(state, nowMs, beat, roll)
     // What the drums are rolling at, shown by the switch while it is read, so a roll that is missed can be seen.
-    this.ghosts.set(ROLL_GHOST, roll === null ? null : rollDenominator(roll))
+    this.ghosts.set(ROLL_GHOST, roll)
     // The config shows this beside the stored switch and count. A count only means something while the fold is on.
     this.ghosts.set(KALEIDOSCOPE_GHOST, fold.on)
     this.ghosts.set(KALEIDOSCOPE_COUNT_GHOST, fold.on ? fold.count : null)

@@ -4,8 +4,8 @@
   margin: 1rem 0 1.5rem;
 }
 
-/* A pill like the other switches, but when on it wears the ghost green (the outline that shows what Auto is doing in the config)
-   instead of the app's solid green, so Auto reads as a different kind of switch from the ones it is steering. */
+/* A pill like the other switches, but when on it wears only the ghost green outline (what shows Auto's doing in the config), with
+   no fill, instead of the app's solid green: no background is what says Auto, so it reads as a different kind of switch. */
 .auto-switch-button {
   font: inherit;
   font-size: 15px;
@@ -22,7 +22,7 @@
 }
 
 .auto-switch-button--on {
-  background: rgba(61, 220, 132, .18);
+  background: transparent;
   border-color: #3ddc84;
   box-shadow: inset 0 0 0 1px #3ddc84;
   color: #0b5a2e;
@@ -36,7 +36,7 @@
   }
 
   :where(html:not([data-input='touch'])) .auto-switch-button--on:hover {
-    background: rgba(61, 220, 132, .32);
+    background: transparent;
     border-color: #3ddc84;
     color: #0b5a2e;
   }

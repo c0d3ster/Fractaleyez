@@ -5,7 +5,7 @@ import { AudioAnalysedDataForVisualization } from '../../audioanalysis/audio-ana
 import { CAMERA_STEER_SCREEN_FRACTION_PER_PAD_UNIT } from '../../config/visualizer.config'
 import { perfProbe } from '../perf'
 import { KaleidoscopeEffect } from './kaleidoscope-effect'
-import { autoMode, rollLevel } from '../../automode'
+import { autoMode, RollReader } from '../../automode'
 import { beatMonitor } from '../../audioanalysis/beat'
 import { tempoTracker } from '../../audioanalysis/tempo-tracker'
 import { sectionTracker } from '../../audioanalysis/sections'
@@ -39,6 +39,8 @@ export class PostEffects {
   private readonly bloomEffect = new BloomEffect()
   private readonly kaleidoscopeEffect = new KaleidoscopeEffect()
   private readonly shockwaveEffect: RunningShockWave
+  // The snare roll, held so its reading does not flicker (see automode/roll-rate.ts).
+  private readonly rollReader = new RollReader()
   // Two passes over the same kaleidoscope and shockwave, one with bloom and one without; Glow picks which runs. A bloom held at
   // zero opacity still blurs the whole frame, so with Glow off it is not in the pass at all. The one not in use never renders, so it never compiles.
   private readonly glowPass: EffectPass
@@ -119,7 +121,7 @@ export class PostEffects {
     const section = sectionTracker.getState()
     const now = performance.now()
     // The snare's roll is only read in a buildup, where it sets how many mirrors there are (see automode/roll-rate.ts).
-    const roll = section.section === 'buildup' ? rollLevel(beatMonitor.getBandOnsets(), tempoTracker.getPeriodMs(), now) : null
+    const roll = section.section === 'buildup' ? this.rollReader.read(beatMonitor.getBandOnsets(), tempoTracker.getPeriodMs(), now) : this.rollReader.reset()
     const auto = autoMode.kaleidoscope(section, now, audio.beat.fresh, roll)
     const count = auto ? (auto.on ? auto.count : 1) : kaleidoscope.value ? Math.round(kaleidoscopeCount.value) : 1
     this.kaleidoscopeEffect.setFold(count, mode, kaleidoscopeSource.value, auto ? AUTO_FOLD_MORPH_MS : undefined)

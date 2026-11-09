@@ -21,13 +21,14 @@ const state = (patch: Partial<SectionState>): SectionState => ({
 })
 
 describe('wantedFold with a roll', () => {
-  it('maps quarters, eighths and sixteenths to 4, 6 and 8 mirrors, whatever the progress says', () => {
+  it('maps quarters and eighths to 4 and 6 mirrors, whatever the progress says', () => {
     const building = state({ section: 'buildup', buildupProgress: 0.9 })
-    expect([1, 2, 3].map((roll) => wantedFold(building, roll as 1 | 2 | 3).count)).toEqual([4, 6, 8])
+    expect(wantedFold(building, 4).count).toBe(4)
+    expect(wantedFold(building, 8).count).toBe(6)
   })
 
   it('ignores a roll outside a buildup', () => {
-    expect(wantedFold(state({ section: 'groove' }), 3).on).toBe(false)
+    expect(wantedFold(state({ section: 'groove' }), 8).on).toBe(false)
   })
 })
 
@@ -149,7 +150,7 @@ describe('KaleidoscopeAuto', () => {
     expect(auto.step(state({}), 1600, true).on).toBe(false)
   })
 
-  it('steps 2, 4, 6, 8 as the roll goes quarters, eighths, sixteenths, each on a beat', () => {
+  it('steps 2, 4, 6 as the roll goes quarters, then eighths, each on a beat', () => {
     const auto = new KaleidoscopeAuto()
     auto.step(state({}), 0, false)
     const building = state({ section: 'buildup', buildupProgress: 0.1 })
@@ -157,22 +158,20 @@ describe('KaleidoscopeAuto', () => {
     auto.step(building, 100, false, null)
     expect(auto.step(building, 200, true, null)).toEqual({ on: true, count: 2 })
     // Each step goes out on the next beat without waiting out the dwell.
-    expect(auto.step(building, 700, false, 1).count).toBe(2)
-    expect(auto.step(building, 800, true, 1).count).toBe(4)
-    auto.step(building, 1000, false, 2)
-    expect(auto.step(building, 1200, true, 2).count).toBe(6)
-    auto.step(building, 1500, false, 3)
-    expect(auto.step(building, 1700, true, 3).count).toBe(8)
+    expect(auto.step(building, 700, false, 4).count).toBe(2)
+    expect(auto.step(building, 800, true, 4).count).toBe(4)
+    auto.step(building, 1000, false, 8)
+    expect(auto.step(building, 1200, true, 8).count).toBe(6)
   })
 
   it('never takes mirrors away within a buildup when the roll thins out', () => {
     const auto = new KaleidoscopeAuto()
     auto.step(state({}), 0, false)
     const building = state({ section: 'buildup', buildupProgress: 0.1 })
-    auto.step(building, 100, false, 3)
-    expect(auto.step(building, 200, true, 3).count).toBe(8)
-    expect(auto.step(building, 3000, true, 1).count).toBe(8)
-    expect(auto.step(building, 3500, true, null).count).toBe(8)
+    auto.step(building, 100, false, 8)
+    expect(auto.step(building, 200, true, 8).count).toBe(6)
+    expect(auto.step(building, 3000, true, 4).count).toBe(6)
+    expect(auto.step(building, 3500, true, null).count).toBe(6)
   })
 
   it('falls back to the buildup progress when there is no roll', () => {
@@ -187,8 +186,8 @@ describe('KaleidoscopeAuto', () => {
     const auto = new KaleidoscopeAuto()
     auto.step(state({}), 0, false)
     const building = state({ section: 'buildup', buildupProgress: 0.1 })
-    auto.step(building, 100, false, 3)
-    auto.step(building, 200, true, 3)
+    auto.step(building, 100, false, 8)
+    auto.step(building, 200, true, 8)
     auto.step(state({ section: 'break' }), 5000, true, null)
     auto.step(state({ section: 'break' }), 5100, true, null)
     auto.step(building, 9000, false, null)

@@ -118,6 +118,7 @@ export class WaveformTrack {
       } else if (column <= this.newestColumn - COLUMNS) continue
       for (let c = fillFrom; c <= column; c++) this.writeColumn(c, sample)
       if (sample.beatBand !== null) this.recordHit(sample.t, sample.beatBand)
+      else if (sample.rebandTo != null && this.hitCount > 0) this.hitBands[(this.hitHead - 1 + HIT_CAPACITY) % HIT_CAPACITY] = sample.rebandTo
       this.readUpTo = sample.t
     }
   }
