@@ -78,7 +78,7 @@
 
 .spin-dial-readout {
   fill: rgba(235, 235, 235, .95);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: bold;
   pointer-events: none;
 }
