@@ -1,6 +1,8 @@
 import React, { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
 import { useInfo } from './info/info'
 import { EFFECT_KEYS, EffectKey, MotionEffects } from './useGalaxyMotion'
+import { ghostKey, switchGhost } from '../../utils/ghostStore'
+import { useGhost } from './context/useGhost'
 import './EffectChips.css'
 
 export type EffectChipsHandle = {
@@ -65,6 +67,8 @@ const PULSE_FLASH_KEYFRAMES: Keyframe[] = [
  */
 export const EffectChips = React.memo(forwardRef<EffectChipsHandle, EffectChipsProps>(({ effects, labels, onToggle, kaleidoscope, kaleidoscopeLabel, kaleidoscopeCount, mode, onModeChange, onToggleKaleidoscope }, ref): React.ReactElement => {
   const info = useInfo()
+  // What Auto mode wants the kaleidoscope to be, shown on its chip without changing the stored switch.
+  const kaleidoscopeGhost = switchGhost(useGhost(ghostKey('effects', 'kaleidoscope')), kaleidoscope)
   const chips = useRef<Partial<Record<EffectKey, HTMLButtonElement | null>>>({})
   // Built the first time a chip flashes and replayed after that; making new animations on every beat is what costs.
   const flashes = useRef<Partial<Record<EffectKey, Animation[]>>>({})
@@ -117,7 +121,7 @@ export const EffectChips = React.memo(forwardRef<EffectChipsHandle, EffectChipsP
         <button
           type='button'
           id='kaleidoscope'
-          className={`effect-chip effect-chip--lead${kaleidoscope ? ' effect-chip--on' : ''}`}
+          className={`effect-chip effect-chip--lead${kaleidoscope ? ' effect-chip--on' : ''}${kaleidoscopeGhost ? ` effect-chip--ghost-${kaleidoscopeGhost}` : ''}`}
           {...info(`${kaleidoscopeLabel}: ${KALEIDOSCOPE_DESCRIPTION}`)}
           aria-pressed={kaleidoscope}
           onClick={() => onToggleKaleidoscope(!kaleidoscope)}

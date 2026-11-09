@@ -8,10 +8,12 @@ import { FRACTAL_MAX_ITERATIONS, QUALITY_PROFILES } from '../config/quality.conf
 import { getDisplayedColor } from '../config/displayedColor'
 import { LUT_SIZE } from '../config/paletteLut'
 import { JULIA_SCALE, SCALE_UNITS_PER_SLIDER_STEP } from '../config/juliaScale.config'
+import { ghostKey, ghostStore } from '../utils/ghostStore'
 import { stepToward } from './step-toward'
 import { SHAPE_EASE_SECONDS, SHAPE_MAX_TRANSITION_SECONDS, SHAPE_VELOCITY_HALF_LIFE_SECONDS, ShapeGlider } from './shape-glider'
 
 const TOUR = JULIA_TOUR
+const TOUR_GHOST = ghostKey('fractal', 'tour')
 
 // A tier change moves the iteration cap this fast (Quality to Balanced, 128 to 96, takes about half a second).
 const ITERATION_STEP_PER_SECOND = 64
@@ -478,6 +480,15 @@ export class JuliaVisualizer {
     return { re: start.re, im: start.im, manual: false, hue, saturation, targetRe: start.re, targetIm: start.im }
   }
 
+  // Shows the Tour slider where a Switcheroo hop has the shape headed, beside the slider's own thumb (which stays on the stored value).
+  // Only on the tour and only while a hop is in effect; in manual mode the slider is not what steers the shape.
+  private publishTourGhost(): void {
+    const { tour } = window.config.fractal
+    const hopped = !this.manual && this.switcherooHop !== 0
+    const along = this.currentTourTarget() / (TOUR.length - 1)
+    ghostStore.set(TOUR_GHOST, hopped ? tour.min + along * (tour.max - tour.min) : null)
+  }
+
   private currentTourTarget(): number {
     return Math.max(0, Math.min(TOUR.length - 1, getShapePosition() * (TOUR.length - 1) + this.switcherooHop))
   }
@@ -658,6 +669,7 @@ export class JuliaVisualizer {
       }
       baseC = this.stepManualShape(speed.value, dt)
     }
+    this.publishTourGhost()
     this.shapeRe = baseC.re
     this.shapeIm = baseC.im
     this.hasShape = true
@@ -783,6 +795,7 @@ export class JuliaVisualizer {
     delete window.setJuliaShape
     delete window.getJuliaShape
     delete window.clearJuliaShape
+    ghostStore.set(TOUR_GHOST, null)
     this.material?.dispose()
   }
 }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { SectionState } from '../audioanalysis/sections'
+import { GhostStore } from '../utils/ghostStore'
 import { AutoMode, isAutomatedEffectItem } from './auto-mode'
 import { KaleidoscopeAuto, wantedFold } from './kaleidoscope-target'
 
@@ -102,6 +103,20 @@ describe('AutoMode', () => {
     stop()
     mode.takeOver()
     expect(calls).toBe(2)
+  })
+
+  it('shows what it is doing as ghosts, and takes them away when it steps back', () => {
+    const ghosts = new GhostStore()
+    const mode = new AutoMode(ghosts)
+    mode.kaleidoscope(state({}), 0)
+    expect(ghosts.get('effects.kaleidoscope')).toBe(false)
+    expect(ghosts.get('effects.kaleidoscopeCount')).toBeNull()
+    mode.kaleidoscope(state({ section: 'drop', dropCount: 1, sinceDropMs: 0 }), 100)
+    expect(ghosts.get('effects.kaleidoscope')).toBe(true)
+    expect(ghosts.get('effects.kaleidoscopeCount')).toBe(16)
+    mode.takeOver()
+    expect(ghosts.get('effects.kaleidoscope')).toBeNull()
+    expect(ghosts.get('effects.kaleidoscopeCount')).toBeNull()
   })
 
   it('treats only the kaleidoscope items as automated for now', () => {

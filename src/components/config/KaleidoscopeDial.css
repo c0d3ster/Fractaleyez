@@ -112,6 +112,16 @@
   fill-opacity: .25;
 }
 
+/* Where Auto mode has the count: a faded copy of the handle, drawn under the real one. */
+.kaleidoscope-dial-handle-ghost {
+  fill: #46c878;
+  fill-opacity: .4;
+  stroke: #EEE;
+  stroke-opacity: .5;
+  stroke-width: 1.5;
+  pointer-events: none;
+}
+
 .kaleidoscope-dial-handle {
   fill: currentColor;
   stroke: #EEE;

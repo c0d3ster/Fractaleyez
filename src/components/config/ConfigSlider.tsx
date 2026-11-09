@@ -2,12 +2,16 @@ import React, { useCallback } from 'react'
 import { useInfo } from './info/info'
 import './Slider.css'
 import { SliderZone } from '../../config/juliaScale.config'
+import { sliderGhostFraction } from '../../utils/ghostStore'
+import { useGhost } from './context/useGhost'
 
 type ConfigSliderProps = {
   name: string
   label?: string
   /** What the slider does, shown in the info strip while it is hovered. */
   description?: string
+  /** The ghost store key (see `ghostKey`) whose value is drawn as a faded thumb beside the real one; the real value is never touched. */
+  ghostKey?: string
   value: number
   displayValue?: string
   // Optional color zones painted on the track, with the current zone's name shown under it.
@@ -40,8 +44,9 @@ const zoneGradient = (zones: readonly SliderZone[], min: number, max: number): s
   return `linear-gradient(to right, ${stops.join(', ')})`
 }
 
-export const ConfigSlider = React.memo(({ name, label, description, value, displayValue, zones, min, max, step, onChange, onReset, onCommit }: ConfigSliderProps) => {
+export const ConfigSlider = React.memo(({ name, label, description, ghostKey, value, displayValue, zones, min, max, step, onChange, onReset, onCommit }: ConfigSliderProps) => {
   const info = useInfo()
+  const ghostFraction = sliderGhostFraction(useGhost(ghostKey), value, min, max)
   const handleCommit = useCallback((e: React.SyntheticEvent<HTMLInputElement>): void => {
     onCommit?.(Number(e.currentTarget.value))
   }, [onCommit])
@@ -56,19 +61,22 @@ export const ConfigSlider = React.memo(({ name, label, description, value, displ
         <h4 className="slider-name">{label || name}: </h4>
         <h4 className="slider-value">{displayValue ?? value}</h4>
       </div>
-      <input type="range"
-        className="slider-input"
-        name={name}
-        min={min}
-        max={max}
-        value={value}
-        step={step}
-        style={zoneBackground ? { background: zoneBackground } : undefined}
-        onChange={onChange}
-        onDoubleClick={onReset}
-        onPointerDown={e => e.currentTarget.setPointerCapture(e.pointerId)}
-        onPointerUp={handleCommit}
-        onKeyUp={handleCommit} />
+      <div className='slider-track'>
+        <input type="range"
+          className="slider-input"
+          name={name}
+          min={min}
+          max={max}
+          value={value}
+          step={step}
+          style={zoneBackground ? { background: zoneBackground } : undefined}
+          onChange={onChange}
+          onDoubleClick={onReset}
+          onPointerDown={e => e.currentTarget.setPointerCapture(e.pointerId)}
+          onPointerUp={handleCommit}
+          onKeyUp={handleCommit} />
+        {ghostFraction !== null && <span className='slider-ghost' aria-hidden='true' style={{ '--ghost': ghostFraction } as React.CSSProperties} />}
+      </div>
       {currentZone?.label && <span className='slider-zone-tag'>{currentZone.label}</span>}
     </div>
   )

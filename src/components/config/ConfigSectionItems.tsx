@@ -13,6 +13,7 @@ import { useConfigSelector } from './context/useConfigSelector'
 import { resolveColorState } from '../../config/colorState'
 import { AppConfig, ConfigItem, SliderItem } from '../../config/configDefaults'
 import { SCALE_ZONES, SliderZone } from '../../config/juliaScale.config'
+import { ghostKey } from '../../utils/ghostStore'
 import {
   isParticleLoadKey,
   maxValueUnderLoad,
@@ -253,6 +254,7 @@ const ConfigSectionItemsInner = ({ name, only, onChange, resetConfigItem, isSign
               name={configItem}
               label={label}
               description={item.description}
+              ghostKey={ghostKey(name, configItem)}
               key={configItem}
               checked={value as boolean}
               onChange={handleChange}
@@ -266,6 +268,7 @@ const ConfigSectionItemsInner = ({ name, only, onChange, resetConfigItem, isSign
               name={configItem}
               label={label}
               description={item.description}
+              ghostKey={ghostKey(name, configItem)}
               key={configItem}
               value={value as number}
               displayValue={SLIDER_DISPLAY_FORMATTERS[configItem]?.(value as number)}
