@@ -227,7 +227,7 @@ export const PerfHud = (): React.ReactElement => {
           <StutterRow
             label={`Jumps >${STUTTER_MS}/m`}
             summary={perf.stutters.video}
-            hint={`Times the playing video went over ${STUTTER_MS} ms between frames in the last ${windowLabel}, then the worst gap. A video frame arrives every 33 to 42 ms (up to 50 on a 60 Hz screen), so this is two or more frames missing. Click the title for the debugging rows, which add the screen count.`}
+            hint={`Times the playing video went over ${STUTTER_MS} ms between frames in the last ${windowLabel}, then the worst gap. A video frame arrives every 33 to 42 ms (up to 50 on a 60 Hz screen), so a gap this long is the video visibly hanging. Click the title for the debugging rows, which add the screen count.`}
           />
         ) : null}
         {perf.stutters && debug ? (
@@ -235,7 +235,7 @@ export const PerfHud = (): React.ReactElement => {
             <StutterRow
               label={`Video >${STUTTER_MS}`}
               summary={perf.stutters.video}
-              hint={`Gaps over ${STUTTER_MS} ms between frames of the playing video in the last ${windowLabel}: how many, then the worst. A video frame arrives every 33 to 42 ms (up to 50 on a 60 Hz screen), so this is two or more frames missing.`}
+              hint={`Gaps over ${STUTTER_MS} ms between frames of the playing video in the last ${windowLabel}: how many, then the worst. A video frame arrives every 33 to 42 ms (up to 50 on a 60 Hz screen), so a gap this long is the video visibly hanging.`}
             />
             <StutterRow
               label={`Screen >${STUTTER_MS}`}

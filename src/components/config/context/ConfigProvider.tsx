@@ -851,6 +851,8 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
   }, [setLayerOpacity, setLayerBlendMode])
 
   const resetConfigSection = useCallback(async (category: ConfigSectionKey) => {
+    // Resetting Effects restores the kaleidoscope Auto steers, so Auto steps back (as changing one of its items does).
+    if (category === 'effects') autoMode.takeOver()
     const baseline = baselineRef.current
     // Same reasoning as retrieveConfigPreset: warm the sprites before the write triggers a particle rebuild.
     if (category === 'particle') await warmSpriteCache(baseline.particle.sprites.value)
