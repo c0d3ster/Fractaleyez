@@ -71,10 +71,8 @@ describe('formatSpeed', () => {
 })
 
 describe('gaugeSegments', () => {
-  it('marks only the far end, and runs from calm to flat out', () => {
+  it('runs from calm to flat out', () => {
     const pieces = gaugeSegments(23, 0, SWEEP)
-    expect(pieces.filter(({ last }) => last)).toHaveLength(1)
-    expect(pieces[pieces.length - 1]?.last).toBe(true)
     expect(pieces[0]!.intensity).toBeLessThan(0.05)
     expect(pieces[pieces.length - 1]!.intensity).toBeGreaterThan(0.95)
   })

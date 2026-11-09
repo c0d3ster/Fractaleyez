@@ -44,7 +44,6 @@
   fill: none;
   stroke: #3d3d3d;
   stroke-width: 7;
-  stroke-linecap: round;
 }
 
 /* The whole range, faintly, so it is clear where it gets intense before getting there. */
@@ -58,11 +57,6 @@
   stroke-width: 7;
 }
 
-/* The piece at each end is rounded like the track under it, so the track's rounded end takes the end's color too. */
-.spin-dial-zone--end,
-.spin-dial-fill--end {
-  stroke-linecap: round;
-}
 
 .spin-dial-zero {
   stroke: rgba(220, 220, 220, .6);

@@ -65,8 +65,7 @@ const SEGMENT = (4 * Math.PI) / 180
 // Pieces reach a hair past their end so no seam shows between them.
 const SEGMENT_OVERLAP = (0.6 * Math.PI) / 180
 
-/** `last` marks the piece at the far end, which is drawn with a rounded cap. */
-export type GaugeSegment = { d: string, intensity: number, last: boolean }
+export type GaugeSegment = { d: string, intensity: number }
 
 /** The short pieces of the gauge between two angles, each with how far out it is (0 at the top, 1 at an end). */
 export const gaugeSegments = (radius: number, from: number, to: number): GaugeSegment[] => {
@@ -74,9 +73,8 @@ export const gaugeSegments = (radius: number, from: number, to: number): GaugeSe
   const count = Math.ceil(Math.abs(to - from) / SEGMENT)
   return Array.from({ length: count }, (_, i) => {
     const start = from + direction * i * SEGMENT
-    const last = i === count - 1
-    const end = last ? to : start + direction * (SEGMENT + SEGMENT_OVERLAP)
-    return { d: arcPath(radius, start, end), intensity: Math.min(1, Math.abs((start + end) / 2) / SWEEP), last }
+    const end = i === count - 1 ? to : start + direction * (SEGMENT + SEGMENT_OVERLAP)
+    return { d: arcPath(radius, start, end), intensity: Math.min(1, Math.abs((start + end) / 2) / SWEEP) }
   })
 }
 

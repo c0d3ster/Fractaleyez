@@ -40,8 +40,6 @@ const DEAD_ZONE = 4
 // The bearing arrow, pointing out from the ring at a bearing of 0 (it is turned from there), its tip kept inside the dial.
 // The readout sits in the gap at the bottom of the gauge, between the arc's two ends and clear of the bearing arrow.
 const READOUT_Y = 27
-// The chevron on the end of the speed needle, pointing out across the arc at a speed of 0 (it is turned from there).
-const NEEDLE_TIP = `M 0 ${-ARC_RADIUS - 5} L -4 ${-ARC_RADIUS + 2} L 0 ${-ARC_RADIUS} L 4 ${-ARC_RADIUS + 2} Z`
 const BEARING_ARROW = `M 0 ${-RING_RADIUS - 5.5} L -6.75 ${-RING_RADIUS + 8} L 0 ${-RING_RADIUS + 4.25} L 6.75 ${-RING_RADIUS + 8} Z`
 
 type Grab = 'ring' | 'speed'
@@ -150,10 +148,8 @@ export const SpinDial = React.memo(({ label, description, value, min, max, step,
   }, [min, max, step, value, onChange, onReset])
 
   const angle = speedToAngle(value, { min, max, step })
-  // The needle stops short of the chevron it carries.
-  const tip = pointAt(ARC_RADIUS - 2, angle)
-  // The fill's end is only rounded once it reaches the end of the track, which is rounded; anywhere else the chevron caps it.
-  const atEnd = Math.abs(angle) >= SWEEP
+  // The needle runs across the arc to its outer edge.
+  const tip = pointAt(ARC_RADIUS + 3.5, angle)
   const track = useMemo(() => [...gaugeSegments(ARC_RADIUS, 0, SWEEP), ...gaugeSegments(ARC_RADIUS, 0, -SWEEP)], [])
   const fill = gaugeSegments(ARC_RADIUS, 0, angle)
   const color = intensityColor(Math.abs(angle) / SWEEP)
@@ -184,12 +180,11 @@ export const SpinDial = React.memo(({ label, description, value, min, max, step,
           <path className='spin-dial-track' d={arcPath(ARC_RADIUS, -SWEEP, SWEEP)} />
           {/* Faded as one group, so the pieces' overlaps do not stack into stripes. */}
           <g className='spin-dial-zones'>
-            {track.map(({ d, intensity, last }, i) => <path key={i} className={last ? 'spin-dial-zone spin-dial-zone--end' : 'spin-dial-zone'} d={d} stroke={intensityColor(intensity)} />)}
+            {track.map(({ d, intensity }, i) => <path key={i} className='spin-dial-zone' d={d} stroke={intensityColor(intensity)} />)}
           </g>
-          {fill.map(({ d, intensity, last }, i) => <path key={i} className={last && atEnd ? 'spin-dial-fill spin-dial-fill--end' : 'spin-dial-fill'} d={d} stroke={intensityColor(intensity)} />)}
+          {fill.map(({ d, intensity }, i) => <path key={i} className='spin-dial-fill' d={d} stroke={intensityColor(intensity)} />)}
           <line className='spin-dial-zero' x1={topMark.x} y1={topMark.y - 5} x2={topMark.x} y2={topMark.y + 5} />
           <line className='spin-dial-needle' x1={0} y1={0} x2={tip.x} y2={tip.y} stroke={color} />
-          <path className='spin-dial-needle-tip' d={NEEDLE_TIP} fill={color} transform={`rotate(${(angle * 180) / Math.PI})`} />
           <circle r={3} fill={color} />
           <text className='spin-dial-readout spin-dial-speed' x={0} y={READOUT_Y} textAnchor='middle' dominantBaseline='central'>{formatSpeed(value)}</text>
           <text ref={degrees} className='spin-dial-readout spin-dial-degrees' x={0} y={READOUT_Y} textAnchor='middle' dominantBaseline='central' />
