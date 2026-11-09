@@ -58,14 +58,14 @@
 }
 
 /* What something else (Auto mode) wants the switch to be, shown without changing it: off but wanted on gets a green
-   outline, on but wanted off is dimmed. */
+   outline, on but wanted off gets a light gray dashed one. */
 .config-checkbox-container--ghost-on input:not(:checked) + label {
   border-color: #3ddc84;
   box-shadow: inset 0 0 0 1px #3ddc84;
 }
 
 .config-checkbox-container--ghost-off input:checked + label {
-  opacity: .55;
+  border: 1px dashed #bbb;
 }
 
 /* Save-button green hover only for effects + video clip toggles (see category-container--effects / --video), and only
