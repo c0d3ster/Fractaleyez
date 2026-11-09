@@ -56,14 +56,26 @@
   justify-self: end;
 }
 
+/* The rhythm name on the left, the snare roll on the right. */
+.beat-hud-bottom-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  column-gap: 0.75em;
+}
+
 /* A fixed one-line height (not a minimum: the page's line height is taller than 1.3em), so the label coming and going does not move what is below. */
-.beat-hud-feel {
+.beat-hud-feel,
+.beat-hud-roll {
   height: 1.5em;
   line-height: 1.5em;
   overflow: hidden;
   white-space: nowrap;
-  text-align: center;
   font-size: 11px;
   letter-spacing: 0.04em;
   color: #888;
+}
+
+.beat-hud-roll {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
