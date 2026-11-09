@@ -4,10 +4,10 @@ export const HALF = VIEW / 2
 
 // Radii, in those units: the bearing's ring at the rim, the speed gauge's arc inside it, and the hub in the middle.
 export const RING_RADIUS = 44
-export const ARC_RADIUS = 29
+export const ARC_RADIUS = 23
 // A press at or beyond this radius grabs the bearing; inside it (down to the hub) it grabs the speed.
-export const RING_INNER = 38
-export const HUB_RADIUS = 13
+export const RING_INNER = 34
+export const HUB_RADIUS = 10
 
 /** The gauge sweeps this far either side of straight up (0 speed is at the top), leaving a gap at the bottom. */
 export const SWEEP = (135 * Math.PI) / 180
@@ -59,3 +59,26 @@ export const arcPath = (radius: number, from: number, to: number): string => {
 
 /** A speed as the dial's center text: no trailing zeros, at most two decimals. */
 export const formatSpeed = (speed: number): string => String(Math.round(speed * 100) / 100)
+
+// The gauge is drawn in short pieces, each colored by how hard it is spinning there.
+const SEGMENT = (4 * Math.PI) / 180
+// Pieces reach a hair past their end so no seam shows between them.
+const SEGMENT_OVERLAP = (0.6 * Math.PI) / 180
+
+/** `last` marks the piece at the far end, which is drawn with a rounded cap. */
+export type GaugeSegment = { d: string, intensity: number, last: boolean }
+
+/** The short pieces of the gauge between two angles, each with how far out it is (0 at the top, 1 at an end). */
+export const gaugeSegments = (radius: number, from: number, to: number): GaugeSegment[] => {
+  const direction = to >= from ? 1 : -1
+  const count = Math.ceil(Math.abs(to - from) / SEGMENT)
+  return Array.from({ length: count }, (_, i) => {
+    const start = from + direction * i * SEGMENT
+    const last = i === count - 1
+    const end = last ? to : start + direction * (SEGMENT + SEGMENT_OVERLAP)
+    return { d: arcPath(radius, start, end), intensity: Math.min(1, Math.abs((start + end) / 2) / SWEEP), last }
+  })
+}
+
+/** Green at rest, yellow halfway, red flat out. */
+export const intensityColor = (intensity: number): string => `hsl(${Math.round(120 * (1 - Math.max(0, Math.min(1, intensity))))} 68% 50%)`

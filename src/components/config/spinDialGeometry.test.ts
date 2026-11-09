@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { angleToSpeed, arcPath, formatSpeed, regionAt, speedToAngle, SWEEP } from './spinDialGeometry'
+import { angleToSpeed, arcPath, formatSpeed, gaugeSegments, intensityColor, regionAt, speedToAngle, SWEEP } from './spinDialGeometry'
 
 const rotation = { min: -20, max: 20, step: 0.25 }
 const spin = { min: -5, max: 5, step: 0.1 }
@@ -67,5 +67,27 @@ describe('formatSpeed', () => {
     expect(formatSpeed(2)).toBe('2')
     expect(formatSpeed(0.25)).toBe('0.25')
     expect(formatSpeed(-3.5)).toBe('-3.5')
+  })
+})
+
+describe('gaugeSegments', () => {
+  it('marks only the far end, and runs from calm to flat out', () => {
+    const pieces = gaugeSegments(23, 0, SWEEP)
+    expect(pieces.filter(({ last }) => last)).toHaveLength(1)
+    expect(pieces[pieces.length - 1]?.last).toBe(true)
+    expect(pieces[0]!.intensity).toBeLessThan(0.05)
+    expect(pieces[pieces.length - 1]!.intensity).toBeGreaterThan(0.95)
+  })
+
+  it('is empty with no length', () => {
+    expect(gaugeSegments(23, 0, 0)).toEqual([])
+  })
+})
+
+describe('intensityColor', () => {
+  it('goes green, yellow, red', () => {
+    expect(intensityColor(0)).toBe('hsl(120 68% 50%)')
+    expect(intensityColor(0.5)).toBe('hsl(60 68% 50%)')
+    expect(intensityColor(1)).toBe('hsl(0 68% 50%)')
   })
 })
