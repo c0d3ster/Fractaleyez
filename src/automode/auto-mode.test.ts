@@ -20,6 +20,17 @@ const state = (patch: Partial<SectionState>): SectionState => ({
   ...patch,
 })
 
+describe('wantedFold with a roll', () => {
+  it('maps quarters, eighths and sixteenths to 4, 6 and 8 mirrors, whatever the progress says', () => {
+    const building = state({ section: 'buildup', buildupProgress: 0.9 })
+    expect([1, 2, 3].map((roll) => wantedFold(building, roll as 1 | 2 | 3).count)).toEqual([4, 6, 8])
+  })
+
+  it('ignores a roll outside a buildup', () => {
+    expect(wantedFold(state({ section: 'groove' }), 3).on).toBe(false)
+  })
+})
+
 describe('wantedFold', () => {
   it('is off in groove, quiet, intro, break and outro, and before a song is playing', () => {
     for (const section of ['groove', 'quiet', 'intro', 'break', 'outro'] as const) {
@@ -120,6 +131,52 @@ describe('KaleidoscopeAuto', () => {
     auto.step(building, 1400, false)
     expect(auto.step(state({}), 1500, false).on).toBe(false)
     expect(auto.step(state({}), 1600, true).on).toBe(false)
+  })
+
+  it('steps 2, 4, 6, 8 as the roll goes quarters, eighths, sixteenths, each on a beat', () => {
+    const auto = new KaleidoscopeAuto()
+    auto.step(state({}), 0, false)
+    const building = state({ section: 'buildup', buildupProgress: 0.1 })
+    // The start of the buildup, no roll yet: progress says 2.
+    auto.step(building, 100, false, null)
+    expect(auto.step(building, 200, true, null)).toEqual({ on: true, count: 2 })
+    // Each step goes out on the next beat without waiting out the dwell.
+    expect(auto.step(building, 700, false, 1).count).toBe(2)
+    expect(auto.step(building, 800, true, 1).count).toBe(4)
+    auto.step(building, 1000, false, 2)
+    expect(auto.step(building, 1200, true, 2).count).toBe(6)
+    auto.step(building, 1500, false, 3)
+    expect(auto.step(building, 1700, true, 3).count).toBe(8)
+  })
+
+  it('never takes mirrors away within a buildup when the roll thins out', () => {
+    const auto = new KaleidoscopeAuto()
+    auto.step(state({}), 0, false)
+    const building = state({ section: 'buildup', buildupProgress: 0.1 })
+    auto.step(building, 100, false, 3)
+    expect(auto.step(building, 200, true, 3).count).toBe(8)
+    expect(auto.step(building, 3000, true, 1).count).toBe(8)
+    expect(auto.step(building, 3500, true, null).count).toBe(8)
+  })
+
+  it('falls back to the buildup progress when there is no roll', () => {
+    const auto = new KaleidoscopeAuto()
+    auto.step(state({}), 0, false)
+    const late = state({ section: 'buildup', buildupProgress: 0.7 })
+    auto.step(late, 100, false, null)
+    expect(auto.step(late, 200, true, null)).toEqual({ on: true, count: 6 })
+  })
+
+  it('starts the next buildup from the bottom', () => {
+    const auto = new KaleidoscopeAuto()
+    auto.step(state({}), 0, false)
+    const building = state({ section: 'buildup', buildupProgress: 0.1 })
+    auto.step(building, 100, false, 3)
+    auto.step(building, 200, true, 3)
+    auto.step(state({ section: 'break' }), 5000, true, null)
+    auto.step(state({ section: 'break' }), 5100, true, null)
+    auto.step(building, 9000, false, null)
+    expect(auto.step(building, 9100, true, null).count).toBe(2)
   })
 
   it('starts clean on a new song', () => {

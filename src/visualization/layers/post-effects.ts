@@ -5,7 +5,9 @@ import { AudioAnalysedDataForVisualization } from '../../audioanalysis/audio-ana
 import { CAMERA_STEER_SCREEN_FRACTION_PER_PAD_UNIT } from '../../config/visualizer.config'
 import { perfProbe } from '../perf'
 import { KaleidoscopeEffect } from './kaleidoscope-effect'
-import { autoMode } from '../../automode'
+import { autoMode, rollLevel } from '../../automode'
+import { beatMonitor } from '../../audioanalysis/beat'
+import { tempoTracker } from '../../audioanalysis/tempo-tracker'
 import { sectionTracker } from '../../audioanalysis/sections'
 
 // The shockwave effect projects its position through a fixed camera at this distance and field of view,
@@ -114,7 +116,11 @@ export class PostEffects {
     const { kaleidoscope, kaleidoscopeCount, kaleidoscopeMode, kaleidoscopeSource } = window.config.effects
     const mode = Math.round(kaleidoscopeMode.value)
     // Auto, while it is on, decides the fold (on and how many wedges); the stored settings stay as they are. Mode and source are still the user's.
-    const auto = autoMode.kaleidoscope(sectionTracker.getState(), performance.now(), audio.beat.fresh)
+    const section = sectionTracker.getState()
+    const now = performance.now()
+    // The snare's roll is only read in a buildup, where it sets how many mirrors there are (see automode/roll-rate.ts).
+    const roll = section.section === 'buildup' ? rollLevel(beatMonitor.getBandOnsets(), tempoTracker.getPeriodMs(), now) : null
+    const auto = autoMode.kaleidoscope(section, now, audio.beat.fresh, roll)
     const count = auto ? (auto.on ? auto.count : 1) : kaleidoscope.value ? Math.round(kaleidoscopeCount.value) : 1
     this.kaleidoscopeEffect.setFold(count, mode, kaleidoscopeSource.value, auto ? AUTO_FOLD_MORPH_MS : undefined)
     this.shockwaveEffect.speed =SHOCKWAVE_BASE_SPEED + (window.config.user.speed.value / 15) + audio.beat.value * 1.25
