@@ -1,5 +1,11 @@
 import type { SectionState } from '../audioanalysis/sections'
+import { ghostKey, ghostStore, type GhostStore } from '../utils/ghostStore'
 import { KaleidoscopeAuto, type KaleidoscopeFold } from './kaleidoscope-target'
+
+// What Auto publishes for the config to draw. Everything it steers sits in the Effects section for now.
+const AUTO_GHOST_PREFIX = 'effects.'
+const KALEIDOSCOPE_GHOST = ghostKey('effects', 'kaleidoscope')
+const KALEIDOSCOPE_COUNT_GHOST = ghostKey('effects', 'kaleidoscopeCount')
 
 /**
  * Auto mode: the visualizer follows the song on its own, until the user takes over. It is on by default, and it
@@ -12,6 +18,9 @@ export class AutoMode {
   private readonly listeners = new Set<() => void>()
   private readonly kaleidoscopeAuto = new KaleidoscopeAuto()
 
+  /** `ghosts` is where Auto shows what it is doing, so the config can draw it beside the stored values (see ghostStore). */
+  constructor(private readonly ghosts: GhostStore = ghostStore) {}
+
   isEnabled = (): boolean => this.enabled
 
   setEnabled = (enabled: boolean): void => {
@@ -19,6 +28,8 @@ export class AutoMode {
     this.enabled = enabled
     // Coming back starts from the song as it is, not from where it left off.
     if (enabled) this.kaleidoscopeAuto.reset()
+    // Off, there is nothing to show: the stored settings are what is drawn again.
+    else this.ghosts.clear(AUTO_GHOST_PREFIX)
     this.listeners.forEach((listener) => listener())
   }
 
@@ -33,8 +44,14 @@ export class AutoMode {
   }
 
   /** The fold to draw instead of the stored kaleidoscope settings, or null when Auto is off. Called every frame. */
-  kaleidoscope = (state: SectionState, nowMs: number): KaleidoscopeFold | null =>
-    this.enabled ? this.kaleidoscopeAuto.step(state, nowMs) : null
+  kaleidoscope = (state: SectionState, nowMs: number): KaleidoscopeFold | null => {
+    if (!this.enabled) return null
+    const fold = this.kaleidoscopeAuto.step(state, nowMs)
+    // The config shows this beside the stored switch and count. A count only means something while the fold is on.
+    this.ghosts.set(KALEIDOSCOPE_GHOST, fold.on)
+    this.ghosts.set(KALEIDOSCOPE_COUNT_GHOST, fold.on ? fold.count : null)
+    return fold
+  }
 }
 
 export const autoMode = new AutoMode()

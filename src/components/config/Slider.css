@@ -28,6 +28,32 @@
   pointer-events: none;
 }
 
+/* Holds the track and its ghost thumb. The input is a block, so this adds no height of its own. */
+.slider-track {
+  position: relative;
+}
+
+/* Where something else (Auto mode, a Switcheroo hop) has the slider, drawn over the track in the thumb's size and the
+   same travel formula: a faded green copy of the thumb. The real thumb stays on the stored value. */
+.slider-ghost {
+  position: absolute;
+  top: 0.225rem;
+  left: calc((100% - 4rem) * var(--ghost));
+  width: 4rem;
+  height: 2.3rem;
+  border-radius: 2rem;
+  background: rgba(70, 200, 120, .4);
+  box-shadow: inset 0 0 0 2px rgba(70, 200, 120, .55);
+  pointer-events: none;
+  transition: left 0.3s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .slider-ghost {
+    transition: none;
+  }
+}
+
 .slider-input {
   appearance: none;
   position: relative;
