@@ -104,7 +104,8 @@ const SCENARIOS = {
   'popup-open': { popupAfter: true, node: async (page) => { await page.keyboard.press('e'); await sleep(1500) }, measureMs: 3000 },
   'popup-idle': { needsPopup: true, measureMs: 8000 },
   'popup-drag-speed': { needsPopup: true, node: (page, pop) => dragPopupSlider(pop, 'speed'), measureMs: 4000 },
-  'popup-drag-a': { needsPopup: true, node: (page, pop) => dragPopupSlider(pop, 'a'), measureMs: 4000 },
+  // The orbit sliders sit in the pop-out's collapsed orbit accordion (particle config opens by default), so open it before measuring or the drag lands on an empty div.
+  'popup-drag-a': { needsPopup: true, popupSetup: (pop) => pop.click('.config-sub-accordion__title >> text=orbit config'), node: (page, pop) => dragPopupSlider(pop, 'a'), measureMs: 4000 },
   'popup-drag-particles': { needsPopup: true, node: (page, pop) => dragPopupSlider(pop, 'particlesPerLayer'), measureMs: 4000 },
 }
 const DEFAULT_SET = Object.keys(SCENARIOS).filter((name) => !SCENARIOS[name].needsPopup && !SCENARIOS[name].popupAfter)
@@ -188,6 +189,7 @@ const runScenario = async (ctx, name, def) => {
   if (quality) await page.evaluate((q) => window.setQuality(q), quality)
   let pop = null
   if (popup || def.needsPopup) pop = await openPopup(ctx, page)
+  if (pop && def.popupSetup) { await def.popupSetup(pop); await sleep(2000) }
   await page.evaluate(RECORDER)
   if (def.setup) { await page.evaluate(def.setup.fn, def.setup.arg); await sleep(1500) }
   await sleep(WARM_MS)
