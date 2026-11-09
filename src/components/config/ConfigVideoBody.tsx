@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useSyncExternalStore } from 'react'
+import React, { useState, useEffect, useSyncExternalStore } from 'react'
 import './Checkbox.css'
 
 import { connectConfigActions } from './context/ConfigProvider'
@@ -82,7 +82,7 @@ const LiveRow = ({ active, onToggle }: Omit<ClipRowProps, 'clip'>): React.ReactE
     <>
       <div className='config-checkbox-container'>
         <input type='checkbox' id={LIVE_CLIP} checked={active} onChange={onToggle} />
-        <label htmlFor={LIVE_CLIP} className='clip-label' title='Live feed from a camera plugged into this computer'>
+        <label htmlFor={LIVE_CLIP} className='clip-label' title='Live feed from a camera plugged into this computer (C switches between it and the clips)'>
           <span className='clip-name'>{LIVE_CLIP}</span>
           <span className={`clip-duration${active && status === 'live' ? ' clip-live' : ''}`}>
             {active ? LIVE_STATUS[status] : LIVE_STATUS.idle}
@@ -104,24 +104,18 @@ const LiveRow = ({ active, onToggle }: Omit<ClipRowProps, 'clip'>): React.ReactE
 
 type ConfigVideoBodyProps = {
   updateVideoClips: (clips: string[]) => void
+  toggleLiveVideo: () => void
 }
 
 const selectVideo = (config: AppConfig): AppConfig['video'] => config.video
 
-const ConfigVideoBodyInner = ({ updateVideoClips }: ConfigVideoBodyProps): React.ReactElement => {
+const ConfigVideoBodyInner = ({ updateVideoClips, toggleLiveVideo }: ConfigVideoBodyProps): React.ReactElement => {
   const { clips, allClips = clips } = useConfigSelector(selectVideo)
-  // The clips that were on before the camera took over, so turning the camera off brings them back.
-  const clipsBeforeLive = useRef<string[]>([])
 
   const toggle = (clip: string): void => {
     const isActive = clips.includes(clip)
     if (isLiveClip(clip)) {
-      if (isActive) {
-        updateVideoClips(clipsBeforeLive.current)
-        return
-      }
-      clipsBeforeLive.current = clips
-      updateVideoClips([LIVE_CLIP])
+      toggleLiveVideo()
       return
     }
     // The camera plays on its own: picking a clip while it is on switches back to clips.

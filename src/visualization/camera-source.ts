@@ -3,6 +3,10 @@ const DEVICE_STORAGE_KEY = 'cameraDeviceId'
 const IDEAL_WIDTH = 1920
 const IDEAL_HEIGHT = 1080
 const IDEAL_FPS = 60
+// While the feed is wanted but down (unplugged, or held by another app), it is tried again this often, and at once when a device is plugged in.
+const RECONNECT_MS = 2000
+// Errors worth retrying: the camera can come back on its own. A blocked permission or an unsupported browser cannot, so those are not retried.
+const RETRYABLE_ERRORS = new Set(['NotFoundError', 'NotReadableError', 'OverconstrainedError', 'AbortError', 'CameraDisconnected'])
 
 export type CameraStatus = 'idle' | 'starting' | 'live' | 'error'
 
@@ -46,7 +50,9 @@ const describeError = (error: unknown): string => {
 /**
  * The live camera feed for the video layer's `realtime` entry. One stream is shared by every slot that shows it (the
  * playing one and one fading in), counted with `acquire`/`release`, and the camera is turned off once the last one lets go.
- * Choosing another camera restarts the stream and hands the new one to every slot through its listener.
+ * Choosing another camera restarts the stream and hands the new one to every slot through its listener, and so does a
+ * reconnect: when the feed drops (a cable pulled, a capture card reset) it is tried again every couple of seconds while
+ * anything still shows it, and the video layer holds the last frame meanwhile.
  */
 export class CameraSource {
   private stream: MediaStream | null = null
@@ -57,6 +63,7 @@ export class CameraSource {
   private readonly stateListeners = new Set<() => void>()
   private state: CameraState = { status: 'idle', error: null, devices: [], deviceId: readStoredDevice() }
   private watchingDevices = false
+  private reconnectTimer: ReturnType<typeof setTimeout> | undefined
 
   /** Starts the camera if it is off; `onStream` gets the stream now (once it is running) and again after a device change. */
   acquire = (onStream: StreamListener, onError: (message: string) => void): (() => void) => {
@@ -68,6 +75,7 @@ export class CameraSource {
       })
       .catch((error: unknown) => {
         if (this.streamListeners.has(onStream)) onError(describeError(error))
+        this.scheduleReconnect(error)
       })
     let released = false
     return () => {
@@ -95,9 +103,7 @@ export class CameraSource {
     this.setState({ deviceId })
     if (!this.streamListeners.size) return
     this.stop()
-    this.start()
-      .then((stream) => this.streamListeners.forEach((listener) => listener(stream)))
-      .catch(() => undefined)
+    this.restart()
   }
 
   /** Lists the cameras. Their names are only filled in once the page has been allowed to use one. */
@@ -108,6 +114,26 @@ export class CameraSource {
       .filter((device) => device.kind === 'videoinput' && device.deviceId)
       .map((device, i) => ({ deviceId: device.deviceId, label: device.label || `Camera ${i + 1}` }))
     this.setState({ devices })
+  }
+
+  /** Starts the stream again for everything that shows it, and keeps trying while it cannot. */
+  private restart = (): void => {
+    this.start()
+      .then((stream) => this.streamListeners.forEach((listener) => listener(stream)))
+      .catch((error: unknown) => this.scheduleReconnect(error))
+  }
+
+  private scheduleReconnect = (error: unknown): void => {
+    if (!this.streamListeners.size || this.reconnectTimer !== undefined) return
+    if (!(error instanceof Error) || !RETRYABLE_ERRORS.has(error.name)) return
+    this.reconnectTimer = setTimeout(this.reconnectNow, RECONNECT_MS)
+  }
+
+  private reconnectNow = (): void => {
+    clearTimeout(this.reconnectTimer)
+    this.reconnectTimer = undefined
+    if (!this.streamListeners.size || this.stream || this.starting) return
+    this.restart()
   }
 
   private start = (): Promise<MediaStream> => {
@@ -131,7 +157,8 @@ export class CameraSource {
         stream.getVideoTracks()[0]?.addEventListener('ended', () => {
           if (this.stream !== stream) return
           this.stream = null
-          this.setState({ status: 'error', error: 'Camera disconnected' })
+          this.setState({ status: 'error', error: 'Camera disconnected, reconnecting…' })
+          this.scheduleReconnect(Object.assign(new Error('Camera disconnected'), { name: 'CameraDisconnected' }))
         })
         this.setState({ status: 'live', error: null })
         void this.refreshDevices()
@@ -140,7 +167,8 @@ export class CameraSource {
       .catch((error: unknown) => {
         if (generation === this.generation) {
           this.starting = null
-          this.setState({ status: 'error', error: describeError(error) })
+          const retrying = error instanceof Error && RETRYABLE_ERRORS.has(error.name) && this.streamListeners.size > 0
+          this.setState({ status: 'error', error: `${describeError(error)}${retrying ? ', retrying…' : ''}` })
         }
         throw error
       })
@@ -165,6 +193,8 @@ export class CameraSource {
   }
 
   private stop = (): void => {
+    clearTimeout(this.reconnectTimer)
+    this.reconnectTimer = undefined
     this.generation++
     this.starting = null
     this.stream?.getTracks().forEach((track) => track.stop())
@@ -175,7 +205,11 @@ export class CameraSource {
   private watchDevices = (): void => {
     if (this.watchingDevices || !navigator.mediaDevices) return
     this.watchingDevices = true
-    navigator.mediaDevices.addEventListener?.('devicechange', () => void this.refreshDevices())
+    navigator.mediaDevices.addEventListener?.('devicechange', () => {
+      void this.refreshDevices()
+      // A camera was plugged in: a feed that is down tries it now instead of waiting for the next retry.
+      if (this.reconnectTimer !== undefined) this.reconnectNow()
+    })
     void this.refreshDevices()
   }
 

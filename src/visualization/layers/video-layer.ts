@@ -471,7 +471,8 @@ export class VideoLayer implements Layer {
   }
 
   private onEnded = (slot: VideoSlot): void => {
-    if (slot !== this.current) return
+    // A live feed "ends" when its camera drops; cameraSource reconnects it into the same element, which holds the last frame meanwhile.
+    if (slot !== this.current || slot.releaseLive) return
     const { clips } = window.config.video
     if (!clips.length) {
       this.disposeVideo()

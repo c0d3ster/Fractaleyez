@@ -40,6 +40,7 @@ declare global {
     clearJuliaShape?: () => void
     setLayerEnabled?: (key: LayerKey, enabled: boolean) => boolean
     updateConfigItem?: (category: string, item: string, value: string | boolean | number) => void
+    toggleLiveVideo?: () => void
     getCameraSteer?: () => { x: number; y: number } | null
     getAudioData?: () => {
       multibandEnergy?: number[]

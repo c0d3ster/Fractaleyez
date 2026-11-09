@@ -78,3 +78,52 @@ describe('CameraSource', () => {
     expect(source.getState()).toMatchObject({ status: 'error', error: 'Camera access was blocked' })
   })
 })
+
+describe('CameraSource reconnect', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('tries again while the camera is missing and hands the stream over once it is back', async () => {
+    vi.useFakeTimers()
+    const { stream } = fakeStream()
+    let available = false
+    stubDevices(async () => {
+      if (!available) throw Object.assign(new Error('none'), { name: 'NotFoundError' })
+      return stream
+    })
+    const source = new CameraSource()
+    const onStream = vi.fn()
+    source.acquire(onStream, () => undefined)
+    await vi.advanceTimersByTimeAsync(0)
+    expect(source.getState().error).toBe('No camera found, retrying…')
+    available = true
+    await vi.advanceTimersByTimeAsync(2000)
+    expect(onStream).toHaveBeenCalledWith(stream)
+    expect(source.getState().status).toBe('live')
+  })
+
+  it('does not retry a blocked camera', async () => {
+    vi.useFakeTimers()
+    stubDevices(async () => {
+      throw Object.assign(new Error('denied'), { name: 'NotAllowedError' })
+    })
+    const source = new CameraSource()
+    source.acquire(() => undefined, () => undefined)
+    await vi.advanceTimersByTimeAsync(10000)
+    expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledTimes(1)
+  })
+
+  it('stops retrying once nothing shows the feed', async () => {
+    vi.useFakeTimers()
+    stubDevices(async () => {
+      throw Object.assign(new Error('busy'), { name: 'NotReadableError' })
+    })
+    const source = new CameraSource()
+    const release = source.acquire(() => undefined, () => undefined)
+    await vi.advanceTimersByTimeAsync(0)
+    release()
+    await vi.advanceTimersByTimeAsync(10000)
+    expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledTimes(1)
+  })
+})
