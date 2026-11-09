@@ -14,6 +14,22 @@
   color: #333;
 }
 
+/* With something between the name and the value, the row is a flexbox instead of two floats. */
+.slider-info--with-accessory {
+  display: flex;
+  align-items: center;
+  gap: .8rem;
+}
+
+.slider-info--with-accessory .slider-name,
+.slider-info--with-accessory .slider-value {
+  float: none;
+}
+
+.slider-info--with-accessory .slider-value {
+  margin-left: auto;
+}
+
 /* Pulled up into the gap under the track (the input's bottom margin), so zoned sliders don't grow taller. */
 .slider-zone-tag {
   display: block;

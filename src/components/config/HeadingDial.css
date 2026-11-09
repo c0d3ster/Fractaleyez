@@ -1,13 +1,13 @@
-/* The compass under a rotation slider. Colors follow the slider's own track and thumb. */
+/* The small compass in a rotation slider's label row. Colors follow the slider's own track and thumb. */
 .heading-dial {
   position: relative;
+  flex: none;
   box-sizing: border-box;
-  width: 56px;
-  height: 56px;
-  margin: -1rem auto 1.5rem;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
   background: #555;
-  box-shadow: 0 1px 0 rgb(0, 0, 0, .75), inset 0 0 0 2px rgba(220, 220, 220, .35);
+  box-shadow: 0 1px 0 rgb(0, 0, 0, .75), inset 0 0 0 1.5px rgba(220, 220, 220, .35);
   cursor: grab;
   touch-action: none;
   user-select: none;
@@ -20,18 +20,18 @@
 }
 
 .heading-dial:focus-visible {
-  box-shadow: 0 1px 0 rgb(0, 0, 0, .75), inset 0 0 0 2px rgba(220, 220, 220, .9);
+  box-shadow: 0 1px 0 rgb(0, 0, 0, .75), inset 0 0 0 1.5px rgba(220, 220, 220, .9);
 }
 
 /* The mark at straight up, which is where the needle points at a bearing of 0. */
 .heading-dial::before {
   content: '';
   position: absolute;
-  top: 2px;
+  top: 1px;
   left: 50%;
-  width: 2px;
-  height: 5px;
-  margin-left: -1px;
+  width: 1px;
+  height: 3px;
+  margin-left: -.5px;
   background: rgba(220, 220, 220, .6);
   pointer-events: none;
 }
@@ -48,12 +48,11 @@
 .heading-dial-needle::before {
   content: '';
   position: absolute;
-  top: 12px;
+  top: 6px;
   left: 50%;
-  width: 4px;
-  height: 16px;
-  margin-left: -2px;
-  border-radius: 2px;
+  width: 2px;
+  height: 7px;
+  margin-left: -1px;
   background: rgba(220, 220, 220, .95);
 }
 
@@ -61,12 +60,12 @@
 .heading-dial-needle::after {
   content: '';
   position: absolute;
-  top: 5px;
+  top: 3px;
   left: 50%;
-  margin-left: -6px;
-  border-right: 6px solid transparent;
-  border-bottom: 10px solid rgba(220, 220, 220, .95);
-  border-left: 6px solid transparent;
+  margin-left: -3.5px;
+  border-right: 3.5px solid transparent;
+  border-bottom: 5px solid rgba(220, 220, 220, .95);
+  border-left: 3.5px solid transparent;
 }
 
 .heading-dial:active .heading-dial-needle::before {
@@ -81,9 +80,9 @@
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 8px;
-  height: 8px;
-  margin: -4px 0 0 -4px;
+  width: 4px;
+  height: 4px;
+  margin: -2px 0 0 -2px;
   border-radius: 50%;
   background: rgba(220, 220, 220, .95);
   pointer-events: none;
