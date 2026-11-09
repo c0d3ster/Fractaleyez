@@ -67,7 +67,7 @@ declare global {
     getRiser?: () => number
     /** How much the music sounds like a sweep is climbing the spectrum right now, 0 to 1 (sweep.ts). */
     getSweep?: () => number
-    /** The snare roll's note value (4 or 8), held (RollReader), or null when none is heard. Read every frame whatever Auto is doing. */
+    /** The snare roll's note value (4, 8 or 16), held (RollReader), or null when none is heard. Read every frame whatever Auto is doing. */
     getSnareRoll?: () => RollLevel | null
     getSectionHistory?: () => readonly SectionSlot[]
     /** Downloads everything the section tracker saw this session as a JSON file, to be replayed offline. Run it from the console. */

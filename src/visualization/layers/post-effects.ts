@@ -6,7 +6,7 @@ import { CAMERA_STEER_SCREEN_FRACTION_PER_PAD_UNIT } from '../../config/visualiz
 import { perfProbe } from '../perf'
 import { KaleidoscopeEffect } from './kaleidoscope-effect'
 import { autoMode, snareRoll } from '../../automode'
-import { beatMonitor } from '../../audioanalysis/beat'
+import { rollOnsets } from '../../audioanalysis/roll-onsets'
 import { tempoTracker } from '../../audioanalysis/tempo-tracker'
 import { sectionTracker } from '../../audioanalysis/sections'
 
@@ -119,7 +119,7 @@ export class PostEffects {
     const section = sectionTracker.getState()
     const now = performance.now()
     // The snare's roll is read all the time (20 times a second), so the Beat HUD always shows it; Auto steers by it only in a buildup.
-    const heard = snareRoll.tick(beatMonitor.getBandOnsets, tempoTracker.getPeriodMs(), now)
+    const heard = snareRoll.tick(rollOnsets.getOnsets, tempoTracker.getPeriodMs(), now)
     const roll = section.section === 'buildup' ? heard : null
     const auto = autoMode.kaleidoscope(section, now, audio.beat.fresh, roll)
     const count = auto ? (auto.on ? auto.count : 1) : kaleidoscope.value ? Math.round(kaleidoscopeCount.value) : 1
