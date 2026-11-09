@@ -1,7 +1,7 @@
 """Which beats should the section model count? Trains the model (as train.py does, out of fold) with its beat columns read from different
 onset band selections, and scores each through the decoder (decode.py).
 
-    python exp_beats.py <features dirs> <beats dirs> <gt.json> <out dir> [--tune] [--variants a,b,...] [--mismatch]
+    python exp_beats.py <features dirs> <beats dirs> <gt.json>[,<gt.json>] <out dir> [--folds folds.json] [--tune] [--variants a,b,...] [--mismatch]
 
 <features dirs> and <beats dirs> are comma-separated and paired (clean, room, laptop): dump-features.mts and dump-beats.mts over the same
 levels. The four beat columns (beats2, beats8, beatTrend, beatReturn) are recomputed from a beats column exactly as section-features.ts
@@ -16,7 +16,7 @@ Variants:
 
 --mismatch: the base model, scored on features whose beat columns come from another selection (what the app does today when the HUD's
 band toggles are changed from the default). --tune: tune the decoder per variant (coordinate search, slower); otherwise every variant uses
-the decoder tuned on base.
+the decoder tuned on base. --folds: { key: fold } for keys that are not numbers (Raveform's, from raveform-sections.py --fold-mod 5).
 """
 import json
 import os
@@ -108,8 +108,8 @@ def check_base(data: dict) -> None:
     assert worst < 1e-3, 'the beats file does not line up with the features'
 
 
-def folds_of(data: dict) -> list[tuple[np.ndarray, np.ndarray]]:
-    track_fold = np.array([int(k) % FOLDS for k in data['ids']])
+def folds_of(data: dict, fold_of: dict) -> list[tuple[np.ndarray, np.ndarray]]:
+    track_fold = np.array([fold_of[k] if k in fold_of else int(k) % FOLDS for k in data['ids']])
     slot_fold = np.repeat(track_fold, np.diff(data['starts']))
     return [(np.where(slot_fold != f)[0], np.where(slot_fold == f)[0]) for f in range(FOLDS)]
 
@@ -173,13 +173,14 @@ def report(name: str, oof: dict, gt: dict, cfg: dict) -> dict:
 
 def main() -> None:
     feat_dirs, beat_dirs = sys.argv[1].split(','), sys.argv[2].split(',')
-    gt = json.load(open(sys.argv[3]))
+    gt = {k: v for path in sys.argv[3].split(',') for k, v in json.load(open(path)).items()}
+    fold_of = json.load(open(sys.argv[sys.argv.index('--folds') + 1])) if '--folds' in sys.argv else {}
     out = sys.argv[4]
     os.makedirs(out, exist_ok=True)
     data = load(feat_dirs, beat_dirs, gt)
     print(f"{len(data['ids'])} track copies, {data['starts'][-1]} slots", flush=True)
     check_base(data)
-    folds = folds_of(data)
+    folds = folds_of(data, fold_of)
     variants = sys.argv[sys.argv.index('--variants') + 1].split(',') if '--variants' in sys.argv else \
         ['base', 'none', 'sel_11111', 'own', 'base+own']
     results = []
