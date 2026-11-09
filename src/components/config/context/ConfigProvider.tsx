@@ -9,7 +9,7 @@ import { AppConfig, BlendMode, ConfigItem, LayerKey, ParticleConfigSection, conf
 import { LAYER_CAP } from '../../../config/layers'
 import { mergeLayers, presentLayers } from '../../../config/mergeLayers'
 import { particleConfig } from '../../../config/particle.config'
-import { normalizeClips } from '../../../config/video.config'
+import { isLiveClip, LIVE_CLIP, normalizeClips } from '../../../config/video.config'
 import { getResolvedSpriteUrl, warmSpriteCache } from '../../../utils/spriteCache'
 import { ApiPack, ApiPreset, readPresetListCache, updatePresetListCache } from '../../../utils/presetListCache'
 import { isCurrent, readCachedPresetBody, writeCachedPresetBody } from '../../../utils/presetBodyCache'
@@ -252,6 +252,8 @@ const resolveUserReferenceIn = (
 export type ConfigContextValue = {
   updateConfigItem: (category: string, item: string, value: string | boolean | number) => void
   updateVideoClips: (clips: string[]) => void
+  /** Switches the video layer between the camera (`realtime`) and the clips that were on before it (the C hotkey and the realtime row). */
+  toggleLiveVideo: () => void
   updateParticleSprites: (sprites: string[]) => Promise<void>
   updateLogoSprite: (sprite: string) => Promise<void>
   /** Admin tool: puts `@user` in a sprite list. It renders as the viewer's own logo and is restored to the sentinel on save. */
@@ -723,6 +725,43 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
     })
   }, [])
 
+  // The clips that were on before the camera took over, so switching back brings them back (the preset's default clips when the camera came with a preset).
+  const clipsBeforeLiveRef = useRef<string[]>([])
+
+  const toggleLiveVideo = useCallback((): void => {
+    const prev = window.config
+    if (prev.video.clips.some(isLiveClip)) {
+      const restored = clipsBeforeLiveRef.current.length ? clipsBeforeLiveRef.current : configDefaults.video.clips
+      updateVideoClips([...restored])
+      return
+    }
+    clipsBeforeLiveRef.current = prev.video.clips
+    const layerOn = prev.layers.meta.video.enabled.value
+    const enabledCount = Object.values(prev.layers.meta).filter((layer) => layer.enabled.value).length
+    if (layerOn || enabledCount >= LAYER_CAP) {
+      updateVideoClips([LIVE_CLIP])
+      return
+    }
+    // Asking for the camera with the video layer off turns the layer on too, in one change so the clips and the switch agree.
+    const meta = prev.layers.meta.video
+    const next: AppConfig = {
+      ...prev,
+      video: { ...prev.video, clips: [LIVE_CLIP], index: 0 },
+      layers: { ...prev.layers, meta: { ...prev.layers.meta, video: { ...meta, enabled: { ...meta.enabled, value: true } } } },
+    }
+    window.config = next
+    setConfig(next)
+    window.dispatchEvent(new CustomEvent('videoClipsRestored', { detail: { clips: next.video.clips } }))
+  }, [updateVideoClips])
+
+  // Bridge for main.ts's C hotkey.
+  useEffect(() => {
+    window.toggleLiveVideo = toggleLiveVideo
+    return () => {
+      delete window.toggleLiveVideo
+    }
+  }, [toggleLiveVideo])
+
   const retrieveConfigPreset = useCallback(async (event: PresetRetrieveEvent) => {
     const name = event.currentTarget?.dataset?.name
     const id = event.currentTarget?.dataset?.id
@@ -913,6 +952,7 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
   const contextValue = useMemo<ConfigContextValue>(() => ({
     updateConfigItem,
     updateVideoClips,
+    toggleLiveVideo,
     updateParticleSprites,
     updateLogoSprite,
     applyUserReference,
@@ -941,7 +981,7 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
     userName: displayName,
     updateUserSettings,
   }), [
-    updateConfigItem, updateVideoClips, updateParticleSprites, updateLogoSprite, applyUserReference, releaseUserReference, userReferenceStandIn,
+    updateConfigItem, updateVideoClips, toggleLiveVideo, updateParticleSprites, updateLogoSprite, applyUserReference, releaseUserReference, userReferenceStandIn,
     updateColorList, setLayerEnabled, setLayerOpacity, setLayerBlendMode, moveLayer, retrieveConfigPreset, revertConfig, resetConfig, resetConfigItem,
     resetConfigSection, resetVideoClips, savePreset, isSignedIn, user?.id, getToken, presetList, packList, userSettings, isAdmin, userSprite,
     displayName, updateUserSettings,

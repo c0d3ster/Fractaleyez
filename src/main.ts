@@ -62,6 +62,8 @@ document.addEventListener('keydown', (event: KeyboardEvent) => {
   if (hotkeyLayer) toggleLayer(hotkeyLayer)
   // S turns the shockwave effect on and off (the Effects Shockwave checkbox follows).
   if (key === 's') window.updateConfigItem?.('effects', 'shockwave', !window.config.effects.shockwave.value)
+  // C switches the video layer between the live camera and the clips.
+  if (key === 'c') window.toggleLiveVideo?.()
 })
 
 // The quality tier (Auto or fixed) as the perf readout and the pop-out config window see it.

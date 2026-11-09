@@ -10,6 +10,7 @@ The visualizer runs without any music, but it gets much better when your microph
 - **Mouse** steers your path of travel.
 - **V / F / O / L** toggle the Video, Fractal, Orbit and Logo layers.
 - **S** turns the Shockwave effect on and off.
+- **C** switches the Video layer between the live camera and the clips (and turns the layer on if it was off).
 
 ## Layers
 
@@ -73,7 +74,7 @@ Preconfigured effects that change how the visuals respond to a beat. They can af
 
 #### Video
 
-Choose which clips play and how they blend. Enabling, disabling or changing clips fades over the crossfade duration. **realtime** plays the live feed from a webcam or capture card in place of the clips: the browser asks for camera access the first time, a picker appears when more than one camera is plugged in (the choice is kept per browser, not in the preset), and turning it off brings back the clips that were on before. The camera turns off as soon as realtime is unselected or the layer is disabled. The performance HUD (FPS, quality tier, video jumps per minute, smoothness and estimated audio-to-visual lag; click its title for the debugging rows) lives in this section.
+Choose which clips play and how they blend. Enabling, disabling or changing clips fades over the crossfade duration. **realtime** plays the live feed from a webcam or capture card in place of the clips: the browser asks for camera access the first time, a picker appears when more than one camera is plugged in (the choice is kept per browser, not in the preset), and turning it off brings back the clips that were on before. The camera turns off as soon as realtime is unselected or the layer is disabled. If the feed drops (a cable pulled, a capture card reset), the last frame stays up and it reconnects on its own once the camera is back. The performance HUD (FPS, quality tier, video jumps per minute, smoothness and estimated audio-to-visual lag; click its title for the debugging rows) lives in this section.
 
 #### Fractal
 
