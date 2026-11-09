@@ -5,7 +5,7 @@ import { ConfirmModal } from '../common/ConfirmModal'
 import { ConfigSlider } from './ConfigSlider'
 import { ConfigCheckbox } from './ConfigCheckbox'
 import { ConfigStepperToggle } from './ConfigStepperToggle'
-import { HeadingDial } from './HeadingDial'
+import { SpinDial } from './SpinDial'
 import { KaleidoscopeDial } from './KaleidoscopeDial'
 import { Heading, logoHeading, userHeading } from '../../config/heading'
 import { EFFECT_KEYS, EffectKey, MotionEffects } from './useGalaxyMotion'
@@ -49,7 +49,7 @@ const PAD_ITEMS: Partial<Record<string, readonly string[]>> = {
   logo: ['positionX', 'positionY', 'focusX', 'focusY'],
 }
 
-// Speed sliders that turn something, which get a compass under them showing and setting which way it points.
+// Speed settings that turn something. They are drawn as a dial, not a slider, which also shows and sets which way it points.
 const HEADINGS: Partial<Record<string, Heading>> = {
   'user.rotationSpeed': userHeading,
   'logo.spinSpeed': logoHeading,
@@ -270,9 +270,25 @@ const ConfigSectionItemsInner = ({ name, only, onChange, resetConfigItem, isSign
         if (type === 'slider') {
           const { min, max, step } = item as SliderItem
           const heading = HEADINGS[`${name}.${configItem}`]
+          // A rotation setting is a dial, which also shows and sets which way it is pointing.
+          if (heading) {
+            return (
+              <SpinDial
+                key={configItem}
+                label={label}
+                description={item.description}
+                value={value as number}
+                min={min}
+                max={max}
+                step={step}
+                heading={heading}
+                onChange={(next) => onChange(name, configItem, String(next))}
+                onReset={() => { if (isResettableSection(name)) resetConfigItem(name, configItem) }}
+              />
+            )
+          }
           return (
             <ConfigSlider
-              accessory={heading ? <HeadingDial heading={heading} label={label} /> : undefined}
               name={configItem}
               label={label}
               description={item.description}

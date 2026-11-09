@@ -10,8 +10,6 @@ type ConfigSliderProps = {
   description?: string
   value: number
   displayValue?: string
-  /** Sits in the label row, between the name and the value (the bearing dial of a rotation slider). */
-  accessory?: React.ReactNode
   // Optional color zones painted on the track, with the current zone's name shown under it.
   zones?: readonly SliderZone[]
   min: number
@@ -42,7 +40,7 @@ const zoneGradient = (zones: readonly SliderZone[], min: number, max: number): s
   return `linear-gradient(to right, ${stops.join(', ')})`
 }
 
-export const ConfigSlider = React.memo(({ name, label, description, value, displayValue, accessory, zones, min, max, step, onChange, onReset, onCommit }: ConfigSliderProps) => {
+export const ConfigSlider = React.memo(({ name, label, description, value, displayValue, zones, min, max, step, onChange, onReset, onCommit }: ConfigSliderProps) => {
   const info = useInfo()
   const handleCommit = useCallback((e: React.SyntheticEvent<HTMLInputElement>): void => {
     onCommit?.(Number(e.currentTarget.value))
@@ -54,9 +52,8 @@ export const ConfigSlider = React.memo(({ name, label, description, value, displ
 
   return (
     <div {...info(hint)}>
-      <div className={accessory ? 'slider-info slider-info--with-accessory' : 'slider-info'}>
+      <div className="slider-info">
         <h4 className="slider-name">{label || name}: </h4>
-        {accessory}
         <h4 className="slider-value">{displayValue ?? value}</h4>
       </div>
       <input type="range"
