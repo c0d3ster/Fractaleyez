@@ -1,32 +1,16 @@
-/* One row: the name at the start, the value at the end, and the dial centered between them, as tall as a label and its
-   slider together. */
+/* Just the dial, centered. */
 .spin-dial-wrapper {
   display: flex;
-  align-items: center;
-  padding: 0 1rem;
-  margin-bottom: .5rem;
-}
-
-.spin-dial-wrapper .slider-name,
-.spin-dial-wrapper .slider-value {
-  float: none;
-  flex: 1 1 0;
-  min-width: 0;
-}
-
-.spin-dial-wrapper .slider-value {
-  text-align: right;
-}
-
-.config-window-root .spin-dial-wrapper .slider-name {
-  font-size: 1.75rem;
+  justify-content: center;
+  margin-bottom: .6rem;
 }
 
 .spin-dial {
   position: relative;
   flex: none;
-  width: 84px;
-  height: 84px;
+  /* Its face (98% of the box) is the same size as the Effects dial's disc: 83px, inside that dial's 100px box. */
+  width: 85px;
+  height: 85px;
   cursor: pointer;
   touch-action: none;
   user-select: none;
@@ -96,4 +80,24 @@
 
 .spin-dial:active .spin-dial-bearing {
   fill: #9be39b;
+}
+
+.spin-dial-readout {
+  fill: rgba(235, 235, 235, .95);
+  font-size: 12px;
+  font-weight: bold;
+  pointer-events: none;
+}
+
+/* While the arrow is dragged, the readout shows its bearing instead of the speed. */
+.spin-dial-degrees {
+  display: none;
+}
+
+.spin-dial--aiming .spin-dial-speed {
+  display: none;
+}
+
+.spin-dial--aiming .spin-dial-degrees {
+  display: inline;
 }

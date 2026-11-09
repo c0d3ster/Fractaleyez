@@ -38,6 +38,10 @@ const SHIFT_KEY_STEPS = 10
 // A press this close to the center has no meaningful angle.
 const DEAD_ZONE = 4
 // The bearing arrow, pointing out from the ring at a bearing of 0 (it is turned from there), its tip kept inside the dial.
+// The readout sits in the gap at the bottom of the gauge, between the arc's two ends and clear of the bearing arrow.
+const READOUT_Y = 27
+// The chevron on the end of the speed needle, pointing out across the arc at a speed of 0 (it is turned from there).
+const NEEDLE_TIP = `M 0 ${-ARC_RADIUS - 5} L -4 ${-ARC_RADIUS + 2} L 0 ${-ARC_RADIUS} L 4 ${-ARC_RADIUS + 2} Z`
 const BEARING_ARROW = `M 0 ${-RING_RADIUS - 5.5} L -6.75 ${-RING_RADIUS + 8} L 0 ${-RING_RADIUS + 4.25} L 6.75 ${-RING_RADIUS + 8} Z`
 
 type Grab = 'ring' | 'speed'
@@ -50,14 +54,16 @@ const unitsAt = (event: React.PointerEvent<HTMLDivElement> | React.MouseEvent<HT
 }
 
 /**
- * A control for something that spins, in place of a slider: one row with the name, the dial centered, and the value.
+ * A control for something that spins, in place of a slider: just the dial, centered. Its name is in the hover text
+ * (and is the dial's accessible name), so it takes no room of its own.
  *
  * The arrow on the outer ring is the bearing, which way it is pointing right now. It circles at the speed's rate; drag
  * it to point the thing somewhere else (Shift snaps to 15 degrees, double-click the ring points it up).
  *
  * The needle inside is the speed gauge, like a rev counter that starts at the top: 0 is straight up, clockwise is faster
  * one way and counterclockwise the other, and the arc goes from green through yellow to red toward either end. Drag
- * across it to set the speed (double-click it to reset). Arrow keys step the speed.
+ * across it to set the speed (double-click it to reset). Arrow keys step the speed. The speed reads in the gap at the
+ * bottom of the gauge, and while the arrow is being dragged that readout shows its bearing in degrees instead.
  *
  * The bearing arrow is moved straight on its element every frame, never through React, so it can spin without
  * re-rendering the config UI.
@@ -66,6 +72,8 @@ export const SpinDial = React.memo(({ label, description, value, min, max, step,
   const info = useInfo()
   const root = useRef<HTMLDivElement>(null)
   const arrow = useRef<SVGGElement>(null)
+  const degrees = useRef<SVGTextElement>(null)
+  const aiming = useRef(false)
   const grab = useRef<Grab>('speed')
 
   useEffect(() => {
@@ -80,6 +88,7 @@ export const SpinDial = React.memo(({ label, description, value, min, max, step,
       if (bearing !== drawn) {
         drawn = bearing
         arrow.current?.setAttribute('transform', `rotate(${(bearing * 180) / Math.PI})`)
+        if (aiming.current && degrees.current) degrees.current.textContent = `${Math.round((bearing * 180) / Math.PI) % 360}°`
       }
       frame = view.requestAnimationFrame(draw)
     }
@@ -107,8 +116,18 @@ export const SpinDial = React.memo(({ label, description, value, min, max, step,
     if (region === 'hub') return
     grab.current = region
     event.currentTarget.setPointerCapture(event.pointerId)
+    // Dragging the arrow swaps the speed readout for the bearing in degrees, straight on the element (no re-render).
+    if (region === 'ring') {
+      aiming.current = true
+      event.currentTarget.classList.add('spin-dial--aiming')
+    }
     apply(event)
   }, [apply])
+
+  const handlePointerEnd = useCallback((event: React.PointerEvent<HTMLDivElement>): void => {
+    aiming.current = false
+    event.currentTarget.classList.remove('spin-dial--aiming')
+  }, [])
 
   const handlePointerMove = useCallback((event: React.PointerEvent<HTMLDivElement>): void => {
     if (event.currentTarget.hasPointerCapture(event.pointerId)) apply(event)
@@ -131,16 +150,18 @@ export const SpinDial = React.memo(({ label, description, value, min, max, step,
   }, [min, max, step, value, onChange, onReset])
 
   const angle = speedToAngle(value, { min, max, step })
-  const tip = pointAt(ARC_RADIUS, angle)
+  // The needle stops short of the chevron it carries.
+  const tip = pointAt(ARC_RADIUS - 2, angle)
+  // The fill's end is only rounded once it reaches the end of the track, which is rounded; anywhere else the chevron caps it.
+  const atEnd = Math.abs(angle) >= SWEEP
   const track = useMemo(() => [...gaugeSegments(ARC_RADIUS, 0, SWEEP), ...gaugeSegments(ARC_RADIUS, 0, -SWEEP)], [])
   const fill = gaugeSegments(ARC_RADIUS, 0, angle)
   const color = intensityColor(Math.abs(angle) / SWEEP)
   const topMark = pointAt(ARC_RADIUS, 0)
-  const hint = [description, 'Drag the arrow on the ring to point it somewhere else, or across the arc to set the speed.', 'Double-click the ring to point it up, or the arc to reset the speed.'].filter(Boolean).join('\n')
+  const hint = [description ? `${label}: ${description}` : label, 'Drag the arrow on the ring to point it somewhere else, or across the arc to set the speed.', 'Double-click the ring to point it up, or the arc to reset the speed.'].filter(Boolean).join('\n')
 
   return (
     <div className='spin-dial-wrapper' {...info(hint)}>
-      <h4 className='slider-name'>{label}: </h4>
       <div
         ref={root}
         className='spin-dial'
@@ -152,6 +173,8 @@ export const SpinDial = React.memo(({ label, description, value, min, max, step,
         tabIndex={0}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerEnd}
+        onLostPointerCapture={handlePointerEnd}
         onDoubleClick={handleDoubleClick}
         onKeyDown={handleKeyDown}
       >
@@ -163,16 +186,18 @@ export const SpinDial = React.memo(({ label, description, value, min, max, step,
           <g className='spin-dial-zones'>
             {track.map(({ d, intensity, last }, i) => <path key={i} className={last ? 'spin-dial-zone spin-dial-zone--end' : 'spin-dial-zone'} d={d} stroke={intensityColor(intensity)} />)}
           </g>
-          {fill.map(({ d, intensity, last }, i) => <path key={i} className={last ? 'spin-dial-fill spin-dial-fill--end' : 'spin-dial-fill'} d={d} stroke={intensityColor(intensity)} />)}
+          {fill.map(({ d, intensity, last }, i) => <path key={i} className={last && atEnd ? 'spin-dial-fill spin-dial-fill--end' : 'spin-dial-fill'} d={d} stroke={intensityColor(intensity)} />)}
           <line className='spin-dial-zero' x1={topMark.x} y1={topMark.y - 5} x2={topMark.x} y2={topMark.y + 5} />
           <line className='spin-dial-needle' x1={0} y1={0} x2={tip.x} y2={tip.y} stroke={color} />
+          <path className='spin-dial-needle-tip' d={NEEDLE_TIP} fill={color} transform={`rotate(${(angle * 180) / Math.PI})`} />
           <circle r={3} fill={color} />
+          <text className='spin-dial-readout spin-dial-speed' x={0} y={READOUT_Y} textAnchor='middle' dominantBaseline='central'>{formatSpeed(value)}</text>
+          <text ref={degrees} className='spin-dial-readout spin-dial-degrees' x={0} y={READOUT_Y} textAnchor='middle' dominantBaseline='central' />
           <g ref={arrow}>
             <path className='spin-dial-bearing' d={BEARING_ARROW} />
           </g>
         </svg>
       </div>
-      <h4 className='slider-value'>{formatSpeed(value)}</h4>
     </div>
   )
 })
