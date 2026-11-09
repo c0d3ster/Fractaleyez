@@ -31,6 +31,9 @@ const gpuFlag = flag('gpu', 'default')
 const pos = flag('pos', '0,0')
 // --popup-pos=x,y moves the pop-out to that screen point after it opens (the app's own placement needs a permission a fresh profile lacks), e.g. the monitor next to the visual.
 const popupPos = flag('popup-pos', '')
+const popupSize = flag('popup-size', '')
+// --maximize moves each scenario's window to --pos and maximizes it on that screen, as in real use.
+const maximize = args.includes('--maximize')
 const quality = flag('quality', 'quality')
 // The selectors hidden in the pop-out; --attribution changes it one widget at a time.
 let hide = flag('hide', '')
@@ -151,6 +154,13 @@ const openPopup = async (ctx, page) => {
     const session = await ctx.newCDPSession(pop)
     const { windowId } = await session.send('Browser.getWindowForTarget')
     await session.send('Browser.setWindowBounds', { windowId, bounds: { left, top } })
+    // window.open clamps the pop-out to the opener's screen, so a small or high-scale screen leaves it narrow; --popup-size restores the real size once it is on its own screen.
+    if (popupSize) {
+      const [width, height] = popupSize.split('x').map(Number)
+      await session.send('Browser.setWindowBounds', { windowId, bounds: { left, top, width, height } })
+    }
+    await sleep(300)
+    console.log('pop-out', JSON.stringify((await session.send('Browser.getWindowBounds', { windowId })).bounds), 'inner', await pop.evaluate(() => `${innerWidth}x${innerHeight}`))
     await session.detach()
   }
   await sleep(2500)
@@ -161,6 +171,17 @@ const openPopup = async (ctx, page) => {
 const runScenario = async (ctx, name, def) => {
   const page = await ctx.newPage()
   page.on('pageerror', (e) => console.log('pageerror', e.message.slice(0, 160)))
+  if (maximize) {
+    const [left, top] = pos.split(',').map(Number)
+    const session = await ctx.newCDPSession(page)
+    const { windowId } = await session.send('Browser.getWindowForTarget')
+    await session.send('Browser.setWindowBounds', { windowId, bounds: { windowState: 'normal' } })
+    await session.send('Browser.setWindowBounds', { windowId, bounds: { left: left + 50, top: top + 50, width: 800, height: 500 } })
+    await session.send('Browser.setWindowBounds', { windowId, bounds: { windowState: 'maximized' } })
+    await sleep(500)
+    console.log('main window', JSON.stringify((await session.send('Browser.getWindowBounds', { windowId })).bounds))
+    await session.detach()
+  }
   await page.goto(`${BASE_URL}/?perf=1`, { waitUntil: 'load' })
   await sleep(2500)
   await page.mouse.click(300, 300)
