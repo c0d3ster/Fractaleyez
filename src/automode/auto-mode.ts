@@ -43,10 +43,10 @@ export class AutoMode {
     }
   }
 
-  /** The fold to draw instead of the stored kaleidoscope settings, or null when Auto is off. Called every frame. */
-  kaleidoscope = (state: SectionState, nowMs: number): KaleidoscopeFold | null => {
+  /** The fold to draw instead of the stored kaleidoscope settings, or null when Auto is off. Called every frame; `beat` is true on the frame a beat is detected, which is when a decided change shows. */
+  kaleidoscope = (state: SectionState, nowMs: number, beat: boolean): KaleidoscopeFold | null => {
     if (!this.enabled) return null
-    const fold = this.kaleidoscopeAuto.step(state, nowMs)
+    const fold = this.kaleidoscopeAuto.step(state, nowMs, beat)
     // The config shows this beside the stored switch and count. A count only means something while the fold is on.
     this.ghosts.set(KALEIDOSCOPE_GHOST, fold.on)
     this.ghosts.set(KALEIDOSCOPE_COUNT_GHOST, fold.on ? fold.count : null)

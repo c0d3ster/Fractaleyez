@@ -80,6 +80,8 @@ export class KaleidoscopeEffect extends Effect {
   private targetMode = 0
   private targetSource = 0.5
   private progress = 1
+  /** How long the morph under way takes, when something other than the user's crossfade setting chose it (Auto, to land on a beat). */
+  private morphMs: number | null = null
 
   constructor() {
     const fromUniform = new THREE.Uniform(1)
@@ -104,9 +106,11 @@ export class KaleidoscopeEffect extends Effect {
   /** True when the effect leaves the picture alone: no fold is wanted and no morph is still under way. A morph only advances in `update`, so it has to keep rendering until it ends. */
   isIdle = (): boolean => this.progress >= 1 && this.target < 1.5
 
-  /** Safe to call every frame: only a change of target starts a morph (from whichever fold is closer if one is mid-way); count 1 is off, mode is 0 radial, 1 horizontal, 2 vertical, and source (0 to 1) is where the strip modes' untouched strip sits. */
-  setFold = (count: number, mode: number, source: number): void => {
+  /** Safe to call every frame: only a change of target starts a morph (from whichever fold is closer if one is mid-way), taking `durationMs` if given and the user's crossfade time if not; count 1 is off, mode is 0 radial, 1 horizontal, 2 vertical, and source (0 to 1) is where the strip modes' untouched strip sits. */
+  setFold = (count: number, mode: number, source: number, durationMs?: number): void => {
     if (count === this.target && mode === this.targetMode && source === this.targetSource) return
+    // A length given for the call applies to a change of the mirror count only; a mode or source change keeps the user's crossfade time.
+    this.morphMs = durationMs !== undefined && count !== this.target ? durationMs : null
     if (this.progress > 0.5) {
       this.fromUniform.value = this.target
       this.modeFromUniform.value = this.targetMode
@@ -124,7 +128,7 @@ export class KaleidoscopeEffect extends Effect {
   override update(_renderer: THREE.WebGLRenderer, _inputBuffer: THREE.WebGLRenderTarget, deltaTime: number): void {
     if (this.progress >= 1) return
     // Read each frame so a change to the setting applies to the next morph, and to one already under way.
-    const durationSeconds = getParticleCrossfadeDurationMs() / 1000
+    const durationSeconds = (this.morphMs ?? getParticleCrossfadeDurationMs()) / 1000
     this.progress = durationSeconds > 0 ? Math.min(1, this.progress + deltaTime / durationSeconds) : 1
     this.blendUniform.value = easeInOut(this.progress)
     if (this.progress >= 1) {

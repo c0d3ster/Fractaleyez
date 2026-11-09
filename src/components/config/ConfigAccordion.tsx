@@ -7,6 +7,7 @@ import { ConfigVideoBody } from './ConfigVideoBody'
 import { ColorConfigBody } from './ColorConfigBody'
 import { LogoConfigBody } from './LogoConfigBody'
 import { ShapePad } from './ShapePad'
+import { AutoSwitch } from './AutoSwitch'
 import { ParticleSpriteHud } from '../huds'
 import { connectConfigActions } from './context/ConfigProvider'
 import { DISPLAY_ORDER, DisplayKey } from '../../config/layers'
@@ -86,6 +87,7 @@ const ConfigAccordionInner = ({ updateConfigItem, openCategories, toggleOpen }: 
           <div>
             <Entry entry={entry} onChange={updateConfigItem} isOpen={openCategories.includes(entry)} toggleOpen={toggleOpen} />
           </div>
+          {entry === 'effects' && <AutoSwitch />}
         </div>
       ))}
     </>
