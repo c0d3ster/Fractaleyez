@@ -8,6 +8,7 @@ import { sectionTracker } from './sections'
 import { tempoTracker } from './tempo-tracker'
 import { OnsetDetector } from './onset-detector'
 import { DEFAULT_ENABLED_BANDS, ONSET_BANDS } from './onset-bands'
+import { SpectrumReducer } from './spectrum-reducer'
 
 /**
  * Single producer of analysed audio. Runs the stream -> analyser pipeline exactly once per frame and
@@ -18,6 +19,7 @@ import { DEFAULT_ENABLED_BANDS, ONSET_BANDS } from './onset-bands'
 export class AudioFeed {
   private latest: AudioAnalysedDataForVisualization | null = null
   private readonly onsetDetector = new OnsetDetector(ONSET_BANDS.length)
+  private spectrumReducer: SpectrumReducer | null = null
 
   constructor(
     private readonly stream: AudioStream,
@@ -26,7 +28,8 @@ export class AudioFeed {
 
   /** Analyse the current audio frame. Call once per animation frame. */
   tick = (deltaTime: number, currentTimer: Date): AudioAnalysedDataForVisualization => {
-    this.analyser.analyse(this.stream.getAudioData(), deltaTime, currentTimer)
+    const audioData = this.stream.getAudioData()
+    this.analyser.analyse(audioData, deltaTime, currentTimer)
     const snapshot = this.analyser.getAnalysedDataForVisualization()
 
     const { soundThreshold, ignoreTime } = window.config.audio
@@ -47,7 +50,19 @@ export class AudioFeed {
     beatGrid.push(now, levels)
     // The raw band levels, as the section model was trained and scored on (the onset detector's followed levels blur its tick features), and
     // the BPM now shown, for the tempo-change song cue.
-    sectionTracker.push({ t: now, levels, beat: onset.beatBand !== null, bpm: tempoTracker.getBpm() })
+    // Each band's own onsets and a coarse spectrum go along for the recording (training on listening sessions), not the model.
+    if (!this.spectrumReducer) {
+      const { sampleRate, binCount } = this.stream.getSpectrumShape()
+      this.spectrumReducer = new SpectrumReducer(sampleRate, binCount)
+    }
+    sectionTracker.push({
+      t: now,
+      levels,
+      beat: onset.beatBand !== null,
+      bpm: tempoTracker.getBpm(),
+      onsets: onset.bands.map(({ rising }) => rising),
+      spectrum: this.spectrumReducer.reduce(audioData.frequencyData),
+    })
 
     this.latest = snapshot
     return snapshot

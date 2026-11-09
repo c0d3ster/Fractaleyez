@@ -21,5 +21,6 @@ describe('section log', () => {
     const tracker = new SectionTracker()
     for (let t = 0; t <= 45 * 60 * 1000; t += 50) tracker.push({ t, levels: [10, 6, 3, 4, 2], beat: false })
     expect(tracker.getRecording().length).toBeLessThanOrEqual(48000)
-  })
+    // 45 minutes of frames take about 5 s here.
+  }, 20000)
 })

@@ -14,6 +14,7 @@ import { FEATURE_COUNT, FEATURE_NAMES, SLOT_MS, SectionFeatures } from './sectio
 import { SectionModelData, boosterScores, sigmoid, softmaxInPlace } from './section-model'
 import modelData from './section-model.json'
 import { TickRecorder } from './tick-recorder'
+import { TickExtrasAccumulator } from './tick-extras'
 import { DEFAULT_TEMPO_CHANGE, TempoChangeCue } from './tempo-change'
 import type { GridState } from './beat-grid'
 
@@ -49,6 +50,10 @@ export type SectionSample = {
   bpm?: number | null
   /** The beat grid's state on this frame (beat-grid.ts), when the app runs one. The model reads where the moment sits in the bar and phrase. */
   grid?: GridState | null
+  /** Each band's own onset on this frame (BandReading.rising), for the recording only (the model does not read it). */
+  onsets?: readonly boolean[]
+  /** This frame's pooled spectrum (tick-extras.ts SpectrumReducer), for the recording only. */
+  spectrum?: ArrayLike<number> | null
 }
 
 /** One closed slot of the history, with the section that was shown for it. */
@@ -134,12 +139,16 @@ const DEFAULT_TUNING: SectionTuning = {
   phraseLineMinConfidence: 0,
 }
 
-/** One recorded 50 ms tick: when it closed, the mean power of each band, the beats in it and the BPM shown. Enough to replay a session exactly. */
-export type SectionTick = { t: number; power: number[]; beats: number; bpm?: number | null }
+/**
+ * One recorded 50 ms tick: when it closed, the mean power of each band, the beats in it and the BPM shown. Enough to replay a session
+ * exactly. The rest is kept for training on recorded sessions (tick-extras.ts): the peak power of each band, a bit per band whose own onset
+ * fired (bit 0 bass ... bit 4 air) and the mean spectrum (SPECTRUM_BANDS values, 0 to 255).
+ */
+export type SectionTick = { t: number; power: number[]; beats: number; bpm?: number | null; peak?: number[]; onsets?: number; spectrum?: number[] }
 
 const DEFAULT_MODEL = modelData as SectionModelData
 const HISTORY_MS = 120000
-// Every tick of the last 40 minutes is kept, so a listening session can be exported and replayed offline (1.6 MB, see TickRecorder).
+// Every tick of the last 40 minutes is kept, so a listening session can be exported and replayed offline (4.6 MB, see TickRecorder).
 const RECORDING_TICKS = 48000
 
 // The decoder (tuned on out-of-fold output, see decode.py).
@@ -218,6 +227,7 @@ export class SectionTracker {
   private features = new SectionFeatures()
   private readonly slots: SectionSlot[] = []
   private readonly recording = new TickRecorder(RECORDING_TICKS)
+  private readonly extras = new TickExtrasAccumulator()
   private beatTimes: number[] = []
   private lastT: number | null = null
   private sums = { total: 0, low: 0, mid: 0, high: 0 }
@@ -280,7 +290,7 @@ export class SectionTracker {
     section: 'quiet', intensity: 0, buildupProgress: 0, sinceMs: 0, songIndex: 1, songMs: null, dropCount: 0, sinceDropMs: null, confidence: 1,
   })
 
-  push = ({ t, levels, beat, bpm = null, grid = null }: SectionSample): void => {
+  push = ({ t, levels, beat, bpm = null, grid = null, onsets, spectrum }: SectionSample): void => {
     // A long gap between samples (the tab was in the background) is a fresh start, not a song that went quiet.
     if (this.lastT !== null && t - this.lastT > HISTORY_MS) this.startSong(t, this.beatsThisSong >= SONG_MIN_BEATS, false)
     this.lastT = t
@@ -300,18 +310,19 @@ export class SectionTracker {
       this.beatsThisSong++
       this.beatTimes.push(t)
     }
+    this.extras.add({ levels, onsets, spectrum })
     const features = this.features
     const ticks = features.ticks
     const row = features.push(t, levels, beat, grid)
     if (features.ticks !== ticks) {
       const { power, beats } = features.getLastTick()
-      this.record(t, power, beats)
+      this.recording.push(t, power, beats, this.bpm, this.extras.flush())
     }
     if (row) this.closeSlot(t, row)
   }
 
   /** Replays one recorded tick (see getRecording): the same path as live frames from the tick on. */
-  pushTick = ({ t, power, beats, bpm = null }: SectionTick): void => {
+  pushTick = ({ t, power, beats, bpm = null, peak, onsets = 0, spectrum }: SectionTick): void => {
     if (this.lastT !== null && t - this.lastT > HISTORY_MS) this.startSong(t, this.beatsThisSong >= SONG_MIN_BEATS, false)
     this.lastT = t
     this.bpm = bpm
@@ -324,15 +335,15 @@ export class SectionTracker {
     this.beats += beats
     this.beatsThisSong += beats
     for (let b = 0; b < beats; b++) this.beatTimes.push(t)
-    this.record(t, power, beats)
+    this.recording.push(t, power, beats, this.bpm, peak ? { peak, onsets, spectrum: spectrum ?? null } : null)
     const row = this.features.tick(power, beats)
     if (row) this.closeSlot(t, row)
   }
 
   getState = (): SectionState => this.state
 
-  /** Every 50 ms tick of the last 40 minutes at most, oldest first. Builds the list each call: for an export, not every frame. */
-  getRecording = (): SectionTick[] => this.recording.toTicks()
+  /** Every 50 ms tick of the last 40 minutes at most, oldest first (only those from `from` to `to`, when given). Builds the list each call: for an export, not every frame. */
+  getRecording = (from?: number, to?: number): SectionTick[] => this.recording.toTicks(from, to)
 
   /** The closed slots of the last two minutes, oldest first. Not a copy: read it where it is called. */
   getHistory = (): readonly SectionSlot[] => this.slots
@@ -341,6 +352,7 @@ export class SectionTracker {
     this.features = new SectionFeatures()
     this.slots.length = 0
     this.recording.clear()
+    this.extras.reset()
     this.beatTimes = []
     this.lastT = null
     this.bpm = null
@@ -352,10 +364,6 @@ export class SectionTracker {
     this.startSong(0, false, false)
     this.songStart = null
     this.state = SectionTracker.emptyState()
-  }
-
-  private record = (t: number, power: ArrayLike<number>, beats: number): void => {
-    this.recording.push(t, power, beats, this.bpm)
   }
 
   private closeSlot = (t: number, row: Float64Array): void => {
