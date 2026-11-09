@@ -26,6 +26,7 @@ const ConfigVideoInner = ({ isOpen, toggleOpen, popup = false, resetVideoClips }
         collapsible={!popup}
         onToggleOpen={() => toggleOpen('video')}
         onReset={popup ? undefined : resetVideoClips}
+        percentAbove={popup}
       />
       {popup && (
         <button

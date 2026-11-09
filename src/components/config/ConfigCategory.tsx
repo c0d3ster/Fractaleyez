@@ -103,6 +103,7 @@ const ConfigCategoryInner = React.memo(({ name, isOpen, expanded = false, toggle
             collapsible={!popup}
             onToggleOpen={handleToggle}
             onReset={!expanded && hasLayerReset ? handleLayerReset : undefined}
+            percentAbove={expanded}
           />
         )
         : (

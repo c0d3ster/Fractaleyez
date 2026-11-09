@@ -104,3 +104,41 @@
   font-size: 1rem;
   font-weight: bold;
 }
+
+/* Pop-out: the opacity sits above the header, centered over the power button (the header's 8px padding plus the
+   button's box), in the gap where the reset button sits at the other end. */
+.layer-header__percent--above {
+  position: absolute;
+  bottom: 100%;
+  left: 8px;
+  width: calc(16px + .6rem);
+  margin-bottom: 4px;
+  display: flex;
+  justify-content: center;
+  white-space: nowrap;
+  font-size: 1.2rem;
+  color: rgba(220, 220, 220, .7);
+  pointer-events: none;
+}
+
+.layer-header__percent--off {
+  opacity: .6;
+}
+
+/* With the opacity moved out, the name and the order controls have room to be bigger. */
+.layer-header--percent-above .layer-header__name {
+  font-size: 1.75em;
+}
+
+.layer-header--percent-above .layer-header__stepper {
+  gap: .4rem;
+}
+
+.layer-header--percent-above .layer-header__stepper button {
+  font-size: 1.6rem;
+}
+
+.layer-header--percent-above .layer-header__stepper .layer-header__badge {
+  min-width: 2.2rem;
+  font-size: 1.3rem;
+}
