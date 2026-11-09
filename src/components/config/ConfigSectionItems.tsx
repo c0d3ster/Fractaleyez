@@ -270,8 +270,9 @@ const ConfigSectionItemsInner = ({ name, only, onChange, resetConfigItem, isSign
         if (type === 'slider') {
           const { min, max, step } = item as SliderItem
           const heading = HEADINGS[`${name}.${configItem}`]
-          const slider = (
+          return (
             <ConfigSlider
+              accessory={heading ? <HeadingDial heading={heading} label={label} /> : undefined}
               name={configItem}
               label={label}
               description={item.description}
@@ -287,13 +288,6 @@ const ConfigSectionItemsInner = ({ name, only, onChange, resetConfigItem, isSign
               onChange={handleChange}
               onReset={handleItemReset}
             />
-          )
-          if (!heading) return slider
-          return (
-            <React.Fragment key={configItem}>
-              {slider}
-              <HeadingDial heading={heading} label={label} />
-            </React.Fragment>
           )
         }
         return null
