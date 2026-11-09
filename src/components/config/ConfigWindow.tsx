@@ -19,6 +19,7 @@ import { LogConfigButton } from './LogConfigButton'
 import { ColorConfigBody } from './ColorConfigBody'
 import { LogoConfigBody } from './LogoConfigBody'
 import { BeatHud, FrequencyHud, ParticleSpriteHud, SectionHud } from '../huds'
+import { AutoSwitch } from './AutoSwitch'
 
 type OrbitColumnBodyProps = {
   onChange: ConfigContextValue['updateConfigItem']
@@ -157,6 +158,7 @@ const ExternalWindowBridge = ({ context }: ExternalWindowBridgeProps): React.Rea
                     {entry === 'audio' ? <><FrequencyHud /><BeatHud /><SectionHud /></> : null}
                   </ConfigCategory>
                 ) : null}
+                {entry === 'effects' ? <AutoSwitch /> : null}
               </div>
             ))}
           </div>

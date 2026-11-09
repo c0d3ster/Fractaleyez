@@ -16,6 +16,9 @@ const DROP_PEAK_MS = 6000
 // one has to have been showing a while. A flicker of the label then never reaches the screen.
 const WANT_MS = 1200
 const DWELL_MS = 2500
+// A change that has been decided waits for the next beat so it lands on the music. If none comes in this long (no steady
+// beat, or the detector missed it) it goes ahead anyway rather than hang.
+const BEAT_WAIT_MS = 600
 
 const same = (a: KaleidoscopeFold, b: KaleidoscopeFold): boolean => a.on === b.on && a.count === b.count
 
@@ -40,10 +43,13 @@ export class KaleidoscopeAuto {
   private changedAt = Number.NEGATIVE_INFINITY
   private pending: KaleidoscopeFold | null = null
   private pendingSince = 0
+  /** A change has been decided and is waiting for a beat; this is when it was decided. */
+  private decidedAt: number | null = null
   private lastDropCount: number | null = null
   private lastSongIndex: number | null = null
 
-  step = (state: SectionState, nowMs: number): KaleidoscopeFold => {
+  /** `beat` is true on the frame a beat is detected: a decided change is shown on one, not between them. */
+  step = (state: SectionState, nowMs: number, beat: boolean): KaleidoscopeFold => {
     const wanted = wantedFold(state)
     // A drop is a moment to land on, so it skips the wait (late is fine: it reads well a few seconds on). A new song starts clean.
     const dropped = this.lastDropCount !== null && state.dropCount > this.lastDropCount && state.section === 'drop'
@@ -54,15 +60,13 @@ export class KaleidoscopeAuto {
     if (newSong) return this.apply(OFF, nowMs)
     if (same(wanted, this.current)) {
       this.pending = null
+      this.decidedAt = null
       return this.current
     }
-    if (dropped) return this.apply(wanted, nowMs)
-    if (this.pending === null || !same(this.pending, wanted)) {
-      this.pending = wanted
-      this.pendingSince = nowMs
-      return this.current
-    }
-    if (nowMs - this.pendingSince >= WANT_MS && nowMs - this.changedAt >= DWELL_MS) return this.apply(wanted, nowMs)
+    if (dropped) this.decide(nowMs)
+    else if (this.decidedAt === null) this.considerChange(wanted, nowMs)
+    // Decided: it goes out on the next beat. The wish may have moved on while it waited, so it is the latest wish that shows.
+    if (this.decidedAt !== null && (beat || nowMs - this.decidedAt >= BEAT_WAIT_MS)) return this.apply(wanted, nowMs)
     return this.current
   }
 
@@ -70,14 +74,31 @@ export class KaleidoscopeAuto {
     this.current = OFF
     this.changedAt = Number.NEGATIVE_INFINITY
     this.pending = null
+    this.decidedAt = null
     this.lastDropCount = null
     this.lastSongIndex = null
+  }
+
+  /** A wish has to be held for a while, and the last change shown for a while, before it is decided. */
+  private considerChange = (wanted: KaleidoscopeFold, nowMs: number): void => {
+    if (this.pending === null || !same(this.pending, wanted)) {
+      this.pending = wanted
+      this.pendingSince = nowMs
+      return
+    }
+    if (nowMs - this.pendingSince >= WANT_MS && nowMs - this.changedAt >= DWELL_MS) this.decide(nowMs)
+  }
+
+  private decide = (nowMs: number): void => {
+    this.decidedAt = nowMs
+    this.pending = null
   }
 
   private apply = (fold: KaleidoscopeFold, nowMs: number): KaleidoscopeFold => {
     this.current = fold
     this.changedAt = nowMs
     this.pending = null
+    this.decidedAt = null
     return fold
   }
 }

@@ -14,6 +14,8 @@ const SHOCKWAVE_CAMERA_FOV = 60
 const SHOCKWAVE_CAMERA_Z = 7
 const SHOCKWAVE_PLANE_Z = -5
 // Added to the Speed slider and beat terms so the wave never crawls at a low Speed.
+// Auto's kaleidoscope change shows on a beat, so it morphs quickly: a slow crossfade started on the beat would finish between beats.
+const AUTO_FOLD_MORPH_MS = 250
 const SHOCKWAVE_BASE_SPEED = 0.05
 
 /** postprocessing sets `active` while a wave is running (true from `explode()` until it has crossed `maxRadius`) but leaves it out of its type definitions. */
@@ -112,9 +114,9 @@ export class PostEffects {
     const { kaleidoscope, kaleidoscopeCount, kaleidoscopeMode, kaleidoscopeSource } = window.config.effects
     const mode = Math.round(kaleidoscopeMode.value)
     // Auto, while it is on, decides the fold (on and how many wedges); the stored settings stay as they are. Mode and source are still the user's.
-    const auto = autoMode.kaleidoscope(sectionTracker.getState(), performance.now())
+    const auto = autoMode.kaleidoscope(sectionTracker.getState(), performance.now(), audio.beat.fresh)
     const count = auto ? (auto.on ? auto.count : 1) : kaleidoscope.value ? Math.round(kaleidoscopeCount.value) : 1
-    this.kaleidoscopeEffect.setFold(count, mode, kaleidoscopeSource.value)
+    this.kaleidoscopeEffect.setFold(count, mode, kaleidoscopeSource.value, auto ? AUTO_FOLD_MORPH_MS : undefined)
     this.shockwaveEffect.speed =SHOCKWAVE_BASE_SPEED + (window.config.user.speed.value / 15) + audio.beat.value * 1.25
     const glow = window.config.effects.glow.value
     this.syncGlow(glow)
