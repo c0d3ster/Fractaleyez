@@ -10,6 +10,7 @@ import { sectionTracker } from './audioanalysis/sections'
 import { tempoTracker } from './audioanalysis/tempo-tracker'
 import { beatGrid } from './audioanalysis/beat-grid'
 import { nameRhythm, RhythmLabel, RhythmLabeler, RhythmPattern } from './audioanalysis/rhythm-pattern'
+import { snareRoll, type RollLevel } from './automode'
 import { exportSectionLog } from './audioanalysis/section-export'
 import { DEFAULT_DETECTOR_MS, detectorCalibration, estimateLag, LagEstimate, median } from './audioanalysis/lag-estimate'
 import { LagProbe } from './audioanalysis/lag-probe'
@@ -166,6 +167,7 @@ const init = (): void => {
   window.getDrumHits = drumHits.getLastHits
   window.getRiser = riserDetector.getScore
   window.getSweep = sweepDetector.getScore
+  window.getSnareRoll = (): RollLevel | null => snareRoll.current()
   window.getSectionHistory = sectionTracker.getHistory
   window.exportSectionLog = (): void => exportSectionLog(sectionTracker.getRecording())
   window.subscribeBeat = beatMonitor.subscribe

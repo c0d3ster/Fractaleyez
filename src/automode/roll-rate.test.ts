@@ -87,6 +87,18 @@ describe('RollReader', () => {
     expect(readOver(reader, withLate, 4760, 5900)).not.toContain(4)
   })
 
+  it('reads at most 20 times a second when ticked every frame, fetching the onsets only then', () => {
+    const reader = new RollReader()
+    const hits = hitsEvery(250, 12, 5500)
+    let fetches = 0
+    const onsets = (): number[][] => {
+      fetches++
+      return hits
+    }
+    for (let t = 5000; t < 6000; t += 1000 / 240) reader.tick(onsets, PERIOD, t)
+    expect(fetches).toBe(20)
+  })
+
   it('starts from nothing after a reset', () => {
     const reader = new RollReader()
     readOver(reader, hitsEvery(250, 8, 5000), 3500, 5000)

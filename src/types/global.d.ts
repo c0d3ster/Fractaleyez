@@ -10,6 +10,7 @@ import type { LagMeasurement } from '../audioanalysis/lag-probe'
 import type { QualityStatus } from '../visualization/quality-controller'
 import type { StutterSummary } from '../visualization/stutter-monitor'
 import type { PerfProbeControls } from '../visualization/perf'
+import type { RollLevel } from '../automode/roll-rate'
 
 // Window Management API — not yet in TypeScript's lib.dom.d.ts.
 // https://developer.mozilla.org/en-US/docs/Web/API/Window_Management_API
@@ -66,6 +67,8 @@ declare global {
     getRiser?: () => number
     /** How much the music sounds like a sweep is climbing the spectrum right now, 0 to 1 (sweep.ts). */
     getSweep?: () => number
+    /** The snare roll's note value (4 or 8), held (RollReader), or null when none is heard. Read every frame whatever Auto is doing. */
+    getSnareRoll?: () => RollLevel | null
     getSectionHistory?: () => readonly SectionSlot[]
     /** Downloads everything the section tracker saw this session as a JSON file, to be replayed offline. Run it from the console. */
     exportSectionLog?: () => void
