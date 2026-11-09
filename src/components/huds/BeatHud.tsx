@@ -1,8 +1,10 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useInfo } from '../config/info/info'
+import { useGhost } from '../config/context/useGhost'
 import './BeatHud.css'
 
 import { DEFAULT_ENABLED_BANDS } from '../../audioanalysis/onset-bands'
+import { ROLL_GHOST } from '../../automode'
 import { estimateTempo } from '../../audioanalysis/tempo'
 import { subscribeUiTick } from '../../utils/uiTicker'
 import { DEFAULT_VIEW_MS, MIN_VIEW_MS, WAVEFORM_H, WAVEFORM_HISTORY_MS, WAVEFORM_W, WaveformTrack, WaveformView } from './waveformTrack'
@@ -47,6 +49,8 @@ export const BeatHud = (): React.ReactElement => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [tempo, setTempo] = useState<TempoShown>({ bpm: null, consistency: null })
   const [rhythm, setRhythm] = useState('')
+  // The note value of the snare roll while Auto reads one in a buildup (4 or 8), so a roll it misses can be seen.
+  const roll = useGhost(ROLL_GHOST)
   const mirroredRef = useRef(readMirrored())
   const viewMsRef = useRef(DEFAULT_VIEW_MS)
   const redrawRef = useRef<(() => void) | null>(null)
@@ -132,9 +136,14 @@ export const BeatHud = (): React.ReactElement => {
       <div className='beat-hud' {...info('Each band over time, dimmed if it cannot trigger a beat. Dashed: the level a hit must pass. Bottom marks: hits, in the band\'s color. Top ruler: beats, bars and 8-bar phrases. Scroll to zoom, double-click to reset, click to flip mirrored.')}>
         <canvas ref={canvasRef} width={WAVEFORM_W} height={WAVEFORM_H} className='beat-hud-canvas' onClick={handleClick} onDoubleClick={handleDoubleClick} />
       </div>
-      <span className='beat-hud-feel' {...info('The rhythm the drums play, read from the kick, snare and hat bands: a kick on every beat (four on the floor) or a broken kick (breakbeat), or, when it is sure, the drum and bass kick on 1 and the "and" of 3 (two-step), with the tempo range it is played at. It only names a rhythm it is sure of, so it is often blank: in a breakdown, without a clear beat, or for rhythms it cannot tell apart. A name shows after 2 seconds and clears after 3.')}>
-        {rhythm}
-      </span>
+      <div className='beat-hud-bottom-row'>
+        <span className='beat-hud-feel' {...info('The rhythm the drums play, read from the kick, snare and hat bands: a kick on every beat (four on the floor) or a broken kick (breakbeat), or, when it is sure, the drum and bass kick on 1 and the "and" of 3 (two-step), with the tempo range it is played at. It only names a rhythm it is sure of, so it is often blank: in a breakdown, without a clear beat, or for rhythms it cannot tell apart. A name shows after 2 seconds and clears after 3.')}>
+          {rhythm}
+        </span>
+        <span className='beat-hud-roll' {...info('The snare roll Auto hears in a buildup: 1/4 or 1/8 (anything faster reads as 1/8). Mirrors step 2, 4, 6 with it. Shown once it has been heard for half a beat, and held until it has gone a beat without one, while Auto is on.')}>
+          {typeof roll === 'number' ? `1/${roll}` : ''}
+        </span>
+      </div>
     </div>
   )
 }
