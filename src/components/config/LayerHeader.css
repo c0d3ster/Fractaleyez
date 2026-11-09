@@ -142,3 +142,9 @@
   min-width: 2.2rem;
   font-size: 1.3rem;
 }
+
+/* Sidebar: the blend dropdown sits in the bar, left of the opacity readout. */
+.layer-header__blend {
+  display: inline-flex;
+  align-items: center;
+}

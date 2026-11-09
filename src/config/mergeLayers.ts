@@ -1,4 +1,4 @@
-import { BlendMode, LayerKey, LayerMeta, LayersConfigSection, configDefaults } from './configDefaults'
+import { BLEND_MODES, BlendMode, LayerKey, LayerMeta, LayersConfigSection, configDefaults } from './configDefaults'
 import { DEFAULT_LAYER_ORDER } from './layers'
 
 const LAYER_KEYS: LayerKey[] = [...DEFAULT_LAYER_ORDER]
@@ -6,13 +6,11 @@ const LAYER_KEYS: LayerKey[] = [...DEFAULT_LAYER_ORDER]
 /** Which layers a stored preset includes. */
 export type LayerPresence = Record<LayerKey, boolean>
 
-const BLEND_MODES: Record<BlendMode, true> = { mask: true, screen: true, over: true }
-
 const isRecord = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object' && !Array.isArray(value)
 
 const isLayerKey = (value: unknown): value is LayerKey => typeof value === 'string' && LAYER_KEYS.some(key => key === value)
 
-const isBlendMode = (value: unknown): value is BlendMode => typeof value === 'string' && value in BLEND_MODES
+const isBlendMode = (value: unknown): value is BlendMode => typeof value === 'string' && BLEND_MODES.some(mode => mode === value)
 
 /** Presets store bare values; older ones stored the whole item object, so unwrap its `value`. */
 const unwrapStoredValue = (stored: unknown): unknown => (isRecord(stored) && 'value' in stored ? stored.value : stored)
@@ -47,13 +45,14 @@ const mergeMeta = (key: LayerKey, loaded: unknown, present: boolean): LayerMeta 
   const l = isRecord(loaded) ? loaded : {}
   const storedEnabled = unwrapStoredValue(l.enabled)
   const storedOpacity = unwrapStoredValue(l.opacity)
+  const storedBlend = unwrapStoredValue(l.blendMode)
   // Older presets stored `enabled` for every layer and win over presence; newer ones leave it out.
   const enabled = typeof storedEnabled === 'boolean' ? storedEnabled : present
   const opacity = typeof storedOpacity === 'number' && Number.isFinite(storedOpacity) ? storedOpacity : base.opacity.defaultValue
   return {
     enabled: { ...base.enabled, value: enabled },
     opacity: { ...base.opacity, value: opacity },
-    blendMode: isBlendMode(l.blendMode) ? l.blendMode : base.blendMode,
+    blendMode: isBlendMode(storedBlend) ? storedBlend : base.blendMode,
   }
 }
 

@@ -6,7 +6,8 @@ import './LayerHeader.css'
 import { connectConfigActions } from './context/ConfigProvider'
 import { useConfigSelector } from './context/useConfigSelector'
 import { ResetIcon } from './ResetIcon'
-import { AppConfig, LayerKey } from '../../config/configDefaults'
+import { LayerBlendPicker } from './LayerBlendPicker'
+import { AppConfig, BlendMode, LayerKey } from '../../config/configDefaults'
 import { LAYER_CAP } from '../../config/layers'
 import { getParticleCrossfadeDurationMs } from '../../config/visualizer.config'
 import { stepOpacity } from '../../visualization/layers/fade'
@@ -19,6 +20,7 @@ type LayerHeaderProps = {
   title: string
   setLayerEnabled: (key: LayerKey, enabled: boolean) => boolean
   setLayerOpacity: (key: LayerKey, opacity: number) => void
+  setLayerBlendMode: (key: LayerKey, blendMode: BlendMode) => void
   moveLayer: (key: LayerKey, toIndex: number) => void
   /** Sidebar only: shows a reset button that restores the layer's section to the preset (the pop-out has its own above the header). */
   onReset?: () => void
@@ -47,6 +49,7 @@ const LayerHeaderInner = ({
   title,
   setLayerEnabled,
   setLayerOpacity,
+  setLayerBlendMode,
   moveLayer,
   onReset,
   collapsible = false,
@@ -61,6 +64,7 @@ const LayerHeaderInner = ({
   const { meta, order } = useConfigSelector(selectLayers)
   const enabled = meta[layerKey].enabled.value
   const opacity = meta[layerKey].opacity.value
+  const { blendMode } = meta[layerKey]
   const enabledCount = Object.values(meta).filter(m => m.enabled.value).length
   const atCap = !enabled && enabledCount >= LAYER_CAP
   const index = order.indexOf(layerKey)
@@ -155,6 +159,8 @@ const LayerHeaderInner = ({
 
   const percent = Math.round(opacity * 100)
 
+  const changeBlendMode = useCallback((mode: BlendMode): void => setLayerBlendMode(layerKey, mode), [layerKey, setLayerBlendMode])
+
   return (
     <>
       <div
@@ -193,6 +199,12 @@ const LayerHeaderInner = ({
           </svg>
         </button>
         <span className='layer-header__name'>{title}</span>
+        {!percentAbove && (
+          // The header is a drag slider and its click toggles the body, so the dropdown keeps its pointer events to itself.
+          <span className='layer-header__blend' onPointerDown={stop} onPointerUp={stop}>
+            <LayerBlendPicker title={title} blendMode={blendMode} onChange={changeBlendMode} off={!enabled} inline />
+          </span>
+        )}
         {!percentAbove && <span className='layer-header__percent'>{percent}%</span>}
         <span className='layer-header__stepper' onPointerDown={stop} onPointerUp={stop}>
           <button type='button' aria-label={`Move ${title} back`} disabled={index <= 0} onClick={() => move(index - 1)}>-</button>
@@ -220,6 +232,7 @@ const LayerHeaderInner = ({
         )}
       </div>
       {/* Outside the header, which clips what overflows it; placed against the container like the pop-out's reset button. */}
+      {percentAbove && <LayerBlendPicker title={title} blendMode={blendMode} onChange={changeBlendMode} off={!enabled} />}
       {percentAbove && (
         <span className={classNames('layer-header__percent', 'layer-header__percent--above', { 'layer-header__percent--off': !enabled })} aria-hidden='true'>
           {percent}%
