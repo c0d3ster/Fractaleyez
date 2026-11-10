@@ -1,5 +1,6 @@
 import type { AppConfig, LayerKey } from '../config/configDefaults'
 import type { BeatTimeline } from '../audioanalysis/beat'
+import type { DrumKind } from '../audioanalysis/drum-hits'
 import type { GridState } from '../audioanalysis/beat-grid'
 import type { SectionSlot, SectionState } from '../audioanalysis/sections'
 import type { TempoReading } from '../audioanalysis/tempo-tracker'
@@ -58,6 +59,10 @@ declare global {
     getRhythmPattern?: () => RhythmPattern | null
     /** The Beat HUD's line: the held rhythm name ("four on the floor"), blank when no name is confident. */
     getRhythmLabel?: () => RhythmLabel
+    /** When each drum last hit (drum-hits.ts, main window performance.now), or null before the first. For the Frequency HUD's lights. */
+    getDrumHits?: () => Record<DrumKind, number | null>
+    /** How much the music sounds like it is rising right now, 0 to 1 (riser.ts). For the Frequency HUD's riser meter. */
+    getRiser?: () => number
     getSectionHistory?: () => readonly SectionSlot[]
     /** Downloads everything the section tracker saw this session as a JSON file, to be replayed offline. Run it from the console. */
     exportSectionLog?: () => void
