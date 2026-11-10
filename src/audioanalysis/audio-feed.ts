@@ -6,6 +6,8 @@ import { beatMonitor } from './beat'
 import { beatGrid } from './beat-grid'
 import { sectionTracker } from './sections'
 import { tempoTracker } from './tempo-tracker'
+import { drumHits } from './drum-hits'
+import { riserDetector } from './riser'
 import { OnsetDetector } from './onset-detector'
 import { DEFAULT_ENABLED_BANDS, ONSET_BANDS } from './onset-bands'
 
@@ -42,6 +44,8 @@ export class AudioFeed {
     snapshot.beat = onset.beat
     const now = performance.now()
     beatMonitor.record({ t: now, bands: onset.bands, beatBand: onset.beatBand })
+    drumHits.push(now, levels, deltaTime, soundThreshold.value)
+    riserDetector.push(now, levels)
     tempoTracker.push(now, levels)
     // After the tracker, so the grid reads this frame's tempo.
     beatGrid.push(now, levels)

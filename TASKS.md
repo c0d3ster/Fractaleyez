@@ -4,6 +4,8 @@ Instructions for agent: This file is the task inventory only. Workflow rules (br
 
 ## Agent-Ready
 
+- [ ] Drum hits and risers (branch `feat/drum-hits`, work in progress): finish the riser detector on real music, improve hats, and fix the snare-alone and kit `it.fails` tests. Status, data on this machine, results and the full list in `scripts/section-eval/DRUM-HITS.md`.
+
 ## Verify (may already be done)
 
 ## Research (agent can draft findings, human decides)
