@@ -27,7 +27,7 @@ Blend modes decide how a layer combines with what is behind it. Pick one per lay
 - **mask**: the layer's dark areas are transparent, so lower layers show through. This is how the fractal and video can reveal each other. The default for Video and Fractal.
 - **over**: like mask, but the layer also covers what is behind it wherever it is drawn. The default for Logo.
 - **screen**: brightens by adding light on top without hiding anything, wherever the layer sits in the order. The default for Orbit.
-- **add**: sums the layer's light onto what is behind it, a brighter and harsher glow than screen. Also ignores the order.
+- **difference**: subtracts one picture from the other, so bright over bright goes dark and colors invert where layers cross. Like screen, it barely depends on the order.
 
 ## The Fractal Layer
 
