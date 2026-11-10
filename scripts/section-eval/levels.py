@@ -3,11 +3,13 @@
 Matches AudioStream: each band is two highpass and two lowpass BiquadFilterNodes (Web Audio spec formulas, default Q of
 1 dB), read as the RMS of the last `windowSamples` samples, in percent of full scale.
 
-    python levels.py <song> <out.f32> [--mic clean|room|laptop] [--seed N]
+    python levels.py <song> <out.f32> [--mic clean|room|laptop] [--seed N] [--wav-out heard.wav]
 
 --mic simulates hearing the music through a microphone instead of a clean feed:
   room    good speakers in a room: a short reverb, a noise floor, a gentle low cut at 40 Hz
   laptop  laptop speakers into the laptop mic: almost no bass under 200 Hz, a 10 kHz top, more reverb and noise
+--wav-out also writes the audio as the microphone heard it (16-bit mono WAV), so another tracker (madmom-eval.py) can hear exactly
+what these levels were made from.
 Needs ffmpeg on the PATH and numpy and scipy.
 """
 import argparse
@@ -77,9 +79,14 @@ def main() -> None:
     parser.add_argument('out')
     parser.add_argument('--mic', default='clean', choices=['clean', 'room', 'laptop'])
     parser.add_argument('--seed', type=int, default=1)
+    parser.add_argument('--wav-out')
     args = parser.parse_args()
 
     x = simulate_mic(decode(args.song), args.mic, np.random.default_rng(args.seed))
+    if args.wav_out:
+        from scipy.io import wavfile
+        peak = max(1.0, float(np.max(np.abs(x))))
+        wavfile.write(args.wav_out, RATE, (x / peak * 32767).astype('<i2'))
     frames = int(len(x) / RATE * FPS)
     ends = (np.arange(frames) * RATE / FPS).astype(np.int64)
     out = np.zeros((frames, len(BANDS)), dtype=np.float32)
