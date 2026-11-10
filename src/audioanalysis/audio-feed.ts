@@ -9,6 +9,9 @@ import { tempoTracker } from './tempo-tracker'
 import { OnsetDetector } from './onset-detector'
 import { DEFAULT_ENABLED_BANDS, ONSET_BANDS } from './onset-bands'
 
+/** The onset settings the section model was trained on (scripts/section-eval/dump-features.mts), with the noise gates off as there. */
+const SECTION_ONSET_PARAMS = { enabledBands: DEFAULT_ENABLED_BANDS, sensitivity: 2, ignoreMs: 250, decayMs: 300 }
+
 /**
  * Single producer of analysed audio. Runs the stream -> analyser pipeline exactly once per frame and
  * hands the same read-only snapshot to every consumer (visualizers, HUDs), so adding more active
@@ -18,6 +21,9 @@ import { DEFAULT_ENABLED_BANDS, ONSET_BANDS } from './onset-bands'
 export class AudioFeed {
   private latest: AudioAnalysedDataForVisualization | null = null
   private readonly onsetDetector = new OnsetDetector(ONSET_BANDS.length)
+  // The section model's own beats, on the fixed settings it was trained with, so the HUD's band toggles and the Threshold and Ignore Time
+  // sliders change what the user sees as a beat without changing the model's inputs (a single-band selection cost about 0.02 build F1).
+  private readonly sectionOnsetDetector = new OnsetDetector(ONSET_BANDS.length)
 
   constructor(
     private readonly stream: AudioStream,
@@ -47,7 +53,8 @@ export class AudioFeed {
     beatGrid.push(now, levels)
     // The raw band levels, as the section model was trained and scored on (the onset detector's followed levels blur its tick features), and
     // the BPM now shown, for the tempo-change song cue.
-    sectionTracker.push({ t: now, levels, beat: onset.beatBand !== null, bpm: tempoTracker.getBpm() })
+    const sectionOnset = this.sectionOnsetDetector.update(levels, deltaTime, 0, SECTION_ONSET_PARAMS)
+    sectionTracker.push({ t: now, levels, beat: sectionOnset.beatBand !== null, bpm: tempoTracker.getBpm() })
 
     this.latest = snapshot
     return snapshot
