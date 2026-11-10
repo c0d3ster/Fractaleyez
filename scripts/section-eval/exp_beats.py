@@ -67,7 +67,7 @@ def load(feat_dirs: list[str], beat_dirs: list[str], gt: dict) -> dict:
             fp, bp = os.path.join(fd, f'{k}.feat'), os.path.join(bd, f'{k}.beats')
             if not (os.path.exists(fp) and os.path.exists(bp)):
                 continue
-            x = np.fromfile(fp, dtype='<f4').reshape(-1, len(names)).astype(np.float64)
+            x = np.fromfile(fp, dtype='<f4').reshape(-1, len(names))
             b = np.fromfile(bp, dtype='<f4').reshape(-1, len(columns)).astype(np.float64)
             n = min(len(x), len(b))
             y, drop, ignore = labels_for(gt[k], n)
@@ -94,7 +94,7 @@ def build_x(data: dict, variant: str) -> np.ndarray:
                 parts += [beat_columns(b[:, columns.index(f'own_{band}')]) for band in BANDS]
             elif part != 'none':
                 raise ValueError(part)
-        out.append(np.concatenate(parts, axis=1))
+        out.append(np.concatenate(parts, axis=1).astype(np.float32))
     return np.concatenate(out)
 
 
@@ -122,7 +122,7 @@ def fit(data: dict, X: np.ndarray, folds: list) -> list[tuple]:
         m = HistGradientBoostingClassifier(**STAGE1, random_state=0).fit(X[train], data['y'][train])
         p1[test] = m.predict_proba(X[test])
         m1s.append(m)
-    X2 = np.concatenate([X, p1, memory(p1, data['starts'])], axis=1)
+    X2 = np.concatenate([X, p1.astype(np.float32), memory(p1, data['starts']).astype(np.float32)], axis=1)
     keep = ~data['ignore']
     m2s = []
     for train, _ in folds:
@@ -135,7 +135,7 @@ def predict(data: dict, X: np.ndarray, folds: list, models: list) -> dict:
     p1 = np.zeros((len(X), 3))
     for (_, test), (m1, _) in zip(folds, models):
         p1[test] = m1.predict_proba(X[test])
-    X2 = np.concatenate([X, p1, memory(p1, data['starts'])], axis=1)
+    X2 = np.concatenate([X, p1.astype(np.float32), memory(p1, data['starts']).astype(np.float32)], axis=1)
     p2 = np.zeros(len(X))
     for (_, test), (_, m2) in zip(folds, models):
         p2[test] = m2.predict_proba(X2[test])[:, 1]
@@ -185,8 +185,10 @@ def main() -> None:
         ['base', 'none', 'sel_11111', 'own', 'base+own']
     results = []
 
-    base_models = fit(data, build_x(data, 'base'), folds)
-    base_oof = predict(data, build_x(data, 'base'), folds, base_models)
+    X_base = build_x(data, 'base')
+    base_models = fit(data, X_base, folds)
+    base_oof = predict(data, X_base, folds, base_models)
+    del X_base
     cfg_path = os.path.join(out, 'cfg-base.json')
     if os.path.exists(cfg_path):
         base_cfg = json.load(open(cfg_path))
@@ -195,7 +197,12 @@ def main() -> None:
         json.dump(base_cfg, open(cfg_path, 'w'))
     print('decoder tuned on base:', json.dumps(base_cfg), flush=True)
     for v in variants:
-        oof = base_oof if v == 'base' else predict(data, build_x(data, v), folds, fit(data, build_x(data, v), folds))
+        if v == 'base':
+            oof = base_oof
+        else:
+            X = build_x(data, v)
+            oof = predict(data, X, folds, fit(data, X, folds))
+            del X
         cfg = tune(oof, gt, dict(base_cfg)) if '--tune' in sys.argv and v != 'base' else base_cfg
         results.append({**report(v, oof, gt, cfg), 'cfg': cfg})
 
