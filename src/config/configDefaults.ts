@@ -110,7 +110,7 @@ export type StoredVideoSection = Pick<VideoConfigSection, 'clips'> & Partial<Pic
 
 export type LayerKey = 'video' | 'fractal' | 'orbit' | 'logo' // widened as layer types are added
 /** Every blend mode, in the order the layer header's picker shows them. Each layer's default is set in createLayerMeta. */
-export const BLEND_MODES = ['mask', 'over', 'screen', 'add'] as const
+export const BLEND_MODES = ['mask', 'over', 'screen', 'difference'] as const
 export type BlendMode = typeof BLEND_MODES[number]
 
 export type LayerMeta = {

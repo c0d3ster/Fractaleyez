@@ -9,14 +9,14 @@ const BLEND_MODE_LABELS: Record<BlendMode, string> = {
   mask: 'Mask',
   over: 'Over',
   screen: 'Screen',
-  add: 'Add',
+  difference: 'Difference',
 }
 
 const BLEND_MODE_INFO: Record<BlendMode, string> = {
   mask: 'Blend: Mask. This layer shows only where the layers in front of it are dark',
   over: 'Blend: Over. Like Mask, but the layer also covers what is behind it wherever it is drawn',
   screen: 'Blend: Screen. Lightens what is behind it without hiding it, wherever it sits in the order',
-  add: 'Blend: Add. Adds its light onto what is behind it, brighter and harsher than Screen, wherever it sits in the order',
+  difference: 'Blend: Difference. Subtracts the colors, so bright over bright goes dark and colors invert where it crosses other layers',
 }
 
 const isBlendMode = (value: string): value is BlendMode => BLEND_MODES.some((mode) => mode === value)
