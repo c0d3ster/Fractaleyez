@@ -90,7 +90,7 @@ const runStream = (id: string, frames: Float32Array, starts: number[], tracker: 
     tempo.push(t, levels)
     if (useGrid) grid.push(t, levels)
     const bpm = withTempo ? tempo.getBpm() : undefined
-    tracker.push({ t, levels: smoothed ? onset.bands.map(({ level }) => level) : levels, beat: onset.beatBand !== null, bpm, grid: useGrid ? grid.getState() : null })
+    tracker.push({ t, levels: smoothed ? onset.bands.map(({ level }) => level) : levels, beat: onset.analysisBeat, bpm, grid: useGrid ? grid.getState() : null })
     while (t >= nextSlot) {
       const state = tracker.getState()
       run.sections.push(state.section)

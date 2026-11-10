@@ -37,7 +37,7 @@ for (const id of ids) {
     const onset = detector.update(levels, FRAME_MS, 0, { enabledBands: DEFAULT_ENABLED_BANDS, sensitivity: 2, ignoreMs: 250, decayMs: 300 })
     tempo.push(t, levels)
     grid.push(t, levels)
-    const row = features.push(t, levels, onset.beatBand !== null, grid.getState())
+    const row = features.push(t, levels, onset.analysisBeat, grid.getState())
     if (row) rows.push(...row)
   }
   writeFileSync(join(out, `${id}.feat`), Buffer.from(Float32Array.from(rows).buffer))

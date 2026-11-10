@@ -77,7 +77,7 @@ for (const [fold, ids] of [...byFold.entries()].sort((a, b) => a[0] - b[0])) {
       const onset = detector.update(levels, FRAME_MS, 0, { enabledBands: DEFAULT_ENABLED_BANDS, sensitivity: 2, ignoreMs: 250, decayMs: 300 })
       tempo.push(f * FRAME_MS, levels)
       grid.push(f * FRAME_MS, levels)
-      const row = features.push(f * FRAME_MS, levels, onset.beatBand !== null, grid.getState())
+      const row = features.push(f * FRAME_MS, levels, onset.analysisBeat, grid.getState())
       if (row) rows.push(...row)
     }
     writeFileSync(join(out, `pl${n}.feat`), Buffer.from(Float32Array.from(rows).buffer))
