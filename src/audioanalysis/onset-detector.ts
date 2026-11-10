@@ -14,6 +14,10 @@ const FAST_TAU_MS = 20
 // attack is not part of what it is compared to.
 const REFERENCE_WINDOW_MS = 150
 const REFERENCE_GUARD_MS = 40
+
+/** Where a band tracker looks back for the level a hit is compared with: the newest `guardMs` left out, back to `windowMs`. */
+export type ReferenceWindow = { windowMs: number; guardMs: number }
+const BEAT_REFERENCE: ReferenceWindow = { windowMs: REFERENCE_WINDOW_MS, guardMs: REFERENCE_GUARD_MS }
 // The Threshold slider (0 to 5) is the rise in dB a hit must clear its reference by: slider x this, kept in range.
 const DB_PER_SENSITIVITY = 1.5
 const MIN_THRESHOLD_DB = 0.5
@@ -93,8 +97,10 @@ export type OnsetReading = {
   analysisBeat: boolean
 }
 
-const toThresholdDb = (sensitivity: number): number => Math.min(MAX_THRESHOLD_DB, Math.max(MIN_THRESHOLD_DB, sensitivity * DB_PER_SENSITIVITY))
-const ANALYSIS_THRESHOLD_DB = toThresholdDb(ANALYSIS_ONSET.sensitivity)
+/** The rise in dB a hit must clear its reference by, for the Threshold slider's value. */
+export const thresholdDbFor = (sensitivity: number): number =>
+  Math.min(MAX_THRESHOLD_DB, Math.max(MIN_THRESHOLD_DB, sensitivity * DB_PER_SENSITIVITY))
+const ANALYSIS_THRESHOLD_DB = thresholdDbFor(ANALYSIS_ONSET.sensitivity)
 
 const follow = (current: number, target: number, dtMs: number, tauMs: number): number =>
   current + (target - current) * (1 - Math.exp(-dtMs / tauMs))
@@ -102,10 +108,14 @@ const follow = (current: number, target: number, dtMs: number, tauMs: number): n
 const toDb = (level: number): number => 20 * Math.log10(Math.max(level, SILENCE_LEVEL / 10))
 const fromDb = (db: number): number => 10 ** (db / 20)
 
-class BandTracker {
+/** One band's onsets: its level in dB against the recent maximum (see the notes at the top). Exported for the drum hit classifier's own window (drum-hits.ts). */
+export class BandTracker {
   private floorDb: number | null = null
 
-  constructor(private readonly options: OnsetDetectorOptions) {}
+  constructor(
+    private readonly options: OnsetDetectorOptions = DEFAULT_ONSET_OPTIONS,
+    private readonly reference: ReferenceWindow = BEAT_REFERENCE,
+  ) {}
 
   private fast = 0
   private loudness = 0
@@ -137,8 +147,8 @@ class BandTracker {
     for (let n = 0; n < this.count; n++) {
       const slot = (this.head - 1 - n + HISTORY_SLOTS) % HISTORY_SLOTS
       const age = this.clockMs - (this.times[slot] ?? 0)
-      if (age > REFERENCE_WINDOW_MS) break
-      if (age >= REFERENCE_GUARD_MS) referenceDb = Math.max(referenceDb, this.dbs[slot] ?? -Infinity)
+      if (age > this.reference.windowMs) break
+      if (age >= this.reference.guardMs) referenceDb = Math.max(referenceDb, this.dbs[slot] ?? -Infinity)
     }
     this.times[this.head] = this.clockMs
     this.dbs[this.head] = db
@@ -187,7 +197,7 @@ export class OnsetDetector {
     const dtMs = Math.max(deltaMs, 1)
     this.clockMs += dtMs
 
-    const thresholdDb = toThresholdDb(params.sensitivity)
+    const thresholdDb = thresholdDbFor(params.sensitivity)
     const noiseGate = params.rhythm === false
     const steps = this.trackers.map((tracker, i) => tracker.step(levels[i] ?? 0, dtMs, thresholdDb, noiseGate))
     const canFire = this.clockMs > WARMUP_MS && this.clockMs - this.lastBeatMs >= params.ignoreMs
