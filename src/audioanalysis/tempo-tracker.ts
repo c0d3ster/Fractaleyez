@@ -73,8 +73,10 @@ export const DEFAULT_TEMPO_OPTIONS: TempoTrackerOptions = {
   minConfidence: 0.08,
   minStrength: 0.6,
   holdMs: 30000,
-  firstWindowShare: 0.75,
-  firstLockReadings: 6,
+  // A first tempo from 30% of the window and 3 readings: on GiantSteps it locks in a median 5.0 s instead of 11.5 s (0.75 and 6) with the
+  // same accuracy and steadiness; anything faster (0.25 and 4, 0.2 and 3) showed tempos on white, pink and brown noise (noise.py).
+  firstWindowShare: 0.3,
+  firstLockReadings: 3,
 }
 
 const BANDS = 5
