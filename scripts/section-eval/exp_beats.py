@@ -13,6 +13,7 @@ Variants:
   none          no beat columns at all
   own           each band's own onsets (5 x 4 columns) instead of the merged beat: nothing depends on the HUD's toggles
   base+own      the merged default beat and each band's own onsets
+  <variant>#<n> the same with another random seed (the boosters' early stopping holds out a random 10%), to see how much is noise
 
 --mismatch: the base model, scored on features whose beat columns come from another selection (what the app does today when the HUD's
 band toggles are changed from the default). --tune: tune the decoder per variant (coordinate search, slower); otherwise every variant uses
@@ -114,12 +115,12 @@ def folds_of(data: dict, fold_of: dict) -> list[tuple[np.ndarray, np.ndarray]]:
     return [(np.where(slot_fold != f)[0], np.where(slot_fold == f)[0]) for f in range(FOLDS)]
 
 
-def fit(data: dict, X: np.ndarray, folds: list) -> list[tuple]:
+def fit(data: dict, X: np.ndarray, folds: list, seed: int = 0) -> list[tuple]:
     """Out-of-fold stage 1 then stage 2, as train.py. Returns the fold models (and the out-of-fold output it trained stage 2 on)."""
     p1 = np.zeros((len(X), 3))
     m1s = []
     for train, test in folds:
-        m = HistGradientBoostingClassifier(**STAGE1, random_state=0).fit(X[train], data['y'][train])
+        m = HistGradientBoostingClassifier(**STAGE1, random_state=seed).fit(X[train], data['y'][train])
         p1[test] = m.predict_proba(X[test])
         m1s.append(m)
     X2 = np.concatenate([X, p1.astype(np.float32), memory(p1, data['starts']).astype(np.float32)], axis=1)
@@ -127,7 +128,7 @@ def fit(data: dict, X: np.ndarray, folds: list) -> list[tuple]:
     m2s = []
     for train, _ in folds:
         train = train[keep[train]]
-        m2s.append(HistGradientBoostingClassifier(**STAGE2, random_state=0).fit(X2[train], data['drop'][train]))
+        m2s.append(HistGradientBoostingClassifier(**STAGE2, random_state=seed).fit(X2[train], data['drop'][train]))
     return list(zip(m1s, m2s))
 
 
@@ -200,8 +201,9 @@ def main() -> None:
         if v == 'base':
             oof = base_oof
         else:
-            X = build_x(data, v)
-            oof = predict(data, X, folds, fit(data, X, folds))
+            name, _, seed = v.partition('#')
+            X = build_x(data, name)
+            oof = predict(data, X, folds, fit(data, X, folds, int(seed or 0)))
             del X
         cfg = tune(oof, gt, dict(base_cfg)) if '--tune' in sys.argv and v != 'base' else base_cfg
         results.append({**report(v, oof, gt, cfg), 'cfg': cfg})
