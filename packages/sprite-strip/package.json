@@ -8,6 +8,7 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
+      "@fractaleyez/source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
@@ -18,11 +19,11 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "tsup src/index.ts --format esm,cjs --dts",
+    "build": "tsup",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src test --fix",
     "test": "vitest run",
-    "prepublishOnly": "yarn build"
+    "prepublishOnly": "npm run build"
   },
   "keywords": [
     "canvas",
@@ -44,6 +45,9 @@
     "eslint-plugin-prefer-arrow": "^1.2.3",
     "tsup": "^8.3.5",
     "typescript": "^5.7.2",
-    "vitest": "^2.1.8"
+    "vitest": "^4.1.11"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

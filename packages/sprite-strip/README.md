@@ -97,3 +97,11 @@ Browser only — `prepareSprite` uses `Image`, `document.createElement('canvas')
 `canvas.toDataURL`. `stripEdgeBackground` itself only calls `getImageData`/
 `putImageData` on the context you pass it, so it could work with a non-DOM canvas
 implementation, but that's untested and unsupported for now.
+
+## Development
+
+This repo is a mirror. sprite-strip is developed in the
+[Fractaleyez](https://github.com/c0d3ster/Fractaleyez) monorepo under
+`packages/sprite-strip` and pushed here with `git subtree`, so issues and PRs here are
+welcome and get pulled back in. Locally: `pnpm install`, then `pnpm test`, `pnpm typecheck`,
+`pnpm lint` and `pnpm build`.
