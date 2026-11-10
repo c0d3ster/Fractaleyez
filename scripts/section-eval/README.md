@@ -71,6 +71,7 @@ python tune_tempo_change.py out/pl-before.json out/single-before.json --folds 0,
 - `rhythm-features.mts`, `rhythm-fit.py`, `rhythm-names.py`: the rhythm names under the Beat HUD's BPM. Features per reading from `pattern-eval.mts` dumps (through the app's own `rhythmFeatures`), the fit of `src/audioanalysis/rhythm-model.json` on the tune halves (`--export`), and precision, coverage, per-name and per-tempo-range accuracy on the held-out halves (see `tempo.md`).
 - `raveform-sections.py`: maps Raveform's sections onto SSME's labels (buildup to build, breakdown and cooldown to break, a drop after a non-drop to a drop event) and writes its folds, for `train.py` (several label files, `--folds`, `--dir-weights`, `--no-grid`) and `score.py`.
 - `raveform-fetch.py`: run on a machine where YouTube works; fetches Raveform's audio and keeps only the band levels (see its header).
+- `dump-beats.mts`, `exp_beats.py`: beats per slot under several band selections (each band's own onsets, then the merged beat per selection), and the section model retrained with each as its beat features, scored out of fold with the decoder tuned on the default. `--mismatch` scores the default model on beats from another selection, `variant#seed` reruns one with another seed to measure the noise. Why the section tracker counts its beats on fixed settings (see the plan doc).
 - `spectrum.py`: emulates the app's 512-point FFT analyser. Used to test whether spectral (timbre) features help; they did not (see the plan doc), so the model does not use them.
 
 ## Results
