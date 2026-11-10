@@ -6,7 +6,9 @@
 // drop or a breakdown can start, which is what the section tracker is missing.
 //
 //  1. Beat clock. The tempo tracker gives the period. Every 250 ms the last 8 s of onset strength (on a 5 ms grid, lightly smoothed) is
-//     scored against every phase of that period; the clock is nudged toward the best one (a small error) or re-anchored on it (a large one
+//     scored against every phase of that period (the onset strength is the beat network's beat probability when the grid has one: it knows
+//     a beat from an off-beat hat, which the tempo tracker's band rises do not; the tempo itself stays on the band rises, which read
+//     periods better); the clock is nudged toward the best one (a small error) or re-anchored on it (a large one
 //     that persists). A beat event fires on the frame the clock passes a beat.
 //  2. Downbeat. Once a beat is two beats past: how far each band rose on it (kick, clap, crash) and how much each band's level changed
 //     across it, over one beat and over two (bar lines change most: a new bass note, a new loop). Kept per position in the bar with a slow
@@ -16,7 +18,9 @@
 //  3. Phrase. The same at bar level, four bars after each bar line: the rise on its first beat and how much the level changed across it
 //     over one, two and four bars, kept per position in an 8-bar cycle and weighed per hypothesis with fitted weights.
 import model from './beat-grid-model.json'
+import beatNetModel from './beat-net-model.json'
 import { TempoTracker, tempoTracker } from './tempo-tracker'
+import { BeatActivation, BeatNet, BeatNetModel } from './beat-net'
 
 export type GridState = {
   /** Beats since the grid locked, counting the current one. */
@@ -50,7 +54,8 @@ export type BeatGridOptions = {
   /** A different downbeat takes over once it has led for this many bars; a different phrase line, for phraseSwitchBars. */
   switchBars: number
   phraseSwitchBars: number
-  /** How late the onsets arrive after the sound that makes them (band filters and level windows), taken off the beat times. */
+  /** How late the onsets arrive after the sound that makes them (band filters and level windows), taken off the beat times. Left out, it
+   * is LATENCY_MS, or BEAT_NET_LATENCY_MS when the tempo tracker reads the beat network (which fires closer to the sound). */
   latencyMs: number
 }
 
@@ -68,6 +73,9 @@ export const DEFAULT_GRID_OPTIONS: BeatGridOptions = {
   phraseSwitchBars: 2,
   latencyMs: 25,
 }
+
+// Measured on Raveform's held-out folds: the beat network's beats land 21 ms earlier than the band rises', so 4 ms puts them on the marks.
+const BEAT_NET_LATENCY_MS = 4
 
 const BANDS = 5
 const BIN_MS = 5
@@ -185,14 +193,36 @@ export class BeatGrid {
   private readonly barSum = new Float64Array(BANDS)
   private barBeats = 0
   private state: GridState | null = null
+  private readonly net: BeatNet | null
+  // The beat network's hops of the last phase window (time, beat probability), when the grid runs one.
+  private readonly netTimes: number[] = []
+  private readonly netBeat: number[] = []
+  private lastActivation: BeatActivation | null = null
 
-  constructor(private readonly tempo: TempoTracker, options: Partial<BeatGridOptions> = {}) {
-    this.options = { ...DEFAULT_GRID_OPTIONS, ...options }
+  constructor(private readonly tempo: TempoTracker, options: Partial<BeatGridOptions> = {}, beatNet: BeatNetModel | null = null) {
+    const usesNet = beatNet !== null || tempo.hasBeatNet()
+    this.options = { ...DEFAULT_GRID_OPTIONS, ...(usesNet ? { latencyMs: BEAT_NET_LATENCY_MS } : {}), ...options }
     this.bins = new Float64Array(Math.ceil(this.options.phaseWindowMs / BIN_MS))
+    this.net = beatNet ? new BeatNet(beatNet, this.addActivation) : null
   }
+
+  private addActivation = (activation: BeatActivation): void => {
+    this.lastActivation = activation
+    this.netTimes.push(activation.t)
+    this.netBeat.push(activation.beat)
+    if (this.netTimes[0]! < activation.t - this.options.phaseWindowMs - 2000) {
+      const keep = this.netTimes.findIndex((time) => time >= activation.t - this.options.phaseWindowMs - 1000)
+      this.netTimes.splice(0, keep)
+      this.netBeat.splice(0, keep)
+    }
+  }
+
+  /** The beat network's last hop (null without one): how likely a beat and a downbeat are right now. */
+  getActivation = (): BeatActivation | null => this.lastActivation ?? this.tempo.getActivation()
 
   /** Adds one frame (call after the tempo tracker's push for the same frame). Returns true on the frame a beat lands. */
   push = (t: number, levels: readonly number[]): boolean => {
+    this.net?.push(t, levels)
     for (let b = 0; b < BANDS; b++) {
       const db = toDb(levels[b] ?? 0)
       this.bandSums[b]! += db
@@ -241,7 +271,7 @@ export class BeatGrid {
 
   // Scores every phase of the period against the recent onsets and moves the clock toward the best one.
   private updatePhase = (t: number, period: number): void => {
-    const { times, strength } = this.tempo.getOnsets()
+    const { times, strength } = this.net ? { times: this.netTimes, strength: this.netBeat } : this.tempo.getOnsets()
     const n = this.bins.length
     const start = t - n * BIN_MS
     this.bins.fill(0)
@@ -380,5 +410,5 @@ export class BeatGrid {
   }
 }
 
-/** The app's grid, on the app's tempo tracker. AudioFeed pushes it each frame, right after the tracker. */
-export const beatGrid = new BeatGrid(tempoTracker)
+/** The app's grid, on the app's tempo tracker, with the beat network for its phase. AudioFeed pushes it each frame, right after the tracker. */
+export const beatGrid = new BeatGrid(tempoTracker, {}, beatNetModel)

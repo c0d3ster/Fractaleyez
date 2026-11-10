@@ -1,9 +1,10 @@
 // Replays saved band levels through TempoTracker and BeatGrid and records every beat the grid fires (time, place in bar, place in phrase).
 // Scored by grid-score.py against hand-marked beats and downbeats (the Ballroom set) or section starts.
 //
-//   tsx grid-eval.mts <levels dir> <out.json> [--fps 60] [--opts '{"latencyMs":20}'] [--tempo-opts '{}']
-import { readdirSync, writeFileSync } from 'node:fs'
+//   tsx grid-eval.mts <levels dir> <out.json> [--fps 60] [--opts '{"latencyMs":20}'] [--tempo-opts '{}'] [--beat-net model.json] [--net-for grid|tempo|both] [--ids ids.txt]
+import { readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { TempoTracker } from '../../src/audioanalysis/tempo-tracker.ts'
+import type { BeatNetModel } from '../../src/audioanalysis/beat-net.ts'
 import { BeatGrid } from '../../src/audioanalysis/beat-grid.ts'
 import { BANDS, SOURCE_FPS, loadLevels } from './stream.mts'
 
@@ -16,13 +17,20 @@ const [dir, output] = [args[0]!, args[1]!]
 const fps = Number(option('fps', '60'))
 const gridOptions = JSON.parse(option('opts', '{}')) as Record<string, number>
 const tempoOptions = JSON.parse(option('tempo-opts', '{}')) as Record<string, number>
+const netPath = option('beat-net', '')
+const beatNet = netPath ? (JSON.parse(readFileSync(netPath, 'utf8')) as BeatNetModel) : null
+// Which part reads the beat network: the grid's phase (default), the tempo tracker's onsets, or both.
+const netFor = option('net-for', 'grid')
+// --ids keeps only the tracks listed (one id a line), e.g. Raveform's held-out folds.
+const idsPath = option('ids', '')
+const only = idsPath ? new Set(readFileSync(idsPath, 'utf8').split(/\s+/).filter(Boolean)) : null
 
 const runs: Array<{ id: string; beats: Array<[number, number, number]> }> = []
-const ids = readdirSync(dir).filter((name) => name.endsWith('.f32')).map((name) => name.slice(0, -4)).sort()
+const ids = readdirSync(dir).filter((name) => name.endsWith('.f32')).map((name) => name.slice(0, -4)).filter((id) => !only || only.has(id)).sort()
 for (const id of ids) {
   const frames = loadLevels(dir, id)
-  const tempo = new TempoTracker(tempoOptions)
-  const grid = new BeatGrid(tempo, gridOptions)
+  const tempo = new TempoTracker(tempoOptions, netFor === 'grid' ? null : beatNet)
+  const grid = new BeatGrid(tempo, gridOptions, netFor === 'tempo' ? null : beatNet)
   const count = frames.length / BANDS
   const step = SOURCE_FPS / fps
   const levels = new Array<number>(BANDS).fill(0)

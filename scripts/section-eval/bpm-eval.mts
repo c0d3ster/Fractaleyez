@@ -1,7 +1,7 @@
 // Replays saved band levels (levels.py) through the real OnsetDetector and a tempo reader, and records the BPM it would show every 500 ms,
 // the way the Beat HUD reads it. Scored by bpm-score.py against labelled tempos (the GiantSteps tempo set).
 //
-//   tsx bpm-eval.mts <levels dir> <out.json> [--reader current|tracker] [--fps 60] [--opts '{"memoryMs":8000}']
+//   tsx bpm-eval.mts <levels dir> <out.json> [--reader current|tracker] [--fps 60] [--opts '{"memoryMs":8000}'] [--beat-net model.json]
 //
 // current: estimateTempo over the last 12 s of beat times (what the Beat HUD shows today).
 // tracker: TempoTracker (src/audioanalysis/tempo-tracker.ts), fed every frame.
@@ -38,12 +38,14 @@ const currentReader = (): Reader => {
 
 const trackerPath = resolve('../../src/audioanalysis/tempo-tracker.ts')
 const trackerReader = existsSync(trackerPath)
-  ? ((await import(pathToFileURL(trackerPath).href)) as { TempoTracker: new (options?: unknown) => { push: Reader['push']; getBpm: () => number | null } }).TempoTracker
+  ? ((await import(pathToFileURL(trackerPath).href)) as { TempoTracker: new (options?: unknown, beatNet?: unknown) => { push: Reader['push']; getBpm: () => number | null } }).TempoTracker
   : null
 const makeReader = (): Reader => {
   if (readerName === 'current') return currentReader()
   if (!trackerReader) throw new Error('no tempo-tracker.ts yet')
-  const tracker = new trackerReader(JSON.parse(option('opts', '{}')) as unknown)
+  // With --beat-net, the tracker reads the beat network's output instead of the band rises (tempo-tracker.ts).
+  const netPath = option('beat-net', '')
+  const tracker = new trackerReader(JSON.parse(option('opts', '{}')) as unknown, netPath ? (JSON.parse(readFileSync(netPath, 'utf8')) as unknown) : null)
   return { push: tracker.push, read: () => tracker.getBpm() }
 }
 
