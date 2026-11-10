@@ -73,4 +73,26 @@ describe('OnsetDetector', () => {
     expect(run(false, false)).toBeLessThanOrEqual(2)
     expect(run(false, true)).toBeGreaterThanOrEqual(kicksAfter(30, 2000) - 2)
   })
+
+  it('fires the analysis beat on its own settings, whatever the user picked', () => {
+    const run = (params: { enabledBands: boolean[]; sensitivity: number; ignoreMs: number; rhythm?: boolean }): { user: number; analysis: number } => {
+      const detector = new OnsetDetector(5)
+      let user = 0
+      let analysis = 0
+      for (let time = 0; time < 20000; time += FRAME_MS) {
+        const kickIndex = Math.floor(time / KICK_GAP_MS)
+        const level = 1 + kick(time - kickIndex * KICK_GAP_MS, 40)
+        const onset = detector.update([level, 0, 0, 0, 0], FRAME_MS, level, { ...params, decayMs: 300 })
+        if (onset.beat.fresh) user++
+        if (onset.analysisBeat) analysis++
+      }
+      return { user, analysis }
+    }
+    const defaults = run({ enabledBands: [true, false, false, true, false], sensitivity: 2, ignoreMs: 250 })
+    const muted = run({ enabledBands: [false, false, true, false, false], sensitivity: 5, ignoreMs: 900, rhythm: false })
+    expect(defaults.analysis).toBeGreaterThan(30)
+    expect(defaults.user).toBe(defaults.analysis)
+    expect(muted.user).toBe(0)
+    expect(muted.analysis).toBe(defaults.analysis)
+  })
 })

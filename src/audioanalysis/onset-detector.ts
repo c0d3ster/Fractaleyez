@@ -1,5 +1,6 @@
 /* eslint-disable max-classes-per-file */
 import { BEAT_ACTIVE_LEVEL, BeatState } from './beat'
+import { DEFAULT_ENABLED_BANDS } from './onset-bands'
 
 // Onset detection per band, following what the literature recommends for real-time use (Bock et al., SuperFlux):
 //  - Work in a log (dB) scale, so a hit is a ratio over what came before, the same for a quiet mic and a loud one, a
@@ -51,6 +52,14 @@ export type OnsetDetectorOptions = {
 export const DEFAULT_ONSET_OPTIONS: OnsetDetectorOptions = { floorMarginDb: 6, floorQuantile: 0.2, floorRateDbPerS: 20, bassNeedsLoDb: 1 }
 const COINCIDENCE_MS = 40
 
+/**
+ * The analysis beat: the onsets the section model was trained on (scripts/section-eval/dump-features.mts), read from the same band trackers
+ * as the user's beat but on fixed settings (the default bands, Threshold 2, Ignore Time 250 ms, no noise gates), so the Frequency HUD toggles
+ * and the Threshold and Ignore Time sliders change the beat the user sees without changing what the model counts. Retraining on other bands
+ * scored no better, and feeding the model the user's selection instead cost up to 0.019 build F1 (see docs/implementation-plans/song-sections.md).
+ */
+export const ANALYSIS_ONSET = { enabledBands: DEFAULT_ENABLED_BANDS, sensitivity: 2, ignoreMs: 250 } as const
+
 type OnsetParams = {
   /** Which bands may set off a beat (the Frequency HUD toggles). Disabled bands are still tracked, just not heard. */
   enabledBands: boolean[]
@@ -80,7 +89,12 @@ export type OnsetReading = {
   bands: BandReading[]
   /** Which band set off the beat on this frame, or null. */
   beatBand: number | null
+  /** True on the frame an analysis beat fires (ANALYSIS_ONSET), whatever the user's settings. */
+  analysisBeat: boolean
 }
+
+const toThresholdDb = (sensitivity: number): number => Math.min(MAX_THRESHOLD_DB, Math.max(MIN_THRESHOLD_DB, sensitivity * DB_PER_SENSITIVITY))
+const ANALYSIS_THRESHOLD_DB = toThresholdDb(ANALYSIS_ONSET.sensitivity)
 
 const follow = (current: number, target: number, dtMs: number, tauMs: number): number =>
   current + (target - current) * (1 - Math.exp(-dtMs / tauMs))
@@ -97,6 +111,7 @@ class BandTracker {
   private loudness = 0
   private clockMs = 0
   private wasAbove = false
+  private wasAboveAnalysis = false
   // Ring buffer of recent levels in dB, for the max-filtered reference.
   private readonly times = new Float64Array(HISTORY_SLOTS)
   private readonly dbs = new Float64Array(HISTORY_SLOTS)
@@ -107,7 +122,12 @@ class BandTracker {
   recentRiseDb = -Infinity
   private recentRiseAt = -Infinity
 
-  step = (level: number, dtMs: number, thresholdDb: number, noiseGate: boolean): { risingEdge: boolean; reading: BandReading } => {
+  step = (
+    level: number,
+    dtMs: number,
+    thresholdDb: number,
+    noiseGate: boolean,
+  ): { risingEdge: boolean; analysisEdge: boolean; reading: BandReading } => {
     this.clockMs += dtMs
     this.fast = follow(this.fast, level, dtMs, FAST_TAU_MS)
     this.loudness = this.fast > this.loudness ? this.fast : follow(this.loudness, this.fast, dtMs, LOUDNESS_RELEASE_TAU_MS)
@@ -132,9 +152,13 @@ class BandTracker {
     const step = (floorRateDbPerS * dtMs) / 1000
     this.floorDb = this.floorDb === null ? db : this.floorDb + (db > this.floorDb ? floorQuantile * step : -(1 - floorQuantile) * step)
     const overFloor = !noiseGate || floorMarginDb <= 0 || db - this.floorDb >= floorMarginDb
-    const above = hasReference && db - referenceDb > thresholdDb && overFloor && this.fast >= levelGate && this.fast >= SILENCE_LEVEL
+    const loudEnough = hasReference && this.fast >= levelGate && this.fast >= SILENCE_LEVEL
+    const above = loudEnough && db - referenceDb > thresholdDb && overFloor
     const risingEdge = above && !this.wasAbove
     this.wasAbove = above
+    const aboveAnalysis = loudEnough && db - referenceDb > ANALYSIS_THRESHOLD_DB
+    const analysisEdge = aboveAnalysis && !this.wasAboveAnalysis
+    this.wasAboveAnalysis = aboveAnalysis
     const rise = hasReference ? db - referenceDb : -Infinity
     if (rise >= this.recentRiseDb || this.clockMs - this.recentRiseAt > COINCIDENCE_MS) {
       this.recentRiseDb = rise
@@ -142,7 +166,7 @@ class BandTracker {
     }
 
     const referenceLevel = hasReference ? fromDb(referenceDb + thresholdDb) : levelGate
-    return { risingEdge, reading: { level: this.fast, loudness: this.loudness, trigger: Math.max(referenceLevel, levelGate), rising: risingEdge } }
+    return { risingEdge, analysisEdge, reading: { level: this.fast, loudness: this.loudness, trigger: Math.max(referenceLevel, levelGate), rising: risingEdge } }
   }
 }
 
@@ -151,6 +175,7 @@ export class OnsetDetector {
   private readonly options: OnsetDetectorOptions
   private clockMs = 0
   private lastBeatMs = -Infinity
+  private lastAnalysisBeatMs = -Infinity
   private beatEnergy = 0
 
   constructor(bandCount: number, options: Partial<OnsetDetectorOptions> = {}) {
@@ -162,7 +187,7 @@ export class OnsetDetector {
     const dtMs = Math.max(deltaMs, 1)
     this.clockMs += dtMs
 
-    const thresholdDb = Math.min(MAX_THRESHOLD_DB, Math.max(MIN_THRESHOLD_DB, params.sensitivity * DB_PER_SENSITIVITY))
+    const thresholdDb = toThresholdDb(params.sensitivity)
     const noiseGate = params.rhythm === false
     const steps = this.trackers.map((tracker, i) => tracker.step(levels[i] ?? 0, dtMs, thresholdDb, noiseGate))
     const canFire = this.clockMs > WARMUP_MS && this.clockMs - this.lastBeatMs >= params.ignoreMs
@@ -176,11 +201,17 @@ export class OnsetDetector {
       this.beatEnergy = fullBandEnergy
     }
 
+    const analysisBeat = this.clockMs > WARMUP_MS
+      && this.clockMs - this.lastAnalysisBeatMs >= ANALYSIS_ONSET.ignoreMs
+      && steps.some(({ analysisEdge }, i) => analysisEdge && ANALYSIS_ONSET.enabledBands[i])
+    if (analysisBeat) this.lastAnalysisBeatMs = this.clockMs
+
     const value = Math.max(0, 1 - (this.clockMs - this.lastBeatMs) / params.decayMs)
     return {
       beat: { fresh, active: value > BEAT_ACTIVE_LEVEL, value, energy: this.beatEnergy },
       bands: steps.map(({ reading }) => reading),
       beatBand: fresh ? edgeBand : null,
+      analysisBeat,
     }
   }
 }
