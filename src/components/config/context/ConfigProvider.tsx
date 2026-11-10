@@ -95,6 +95,9 @@ const DEFAULT_PRESET_META: PresetMeta = {
 
 export type ConfigSectionKey = 'user' | 'fractal' | 'audio' | 'effects' | 'color' | 'particle' | 'orbit' | 'logo'
 
+/** The sections that are a layer's own (video is not a plain section and resets through resetVideoClips). */
+const SECTION_LAYER: Partial<Record<ConfigSectionKey, LayerKey>> = { fractal: 'fractal', orbit: 'orbit', logo: 'logo' }
+
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 
@@ -765,6 +768,8 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
     await warmSpriteCache([...next.particle.sprites.value, ...next.logo.sprite.value])
     setConfig(next)
     window.config = next
+    // A shape picked on the Shape pad is not part of a preset, so loading one hands the shape back to its tour.
+    window.clearJuliaShape?.()
     // A preset only stores a camera when it starts off center, so one without it puts the camera back in the middle.
     const camera = cameraStart(cfg.user, next.user.sway.value)
     window.setVirtualCameraPosition?.(camera.x, camera.y)
@@ -793,6 +798,13 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
     updateConfigItem(category, item, baseItem.value)
   }, [updateConfigItem])
 
+  // The layer's opacity and blend mode as the active preset had them. Whether it is on is left alone: that is the power button's.
+  const restoreLayerLook = useCallback((key: LayerKey): void => {
+    const { opacity, blendMode } = baselineRef.current.layers.meta[key]
+    setLayerOpacity(key, opacity.value)
+    setLayerBlendMode(key, blendMode)
+  }, [setLayerOpacity, setLayerBlendMode])
+
   const resetConfigSection = useCallback(async (category: ConfigSectionKey) => {
     const baseline = baselineRef.current
     // Same reasoning as retrieveConfigPreset: warm the sprites before the write triggers a particle rebuild.
@@ -802,11 +814,17 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
       window.config = next
       return next
     })
-  }, [])
+    // A layer's own section also owns its opacity and blend mode, so its reset restores the preset's too.
+    const layer = SECTION_LAYER[category]
+    if (layer) restoreLayerLook(layer)
+    // A shape picked on the Shape pad is not config: it lasts until the Tour value changes, which a reset to the same value does not do.
+    if (category === 'fractal') window.clearJuliaShape?.()
+  }, [restoreLayerLook])
 
   const resetVideoClips = useCallback(() => {
     updateVideoClips(baselineRef.current.video.clips)
-  }, [updateVideoClips])
+    restoreLayerLook('video')
+  }, [updateVideoClips, restoreLayerLook])
 
   // Swaps the active preset's resolved `@user` stand-in back to the sentinel, so a saved preset never stores one user's logo.
   const particleStandIn = userReferenceStandInOf(config, activeUserReferenceRef.current, 'particle')
