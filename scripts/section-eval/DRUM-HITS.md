@@ -1,8 +1,8 @@
 # Drum hits and risers: status and handoff
 
 Branch `feat/drum-hits` (off `main`). Work in progress: the code, models and tools are in place and the test suite is green, but three
-tests are marked `it.fails` for known model gaps. The riser model now reads real buildups above breakdowns (it read them the other way
-round before), but it is shown in only a fifth of buildup time. Read this before picking it up.
+tests are marked `it.fails` for known model gaps. The riser meter now runs the pure riser model (B below): it no longer reads breakdowns
+as rising, but the five band levels hide most real risers, so a spectrum sweep detector is next. Read this before picking it up.
 
 ## What it is
 
@@ -15,9 +15,8 @@ round before), but it is shown in only a fifth of buildup time. Read this before
   `RISER_FEATURE_NAMES` (52): the trend over 2, 4 and 8 s (band slopes, centroid slope, highs against lows, line fit of the highs, highs
   against their peak), inputs that hold when the lows drop out (Theil-Sen slopes of the highs and the mid band, the share of rising steps,
   the highs above their low), and 32 s of context from one-second means (16 and 32 s slopes of bass, mid, highs and the mix, each against
-  its peak, seconds the bass has been 6 dB under its peak). The model (`riser-model.json`: it names the inputs it reads, now all 52, with
-  16 units) is smoothed with a 400 ms follower. `getScore()` is 0 to 1. It is a buildup detector more than a pure riser detector now (see
-  Results).
+  its peak, seconds the bass has been 6 dB under its peak). The model (`riser-model.json`: it names the inputs it reads, now the 31 that
+  do not read the bass or the whole mix, with 16 units) is smoothed with a 400 ms follower. `getScore()` is 0 to 1.
 - Frequency HUD (`src/components/huds/FrequencyHud.tsx`): a light for each drum under the bars, at the frequency its hits sit at
   (`DRUM_CENTER_HZ` in `drum-hits.ts`, on a log scale inside each band's column), and a riser meter under them that fills left to right.
   Fed through `window.getDrumHits` and `window.getRiser` (`src/main.ts`), so the pop-out config window shows them too.
@@ -85,7 +84,7 @@ Retrain the riser (about 20 minutes on 4 cores, under 3 GB with `--real-every 2`
 feature shards of the clips and the 300 train tracks:
 
 ```sh
-python -E -P riser-train.py $C --features all --real-negatives $TR --buildups --negative-weight 2 --intros --real-every 2 \
+python -E -P riser-train.py $C --features highs --real-negatives $TR --real-every 2 \
   --save ../../src/audioanalysis/riser-model.json --parity parity.json
 python -E -P riser-score.py ../../src/audioanalysis/riser-model.json $TE
 ```
@@ -181,12 +180,14 @@ score ranks the last half of buildups above breakdowns (0.5 is chance, under 0.5
 |-------|-------------------------|-------------------------|---------------|----------|-----------|------------------------------|--------------------------|
 | synthetic only (first model, this machine's tracks) | 99.6% | 10.1% | 35.7% | 8.2% | | 84.8% | |
 | + real negatives (previous) | 99.8% | 3.9% | 12.0% | 1.1% | 3.0% | 42.9% | 0.253 |
-| B: pure riser (highs-only inputs, breakdown look-alikes, real negatives) | 100% | 2.1% | 4.0% | 0.5% | 3.1% | 29.1% | 0.482 |
+| **B: pure riser (installed)** (highs-only inputs, breakdown look-alikes, real negatives) | 100% | 2.1% | 4.0% | 0.5% | 3.1% | 29.1% | 0.482 |
 | A: buildup detector, no intro negatives | 99.8% | 33.9% | 9.4% | 8.4% | 48.0% | 91.1% | 0.840 |
-| **A: buildup detector (installed)** | 99.8% | 18.8% | 8.8% | 4.4% | 17.7% | 84.2% | 0.816 |
+| A: buildup detector | 99.8% | 18.8% | 8.8% | 4.4% | 17.7% | 84.2% | 0.816 |
 
-Mean score: buildups 0.377, breakdowns 0.206, drops 0.292 (previous: 0.093, 0.186, 0.054). Synthetic false readings: 5.5 s a minute
-overall (previous recipe 5.4), 8.1 on the synthetic breakdowns, 24.6 on fade-ins.
+Mean score, B (installed): buildups 0.078, breakdowns 0.094, drops 0.041; A: 0.377, 0.206, 0.292; previous: 0.093, 0.186, 0.054.
+Synthetic false readings, B: 5.4 s a minute overall, 8.5 on the synthetic breakdowns, 29.6 on fade-ins (A: 5.5, 8.1, 24.6).
+A was installed first, then swapped for B: the meter is meant to say a riser is playing, not that a buildup is under way, and the
+section model already reads buildups better (A's inputs are a subset of what it sees).
 
 What was learned:
 
@@ -206,8 +207,9 @@ What was learned:
 
 ## Work remaining
 
-1. Riser on real music. Both directions were tried (Results): the installed model is the buildup detector (A). Still open: it is shown
-   in a fifth of buildup time and in 18% of intros, which look like buildups to these inputs. Ideas: the drum rates as inputs (a snare
+1. Riser on real music. Both directions were tried (Results). The meter's job is to say a riser is playing, so it runs B; A was a weaker
+   copy of the section model's buildup reading. There are no riser labels on real music yet, so B's 2% of buildup time cannot say how many
+   risers it misses, and the five band levels hide a sweep under the hats. Ideas: the drum rates as inputs (a snare
    roll speeding up is the clearest buildup cue and the band levels hide it), a threshold or calibration per use (the HUD could fill the
    meter from 0.3), more real tracks, or both models side by side (B for the HUD's riser meter, A for the section model). The pure riser
    (B) is reproducible with `--features highs --real-negatives $TR`. The `it.fails` riser test now rises through the riser (0.998) but
