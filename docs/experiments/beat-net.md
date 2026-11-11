@@ -12,8 +12,8 @@ hop grid, 15 inputs per hop (each band's level against a 3 s follower, its rise 
 outputs per hop: beat now, downbeat now. Causal: it only hears the past. It costs about 46 microseconds a frame (2.8 ms of CPU a second of
 audio). `beat-net.test.ts` checks it gives PyTorch's numbers to 4 decimals.
 
-**Where it is used:** only the beat grid's phase (`BeatGrid`, the app's `beatGrid`). The tempo stays on the band rises: fed the network's
-output, the tempo tracker (tuned for band rises, which credit hats on the eighths) picked wrong tempos on GiantSteps (acc1 0.84 to 0.77).
+**Where it is used:** the beat grid's phase and its choice of beat 1 (`BeatGrid`, the app's `beatGrid`, with `netDownbeatWeight` 3). The
+tempo stays on the band rises only (see "The tempo stays on the band rises" below).
 
 ## Training (`scripts/section-eval/beat-net.py`)
 
@@ -28,14 +28,15 @@ output, the tempo tracker (tuned for band rises, which credit hats on the eighth
 
 ## Results: Raveform folds 6 and 7, held out (343 EDM tracks)
 
-The app's setup (`grid-eval.mts --beat-net`), with the faster first tempo below, scored by `grid-score-raveform.py`:
+The network for the grid's phase only (`netDownbeatWeight` 0), with the faster first tempo below, scored by `grid-score-raveform.py`. The
+app's setup adds the network's downbeats on top: see "Downbeats from the network" for those numbers.
 
 | | beat F | downbeat F | bar right | 8-bar F | phrase right | offset |
 |---|---|---|---|---|---|---|
 | Grid on band rises, clean | 0.815 | 0.618 | 0.66 | 0.432 | 0.41 | -4 ms |
-| **With the beat net, clean** | **0.925** | **0.722** | **0.82** | **0.520** | **0.55** | -1 ms |
+| **With the beat net (phase only), clean** | **0.925** | **0.722** | **0.82** | **0.520** | **0.55** | -1 ms |
 | Grid on band rises, laptop mic (level-domain simulation; before the faster first tempo) | 0.834 | 0.652 | 0.70 | 0.449 | 0.45 | |
-| **With the beat net, laptop mic** | **0.923** | **0.750** | **0.85** | **0.548** | **0.59** | -1 ms |
+| **With the beat net (phase only), laptop mic** | **0.923** | **0.750** | **0.85** | **0.548** | **0.59** | -1 ms |
 
 - By genre (clean): techno 0.965 beat F, trance 0.907.
 - Round one and round two score the same on this test (0.924 and 0.924 clean, 0.921 and 0.922 laptop); round two ships for its wider
@@ -70,10 +71,10 @@ folds 6 and 7:
 
 | | downbeat F | bar right | 8-bar F | phrase right |
 |---|---|---|---|---|
-| Beat net, clean | 0.722 | 0.82 | 0.520 | 0.55 |
-| **Plus its downbeats, clean** | **0.744** | **0.85** | **0.537** | **0.59** |
-| Beat net, laptop | 0.750 | 0.85 | 0.548 | 0.59 |
-| **Plus its downbeats, laptop** | **0.767** | **0.88** | **0.560** | **0.61** |
+| Beat net, phase only, clean | 0.722 | 0.82 | 0.520 | 0.55 |
+| **Plus its downbeats (the app's setup), clean** | **0.744** | **0.85** | **0.537** | **0.59** |
+| Beat net, phase only, laptop | 0.750 | 0.85 | 0.548 | 0.59 |
+| **Plus its downbeats (the app's setup), laptop** | **0.767** | **0.88** | **0.560** | **0.61** |
 
 Beat F is unchanged (0.925 clean, 0.923 laptop).
 
