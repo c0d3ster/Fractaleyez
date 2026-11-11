@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { RiserDetector, riserFeatures, riserProbability, type RiserSlot } from './riser'
+import { RISER_FEATURE_NAMES, RiserDetector, riserFeatures, riserProbability, type RiserSlot } from './riser'
 import fixture from './riser.fixture.json'
 
 // Slots of band levels in dB (bass, lo, mid, hi, air), one every 100 ms.
@@ -33,6 +33,32 @@ describe('riserFeatures', () => {
     ;[0, 1, 2].forEach((w) => [0, 1, 2, 3, 4, 5, 6].forEach((item) => expect(features[at(w, item)]).toBeCloseTo(0, 6)))
   })
 
+  // By name, for the inputs after the first model's 28.
+  const named = (features: number[], name: string): number => features[RISER_FEATURE_NAMES.indexOf(name)] ?? Number.NaN
+
+  it('reads the climb in the highs the same when the lows drop out under it', () => {
+    const climb = (i: number): number[] => BED.map((v, b) => (b >= 3 ? v + 0.3 * i : v))
+    // The kick and bass gone for the last 3 s: the step-proof slope and the share of rising steps do not move.
+    const cut = (i: number): number[] => climb(i).map((v, b) => (b <= 1 && i >= 50 ? v - 20 : v))
+    const [steady, dropped] = [riserFeatures(slotsOf(80, climb)), riserFeatures(slotsOf(80, cut))]
+    ;['2s_robust_slope_highs', '4s_robust_slope_highs', '8s_robust_slope_highs', '8s_rise_share_highs', 'hi_vs_min', 'air_vs_min'].forEach((name) =>
+      expect(named(dropped, name)).toBeCloseTo(named(steady, name), 6))
+    expect(named(steady, '8s_robust_slope_highs')).toBeCloseTo(3, 5)
+    expect(named(steady, '8s_rise_share_highs')).toBe(1)
+    // The centroid (against the lows) does move.
+    expect(named(dropped, 'centroid')).toBeGreaterThan(named(steady, 'centroid'))
+  })
+
+  it('counts how long the bass has been gone over the last 32 s', () => {
+    // 20 s of the full bed, then 12 s with the bass 20 dB down.
+    const features = riserFeatures(slotsOf(320, (i) => BED.map((v, b) => (b === 0 && i >= 200 ? v - 20 : v))))
+    expect(named(features, 'bass_gone_s')).toBe(12)
+    expect(named(features, 'bass_vs_peak_32s')).toBeCloseTo(-20, 6)
+    expect(named(features, '16s_slope_highs')).toBeCloseTo(0, 6)
+    // The first 8 s inputs read only the last 80 slots: all after the cut, so no trend.
+    expect(named(features, '8s_slope_bass')).toBeCloseTo(0, 6)
+  })
+
   it('reads nothing before a second of slots', () => {
     expect(riserFeatures(slotsOf(9, () => BED)).every((v) => v === 0)).toBe(true)
   })
@@ -57,7 +83,8 @@ const run = (clip: Clip): RiserSlot[] => {
 
 describe('RiserDetector', () => {
   // Known gap, failing on purpose until the model is retrained (scripts/section-eval/DRUM-HITS.md): when it passes, make it a plain `it` again.
-  // The model trained with real breakdowns and drops as negatives stays under 0.5 through this riser.
+  // The buildup model (real buildups, breakdowns, drops and intros) rises through this riser (0.998 at its end), but single slots of the
+  // plain clip still read over 0.5 (0.89 at most) before smoothing.
   it.fails('rises through a riser and stays low without one', () => {
     const detector = new RiserDetector()
     const { riser, plain } = fixture.clips
