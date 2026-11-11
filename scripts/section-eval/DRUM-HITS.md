@@ -35,11 +35,16 @@ on bass plucks on test clips, and about 250 times a minute on real EDM.
 - `riser-train.py <eval.json,...> [--real-negatives eval.json,...] [--save] [--parity]`: the same for the riser. `--real-negatives` adds the
   middle of drops and the first 60% of breakdowns from real songs (Raveform sections) as not risers.
 - `mlp.py`: the shared one-hidden-layer network.
+- `drum-real-score.py`: proxies on real music, from Raveform's beats (no drum labels): in the drops of four-on-the-floor tracks, the share of
+  kick calls on a beat and of beats with a kick, the same for snare and clap on 2 and 4, and hat calls on the eighth grid and off-beats
+  with a hat.
 
 Sample sources (free): `github.com/tidalcycles/Dirt-Samples` (sn, sd, 808sd, cp, realclaps, bd, 808bd, clubkick; its `hh` folder is a whole
 kit, so only its hats) and `github.com/oramics/sampled` (DM/*, DRUMS/*). Folders: `kick/`, `hat/` (closed, pedal and open hats only),
-`snare/`, `clap/`, `cymbal/` (crashes and rides, played as none of the four). A cloud session rebuilt these counts exactly by leaving out
-Dirt-Samples' 808bd and 808sd folders and the avl kit's RideShank cymbals.
+`snare/`, `clap/`, `cymbal/` (crashes and rides, played as none of the four). `drum-samples.py` does the sorting (with these two it
+gives the counts below exactly) and can add `github.com/geikha/tidal-drum-machines` (about 75 drum machines, no licence stated: train and
+score with it, do not ship it): kick 566, hat 321, snare 679, clap 93, cymbal 255. It names each file by its drum machine, and
+`drum-gen.py` puts a machine's samples in one fold, so held-out folds are machines never heard.
 
 ## Data on this machine
 
@@ -70,7 +75,7 @@ lot of memory with the real negatives (about 100 minutes, and twice it was stopp
 
 ## Results so far (tentative)
 
-Drums, held out by sample fold, on 3,150 clips from the current `drum-gen.py --seed 1` (made again in a cloud session from the same
+Drums, held out by sample fold (by file name: before `drum-gen.py` folded by drum machine, so these folds share machines), on 3,150 clips from `drum-gen.py --seed 1` (made again in a cloud session from the same
 sample sources). "Before" is the first model's setup (26 inputs, level gate 0.25) trained and scored on the same clips; hats are scored
 without the ones a snare or a clap hides (see `drum-train.py`), for both.
 
@@ -108,8 +113,38 @@ On 200 held-out real Raveform tracks (folds 6 and 7; median calls a minute):
 | snare + clap (sum of medians) | now | 16 | 39 | 53 | 51 | 19 |
 
 The first model on these tracks is close to the numbers measured on the user's machine (kick 114, 97, 67 and 4; snare plus clap about 54 in
-drops; hats 104 to 169), though they are not the same 200 tracks. Kicks in drops come closer to a four on the floor (128 a minute at 128 BPM)
-and the hats halve in breakdowns.
+drops; hats 104 to 169), though they are not the same 200 tracks. Kicks in drops come closer to a four on the floor (128 a minute at 128 BPM).
+Fewer hats is not all good: see below, the model misses more real off-beat hats.
+
+### More samples, and real music (folds by drum machine)
+
+Clips from the first two collections only (A) and from all three (B), 3,150 each, `drum-gen.py --seed 1` with folds by drum machine. Both
+models are scored on the same held-out B clips (fold f, after training on folds other than f and 3: the first two collections have no hats
+or snares in fold 3, so A's fold-3 clips borrow other folds' samples). Held out by machine is much harder than the table above, whose folds
+put the same machine on both sides.
+
+| drum  | A: caught | false a minute | threshold | B: caught | false a minute | threshold |
+|-------|-----------|----------------|-----------|-----------|----------------|-----------|
+| kick  | 60.1%     | 6.0            | 0.85      | 64.4%     | 6.0            | 0.85      |
+| hat   | 40.8%     | 5.6            | 0.875     | 42.0%     | 4.8            | 0.825     |
+| snare | 53.9%     | 9.5            | 0.75      | 57.4%     | 8.6            | 0.80      |
+| clap  | 46.9%     | 7.1            | 0.925     | 53.1%     | 6.9            | 0.85      |
+
+On all 1,370 Raveform tracks (`drum-real-score.py`; the drops of about 1,000 four-on-the-floor tracks):
+
+| proxy | first model | installed (this table's first) | A | B |
+|-------|-------------|--------------------------------|---|---|
+| kick calls on a beat | 91.3% | 83.8% | 91.8% | 81.5% |
+| beats with a kick | 48.1% | 54.1% | 54.1% | 56.1% |
+| snare/clap calls on 2 or 4 | 27.4% | 33.6% | 30.1% | 31.0% |
+| 2 and 4 with a snare/clap | 28.1% | 32.1% | 32.3% | 36.9% |
+| hat calls on the eighth grid | 71.5% | 61.3% | 65.9% | 61.2% |
+| off-beats with a hat | 82.3% | 60.7% | 44.2% | 51.5% |
+
+More samples help on synthetic machines it never heard (every drum, at the same or fewer false calls) and with snare, clap and hat recall on
+real music, but kicks land off the beat more. Every retrained model misses far more real off-beat hats than the first one: real off-beats
+nearly all make a candidate (96%), but the hat reads lower there (a quarter under 0.72, against 0.82 with the first model) and its
+threshold went up from 0.675 to 0.8 or more. The synthetic beds do not look like a real drop, where the off-beat hat sits on a bass note.
 
 Riser:
 
@@ -128,8 +163,9 @@ breakdowns still score higher than buildups (mean 0.17 against 0.08).
    breakdowns as negatives), which makes it a buildup detector more than a riser detector, which may be what the section model wants
    anyway; features that do not move when the lows drop out (the highs' own slope in absolute dB, not against the lows); a synthetic
    breakdown look-alike (kit and bass cut, pads go on). Score with the held-out 200 tracks by section (the table above).
-2. Hats: 44% caught at 4.7 false a minute (hats a snare or a clap hides not counted). Most of the misses never rise in the band levels at
-   all, so more recall needs something finer than five bands at 60 fps. A lower threshold trades the other way (on the first setup: 0.75
+2. Hats: 44% caught at 4.7 false a minute (hats a snare or a clap hides not counted), but worse than the first model on real off-beat hats
+   (above). Thresholds chosen on real music (Raveform folds, with `drum-real-score.py`'s proxies) or real music in training would go at
+   that. Most synthetic misses never rise in the band levels at all, so more recall needs something finer than five bands at 60 fps. A lower threshold trades the other way (on the first setup: 0.75
    gave 37% at 11 a minute, 0.85 gave 24% at 3, counting every hat).
 3. A snare alone with a strong body still misses (`it.fails` "snare alone"): with solo clips and the peak inputs the kick reading fell from
    0.74 to 0.81 to 0.6, but the snare reads 0.55 and 0.7 against its 0.8. Next: features on the 2 to 6 kHz crack, or a lower snare
