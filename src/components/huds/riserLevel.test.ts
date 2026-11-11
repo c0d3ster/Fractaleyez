@@ -2,58 +2,64 @@ import { describe, expect, it } from 'vitest'
 
 import { OFF_SCORE, ON_SCORE, RISER_LEVELS, RiserLevel, levelForScore } from './riserLevel'
 
-// Steps the meter every 50 ms through a list of [score, durationMs] and returns the bars at the end.
-const run = (meter: RiserLevel, steps: ReadonlyArray<readonly [number, number]>, start = 0): { level: number; t: number } => {
+type Trace = { levels: number[]; t: number }
+
+// Steps the meter every 50 ms through a list of [score, durationMs] and returns every level it showed.
+const run = (meter: RiserLevel, steps: ReadonlyArray<readonly [number, number]>, start = 0): Trace => {
   let t = start
-  let level = 0
+  const levels: number[] = []
   steps.forEach(([score, durationMs]) => {
     for (let elapsed = 0; elapsed < durationMs; elapsed += 50) {
       t += 50
-      level = meter.step(score, t)
+      levels.push(meter.step(score, t))
     }
   })
-  return { level, t }
+  return { levels, t }
 }
+
+const last = ({ levels }: Trace): number => levels[levels.length - 1] ?? 0
 
 describe('levelForScore', () => {
   it('is 0 under the on score and climbs to the top level', () => {
     expect(levelForScore(ON_SCORE - 0.01)).toBe(0)
     expect(levelForScore(ON_SCORE)).toBe(1)
-    expect(levelForScore(0.95)).toBe(RISER_LEVELS)
+    expect(levelForScore(0.85)).toBe(RISER_LEVELS)
     expect(levelForScore(1)).toBe(RISER_LEVELS)
   })
 })
 
 describe('RiserLevel', () => {
-  it('shows nothing for the usual wobble under the on score', () => {
-    const meter = new RiserLevel()
-    const wobble: Array<[number, number]> = Array.from({ length: 40 }, (_, i) => [i % 2 === 0 ? 0.15 : 0.45, 100])
-    expect(run(meter, wobble).level).toBe(0)
+  it('shows nothing for wobble under the on score', () => {
+    const wobble: Array<[number, number]> = Array.from({ length: 40 }, (_, i) => [i % 2 === 0 ? 0.1 : ON_SCORE - 0.02, 100])
+    expect(run(new RiserLevel(), wobble).levels.every((level) => level === 0)).toBe(true)
   })
 
-  it('ignores a short spike over the on score', () => {
-    const meter = new RiserLevel()
-    expect(run(meter, [[0.2, 1000], [0.9, 300], [0.2, 1000]]).level).toBe(0)
+  it('ignores a spike shorter than the show hold', () => {
+    expect(last(run(new RiserLevel(), [[0.1, 500], [0.9, 100], [0.1, 500]]))).toBe(0)
   })
 
-  it('shows a held riser and climbs with it', () => {
-    const meter = new RiserLevel()
-    expect(run(meter, [[0.55, 600]]).level).toBe(1)
-    expect(run(meter, [[0.97, 400]], 600).level).toBe(RISER_LEVELS)
+  it('climbs one bar at a time even when the score is already high', () => {
+    const { levels } = run(new RiserLevel(), [[0.95, 1500]])
+    const shown = levels.filter((level, i) => level > 0 && level !== levels[i - 1])
+    expect(shown).toEqual([1, 2, 3, 4, 5])
   })
 
-  it('stays on between the off and on scores, and goes off under the off score one bar at a time', () => {
-    const meter = new RiserLevel()
-    const { t } = run(meter, [[0.97, 800]])
-    expect(run(meter, [[(OFF_SCORE + ON_SCORE) / 2, 300]], t).level).toBe(RISER_LEVELS)
-    const after = run(meter, [[OFF_SCORE - 0.1, 450]], t + 300)
-    expect(after.level).toBe(RISER_LEVELS - 1)
-    expect(run(meter, [[OFF_SCORE - 0.1, 3000]], after.t).level).toBe(0)
+  it('never steps down while the riser holds', () => {
+    const { levels } = run(new RiserLevel(), [[0.6, 800], [0.9, 800], [0.75, 800]])
+    levels.forEach((level, i) => expect(level).toBeGreaterThanOrEqual(i > 0 ? (levels[i - 1] ?? 0) : 0))
   })
 
-  it('does not drop a bar for a dip inside the margin', () => {
+  it('goes off at once when the score falls under the off score', () => {
     const meter = new RiserLevel()
-    const { t, level } = run(meter, [[0.75, 1000]])
-    expect(run(meter, [[0.74, 1000]], t).level).toBe(level)
+    const { t } = run(meter, [[0.95, 1500]])
+    const after = run(meter, [[OFF_SCORE - 0.05, 200]], t)
+    expect(after.levels.filter((level) => level > 0 && level < RISER_LEVELS)).toEqual([])
+    expect(last(after)).toBe(0)
+  })
+
+  it('goes off when the score drops well under its peak, before reaching the off score', () => {
+    const meter = new RiserLevel()
+    const { t } = run(meter, [[0.95, 1500]])
+    expect(last(run(meter, [[0.6, 200]], t))).toBe(0)
   })
 })

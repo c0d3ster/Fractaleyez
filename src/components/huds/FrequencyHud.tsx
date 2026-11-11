@@ -38,7 +38,7 @@ const INSTRUMENT_DOT_R = 5
 const INSTRUMENT_FLASH_MS = 180
 const INSTRUMENT_LABEL_Y = INSTRUMENT_TOP + ICON_H + 8
 // The riser's signal bars: RISER_LEVELS of them, rising left to right, in the air column.
-const RISER_BAR_W = 4
+const RISER_BAR_W = 3
 const RISER_BAR_GAP = 2
 const RISER_MIN_BAR_H = 4
 const RISER_X = (VISIBLE_BANDS - 1) * (BAR_W + GAP) + (BAR_W - (RISER_LEVELS * RISER_BAR_W + (RISER_LEVELS - 1) * RISER_BAR_GAP)) / 2
@@ -55,7 +55,15 @@ const frequencyX = (hz: number): number => {
   return band * (BAR_W + GAP) + within * BAR_W
 }
 
-const LIGHT_X = DRUM_KINDS.map((kind) => frequencyX(DRUM_CENTER_HZ[kind]))
+// A light stays this far inside its band's column, so its label and the riser bars under air never crowd it (the hats sit near hi's
+// right edge, next to the riser).
+const LIGHT_INSET = 9
+const insideColumn = (x: number): number => {
+  const column = Math.min(VISIBLE_BANDS - 1, Math.floor(x / (BAR_W + GAP)))
+  const left = column * (BAR_W + GAP)
+  return Math.min(left + BAR_W - LIGHT_INSET, Math.max(left + LIGHT_INSET, x))
+}
+const LIGHT_X = DRUM_KINDS.map((kind) => insideColumn(frequencyX(DRUM_CENTER_HZ[kind])))
 
 const drawInstrumentLabel = (ctx: CanvasRenderingContext2D, text: string, x: number, lit: number): void => {
   ctx.font = LABEL_FONT
