@@ -87,6 +87,13 @@ score with it, do not ship it): kick 566, hat 321, snare 679, clap 93, cymbal 25
   Raveform tracks used as real riser negatives.
 - `raveform/train-f32`, `train-truth.jsonl`: those 300 tracks. `raveform/test-f32`, `test-truth.jsonl`: 200 other Raveform tracks, held out,
   with their sections in the truth lines. `raveform/eval-*.json`: the first riser model on them; `test-eval-v2-*.json`: the current one.
+- Added on 2026-11-11 for the low-kick retrain: `samples-v2/` (two collections renamed by kit plus tidal: kick 566, hat 321, snare 679,
+  clap 93), `src-v2/` (the tidal clone), `clips-v2/` (`--seed 1`, 3,150 clips with retuned kicks and sub-bass beds), `features-v2/`
+  (`dge-0..7`, `real-train/test-0..3`, `real-all-0..7`), `raveform-all-f32/` (all 1,370 tracks with a `truth.jsonl`), `kick-v2/`
+  (scratch tools and results).
+- `riser-v2/`: SSME spectra (`ssme-spec/`, decoded from `audio-datasets/ssme/full.zip`), the riser and sweep replays behind the meter
+  calibration, and its tools in `tools/`. The decoded mp3s were deleted (re-extract them from `full.zip`).
+- Copies on the Drive: `audio-analysis:datasets/drum-hits/` (rclone).
 
 Raveform band levels come from `C:\Users\codyd\Documents\raveform-levels-bundle.zip` (`raveform-levels/<key>.f16`, float16, frames x 5,
 60 fps) with sections in `raveform/structures/segments.json`.
@@ -106,12 +113,17 @@ python -E -P riser-train.py $C --features highs --real-negatives $TR --real-ever
 python -E -P riser-score.py ../../src/audioanalysis/riser-model.json $TE
 ```
 
-Retrain the drums (about 20 min with the CPU free), from `scripts/section-eval`:
+Retrain the drums (about 25 min with 6 workers; each fit is memory-bound at about 0.4 s a step, and more workers slow every fit, 18
+made each step about 1.7 s), from `scripts/section-eval`, with `$C` the `features-v2/dge-*` shards:
 
 ```sh
-D=C:/Users/codyd/Documents/audio-datasets/drum-hits
-python -E -P drum-train.py "$(echo $D/features/dge-{0..7}.json | tr ' ' ,)" --save ../../src/audioanalysis/drum-hit-model.json --parity parity.json
+python -E -P drum-train.py $C --later ignore --real <features-v2/real-train shards> --real-every 6 --real-weight 2 \
+  --segments <segments.json> --beats <beats dir> --test <features-v2/real-test shards> --workers 6 \
+  --save ../../src/audioanalysis/drum-hit-model.json --parity parity.json
 ```
+
+Then raise the kick threshold in the model to 0.875 by hand (the trainer picks 0.85, where one bass-and-pad onset of the melodic test
+clip reads as a kick), and score it on real music with `drum-real-score.py` on all 1,370 tracks before installing it.
 
 The model now reads 36 inputs, so replay the clips with `drum-eval.mts --features` first (`drum-train.py` stops if the eval files have
 the old 26). Then copy three parity rows into `PARITY` in `drum-hits.test.ts` (riser: into `parity` in `riser.fixture.json`). The riser trainer needs a
@@ -239,7 +251,62 @@ synthetic risers. It sees two to three times as much build time as B, at the sam
 sensitive but not more selective: whether its extra readings in breaks are risers (breaks often end in one) or false needs real riser
 labels. Laptop mic: builds 17.5%, breaks 9.3%, drops 2.6%. Synthetic false readings 4.8 s a minute (fade-ins 26, steady noise 19).
 
+### Low kicks (2026-11-11)
+
+The user saw the bass bar miss lower kicks on real music. Two separate causes:
+
+- **The bass bar's flash (the beat path)**, on 57,637 drop beats of 172 four-on-the-floor test tracks at default settings: it flashed on
+  53.4% of drop kicks. 19.6% never rise 3 dB in bass (90.8% rise 1.5 dB); on 15.6% the hi edge came first (median 33 ms) and the bass edge
+  fell inside the 250 ms ignore time; on 10.2% an off-beat hat 83 to 183 ms earlier blocked it (above 120 BPM an eighth is under 250 ms).
+  Sub-heavy tracks flash 46.0% against 55 to 58%. With hi off it flashes 75.7%. The 40 Hz highpass is not it (about +2 dB at 40 to 45 Hz,
+  -6 dB at 30 Hz). Not changed: see Work remaining.
+- **The kick light (the classifier)** caught 60.7% of real drop kicks though 98% made a candidate: training called a hit's later
+  candidate (the one carrying the bass) not a kick, and over a sidechained sub it called about 11 false kicks a minute. Retrained with
+  kicks retuned by up to 5 semitones, sub-bass and rolling-bass beds, later candidates ignored, and real Raveform kicks as labels.
+
+| `drum-real-score.py`, all 1,370 Raveform tracks | before | after |
+|---|---|---|
+| kick calls on a beat | 84.2% | 95.0% |
+| beats with a kick | 54.1% | 70.2% |
+| snare/clap on 2 or 4 | 33.6% | 33.9% |
+| 2 and 4 with a snare/clap | 32.1% | 38.7% |
+| hat on the eighth grid | 61.4% | 59.4% |
+| off-beats with a hat | 60.6% | 61.6% |
+
+On the 1,070 tracks never trained on: 95.1% and 70.3% (the first model: 91.3% and 48.1%). On the 200 test tracks, drop beats with a kick
+call went from 60.7% at 8.2 false a minute to 77.4% at 4.3 (at 0.85). Synthetic, held out by drum machine (the "before" model had trained
+on some of these samples): kick 61.7% at 6.2 false a minute before, 62.0% at 7.4 after at 0.85, 57.2% at 0.875; low kicks at 0.85: under
+45 Hz 56.8% to 59.1%, over a sub bass 27.3% to 36.8%. At 0.85 the real-music numbers are 94.4% and 73.7%.
+
+### Riser meter (2026-11-11)
+
+The meter (`src/components/huds/riserLevel.ts`) is five signal bars: on once the score holds 0.45 for 250 ms, bars at 0.45, 0.60, 0.75,
+0.88 and 0.96, climbing one at a time and never down, off at once under 0.35 or 0.4 under its peak. Measured on synthetic risers alone
+and 1 to 4 s after a louder sample, held-out Raveform tracks and SSME by section:
+
+- Risers after something louder read as flat (the vs-peak inputs look back 8 to 32 s): 75% shown at a median 4.75 s. A gap rule in
+  `riser.ts` and `sweep.ts` (25 dB under the 8 s peak for 5 slots, then the history reads as the gap) shows 99.6% at 1.1 s; clearing the
+  history instead showed 91% at 2.6 s. It calls 12 to 20 gaps an hour on real music.
+- Both followers rise over 400 ms and fall over 150 ms: the score is under 0.4 a median 0.26 s after a riser stops (0.47 s before).
+- Risers alone: 99.8% shown, 99.5% within a bar. On the meter outside buildups: 1.9% of Raveform time, 7.4% of SSME (mostly the sweep;
+  SSME's drops were sweep training negatives, so that is flattering). False shows median 1.2 s and peak near 0.67; risers peak near 0.98.
+  About one riser in five blinks off once partway through with the 0.4 margin.
+
+| ON (SHOW 250 ms) | solo, time to show | after a louder sample | SSME on outside builds | SSME shows / 10 min | Raveform on outside buildups |
+|---|---|---|---|---|---|
+| 0.40 | 0.65 s | 1.05 s | 8.5% | 28 | 2.2% |
+| 0.45 | 0.69 s | 1.14 s | 7.4% | 24 | 1.9% |
+| 0.50 | 0.74 s | 1.23 s | 6.5% | 21 | 1.6% |
+| 0.60 | 0.84 s | 1.39 s | 5.0% | 15 | 1.1% |
+
+The sweep cannot run on Raveform (band levels only), so its numbers come from SSME spectra and synthetic clips.
+
 ## Work remaining
+
+0. The bass bar's flash misses about half of real drop kicks (Low kicks, above). Flashing it on the bass band's own onset would catch
+   80.4% (with 16.1 off-beat bass edges a minute, against 10.0 now); crediting bass when it rises within 60 ms of a beat another band set
+   off, 69.0%. Both are a HUD or beat-semantics decision for the user. Separately, the 250 ms lockout behind off-beat hats above 120 BPM
+   changes the beats themselves, not only the flash.
 
 1. Riser labels on real music. Nothing so far can say how many real risers either detector misses or whether the sweep's readings in
    breaks are right. Mark riser spans on recorded sessions (a hotkey in the labelling tool) and score both with `sweep-train.py` and
@@ -256,9 +323,8 @@ labels. Laptop mic: builds 17.5%, breaks 9.3%, drops 2.6%. Synthetic false readi
 3. A snare alone with a strong body still misses (`it.fails` "snare alone"): with solo clips and the peak inputs the kick reading fell from
    0.74 to 0.81 to 0.6, but the snare reads 0.55 and 0.7 against its 0.8. Next: features on the 2 to 6 kHz crack, or a lower snare
    threshold when no kick is heard.
-4. The kick-and-clap hit no longer reads as a hat at 60 fps (that test is a plain test now). At 240 fps (`it.fails`, levels between frames)
-   the clip's first kick reads as a clap too (0.89 against 0.875): replaying clips at 240 fps for training, or a margin on the clap, would
-   cover it.
+4. Done: the kit test passes at 60 and 240 fps with the low-kick model. Hats lost 2 points on the eighth grid with it; re-check the hat
+   threshold on real music (0.8 did not recover it).
 5. The light positions (`DRUM_CENTER_HZ`) are unchanged. Measured from each band's peak since the first edge, on candidates with one drum
    near, the hats still move between 1.9 and 3.4 kHz across mics and folds, and the beds pull every drum (kick 130 to 160 Hz, 300 on a
    laptop mic), so it is no more stable than before.
