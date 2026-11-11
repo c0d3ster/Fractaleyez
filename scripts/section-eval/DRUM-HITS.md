@@ -1,13 +1,14 @@
 # Drum hits and risers: status and handoff
 
-Branch `feat/drum-hits` (off `main`). Work in progress: the code, models and tools are in place and the test suite is green, but four
+Branch `feat/drum-hits` (off `main`). Work in progress: the code, models and tools are in place and the test suite is green, but three
 tests are marked `it.fails` for known model gaps, and the riser model is not good enough yet on real music. Read this before picking it up.
 
 ## What it is
 
 - `src/audioanalysis/drum-hits.ts`: every rising edge in any of the five onset bands (trackers with a 70 ms reference window, so a 1/16
-  roll re-triggers) is a candidate. 33 ms after its first edge, a small network (`drum-hit-model.json`: 26 inputs, 32 tanh units, one sigmoid
-  per drum) says which of kick, hat, snare and clap it is. It can be several at once (a clap on 2 and 4 lands with the kick). Per-drum
+  roll re-triggers, and a level gate of 0.1 of the band's loudness where the beat detector has 0.25) is a candidate. 33 ms after its first
+  edge, a small network (`drum-hit-model.json`: 36 inputs, 32 tanh units, one sigmoid per drum) says which of kick, hat, snare and clap it
+  is. The inputs are the band levels at that moment and each band's peak since the first edge. It can be several at once (a clap on 2 and 4 lands with the kick). Per-drum
   thresholds were chosen on held-out folds. `getHits()`, `getRollHits()` (snare and clap, for a roll reader), `getLastHits()`.
 - `src/audioanalysis/riser.ts`: 100 ms slots of band power and 8 s of history. The trend over 2, 4 and 8 s (band slopes, centroid slope,
   highs against lows, line fit of the highs, highs against their peak) goes into a small network (`riser-model.json`: 28 inputs, 16 units),
@@ -23,26 +24,31 @@ on bass plucks on test clips, and about 250 times a minute on real EDM.
 ## Tools (`scripts/section-eval/`)
 
 - `drum-gen.py <samples> <out>`: labelled clips from one-shot samples, with all four drums' true hit times on the beat grid, over synthetic
-  melodic beds (bass, pads, stabs, a sung line), through clean, room and laptop mics (levels.py). Riser clips (noise sweep, pitch riser,
+  melodic beds (bass, pads, stabs, a sung line), through clean, room and laptop mics (levels.py). The hats are one hi-hat (each strike chokes
+  the last), and some clips are closed hats with an open one on the off-beats; about one drum clip in seven has one drum alone. Riser clips (noise sweep, pitch riser,
   whoosh, 2 to 8 bars) and plain look-alikes (fade-in, steady noise, downlifter). Every sample is in one of five folds and a clip draws all
   its samples from one fold.
 - `drum-eval.mts <dir> <out.json> [--truth] [--features | --riser-features] [--shard k/n]`: replays clips or real songs through the app's
   own `DrumHits` and `RiserDetector`, writing calls, the riser score per slot and, with the flags, the model inputs.
 - `drum-train.py <eval.json,...> [--save] [--parity]`: 5-fold CV by sample fold, per-drum thresholds (best F0.5), then a fit on everything.
+  A hat within 30 ms of a snare or a clap is left out of training and scoring (their own hi and air burst hides it).
 - `riser-train.py <eval.json,...> [--real-negatives eval.json,...] [--save] [--parity]`: the same for the riser. `--real-negatives` adds the
   middle of drops and the first 60% of breakdowns from real songs (Raveform sections) as not risers.
 - `mlp.py`: the shared one-hidden-layer network.
 
 Sample sources (free): `github.com/tidalcycles/Dirt-Samples` (sn, sd, 808sd, cp, realclaps, bd, 808bd, clubkick; its `hh` folder is a whole
 kit, so only its hats) and `github.com/oramics/sampled` (DM/*, DRUMS/*). Folders: `kick/`, `hat/` (closed, pedal and open hats only),
-`snare/`, `clap/`, `cymbal/` (crashes and rides, played as none of the four).
+`snare/`, `clap/`, `cymbal/` (crashes and rides, played as none of the four). A cloud session rebuilt these counts exactly by leaving out
+Dirt-Samples' 808bd and 808sd folders and the avl kit's RideShank cymbals.
 
 ## Data on this machine
 
 `C:\Users\codyd\Documents\audio-datasets\drum-hits\` (not in the repo, 729 MB):
 
 - `samples/`: kick 66, hat 75, snare 113, clap 33, cymbal 89.
-- `clips/`: 3,150 clips from `drum-gen.py --seed 1` (2,400 drum, 500 riser, 250 plain) with `truth.jsonl`.
+- `clips/`: 3,150 clips from `drum-gen.py --seed 1` (2,400 drum, 500 riser, 250 plain) with `truth.jsonl`. Made before drum-gen.py choked
+  its hats and played drums alone: the installed drum model was trained on clips from the current drum-gen.py, so make them again before
+  retraining it (the riser clips are the same either way).
 - `features/dge-0..7.json`: `drum-eval.mts --features` on those clips (8 shards). `features/train-eval-0..5.json`: `--riser-features` on 300
   Raveform tracks used as real riser negatives.
 - `raveform/train-f32`, `train-truth.jsonl`: those 300 tracks. `raveform/test-f32`, `test-truth.jsonl`: 200 other Raveform tracks, held out,
@@ -58,22 +64,52 @@ D=C:/Users/codyd/Documents/audio-datasets/drum-hits
 python -E -P drum-train.py "$(echo $D/features/dge-{0..7}.json | tr ' ' ,)" --save ../../src/audioanalysis/drum-hit-model.json --parity parity.json
 ```
 
-Then copy three parity rows into `PARITY` in `drum-hits.test.ts` (riser: into `parity` in `riser.fixture.json`). The riser trainer needs a
+The model now reads 36 inputs, so replay the clips with `drum-eval.mts --features` first (`drum-train.py` stops if the eval files have
+the old 26). Then copy three parity rows into `PARITY` in `drum-hits.test.ts` (riser: into `parity` in `riser.fixture.json`). The riser trainer needs a
 lot of memory with the real negatives (about 100 minutes, and twice it was stopped for low memory with other jobs running).
 
 ## Results so far (tentative)
 
-Drums, held out by sample fold (`drum-train.py` on the clips above):
+Drums, held out by sample fold, on 3,150 clips from the current `drum-gen.py --seed 1` (made again in a cloud session from the same
+sample sources). "Before" is the first model's setup (26 inputs, level gate 0.25) trained and scored on the same clips; hats are scored
+without the ones a snare or a clap hides (see `drum-train.py`), for both.
 
-| drum  | caught | false calls a minute | threshold | notes |
-|-------|--------|----------------------|-----------|-------|
-| kick  | 69%    | 6.4                  | 0.85      | 80% clean, 76% room, 35% laptop (no bass under 200 Hz) |
-| hat   | 42%    | 21.2                 | 0.675     | the weak one |
-| snare | 66%    | 8.1                  | 0.775     | |
-| clap  | 60%    | 5.6                  | 0.85      | |
+| drum  | before: caught | false a minute | threshold | now: caught | false a minute | threshold | notes |
+|-------|----------------|----------------|-----------|-------------|----------------|-----------|-------|
+| kick  | 69.2%          | 6.3            | 0.85      | 71.0%       | 6.4            | 0.85      | 81% clean, 79% room, 36% laptop (no bass under 200 Hz) |
+| hat   | 34.0%          | 4.7            | 0.825     | 44.1%       | 4.7            | 0.80      | 49% clean, 44% room, 36% laptop |
+| snare | 67.7%          | 7.6            | 0.775     | 68.2%       | 7.0            | 0.80      | |
+| clap  | 60.0%          | 3.8            | 0.875     | 63.1%       | 4.4            | 0.875     | |
 
-On 200 held-out real Raveform tracks (median calls a minute): kick 114 in intros, 97 in buildups, 67 in drops and 4 in breakdowns (the kick
-does drop out where it should); snare plus clap about 54 a minute in drops (about a backbeat); hats 104 to 169.
+Counting every hat as the first table did (hats under a snare or a clap as hits too), the first setup on these clips is 42.5% at 16.6 false
+a minute (the first clips gave 42% at 21.2), and the new inputs alone 45.3% at 16.2: most of those false calls were hat calls on claps and
+snares. What moved the hats:
+
+- The level gate. A tracker's edge has to reach a quarter of the band's loudness over the last 20 s, so a hat 12 dB under the snare that set
+  the air band's loudness was never a candidate, however clearly it rose. With 0.1, the hats that rise 3 dB or more in hi or air (60 fps
+  band levels) nearly all make a candidate (576 of about 12,700 missed solo hats). The other 45% of solo hats do not rise 3 dB at all (the
+  beds, reverb or the last hit's tail hide them), so hat recall stays well under 100% on these clips.
+- Each band's peak since the first edge (10 inputs): a little better on every drum by itself (on the first clips: hat 42.1% at 20.4 to
+  42.3% at 18.3, snare false calls 7.8 to 6.6, clap 5.4 to 4.1).
+- Leaving the hidden hats out: on eighth or sixteenth hats every clap has a hat, so the model learnt that a clap may be a hat (0.87 on the
+  test kit's kick and clap); now 0.53.
+- What did not help: choking the hats (an open hat on sixteenths rings over the next strikes) and a shorter reference window for the hi and
+  air bands each moved candidates for solo hats by only 1 to 8 points. Choking stays because a real hi-hat does it.
+
+On 200 held-out real Raveform tracks (folds 6 and 7; median calls a minute):
+
+| drum | model | intro | buildup | drop | breakdown | outro |
+|------|-------|-------|---------|------|-----------|-------|
+| kick | first | 113 | 83 | 61 | 4 | 100 |
+| kick | now | 112 | 96 | 79 | 8 | 104 |
+| hat | first | 134 | 157 | 169 | 102 | 163 |
+| hat | now | 123 | 126 | 137 | 50 | 141 |
+| snare + clap (sum of medians) | first | 15 | 39 | 59 | 52 | 16 |
+| snare + clap (sum of medians) | now | 16 | 39 | 53 | 51 | 19 |
+
+The first model on these tracks is close to the numbers measured on the user's machine (kick 114, 97, 67 and 4; snare plus clap about 54 in
+drops; hats 104 to 169), though they are not the same 200 tracks. Kicks in drops come closer to a four on the floor (128 a minute at 128 BPM)
+and the hats halve in breakdowns.
 
 Riser:
 
@@ -92,12 +128,18 @@ breakdowns still score higher than buildups (mean 0.17 against 0.08).
    breakdowns as negatives), which makes it a buildup detector more than a riser detector, which may be what the section model wants
    anyway; features that do not move when the lows drop out (the highs' own slope in absolute dB, not against the lows); a synthetic
    breakdown look-alike (kit and bass cut, pads go on). Score with the held-out 200 tracks by section (the table above).
-2. Hats: 42% caught at 21 false a minute. Maybe a later read for the air band (its burst decays fast), more hat variety, or a hat threshold
-   that trades recall for fewer false calls.
-3. A snare alone with a strong body reads as half kick (`drum-hits.test.ts`, the `it.fails` "snare alone"). More solo-snare clips, or
-   features on the 2 to 6 kHz crack.
-4. A hat called on the kick-and-clap hit (`it.fails` "kit").
-5. The light positions (`DRUM_CENTER_HZ`) are fixed values: measuring them from added power 33 ms after a hit was unstable for the hats.
+2. Hats: 44% caught at 4.7 false a minute (hats a snare or a clap hides not counted). Most of the misses never rise in the band levels at
+   all, so more recall needs something finer than five bands at 60 fps. A lower threshold trades the other way (on the first setup: 0.75
+   gave 37% at 11 a minute, 0.85 gave 24% at 3, counting every hat).
+3. A snare alone with a strong body still misses (`it.fails` "snare alone"): with solo clips and the peak inputs the kick reading fell from
+   0.74 to 0.81 to 0.6, but the snare reads 0.55 and 0.7 against its 0.8. Next: features on the 2 to 6 kHz crack, or a lower snare
+   threshold when no kick is heard.
+4. The kick-and-clap hit no longer reads as a hat at 60 fps (that test is a plain test now). At 240 fps (`it.fails`, levels between frames)
+   the clip's first kick reads as a clap too (0.89 against 0.875): replaying clips at 240 fps for training, or a margin on the clap, would
+   cover it.
+5. The light positions (`DRUM_CENTER_HZ`) are unchanged. Measured from each band's peak since the first edge, on candidates with one drum
+   near, the hats still move between 1.9 and 3.4 kHz across mics and folds, and the beds pull every drum (kick 130 to 160 Hz, 300 on a
+   laptop mic), so it is no more stable than before.
 6. Check it live in the app (nothing here has been looked at in the browser yet).
 7. After this merges: bring the roll reader onto these hits on `feat/auto-mode-mvp` (see branch `wip/auto-mode-drum-roll`, commit c9b6784:
    `RollReader` reading `getRollHits()`, a 4.5 beat window with a half-note cutoff, `roll-onsets.ts` removed), and offer the drum rates and
