@@ -9,6 +9,10 @@ on:
     paths: ['packages/**']
   workflow_dispatch:
 
+# One run at a time. GitHub keeps only the newest pending run, so every run syncs every package
+# from the commit it checked out instead of only the packages its own push changed: a run that
+# replaces a pending one still carries that one's changes. A package with nothing new splits to
+# the commit the mirror already has, and its push is a no-op.
 concurrency:
   group: mirror-packages
   cancel-in-progress: false
@@ -18,49 +22,37 @@ permissions:
 
 jobs:
   mirror:
+    # A manual run started from another branch would split that branch and push it to the mirror's
+    # main, so only main is mirrored, whichever way the run started.
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         include:
-          # To add a package: one entry here, a deploy key with write access on the mirror,
-          # and its private half saved as the named secret in this repo.
+          # To add a package: one entry here, a deploy key with write access on the mirror, its
+          # private half saved as a secret in this repo, and that secret named in DEPLOY_KEY below.
           - prefix: packages/sprite-strip
             repo: c0d3ster/sprite-strip
-            secret: SPRITE_STRIP_DEPLOY_KEY
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Check for changes to this package
-        id: changed
-        env:
-          BEFORE: ${{ github.event.before }}
-          PREFIX: ${{ matrix.prefix }}
-        run: |
-          if [ "$GITHUB_EVENT_NAME" != "push" ] || ! git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
-            echo "run=true" >> "$GITHUB_OUTPUT"
-          elif git diff --quiet "$BEFORE" HEAD -- "$PREFIX"; then
-            echo "run=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "run=true" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Split subtree
-        if: steps.changed.outputs.run == 'true'
         env:
           PREFIX: ${{ matrix.prefix }}
         run: git subtree split --prefix="$PREFIX" -b mirror
 
       - name: Push to mirror
-        if: steps.changed.outputs.run == 'true'
         env:
-          DEPLOY_KEY: ${{ secrets[matrix.secret] }}
+          # Each package's key by name, so the job gets only the secret it uses (a secrets[...] lookup
+          # hands the runner every secret in the repo).
+          DEPLOY_KEY: ${{ matrix.prefix == 'packages/sprite-strip' && secrets.SPRITE_STRIP_DEPLOY_KEY || '' }}
           REPO: ${{ matrix.repo }}
         run: |
           if [ -z "$DEPLOY_KEY" ]; then
-            echo "::error::Secret ${{ matrix.secret }} is not set"
+            echo "::error::No deploy key for $REPO (see the matrix comment)"
             exit 1
           fi
           mkdir -p ~/.ssh
