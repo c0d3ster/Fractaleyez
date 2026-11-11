@@ -100,6 +100,9 @@ export class AudioStream {
     click.start(contextTime)
   }
 
+  /** The audio context's sample rate and the analyser's bin count, for reading its frequency data in Hz. */
+  getSpectrumShape = (): { sampleRate: number; binCount: number } => ({ sampleRate: this.audioContext.sampleRate, binCount: this.bufferLength })
+
   getAudioData(): AudioData {
     const tdData = new Uint8Array(this.bufferLength)
     const fData = new Uint8Array(this.bufferLength)

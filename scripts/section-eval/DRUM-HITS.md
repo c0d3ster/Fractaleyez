@@ -1,8 +1,9 @@
 # Drum hits and risers: status and handoff
 
 Branch `feat/drum-hits` (off `main`). Work in progress: the code, models and tools are in place and the test suite is green, but four
-tests are marked `it.fails` for known model gaps. The riser meter now runs the pure riser model (B below): it no longer reads breakdowns
-as rising, but the five band levels hide most real risers, so a spectrum sweep detector is next. Read this before picking it up.
+tests are marked `it.fails` for known model gaps. The riser meter shows the higher of two detectors: the pure riser model on the band
+levels (B below) and a sweep detector on the spectrum, which sees risers the band levels hide under the hats. Neither has been scored
+against real riser labels yet (there are none). Read this before picking it up.
 
 ## What it is
 
@@ -16,9 +17,16 @@ as rising, but the five band levels hide most real risers, so a spectrum sweep d
   the highs above their low), and 32 s of context from one-second means (16 and 32 s slopes of bass, mid, highs and the mix, each against
   its peak, seconds the bass has been 6 dB under its peak). The model (`riser-model.json`: it names the inputs it reads, now the 31 that
   do not read the bass or the whole mix, with 16 units) is smoothed with a 400 ms follower. `getScore()` is 0 to 1.
+- `src/audioanalysis/sweep.ts`: the sweep detector. It reads the analyser's spectrum pooled into the training recorder's 40 log bands
+  (40 Hz to 16 kHz, `spectrum-reducer.ts` and `tick-extras.ts`, the same files as on `feat/listen-recording`) in 50 ms ticks, so recorded
+  sessions replay exactly. Half-second means over 8 s, each band less its own mean over that time (the hats and the pads' steady shape drop
+  out), then per 2, 4 and 8 s window: where the standing-out energy sits and its line (bands a second, R squared), how much each half second
+  looks like the last one moved up a band or two rather than down, four regions' climb (300 Hz to 16 kHz) and the share of bands rising;
+  plus the ridge and how far it stands out now and each region against its peak (30 inputs). `sweep-model.json`: 16 tanh units, smoothed
+  like the riser. `window.getSweep`.
 - Frequency HUD (`src/components/huds/FrequencyHud.tsx`): a light for each drum under the bars, at the frequency its hits sit at
-  (`DRUM_CENTER_HZ` in `drum-hits.ts`, on a log scale inside each band's column), and a riser meter under them that fills left to right.
-  Fed through `window.getDrumHits` and `window.getRiser` (`src/main.ts`), so the pop-out config window shows them too.
+  (`DRUM_CENTER_HZ` in `drum-hits.ts`, on a log scale inside each band's column), and a riser meter under them that fills left to right
+  with the higher of the riser and the sweep score. Fed through `window.getDrumHits`, `window.getRiser` and `window.getSweep` (`src/main.ts`), so the pop-out config window shows them too.
 - `onset-detector.ts` now exports `BandTracker` (with a configurable `ReferenceWindow`), `ReferenceWindow` and `thresholdDbFor`.
 
 Why: a rise in a band is not an instrument. The lo-or-mid rise this replaces fired 150 times a minute on a kick alone, 230 on hats and 200
@@ -43,6 +51,15 @@ on bass plucks on test clips, and about 250 times a minute on real EDM.
   score, buildups shown at some point, and the AUC of the last half of buildups against breakdowns and against drops).
 - `raveform-riser-split.py <segments.json> <raveform-levels> <out>`: the 300 train tracks (folds 0 to 5) and 200 test tracks (folds 6
   and 7) with their truth lines.
+- `analyser.py`: emulates the app's AnalyserNode (512-point FFT, Blackman, smoothing 0.2, bytes over -100 to -30 dB, 60 fps) pooled into
+  the recorder's 40 bands and 50 ms ticks (`<id>.spec`). `drum-gen.py --spectrum` writes the same for every clip.
+- `sweep-eval.mts <dir> <out.json> [--truth] [--features] [--shard k/n]`: `.spec` files through `SweepDetector`.
+- `sweep-train.py <clips eval.json,...> --real <ssme eval.json,...> --gt gt.json [--negative-weight 3] [--save] [--parity] [--scores]`:
+  synthetic risers as positives; SSME's drops (4 to 30 s in) and the first 60% of its breaks as negatives (builds left out: nobody marked
+  where in them a riser plays). Five fits holding out a synthetic sample fold and an SSME fold together, so every clip and song is scored
+  out of fold, by SSME section.
+- `riser-section-features.py`: appends riser and sweep scores to section features, to test them in `train.py` (they did not help, see
+  `docs/implementation-plans/song-sections.md`).
 - `mlp.py`: the shared one-hidden-layer network (now with per-row weights). `riserlib.py`: reading and running a riser model, the follower.
 
 Sample sources (free): `github.com/tidalcycles/Dirt-Samples` (sn, sd, 808sd, cp, realclaps, bd, 808bd, clubkick; its `hh` folder is a whole
@@ -134,11 +151,29 @@ What was learned:
   46.0 / 69.0 / 0.866; negatives 2x 30.1 / 5.9 / 9.6 / 48.8 / 0.849; negatives 4x 25.1 / 3.3 / 5.6 / 45.5 / 0.852; 32 hidden units no
   better; negatives 2x + intros 14.7 / 5.2 / 4.4 / 15.1 / 0.823 (installed); negatives 1x + intros 28.9 / 9.9 / 13.3 / 28.5 / 0.824.
 
+Sweep and riser on SSME (339 songs with expert build, break and drop marks, a different set from Raveform, which marks most of the
+rise before a drop as a breakdown). Sweep scores are out of fold; the riser models never saw SSME. Clean feed:
+
+| detector | synthetic: risers shown | SSME: shown in builds | in breaks | in drops | builds shown at some point | AUC build vs break |
+|----------|-------------------------|-----------------------|-----------|----------|----------------------------|--------------------|
+| previous riser (real negatives) | 99.8% | 17.2% | 13.0% | 2.0% | 77.4% | 0.595 |
+| riser B | 100% | 8.0% | 2.7% | 0.7% | 57.2% | 0.705 |
+| riser A (buildup detector) | 99.8% | 15.8% | 4.9% | 3.4% | 77.1% | 0.762 |
+| sweep, negatives 1x | 99.8% | 23.8% | 12.1% | 4.6% | 90.7% | 0.702 |
+| **sweep, negatives 3x (installed)** | 99.8% | 19.1% | 9.5% | 3.0% | 85.5% | 0.699 |
+| **meter: higher of B and sweep** | | 21.5% | 10.5% | 3.5% | 88.4% | 0.695 |
+
+The sweep was never shown a real build (they are left out of its training), so its readings in builds come from what it learned on
+synthetic risers. It sees two to three times as much build time as B, at the same ranking of builds over breaks (AUC 0.70), so it is more
+sensitive but not more selective: whether its extra readings in breaks are risers (breaks often end in one) or false needs real riser
+labels. Laptop mic: builds 17.5%, breaks 9.3%, drops 2.6%. Synthetic false readings 4.8 s a minute (fade-ins 26, steady noise 19).
+
 ## Work remaining
 
-1. Riser on real music. Both directions were tried (Results). The meter's job is to say a riser is playing, so it runs B; A was a weaker
-   copy of the section model's buildup reading. There are no riser labels on real music yet, so B's 2% of buildup time cannot say how many
-   risers it misses, and the five band levels hide a sweep under the hats. Ideas: the drum rates as inputs (a snare
+1. Riser labels on real music. Nothing so far can say how many real risers either detector misses or whether the sweep's readings in
+   breaks are right. Mark riser spans on recorded sessions (a hotkey in the labelling tool) and score both with `sweep-train.py` and
+   `riser-score.py` against them; then retrain the sweep with real positives. The recorder's ticks carry the 40-band spectrum the sweep
+   reads, so labelled sessions train it directly. Known weak spots: fade-ins of the whole mix and steady noise read as rising. Ideas: the drum rates as inputs (a snare
    roll speeding up is the clearest buildup cue and the band levels hide it), a threshold or calibration per use (the HUD could fill the
    meter from 0.3), more real tracks, or both models side by side (B for the HUD's riser meter, A for the section model). The pure riser
    (B) is reproducible with `--features highs --real-negatives $TR`. The `it.fails` riser test now rises through the riser (0.998) but
