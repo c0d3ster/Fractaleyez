@@ -42,19 +42,24 @@ describe('drumProbabilities', () => {
 })
 
 describe('DrumHits', () => {
-  // Known gap, failing on purpose until the model is retrained (scripts/section-eval/DRUM-HITS.md): when it passes, make it a plain `it` again.
-  // It calls a hat on the kick-and-clap hit as well.
-  it.fails.each([60, 240] as const)('calls the kick, the hats and the clap of a kit, the clap and the kick together, at %i fps', (fps) => {
+  const expectKit = (fps: 60 | 240): void => {
     const { drums } = run(CLIPS.kit, fps)
     ;(['kick', 'hat', 'clap'] as const).forEach((kind) => {
       expect(caught(CLIPS.kit.hits[kind], callsOf(drums, kind))).toBe(CLIPS.kit.hits[kind].length)
       expect(extra(CLIPS.kit.hits[kind], callsOf(drums, kind))).toBe(0)
     })
     expect(callsOf(drums, 'snare')).toEqual([])
-  })
+  }
+
+  it('calls the kick, the hats and the clap of a kit, the clap and the kick together, at 60 fps', () => expectKit(60))
 
   // Known gap, failing on purpose until the model is retrained (scripts/section-eval/DRUM-HITS.md): when it passes, make it a plain `it` again.
-  // A snare with a strong body and nothing around it reads as half a kick (snare 0.5 to 0.64, kick 0.74 to 0.81).
+  // At 240 fps the first kick reads as a clap as well (0.89 against 0.875; 0.36 at 60 fps): the candidate is read on levels between frames,
+  // which the model was not trained on.
+  it.fails('calls the kick, the hats and the clap of a kit, the clap and the kick together, at 240 fps', () => expectKit(240))
+
+  // Known gap, failing on purpose until the model is retrained (scripts/section-eval/DRUM-HITS.md): when it passes, make it a plain `it` again.
+  // A snare with a strong body and nothing around it reads as half a kick (snare 0.55 and 0.7 against its 0.8, kick 0.6).
   it.fails('calls a snare alone a snare and nothing else', () => {
     const { drums } = run(CLIPS.snare)
     expect(caught(CLIPS.snare.hits.snare, callsOf(drums, 'snare'))).toBe(CLIPS.snare.hits.snare.length)
@@ -90,7 +95,7 @@ describe('DrumHits', () => {
 })
 
 const PARITY: Array<[number[], number[]]> = [
-  [[5.9652, 6.9472, 11.289, 10.6995, 5.5963, 0.9056, 1, 0.9787, 0.903, 0.8522, -1.2814, -0.1098, -0.7968, -1.9414, -4.2256, 0.6134, 0.5878, 0.58, 0.8103, 1.0384, 0.3741, 1, 1, 1, 1, 1], [0.368284, 0.039366, 0.474552, 0.075021]],
-  [[-9.2241, -6.9372, -6.6273, -4.0264, 3.9781, 0.0359, 0.1444, 0.1984, 0.2506, 0.4436, -0.699, -0.699, -0.699, -0.699, -0.699, -6.0579, -5.4336, -6.5703, -6.1484, -5.3251, -5.0234, 0, 0, 0, 0, 1], [0.000331, 0.61815, 0.014048, 0.006373]],
-  [[5.868, 3.0111, 0.5633, 3.1922, 2.7706, 0.3387, 0.3086, 0.5126, 0.691, 0.7401, -0.699, -0.699, -0.699, -0.699, -0.699, -5.5114, -4.9228, -5.853, -5.6954, -5.209, -5.2273, 1, 1, 0, 1, 0], [0.045744, 0.635256, 0.963239, 0.51006]],
+  [[-0.3777, 3.536, 6.1765, 4.8173, 5.3715, 0.5137, 0.452, 0.342, 0.087, 0.2656, -5.546, -0.0468, -0.9923, -3.6076, -5.2168, 0.3556, -4.3256, 0.3923, 0.7838, 0.5728, -0.3895, 0, 0, 0, 0, 1, -4.3256, 0.3923, 0.7838, 0.69, 0.6475, -5.5461, -0.0468, -0.9923, -3.4905, -4.1799], [0.0105, 0.0069, 0.0017, 0.0001]],
+  [[-1.4802, 3.5425, 4.5984, 0.6595, 0.7403, 0.5638, 0.4633, 0.4102, 0.9519, 1, -6.9149, -6.9149, -6.9149, -0.9686, -0.0494, -0.9585, -7.0284, -7.0306, -5.7682, -1.4057, -0.615, 0, 1, 1, 0, 0, -7.0284, 0.2089, 0.1104, -0.6081, -0.58, -7.4999, -0.2604, -1.6212, -0.7559, -0.5993], [0.0069, 0.0124, 0.9996, 0.0373]],
+  [[0.1694, 0.6985, 4.8962, 5.9326, 8.3203, 0.0277, 0.5028, 0.7037, 0.0905, 0.0042, -5.6221, -0.2426, -0.4031, -1.4874, -3.8659, -0.1159, -4.1189, -0.2508, 0.2211, 0.264, 0.1851, 0, 0, 1, 1, 0, -1.4966, -0.2508, 0.6264, 0.7263, 0.9892, -3.2233, -0.4661, -0.2214, -1.2487, -3.2854], [0.0023, 0.006, 0.0135, 0.0012]],
 ]

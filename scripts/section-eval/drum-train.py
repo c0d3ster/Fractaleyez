@@ -3,7 +3,9 @@
     python drum-train.py <eval.json>[,<eval.json>...] [--hidden 32] [--save drum-hit-model.json] [--parity parity.json]
 
 Each true hit (kick, hat, snare, clap) makes the earliest candidate from 20 ms before it to 60 ms after it that drum; a candidate can be
-several (a clap with the kick). Five folds by the clips' sample folds, so a fold's samples are never heard in training. Each drum's threshold
+several (a clap with the kick). A hat within 30 ms of a snare or a clap is left out, as neither a hat nor not one, and is not counted: the
+snare's or the clap's own burst in the hi and air bands hides it, and counting it taught the model that every clap may be a hat (on eighth
+or sixteenth hats, every clap has one). Five folds by the clips' sample folds, so a fold's samples are never heard in training. Each drum's threshold
 is the one with the best F0.5 (precision counted twice) on the held-out folds. Prints, per drum, the share of its hits called and false calls
 a minute (calls that are no hit of that drum), overall and by mic; then fits on everything and, with --save, writes the model with each
 drum's thresholds.
@@ -21,6 +23,17 @@ args = sys.argv[1:]
 opt = lambda name, d: args[args.index(name) + 1] if name in args else d  # noqa: E731
 KINDS = ['kick', 'hat', 'snare', 'clap']
 EARLY, LATE = 20, 60
+MASKED_HAT_S = 0.03
+
+
+def counted(r: dict, kind: str) -> list[float]:
+    """The clip's hits of `kind` that are scored (all but the hats a snare or a clap hides)."""
+    if kind != 'hat':
+        return r['hits'][kind]
+    hiding = r['hits']['snare'] + r['hits']['clap']
+    return [h for h in r['hits']['hat'] if not any(abs(h - s) <= MASKED_HAT_S for s in hiding)]
+
+
 HIDDEN = int(opt('--hidden', '32'))
 
 rows = [r for path in args[0].split(',') for r in json.load(open(path))['results']]
@@ -32,10 +45,11 @@ for ci, r in enumerate(rows):
     ts = np.array([c['t'] for c in cands])
     labels = np.zeros((len(cands), len(KINDS)), dtype=int)
     for k, kind in enumerate(KINDS):
+        scored = set(counted(r, kind))
         for h in r['hits'][kind]:
             near = np.where((ts >= h * 1000 - EARLY) & (ts <= h * 1000 + LATE))[0]
-            if len(near):
-                labels[near[0], k] = 1
+            if len(near) and labels[near[0], k] != 1:
+                labels[near[0], k] = 1 if h in scored else -1
     X += [c['f'] for c in cands]
     Y += labels.tolist()
     fold += [r['fold']] * len(cands)
@@ -45,11 +59,11 @@ for ci, r in enumerate(rows):
     seconds += span
     seconds_by_mic[r['mic']] = seconds_by_mic.get(r['mic'], 0.0) + span
 X, Y, fold, clip, mic = np.array(X), np.array(Y), np.array(fold), np.array(clip), np.array(mic)
-truth = {kind: sum(len(r['hits'][kind]) for r in rows) for kind in KINDS}
-truth_by_mic = {m: {kind: sum(len(r['hits'][kind]) for r in rows if r['mic'] == m) for kind in KINDS} for m in seconds_by_mic}
+truth = {kind: sum(len(counted(r, kind)) for r in rows) for kind in KINDS}
+truth_by_mic = {m: {kind: sum(len(counted(r, kind)) for r in rows if r['mic'] == m) for kind in KINDS} for m in seconds_by_mic}
 print(f'{len(rows)} clips, {len(X)} candidates, {seconds / 60:.0f} min; hits: ' + ', '.join(f'{k} {truth[k]}' for k in KINDS), file=sys.stderr)
 
-pos = Y.mean(0)
+pos = (Y == 1).sum(0) / np.maximum(1, (Y >= 0).sum(0))
 pos_weight = (1 - pos) / np.maximum(pos, 1e-6)
 P = np.zeros(Y.shape)
 for f in range(5):
@@ -59,7 +73,7 @@ for f in range(5):
 
 
 def f_beta(p: np.ndarray, y: np.ndarray, thr: float, beta: float = 0.5) -> float:
-    call = p > thr
+    call = (p > thr) & (y >= 0)
     tp = np.sum(call & (y == 1))
     prec = tp / max(1, call.sum())
     rec = tp / max(1, (y == 1).sum())
