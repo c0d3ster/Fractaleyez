@@ -38,6 +38,14 @@ on bass plucks on test clips, and about 250 times a minute on real EDM.
 - `drum-real-score.py`: proxies on real music, from Raveform's beats (no drum labels): in the drops of four-on-the-floor tracks, the share of
   kick calls on a beat and of beats with a kick, the same for snare and clap on 2 and 4, and hat calls on the eighth grid and off-beats
   with a hat.
+- `drum-candidates.mts <levels dir> <prefix> [--shard k/n]`: every drum candidate of real songs (time, the model's probabilities, its
+  inputs) as float32 rows, for the two below (about 700 MB for all of Raveform; `drum-eval.mts --features` would be JSON).
+- `drum-real-thresholds.py <prefixes> <beats dir> [--write model.json]`: each drum's threshold from those proxies, chosen on Raveform folds 0
+  to 5 and checked on 6 and 7. On the installed model it keeps the kick at 0.85, lowers the hat from 0.8 to 0.725 (off-beats with a hat
+  59.5% to 67.2%, on the grid 60.7% to 59.5%) and moves snare and clap from 0.8 and 0.875 to 0.675 and 0.95 (on 2 or 4 29.3% to 32.3%,
+  2 and 4 called 30.9% to 40.4%). Not installed: the kick work on `feat/riser-meter-and-kicks` will change the model first.
+- `drum-weak-labels.py <prefixes> <beats dir> <out.npz>`: weak labels from the same drops (a kick on each beat, a hat on each off-beat, no
+  kick, snare or clap off the beats, the rest unknown) for training beside the synthetic clips. `drum-train.py` does not read them yet.
 
 Sample sources (free): `github.com/tidalcycles/Dirt-Samples` (sn, sd, 808sd, cp, realclaps, bd, 808bd, clubkick; its `hh` folder is a whole
 kit, so only its hats) and `github.com/oramics/sampled` (DM/*, DRUMS/*). Folders: `kick/`, `hat/` (closed, pedal and open hats only),
