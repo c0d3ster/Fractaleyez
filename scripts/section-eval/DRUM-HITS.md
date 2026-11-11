@@ -303,10 +303,10 @@ The sweep cannot run on Raveform (band levels only), so its numbers come from SS
 
 ## Work remaining
 
-0. The bass bar's flash misses about half of real drop kicks (Low kicks, above). Flashing it on the bass band's own onset would catch
-   80.4% (with 16.1 off-beat bass edges a minute, against 10.0 now); crediting bass when it rises within 60 ms of a beat another band set
-   off, 69.0%. Both are a HUD or beat-semantics decision for the user. Separately, the 250 ms lockout behind off-beat hats above 120 BPM
-   changes the beats themselves, not only the flash.
+0. The bass bar's flash missed about half of real drop kicks (Low kicks, above). Done: it now also flashes with a beat another band set
+   off when bass has its own onset within 60 ms of it (`src/components/huds/beatFlashes.ts`, 69.0% of drop kicks; flashing on every bass
+   onset would have been 80.4% with 16.1 off-beat bass flashes a minute). Still open: the 250 ms lockout behind off-beat hats above
+   120 BPM changes the beats themselves, not only the flash.
 
 1. Riser labels on real music. Nothing so far can say how many real risers either detector misses or whether the sweep's readings in
    breaks are right. Mark riser spans on recorded sessions (a hotkey in the labelling tool) and score both with `sweep-train.py` and
