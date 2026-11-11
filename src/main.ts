@@ -56,7 +56,10 @@ const toggleLayer = (key: LayerKey): void => {
 
 document.addEventListener('keydown', (event: KeyboardEvent) => {
   if (event.repeat) return
-  if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return
+  // Ctrl+C, Ctrl+V and the like are the browser's, not hotkeys (the pop-out skips them the same way before forwarding).
+  if (event.ctrlKey || event.metaKey || event.altKey) return
+  const focused = document.activeElement?.tagName
+  if (focused === 'INPUT' || focused === 'TEXTAREA' || focused === 'SELECT') return
   const key = event.key.toLowerCase()
   const hotkeyLayer = LAYER_HOTKEYS.find((layerKey) => LAYER_REGISTRY[layerKey].hotkey === key)
   if (hotkeyLayer) toggleLayer(hotkeyLayer)
