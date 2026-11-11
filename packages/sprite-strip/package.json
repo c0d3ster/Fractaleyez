@@ -1,6 +1,6 @@
 {
   "name": "sprite-strip",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Edge-seeded flood-fill background removal and square-pad resize for sprite images, via browser Canvas 2D.",
   "type": "module",
   "main": "./dist/index.cjs",
