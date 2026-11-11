@@ -15,7 +15,8 @@ model can be scored on folds whose samples, and drum machines, it never heard. C
   drums  4 bars of a random kit pattern on the beat grid (any of kick, hats, snare and/or clap, a crash on the downbeat) over random
          melodic layers (bass plucks, pads, chord stabs, a sung line), or with nothing at all of some kinds. The hats are one hi-hat (each
          strike chokes the last), on the off-beats, eighths or sixteenths, or closed with an open hat on the off-beats. About one in seven
-         has one drum alone
+         has one drum alone. Half the kicks are tuned 5 semitones down to 5 up, and two in five clips have a drop's low end under them: a
+         held sub bass ducked by each kick, or a rolling bass between the kicks (layers.kick_sample and kick_shift say which kick it was)
   riser  a riser of 2 to 8 bars (a noise sweep, a pitch riser or a high-passed whoosh) ending on a bar line, usually over drums and a snare
          roll, sometimes into a drop (the kick back with a crash)
   plain  as long as a riser clip but with none: steady layers, a fade-in of the whole mix, steady noise or a downlifter (a falling sweep)
@@ -127,12 +128,22 @@ def snare_steps(pattern: str, bar: int, bars: int) -> tuple[list[int], int]:
     return list(range(0, 16, 16 // level)), 16
 
 
-def drums(x: np.ndarray, rng: np.random.Generator, pick, beat: float, start: float, bars: int, layers: dict, hits: dict, ramp_from: float = 0) -> None:
-    """Lays the kit from `start` for `bars` bars, on the sixteenth grid, recording each hit of the four kinds."""
+def pitch_shift(sample: np.ndarray, semitones: float) -> np.ndarray:
+    """The sample played faster or slower (a sampler's tune knob: pitch and length change together)."""
+    if semitones == 0:
+        return sample
+    rate = 2 ** (semitones / 12)
+    return np.interp(np.arange(0, len(sample) - 1, rate), np.arange(len(sample)), sample)
+
+
+def drums(x: np.ndarray, rng: np.random.Generator, pick, beat: float, start: float, bars: int, layers: dict, hits: dict, ramp_from: float = 0,
+          kick_shift: float = 0) -> None:
+    """Lays the kit from `start` for `bars` bars, on the sixteenth grid, recording each hit of the four kinds. `kick_shift` tunes the kick
+    (semitones)."""
     step = beat / 4
     jitter = lambda: rng.normal(0, 0.002)  # noqa: E731
     if layers.get('kick'):
-        k, g = pick('kick'), db(rng.uniform(-8, -2))
+        k, g = pitch_shift(pick('kick'), kick_shift), db(rng.uniform(-8, -2))
         steps = [0, 4, 8, 12] if layers['kick'] == 'four' else sorted(rng.choice(16, size=int(rng.integers(2, 5)), replace=False).tolist() + [0])
         for bar in range(bars):
             for s in set(steps):
@@ -215,6 +226,37 @@ def melodic(x: np.ndarray, rng: np.random.Generator, beat: float, start: float, 
             t += dur + rng.uniform(0.05, 0.4)
 
 
+def low_end(x: np.ndarray, rng: np.random.Generator, beat: float, length: float, kicks: list[float], kind: str) -> None:
+    """The low end of a real drop, which the plucked bass does not cover: a held sub bass (a sine an octave under the bass, ducked by every
+    kick, as a sidechain does) or a rolling bass (short plucks on the sixteenths between the kicks, or on the off-beats). Kicks have to be
+    told from both, and a kick is still a kick on top of them."""
+    n = len(x)
+    root = rng.uniform(38, 62)
+    if kind == 'sub':
+        t = np.arange(n) / RATE
+        bar_len = 4 * beat
+        f = root * 2 ** (np.array([CHORDS[int(b) % len(CHORDS)][0] for b in t / bar_len]) / 12)
+        y = np.sin(2 * np.pi * np.cumsum(f) / RATE)
+        y = np.tanh(rng.uniform(1, 2.5) * y) / np.tanh(1.5)
+        duck = np.ones(n)
+        depth, release = db(-rng.uniform(6, 24)), rng.uniform(0.04, 0.15)
+        for k in kicks:
+            a = int(k * RATE)
+            m = min(n - a, int(beat * RATE))
+            if 0 <= a and m > 0:
+                duck[a:a + m] = np.minimum(duck[a:a + m], 1 - (1 - depth) * np.exp(-np.arange(m) / (release * RATE)))
+        place(x, y * duck, 0, db(rng.uniform(-18, -8)))
+        return
+    steps = [1, 2, 3] if rng.random() < 0.6 else [2]
+    g, m = db(rng.uniform(-16, -8)), int(beat / 4 * RATE * 0.9)
+    cutoff, decay = rng.uniform(200, 500), rng.uniform(0.03, 0.08)
+    for b in range(int(length / beat) + 1):
+        f = root * 2 ** (rng.choice([0, 0, 0, 7, 12]) / 12)
+        tone = filt(2, cutoff, 'lowpass', saw(np.full(m, f)) * env_ad(m, 0.003, decay))
+        for s in steps:
+            place(x, tone, b * beat + s * beat / 4, g * rng.uniform(0.8, 1.0))
+
+
 def sweep(n: int, rng: np.random.Generator, f_from: float, f_to: float, kind: str) -> np.ndarray:
     """A noise sweep: white noise through a band-pass (or high-pass, for a whoosh) whose centre moves from f_from to f_to, in blocks."""
     noise = rng.standard_normal(n)
@@ -247,11 +289,15 @@ def make(job: dict) -> dict:
     rng = np.random.default_rng(job['seed'])
     by_kind = job['samples']
 
+    picked: dict[str, str] = {}
+
     def pick(kind: str, open_hat: bool | None = None) -> np.ndarray:
         names = by_kind[kind]
         if open_hat is not None:
             names = [n for n in names if is_open(n) == open_hat] or names
-        return decode(names[int(rng.integers(len(names)))])
+        name = names[int(rng.integers(len(names)))]
+        picked[kind] = os.path.basename(name)
+        return decode(name)
 
     bpm = float(rng.uniform(120, 175))
     beat = 60 / bpm
@@ -283,9 +329,20 @@ def make(job: dict) -> dict:
             only = str(solo.choice(KINDS))
             pattern = {'kick': 'four', 'hat': 'eighths', 'snare': 'backbeat', 'clap': 'backbeat'}[only]
             layers = {k: (layers[k] or pattern if k == only else None) for k in KINDS} | {'crash': False}
+        # Half the kicks are tuned up or down (most collections are a few drum machines, and many kicks sit near 50 Hz), and some clips have
+        # a real drop's low end under them (low_end). Drawn from a stream of their own, like the solo clips, so the draws above and in the
+        # riser clips are the same as without them.
+        tune = np.random.default_rng(job['seed'] + 2)
+        kick_shift = float(tune.uniform(-5, 5)) if tune.random() < 0.5 else 0.0
+        low = str(tune.choice(['none', 'sub', 'roll'], p=[0.6, 0.2, 0.2]))
         # The kit starts after the lead-in, on the grid; the melodic layers play from the start.
-        drums(x, rng, pick, beat, start, bars, layers, hits)
+        drums(x, rng, pick, beat, start, bars, layers, hits, kick_shift=kick_shift)
         melodic(x, rng, beat, 0, length, melodic_parts)
+        if low != 'none':
+            low_end(x, tune, beat, length, hits['kick'], low)
+            melodic_parts = melodic_parts | {low}
+        if layers.get('kick'):
+            layers = layers | {'kick_sample': picked.get('kick'), 'kick_shift': round(kick_shift, 2)}
         end = start + bars * 4 * beat
     else:
         rise_bars = int(rng.choice([2, 4, 4, 8]))
