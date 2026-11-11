@@ -264,6 +264,11 @@ export class VideoLayer implements Layer {
     texture.minFilter = THREE.LinearFilter
     texture.magFilter = THREE.LinearFilter
     texture.generateMipmaps = false
+    // The camera faces the DJ, so the feed is mirrored: moving left moves the picture left, like a mirror.
+    if (live) {
+      texture.repeat.x = -1
+      texture.offset.x = 1
+    }
     texture.needsUpdate = true
 
     const slot: VideoSlot = {
