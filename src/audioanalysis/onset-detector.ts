@@ -115,6 +115,9 @@ export class BandTracker {
   constructor(
     private readonly options: OnsetDetectorOptions = DEFAULT_ONSET_OPTIONS,
     private readonly reference: ReferenceWindow = BEAT_REFERENCE,
+    // The fraction of the band's loudness a hit has to reach. The drum classifier passes less: its model sorts out the candidates, and a quiet
+    // hat after a loud snare is still a hat.
+    private readonly minLevelOfLoudness: number = MIN_LEVEL_OF_LOUDNESS,
   ) {}
 
   private fast = 0
@@ -155,7 +158,7 @@ export class BandTracker {
     this.head = (this.head + 1) % HISTORY_SLOTS
     this.count = Math.min(this.count + 1, HISTORY_SLOTS)
 
-    const levelGate = MIN_LEVEL_OF_LOUDNESS * this.loudness
+    const levelGate = this.minLevelOfLoudness * this.loudness
     const hasReference = Number.isFinite(referenceDb)
     // A quantile follower: up by q of a step when the level is over the floor, down by (1 - q) when under, so it settles on the q percentile.
     const { floorMarginDb, floorQuantile, floorRateDbPerS } = this.options

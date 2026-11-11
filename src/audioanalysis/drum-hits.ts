@@ -12,6 +12,9 @@ import { BandTracker, thresholdDbFor, type BandReading, type ReferenceWindow } f
 // at 128 BPM is only 117 ms after the last one, so that hit's peak is still in the window and an even roll never clears it. Here the window
 // ends 70 ms back (sixteenths at 150 BPM are 100 ms apart, so the last hit's peak is always out of it).
 const REFERENCE: ReferenceWindow = { windowMs: 70, guardMs: 25 }
+// The trackers' level gate, as a fraction of each band's loudness (the beat detector's is 0.25, -12 dB). That gate kept half the hats that do
+// not land on another drum from ever being a candidate: a hat 12 dB under the snare that set the air band's loudness is still a hat.
+const MIN_LEVEL_OF_LOUDNESS = 0.1
 const BAND_COUNT = 5
 // A candidate is called this long after its first edge (two frames at 60 fps): the hit has reached every band by then.
 const CLASSIFY_AFTER_MS = 2000 / 60
@@ -51,20 +54,29 @@ export const DRUM_CENTER_HZ: Record<DrumKind, number> = { kick: 88, hat: 5000, s
 /** Every candidate, as the model saw it: for replaying clips offline and retraining (drum-eval.mts). */
 export type DrumCandidate = { t: number; features: number[]; probabilities: number[]; kinds: DrumKind[] }
 
-type Pending = { t: number; edges: boolean[]; before: number[] }
+// `peak`: each band's highest power from the first edge to the frame the candidate is called on (a hat's air-band burst is mostly gone by then).
+type Pending = { t: number; edges: boolean[]; before: number[]; peak: number[] }
 
 const log10 = (value: number): number => Math.log10(value)
 
 /**
  * The model's inputs, in drum-hit-model.json's order: per band the rise over its reference (dB, the largest in the last 40 ms), its level
  * against its loudness, its share of the power the hit added (log10), the hit's size against the bed, per band the added power against its
- * own bed (log10), and which bands had an edge.
+ * own bed (log10), which bands had an edge, and then per band the power added at its peak since the first edge against its bed and as a share
+ * of all the bands' (log10).
  */
-export const drumFeatures = (trackers: readonly BandTracker[], readings: readonly BandReading[], levels: readonly number[], before: readonly number[], edges: readonly boolean[]): number[] => {
+export const drumFeatures = (
+  trackers: readonly BandTracker[],
+  readings: readonly BandReading[],
+  levels: readonly number[],
+  { before, edges, peak }: Pick<Pending, 'before' | 'edges' | 'peak'>,
+): number[] => {
   const added = before.map((power, b) => Math.max(0, (levels[b] ?? 0) ** 2 - power) + POWER_EPS)
   const bed = before.map((power) => power + POWER_EPS)
   const addedTotal = added.reduce((sum, v) => sum + v, 0)
   const bedTotal = bed.reduce((sum, v) => sum + v, 0)
+  const addedAtPeak = before.map((power, b) => Math.max(0, (peak[b] ?? 0) - power) + POWER_EPS)
+  const addedAtPeakTotal = addedAtPeak.reduce((sum, v) => sum + v, 0)
   return [
     ...trackers.map(({ recentRiseDb }) => Math.max(RISE_FLOOR_DB, recentRiseDb)),
     ...readings.map(({ level, loudness }) => (loudness > 0 ? level / loudness : 0)),
@@ -72,6 +84,8 @@ export const drumFeatures = (trackers: readonly BandTracker[], readings: readonl
     log10(addedTotal) - log10(bedTotal),
     ...added.map((v, b) => log10(v) - log10(bed[b] ?? POWER_EPS)),
     ...edges.map((edge) => (edge ? 1 : 0)),
+    ...addedAtPeak.map((v, b) => log10(v) - log10(bed[b] ?? POWER_EPS)),
+    ...addedAtPeak.map((v) => log10(v) - log10(addedAtPeakTotal)),
   ]
 }
 
@@ -95,7 +109,7 @@ const kindsOf = (probabilities: readonly number[]): DrumKind[] =>
  * while the tempo tracker shows a tempo, which is when the beat detector's gates are off too.
  */
 export class DrumHits {
-  private readonly trackers = Array.from({ length: BAND_COUNT }, () => new BandTracker(undefined, REFERENCE))
+  private readonly trackers = Array.from({ length: BAND_COUNT }, () => new BandTracker(undefined, REFERENCE, MIN_LEVEL_OF_LOUDNESS))
   private readonly hits: number[][] = DRUM_KINDS.map(() => [])
   private readonly rollHits: ReadonlyArray<readonly number[]>
   private readonly last: Array<number | null> = DRUM_KINDS.map(() => null)
@@ -120,8 +134,9 @@ export class DrumHits {
     if (edges.some(Boolean)) {
       const newest = this.pending[this.pending.length - 1]
       if (newest && t - newest.t < MERGE_MS) edges.forEach((edge, b) => { if (edge) newest.edges[b] = true })
-      else this.pending.push({ t, edges: [...edges], before: this.powerBefore(t) })
+      else this.pending.push({ t, edges: [...edges], before: this.powerBefore(t), peak: new Array<number>(BAND_COUNT).fill(0) })
     }
+    this.pending.forEach(({ peak }) => levels.forEach((level, b) => { if (b < BAND_COUNT) peak[b] = Math.max(peak[b] ?? 0, level ** 2) }))
     while (this.pending.length > 0 && t - this.pending[0]!.t >= CLASSIFY_AFTER_MS - 0.5) this.classify(this.pending.shift()!, steps, levels)
     this.hits.forEach((times) => { while (times.length > 0 && t - times[0]! > KEEP_MS) times.shift() })
     this.record(t, levels)
@@ -141,7 +156,7 @@ export class DrumHits {
   private listOf = (kind: DrumKind): number[] => this.hits[DRUM_KINDS.indexOf(kind)]!
 
   private classify = (candidate: Pending, steps: ReadonlyArray<{ reading: BandReading }>, levels: readonly number[]): void => {
-    const features = drumFeatures(this.trackers, steps.map(({ reading }) => reading), levels, candidate.before, candidate.edges)
+    const features = drumFeatures(this.trackers, steps.map(({ reading }) => reading), levels, candidate)
     const probabilities = drumProbabilities(features)
     const kinds = kindsOf(probabilities)
     kinds.forEach((kind) => {
