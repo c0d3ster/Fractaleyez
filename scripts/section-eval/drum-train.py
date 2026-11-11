@@ -80,7 +80,12 @@ for k, kind in enumerate(KINDS):
 
 model = mlp.fit(X, Y, HIDDEN, pos_weight)
 
-names = json.load(open(os.path.join(os.path.dirname(__file__), '..', '..', 'src', 'audioanalysis', 'drum-hit-model.json')))['features']
+# drumFeatures' order (drum-hits.ts).
+BANDS = ['bass', 'lo', 'mid', 'hi', 'air']
+per_band = lambda name: [f'{name}_{b}' for b in BANDS]  # noqa: E731
+names = (per_band('rise') + per_band('level') + per_band('share') + ['size'] + per_band('overBed') + per_band('edge') + per_band('peakOverBed')
+         + per_band('peakShare'))
+assert len(names) == X.shape[1], f'{X.shape[1]} features in the eval files, {len(names)} named: replay the clips with drum-eval.mts again'
 if '--save' in args:
     json.dump({'kinds': KINDS, 'features': names, **mlp.to_json(model), 'thresholds': thresholds}, open(opt('--save', ''), 'w'))
     print('saved', opt('--save', ''))
