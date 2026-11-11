@@ -1,13 +1,14 @@
 """Builds labelled drum and riser test clips from one-shot samples and writes the app's band levels for each (levels.py's filters).
 
     python drum-gen.py <samples dir> <out dir> [--drum-clips 2400] [--riser-clips 500] [--plain-clips 250] [--breakdown-clips 0]
-        [--workers 8] [--seed 1]
+        [--workers 8] [--seed 1] [--spectrum]
 
 <samples dir> holds one folder per kind of one-shot: kick/, snare/, clap/, hat/ (closed, pedal and open hi-hats) and cymbal/ (crashes and
 rides, played as something that is none of the four). Any format ffmpeg reads. Free sources: github.com/tidalcycles/Dirt-Samples (sn, sd,
 808sd, cp, realclaps, bd, 808bd, clubkick; its hh folder is a whole kit, so take only its hats) and github.com/oramics/sampled (DM/*, DRUMS/*).
 
-Per clip: <out>/<id>.f32 (frames x 5 at 60 fps, levels.py) and a line in <out>/truth.jsonl:
+Per clip: <out>/<id>.f32 (frames x 5 at 60 fps, levels.py), with --spectrum <out>/<id>.spec (50 ms ticks x 40 bands, as the training
+recorder keeps them: analyser.py), and a line in <out>/truth.jsonl:
   { id, type, fold, bpm, mic, start, end, layers, hits: { kick, hat, snare, clap: [s] }, risers: [[from s, to s]] }
 Every sample is in one of five folds (by its kit, from drum-samples.py's names), and a clip draws all of its samples from one fold, so a
 model can be scored on folds whose samples, and drum machines, it never heard. Clip types:
@@ -36,6 +37,7 @@ import numpy as np
 from scipy.signal import butter, lfilter, sosfilt
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import analyser  # noqa: E402
 import levels as L  # noqa: E402
 
 RATE = L.RATE
@@ -349,6 +351,8 @@ def make(job: dict) -> dict:
     x = L.simulate_mic(x, mic, rng)
     np.clip(x, -1, 1, out=x)
     band_levels(x).astype('<f4').tofile(os.path.join(job['out'], f"{job['id']}.f32"))
+    if job['spectrum']:
+        analyser.spectrum_ticks(x).astype('<f4').tofile(os.path.join(job['out'], f"{job['id']}.spec"))
     clean = lambda v: v.item() if isinstance(v, np.generic) else v  # noqa: E731
     kind = 'plain' if job['type'] == 'breakdown' else job['type']
     return {'id': job['id'], 'type': kind, 'fold': job['fold'], 'bpm': round(bpm, 3), 'mic': mic, 'start': round(start, 3),
@@ -388,6 +392,7 @@ def main() -> None:
     ap.add_argument('--breakdown-clips', type=int, default=0)
     ap.add_argument('--workers', type=int, default=8)
     ap.add_argument('--seed', type=int, default=1)
+    ap.add_argument('--spectrum', action='store_true')
     args = ap.parse_args()
     os.makedirs(args.out, exist_ok=True)
     rng = np.random.default_rng(args.seed)
@@ -398,7 +403,8 @@ def main() -> None:
                                      ('breakdown', args.breakdown_clips)) for _ in range(n)]
     for i, job in enumerate(jobs):
         fold = int(rng.integers(FOLDS))
-        job.update(id=f"{'b' if job['type'] == 'breakdown' else 'd'}{i:05d}", fold=fold, samples=by_fold[fold], mic=str(rng.choice(MICS, p=MIC_P)), seed=int(rng.integers(1 << 31)), out=args.out)
+        job.update(id=f"{'b' if job['type'] == 'breakdown' else 'd'}{i:05d}", fold=fold, samples=by_fold[fold],
+                   mic=str(rng.choice(MICS, p=MIC_P)), seed=int(rng.integers(1 << 31)), out=args.out, spectrum=args.spectrum)
     with Pool(args.workers) as pool, open(os.path.join(args.out, 'truth.jsonl'), 'w') as truth:
         for n, row in enumerate(pool.imap_unordered(make, jobs, chunksize=4)):
             truth.write(json.dumps(row) + '\n')

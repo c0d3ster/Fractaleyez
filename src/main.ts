@@ -5,6 +5,7 @@ import { AudioFeed } from './audioanalysis/audio-feed'
 import { beatMonitor } from './audioanalysis/beat'
 import { drumHits } from './audioanalysis/drum-hits'
 import { riserDetector } from './audioanalysis/riser'
+import { sweepDetector } from './audioanalysis/sweep'
 import { sectionTracker } from './audioanalysis/sections'
 import { tempoTracker } from './audioanalysis/tempo-tracker'
 import { beatGrid } from './audioanalysis/beat-grid'
@@ -164,6 +165,7 @@ const init = (): void => {
   window.getRhythmLabel = (): RhythmLabel => rhythmLabeler.read(rhythmInput(), performance.now())
   window.getDrumHits = drumHits.getLastHits
   window.getRiser = riserDetector.getScore
+  window.getSweep = sweepDetector.getScore
   window.getSectionHistory = sectionTracker.getHistory
   window.exportSectionLog = (): void => exportSectionLog(sectionTracker.getRecording())
   window.subscribeBeat = beatMonitor.subscribe

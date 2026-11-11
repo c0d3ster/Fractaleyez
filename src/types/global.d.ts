@@ -64,6 +64,8 @@ declare global {
     getDrumHits?: () => Record<DrumKind, number | null>
     /** How much the music sounds like it is rising right now, 0 to 1 (riser.ts). For the Frequency HUD's riser meter. */
     getRiser?: () => number
+    /** How much the music sounds like a sweep is climbing the spectrum right now, 0 to 1 (sweep.ts). */
+    getSweep?: () => number
     getSectionHistory?: () => readonly SectionSlot[]
     /** Downloads everything the section tracker saw this session as a JSON file, to be replayed offline. Run it from the console. */
     exportSectionLog?: () => void
