@@ -1,13 +1,13 @@
 import modelData from './riser-model.json'
 
-// How much the music sounds like it is rising into a drop right now (a riser, or a buildup that climbs back towards one): 0 to 1, for the
-// Frequency HUD and, read offline, for the section model. A riser is not a hit but a climb over bars, so instead of onsets this follows the
-// five band levels in 100 ms slots and reads their trend over the last 2, 4 and 8 seconds (how fast each band is rising, whether the power
-// is moving up the spectrum, how steady the climb is, whether the highs are at their peak) and over 32 s of context (how long the bass has
-// been gone, whether the mix is climbing back). A small model (riser-model.json: one hidden layer of tanh units and a sigmoid) turns that
-// into a score, which is smoothed. It was trained on synthetic risers over drums and melodic beds against fade-ins, steady noise,
-// downlifters and synthetic breakdowns, plus real songs (Raveform sections): the last half of buildups as weak positives, drops, early
-// breakdowns and intros as negatives. See scripts/section-eval/DRUM-HITS.md (drum-gen.py, drum-eval.mts, riser-train.py, riser-score.py).
+// How much the music sounds like a riser right now (a noise sweep, a pitch riser, a high-passed whoosh): 0 to 1, for the Frequency HUD
+// and, read offline, for the section model. A riser is not a hit but a climb over bars, so instead of onsets this follows the five band
+// levels in 100 ms slots and reads their trend over the last 2, 4 and 8 seconds (how fast each band is rising, how steady the climb is,
+// whether the highs are at their peak) and over 32 s of context. A small model (riser-model.json: one hidden layer of tanh units and a
+// sigmoid) turns that into a score, which is smoothed. The installed model reads only the mid, hi and air bands, so the kick and bass
+// dropping out (a breakdown) does not look like a climb. It was trained on synthetic risers over drums and melodic beds against fade-ins,
+// steady noise, downlifters and synthetic breakdowns, plus drops and early breakdowns of real songs (Raveform sections) as negatives. See
+// scripts/section-eval/DRUM-HITS.md (drum-gen.py, drum-eval.mts, riser-train.py, riser-score.py).
 const BAND_COUNT = 5
 const SLOT_MS = 100
 // 32 s of slots: the trend windows read the last 8 s, the long context all of it.

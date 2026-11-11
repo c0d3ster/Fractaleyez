@@ -83,8 +83,8 @@ const run = (clip: Clip): RiserSlot[] => {
 
 describe('RiserDetector', () => {
   // Known gap, failing on purpose until the model is retrained (scripts/section-eval/DRUM-HITS.md): when it passes, make it a plain `it` again.
-  // The buildup model (real buildups, breakdowns, drops and intros) rises through this riser (0.998 at its end), but single slots of the
-  // plain clip still read over 0.5 (0.89 at most) before smoothing.
+  // The pure riser model (highs-only inputs, synthetic breakdowns and real drops and breakdowns as negatives) rises through this riser
+  // (0.995 at its end), but single slots of the plain clip still read over 0.5 (0.95 at most) before smoothing.
   it.fails('rises through a riser and stays low without one', () => {
     const detector = new RiserDetector()
     const { riser, plain } = fixture.clips
