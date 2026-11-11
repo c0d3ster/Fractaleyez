@@ -2,7 +2,7 @@
 
     python riser-train.py <eval.json>[,<eval.json>...] [--hidden 16] [--features base|short|all|highs|<name,...>] [--save riser-model.json]
         [--parity parity.json] [--real-negatives eval.json[,...]] [--real-folds 0,1,2] [--real-every 3] [--buildups] [--buildup-weight 0.5]
-        [--cv full|quick|none]
+        [--negative-weight 1] [--intros] [--cv full|quick|none]
 
 A 100 ms slot is a riser from 1 s into one to its end; the second around each edge is left out, the rest of every clip is not a riser. Five
 folds by the clips' sample folds (--cv quick holds out only the first, none skips it). Scored after the app's smoothing (a 400 ms follower)
@@ -15,10 +15,11 @@ they climb, nothing from the bass or the whole mix) or a list of names.
 
 --real-negatives (drum-eval.mts --riser-features on real songs with Raveform sections) adds real music the synthetic clips do not have: the
 middle of drops (from 4 s in to 8 s before the end) and the first 60% of breakdowns, where the kick and bass drop out and the highs stand
-out, as not risers. --buildups also takes the last half of each buildup as a riser, counted --buildup-weight as much as a synthetic one
-(a weak label: a buildup is not always a riser), which makes the model a buildup detector more than a riser detector. Everything else in a
-real song is left out. --real-folds keeps only songs in those Raveform folds (to hold some out for choosing settings); --real-every keeps
-every n-th real slot (neighbouring slots are nearly the same, and all of them take a lot of memory).
+out, as not risers; --intros adds intros too (from 2 s in to 4 s before the end), and --negative-weight counts each real negative that
+much. --buildups also takes the last half of each buildup as a riser, counted --buildup-weight as much as a synthetic one (a weak label: a
+buildup is not always a riser), which makes the model a buildup detector more than a riser detector. Everything else in a real song is
+left out. --real-folds keeps only songs in those Raveform folds (to hold some out for choosing settings); --real-every keeps every n-th
+real slot (neighbouring slots are nearly the same, and all of them take a lot of memory).
 """
 import json
 import os
@@ -38,6 +39,7 @@ EDGE_S = 1.0
 SHOWN = 0.5
 REAL_EVERY = int(opt('--real-every', '1'))
 BUILDUP_WEIGHT = float(opt('--buildup-weight', '0.5'))
+NEGATIVE_WEIGHT = float(opt('--negative-weight', '1'))
 REAL_FOLDS = {int(f) for f in opt('--real-folds', '').split(',') if f}
 CV = opt('--cv', 'full')
 
@@ -84,6 +86,8 @@ for path in opt('--real-negatives', '').split(',') if '--real-negatives' in args
         sections = r['sections']
         spans = [(sec['start'] + 4, sec['end'] - 8, 0) for sec in sections if sec['name'] == 'drop'] + \
             [(sec['start'], sec['start'] + 0.6 * (sec['end'] - sec['start']), 0) for sec in sections if sec['name'] == 'breakdown']
+        if '--intros' in args:
+            spans += [(sec['start'] + 2, sec['end'] - 4, 0) for sec in sections if sec['name'] == 'intro']
         if '--buildups' in args:
             spans += [((sec['start'] + sec['end']) / 2, sec['end'], 1) for sec in sections if sec['name'] == 'buildup']
         for i, ((t, _), f) in enumerate(zip(r['riser'], r['riserFeatures'])):
@@ -95,7 +99,7 @@ for path in opt('--real-negatives', '').split(',') if '--real-negatives' in args
                 continue
             X.append(f)
             Y.append(label)
-            weight.append(BUILDUP_WEIGHT if label == 1 else 1.0)
+            weight.append(BUILDUP_WEIGHT if label == 1 else NEGATIVE_WEIGHT)
             # Real songs go in every training fold (5 is never held out): only the synthetic clips are scored here.
             fold.append(5)
             clip.append(ci)
