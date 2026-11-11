@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { RISER_FEATURE_NAMES, RiserDetector, riserFeatures, riserProbability, type RiserSlot } from './riser'
+import { RISER_FEATURE_NAMES, RiserDetector, nextSlotStart, riserFeatures, riserProbability, type RiserSlot } from './riser'
 import fixture from './riser.fixture.json'
 
 // Slots of band levels in dB (bass, lo, mid, hi, air), one every 100 ms.
@@ -102,5 +102,26 @@ describe('RiserDetector', () => {
     fixture.clips.riser.frames.forEach((levels, f) => detector.push(f * 50, levels))
     detector.reset()
     expect(detector.getScore()).toBe(0)
+  })
+})
+
+describe('nextSlotStart', () => {
+  it('keeps slots at their length on average when frames do not divide it', () => {
+    // 50 ms ticks at 30 fps: a tick closes on the first frame at or past its end.
+    const frameMs = 1000 / 30
+    let start = 0
+    let closed = 0
+    for (let frame = 1; frame <= 300; frame++) {
+      const t = frame * frameMs
+      if (t - start < 50 - 0.5) continue
+      start = nextSlotStart(start, t, 50)
+      closed++
+    }
+    expect(closed).toBe(200)
+  })
+
+  it('starts over at the frame after a stall instead of catching up', () => {
+    expect(nextSlotStart(0, 400, 100)).toBe(400)
+    expect(nextSlotStart(0, 120, 100)).toBe(100)
   })
 })

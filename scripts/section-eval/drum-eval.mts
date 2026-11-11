@@ -10,7 +10,7 @@
 // work too: levels.py's .f32 files and a truth file with their ids.
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { DRUM_KINDS, DrumHits, type DrumCandidate } from '../../src/audioanalysis/drum-hits.ts'
+import { DRUM_KINDS, DRUM_SENSITIVITY, DrumHits, type DrumCandidate } from '../../src/audioanalysis/drum-hits.ts'
 import { RiserDetector, type RiserSlot } from '../../src/audioanalysis/riser.ts'
 import { BANDS, SOURCE_FPS, loadLevels } from './stream.mts'
 
@@ -26,7 +26,7 @@ const withFeatures = args.includes('--features')
 const withRiserFeatures = withFeatures || args.includes('--riser-features')
 const [shard, shards] = (option('shard') ?? '0/1').split('/').map(Number) as [number, number]
 const FRAME_MS = 1000 / SOURCE_FPS
-const SENSITIVITY = 2
+const SENSITIVITY = DRUM_SENSITIVITY
 const round = (v: number, places = 3): number => Math.round(v * 10 ** places) / 10 ** places
 
 const truths: Truth[] = readFileSync(option('truth') ?? join(dir, 'truth.jsonl'), 'utf8').split('\n').filter(Boolean)

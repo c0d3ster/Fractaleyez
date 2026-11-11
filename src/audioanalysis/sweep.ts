@@ -1,5 +1,6 @@
 import modelData from './sweep-model.json'
 import { SPECTRUM_BANDS, spectrumEdgesHz } from './tick-extras'
+import { nextSlotStart } from './riser'
 
 // How much the music sounds like a sweep is playing right now (a noise riser or a pitch riser climbing up the spectrum): 0 to 1, for the
 // Frequency HUD's riser meter and, read offline, for the section model. The band levels (riser.ts) cannot see a sweep that stays inside the
@@ -163,7 +164,7 @@ export class SweepDetector {
     const tick = Array.from(this.tickSums, (sum) => Math.round(sum / this.tickFrames))
     this.tickSums.fill(0)
     this.tickFrames = 0
-    this.tickStart = t
+    this.tickStart = nextSlotStart(this.tickStart, t, TICK_MS)
     this.pushTick(t, tick)
   }
 
