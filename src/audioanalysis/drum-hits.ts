@@ -1,7 +1,7 @@
 import modelData from './drum-hit-model.json'
 import { BandTracker, thresholdDbFor, type BandReading, type ReferenceWindow } from './onset-detector'
 
-// The kick's, the hats', the snare's and the clap's hits, for the snare roll (automode/roll-rate.ts) and the Frequency HUD's lights. A rise in
+// The kick's, the hats', the snare's and the clap's hits, for the Frequency HUD's lights (and next, auto mode's snare roll). A rise in
 // a band is not an instrument: a rise in lo or mid fired 150 times a minute on a kick alone, 230 on hats and 200 on bass plucks on test clips,
 // and about 250 times a minute on real EDM. So each rise is a candidate, and a small model (drum-hit-model.json: one hidden layer of tanh units
 // and one sigmoid output per drum, trained on one-shot kicks, hats, snares and claps over synthetic beds, through clean, room and laptop mics:
@@ -33,6 +33,9 @@ const KEEP_MS = 3000
 // No candidates for this long after the first frame (the beat detector's warm-up): the trackers have no reference yet, so the audio coming up
 // from silence reads as one big hit.
 const WARMUP_MS = 1000
+// The rise a candidate needs, as a Threshold slider value (3 dB): fixed, because the model was trained on candidates at this rise
+// (drum-eval.mts), so moving the beat detector's slider must not change what reaches it.
+export const DRUM_SENSITIVITY = 2
 
 export const DRUM_KINDS = ['kick', 'hat', 'snare', 'clap'] as const
 export type DrumKind = (typeof DRUM_KINDS)[number]
@@ -105,7 +108,7 @@ const kindsOf = (probabilities: readonly number[]): DrumKind[] =>
   })
 
 /**
- * Runs every frame beside the beat detector, on the raw band levels, with the Threshold slider's rise. No noise gates: the roll is only read
+ * Runs every frame beside the beat detector, on the raw band levels, with a fixed rise (DRUM_SENSITIVITY). No noise gates: the roll is only read
  * while the tempo tracker shows a tempo, which is when the beat detector's gates are off too.
  */
 export class DrumHits {
@@ -145,7 +148,7 @@ export class DrumHits {
   /** Each drum's hits over the last few seconds (ms, oldest first), in DRUM_KINDS order. Not a copy: do not keep it. */
   getHits = (): ReadonlyArray<readonly number[]> => this.hits
 
-  /** The snare's and the clap's hits, the ones a roll is read from (RollReader). Not a copy: do not keep it. */
+  /** The snare's and the clap's hits, the ones a snare roll will be read from. Not a copy: do not keep it. */
   getRollHits = (): ReadonlyArray<readonly number[]> => this.rollHits
 
   /** When each drum last hit (the time of the candidate's first edge), or null before the first. */

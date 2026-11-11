@@ -117,7 +117,7 @@ export const riserFeatures = (history: ReadonlyArray<readonly number[]>): number
   const now = history[history.length - 1]
   if (!now || history.length < MIN_SLOTS) return new Array<number>(RISER_FEATURE_NAMES.length).fill(0)
   const slots = history.slice(-SHORT_SLOTS)
-  const band = (b: number) => (dbs: readonly number[]): number => dbs[b] ?? 0
+  const band = (b: number): ((dbs: readonly number[]) => number) => (dbs) => dbs[b] ?? 0
   const trends = WINDOWS.flatMap((size) => {
     const recent = slots.slice(-size)
     const bandSlopes = Array.from({ length: BAND_COUNT }, (_, b) => fit(recent.map(band(b))).slope * perSecond)
@@ -153,9 +153,11 @@ export const riserFeatures = (history: ReadonlyArray<readonly number[]>): number
 // The long context's inputs (see RISER_FEATURE_NAMES), from one-second means of the history; zero until there are two seconds.
 const longContext = (history: ReadonlyArray<readonly number[]>, total: (dbs: readonly number[]) => number): number[] => {
   const perSecond = 1000 / SLOT_MS
-  const series = [(dbs: readonly number[]) => dbs[0] ?? 0, (dbs: readonly number[]) => dbs[2] ?? 0, highs, total]
-    .map((value) => meansOf(history.map(value), perSecond))
-  const [bass, , highsSeries, totalSeries] = series as [number[], number[], number[], number[]]
+  const secondMeans = (value: (dbs: readonly number[]) => number): number[] => meansOf(history.map(value), perSecond)
+  const bass = secondMeans((dbs) => dbs[0] ?? 0)
+  const highsSeries = secondMeans(highs)
+  const totalSeries = secondMeans(total)
+  const series = [bass, secondMeans((dbs) => dbs[2] ?? 0), highsSeries, totalSeries]
   if (bass.length < 2) return new Array<number>(LONG_WINDOWS.length * LONG_ITEMS.length + 4).fill(0)
   const slopes = LONG_WINDOWS.flatMap((seconds) => series.map((values) => fit(values.slice(-seconds)).slope))
   const last = (values: readonly number[]): number => values[values.length - 1] ?? 0
@@ -180,6 +182,16 @@ export const riserProbability = (features: readonly number[]): number => {
   const scaled = MODEL_INPUTS.map((at, i) => ((features[at] ?? 0) - (MODEL.mean[i] ?? 0)) / (MODEL.scale[i] ?? 1))
   const score = dense(MODEL.output, dense(MODEL.hidden, scaled).map(Math.tanh))[0] ?? 0
   return 1 / (1 + Math.exp(-score))
+}
+
+/**
+ * Where the next slot starts once one closes at `t`: a fixed step on from where the closed one started, so slots average `slotMs` at any
+ * frame rate (at 30 fps, 50 ms ticks close after 2 frames then 1, not always 2, which made them 67 ms). After a stall longer than a slot,
+ * the next one starts at `t` instead of catching up.
+ */
+export const nextSlotStart = (start: number, t: number, slotMs: number): number => {
+  const next = start + slotMs
+  return t - next >= slotMs ? t : next
 }
 
 /** Runs every frame beside the beat detector, on the raw band levels. */
@@ -217,7 +229,7 @@ export class RiserDetector {
     if (this.slots.length > HISTORY_SLOTS) this.slots.shift()
     this.sums.fill(0)
     this.frames = 0
-    this.slotStart = t
+    this.slotStart = nextSlotStart(this.slotStart ?? t, t, SLOT_MS)
     const features = riserFeatures(this.slots)
     const probability = this.slots.length >= MIN_SLOTS ? riserProbability(features) : 0
     const dt = this.lastT === null ? SLOT_MS : t - this.lastT

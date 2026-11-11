@@ -258,7 +258,7 @@ const FrequencyHudInner = ({ userSettings, updateUserSettings }: FrequencyHudPro
   }, [bandAt, toggleBand])
 
   return (
-    <div className='frequency-hud-wrapper' {...info('Click a band to choose whether it can set off a beat. The bass band (the kick) and the hi band (snare and clap) are on by default. The lights below flash on each hit the drum classifier calls a kick, a snare, a clap or hats, each placed at the frequency its hits sit at; Auto reads a snare roll from the snare and the clap. The bar under them fills as the music rises (a riser or a sweep).')}>
+    <div className='frequency-hud-wrapper' {...info('Click a band to choose whether it can set off a beat. The bass band (the kick) and the hi band (snare and clap) are on by default. The lights below flash on each hit the drum classifier calls a kick, a snare, a clap or hats, each placed at the frequency its hits sit at. The bar under them fills as the music rises (a riser or a sweep).')}>
       <span className='frequency-hud-label'>Frequency</span>
       <div className='frequency-hud'>
         <canvas

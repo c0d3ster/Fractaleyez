@@ -6,7 +6,7 @@ import { beatMonitor } from './beat'
 import { beatGrid } from './beat-grid'
 import { sectionTracker } from './sections'
 import { tempoTracker } from './tempo-tracker'
-import { drumHits } from './drum-hits'
+import { DRUM_SENSITIVITY, drumHits } from './drum-hits'
 import { riserDetector } from './riser'
 import { SpectrumReducer } from './spectrum-reducer'
 import { sweepDetector } from './sweep'
@@ -23,6 +23,7 @@ export class AudioFeed {
   private latest: AudioAnalysedDataForVisualization | null = null
   private readonly onsetDetector = new OnsetDetector(ONSET_BANDS.length)
   private spectrumReducer: SpectrumReducer | null = null
+  private heardSound = false
 
   constructor(
     private readonly stream: AudioStream,
@@ -48,14 +49,19 @@ export class AudioFeed {
     snapshot.beat = onset.beat
     const now = performance.now()
     beatMonitor.record({ t: now, bands: onset.bands, beatBand: onset.beatBand })
-    drumHits.push(now, levels, deltaTime, soundThreshold.value)
-    riserDetector.push(now, levels)
-    // The spectrum pooled into the training recorder's 40 bands, for the sweep detector.
-    if (!this.spectrumReducer) {
-      const { sampleRate, binCount } = this.stream.getSpectrumShape()
-      this.spectrumReducer = new SpectrumReducer(sampleRate, binCount)
+    // Not before the first sound (the audio context waits for a click): the drum warm-up and the riser's and sweep's histories would
+    // otherwise pass on silence, and the music coming up from it would read as a hit in every band and as a rise.
+    if (!this.heardSound && !this.isSilent()) this.heardSound = true
+    if (this.heardSound) {
+      drumHits.push(now, levels, deltaTime, DRUM_SENSITIVITY)
+      riserDetector.push(now, levels)
+      // The spectrum pooled into the training recorder's 40 bands, for the sweep detector.
+      if (!this.spectrumReducer) {
+        const { sampleRate, binCount } = this.stream.getSpectrumShape()
+        this.spectrumReducer = new SpectrumReducer(sampleRate, binCount)
+      }
+      sweepDetector.push(now, this.spectrumReducer.reduce(audioData.frequencyData))
     }
-    sweepDetector.push(now, this.spectrumReducer.reduce(audioData.frequencyData))
     tempoTracker.push(now, levels)
     // After the tracker, so the grid reads this frame's tempo.
     beatGrid.push(now, levels)
