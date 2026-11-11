@@ -8,8 +8,8 @@ rides, played as something that is none of the four). Any format ffmpeg reads. F
 
 Per clip: <out>/<id>.f32 (frames x 5 at 60 fps, levels.py) and a line in <out>/truth.jsonl:
   { id, type, fold, bpm, mic, start, end, layers, hits: { kick, hat, snare, clap: [s] }, risers: [[from s, to s]] }
-Every sample is in one of five folds (by name), and a clip draws all of its samples from one fold, so a model can be scored on folds whose
-samples it never heard. Clip types:
+Every sample is in one of five folds (by its kit, from drum-samples.py's names), and a clip draws all of its samples from one fold, so a
+model can be scored on folds whose samples, and drum machines, it never heard. Clip types:
   drums  4 bars of a random kit pattern on the beat grid (any of kick, hats, snare and/or clap, a crash on the downbeat) over random
          melodic layers (bass plucks, pads, chord stabs, a sung line), or with nothing at all of some kinds. The hats are one hi-hat (each
          strike chokes the last), on the off-beats, eighths or sixteenths, or closed with an open hat on the off-beats. About one in seven
@@ -351,7 +351,9 @@ def band_levels(x: np.ndarray) -> np.ndarray:
 
 
 def fold_of(name: str) -> int:
-    return zlib.crc32(name.encode()) % FOLDS
+    # drum-samples.py names a sample <kit>__<file>: every sample of a kit is in one fold, so a fold's drum machines are never heard in
+    # training. Other names are folded one by one.
+    return zlib.crc32(name.split('__')[0].encode()) % FOLDS
 
 
 def main() -> None:
