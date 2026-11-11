@@ -120,6 +120,11 @@ The two sets label differently. Raveform calls most of the rise before a drop a 
 ## What was tried and did not help
 
 - **More model capacity** (deeper trees, more of them) and class balancing: no gain out of fold. Stage 1 is limited by information, not fit.
+- **Riser and sweep scores** as features (`riser-section-features.py`, branch `feat/drum-hits-riser`): the band-level riser detectors
+  (pure riser B, buildup detector A, from `scripts/section-eval/DRUM-HITS.md`) and the spectrum sweep detector, each as its smoothed score, its
+  4 s mean and its 10 s max, rebuilt from scratch on SSME (clean, room, laptop), out of fold, decoder re-tuned. Mean F1 0.459 to 0.464 with B,
+  0.456 with A, 0.467 with both (drop 0.384 to 0.400, build 0.425 to 0.429); the sweep, clean and laptop only, 0.456 to 0.460. All within
+  the noise of 435 drops, so the model is unchanged. The model already reads what a riser does to the band levels.
 - **Spectral features** from the app's 512-point FFT (14-band shape, spectral novelty over 1 and 4 s, `spectrum.py`): break +0.004, drop -0.03 F1. Not used, so the audio pipeline is unchanged.
 - **Lagged copies of the features** (2 and 4 s back): +0.002. Not used.
 - **Waiting before calling a drop** (`exp_delay.py`): a detector trained on "a drop landed 1, 1.5, 2 or 3 s ago", with the features at the drop moment next to the current ones, scored 0.35, 0.32, 0.30 and 0.29 drop F1 against 0.39 for the one that answers at once. Two seconds after it fires, real drops and false alarms look the same (bass still full in 79% against 69%, same level and beat rate): most false alarms are the music really coming back to full (the end of a fill, the next phrase) where the labels have no drop. What tells them apart is where it falls in the song's phrasing, not what follows, which points at a bar and phrase grid.

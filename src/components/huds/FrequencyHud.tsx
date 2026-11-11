@@ -22,7 +22,7 @@ const W = 180
 const LABEL_H = 14
 const BAR_AREA_H = 90
 // Below the labels, a light for each drum the hit classifier names (drum-hits.ts), at the frequency its hits sit at, and under them the
-// riser meter (riser.ts), filling from left to right as the music rises.
+// riser meter (the higher of riser.ts and sweep.ts), filling from left to right as a riser plays.
 const INSTRUMENT_ROW_H = 12
 const RISER_ROW_H = 6
 const BANDS_H = BAR_AREA_H + LABEL_H
@@ -59,7 +59,8 @@ const drawInstrumentLights = (ctx: CanvasRenderingContext2D, source: Window, now
 }
 
 const drawRiserMeter = (ctx: CanvasRenderingContext2D, source: Window): void => {
-  const score = Math.min(1, Math.max(0, source.getRiser?.() ?? 0))
+  // Whichever reads higher: the sweep (sweep.ts, from the spectrum) catches risers the band levels (riser.ts) cannot see under the hats.
+  const score = Math.min(1, Math.max(0, source.getRiser?.() ?? 0, source.getSweep?.() ?? 0))
   const y = BANDS_H + INSTRUMENT_ROW_H + 1
   const h = RISER_ROW_H - 3
   ctx.fillStyle = '#1a1a1a'
