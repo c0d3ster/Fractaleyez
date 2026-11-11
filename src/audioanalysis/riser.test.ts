@@ -95,6 +95,32 @@ describe('RiserDetector', () => {
     expect(run(plain).every(({ t, probability }) => t < 1000 || probability < 0.5)).toBe(true)
   })
 
+  // Band levels (percent, as audio-feed.ts pushes them) every 50 ms: `count` frames of `level(frame)`.
+  const framesOf = (count: number, level: (frame: number) => number[]): number[][] => Array.from({ length: count }, (_, f) => level(f))
+  const climb = framesOf(80, (f) => [0.1, 0.1, 0.5 + f / 40, 0.5 + f / 20, 0.5 + f / 20])
+  const lastFeatures = (frames: number[][]): number[] => {
+    const slots = run({ riserFrom: 0, riserTo: 0, frames })
+    return slots[slots.length - 1]!.features
+  }
+
+  it('reads a riser after a gap as if it came out of silence, not against the louder sound before the gap', () => {
+    const gap = framesOf(30, () => [0.1, 0.1, 0.1, 0.1, 0.1])
+    const loud = framesOf(120, () => [30, 30, 30, 30, 30])
+    const afterLoud = lastFeatures([...loud, ...gap, ...climb])
+    const afterSilence = lastFeatures([...framesOf(120, () => [0.1, 0.1, 0.1, 0.1, 0.1]), ...gap, ...climb])
+    afterSilence.forEach((v, i) => expect(afterLoud[i]).toBeCloseTo(v, 6))
+  })
+
+  it('keeps the history through a dip that is not a gap', () => {
+    // 12 dB down: still music, so a climb from there is still read against what came before.
+    const dip = framesOf(30, () => [7.5, 7.5, 7.5, 7.5, 7.5])
+    const climbFromDip = framesOf(80, (f) => [7.5, 7.5, 7.5 + f / 20, 7.5 + f / 10, 7.5 + f / 10])
+    const afterLoud = lastFeatures([...framesOf(120, () => [30, 30, 30, 30, 30]), ...dip, ...climbFromDip])
+    const afterQuiet = lastFeatures([...framesOf(120, () => [7.5, 7.5, 7.5, 7.5, 7.5]), ...dip, ...climbFromDip])
+    const hiVsPeak = RISER_FEATURE_NAMES.indexOf('hi_vs_peak')
+    expect(afterLoud[hiVsPeak]).toBeLessThan((afterQuiet[hiVsPeak] ?? 0) - 1)
+  })
+
   it('makes a slot every 100 ms, and starts from nothing after a reset', () => {
     const slots = run(fixture.clips.plain)
     expect(slots.length).toBe(Math.floor((fixture.clips.plain.frames.length - 1) / 2))
