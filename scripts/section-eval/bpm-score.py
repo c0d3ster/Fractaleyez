@@ -46,7 +46,8 @@ def main() -> None:
         # Three excerpts are labelled 0 BPM (no tempo): nothing to score.
         if truth is None or truth <= 0:
             continue
-        hold = int(LOCK_HOLD_S / every)
+        # Readings from the first to the last of the hold, inclusive: 11 at 500 ms span the full 5 s.
+        hold = int(np.ceil(LOCK_HOLD_S / every - 1e-9)) + 1
         allr = r['readings']
         right = [x is not None and near(x, truth) for x in allr]
         lock_at = next((i for i in range(len(right) - hold + 1) if all(right[i:i + hold])), None)

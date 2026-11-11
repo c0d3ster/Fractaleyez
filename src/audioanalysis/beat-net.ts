@@ -39,6 +39,9 @@ export type BeatActivation = {
 
 const BANDS = 5
 const FEATURES_PER_BAND = 3
+// A gap between frames longer than this (a hidden tab, a long stall) is not filled in: catching up would run thousands of steps in one
+// frame on audio that was never heard. The network starts over from the next frame instead.
+const MAX_GAP_MS = 250
 
 const sigmoid = (x: number): number => 1 / (1 + Math.exp(-x))
 
@@ -88,6 +91,7 @@ export class BeatNet {
   private readonly prev = new Float64Array(BANDS)
   private readonly hopDb = new Float64Array(BANDS)
   private readonly lastDb = new Float64Array(BANDS)
+  private readonly nowDb = new Float64Array(BANDS)
   private readonly slowAlpha: number
   private readonly fastAlpha: number
   private lastT: number | null = null
@@ -108,6 +112,7 @@ export class BeatNet {
   push = (t: number, levels: readonly number[]): void => {
     const { floorDb, hopMs } = this.model
     const db = this.hopDb
+    if (this.lastT !== null && t - this.lastT > MAX_GAP_MS) this.reset()
     if (this.lastT === null) {
       for (let b = 0; b < BANDS; b++) this.lastDb[b] = Math.max(floorDb, 20 * Math.log10(Math.max(levels[b] ?? 0, 1e-6)))
       this.lastT = t
@@ -118,7 +123,7 @@ export class BeatNet {
     }
     const fromT = this.lastT
     if (t <= fromT) return
-    const now = new Float64Array(BANDS)
+    const now = this.nowDb
     for (let b = 0; b < BANDS; b++) now[b] = Math.max(floorDb, 20 * Math.log10(Math.max(levels[b] ?? 0, 1e-6)))
     while (this.nextHop <= t) {
       const f = (this.nextHop - fromT) / (t - fromT)

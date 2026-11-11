@@ -236,6 +236,10 @@ def train(args) -> None:
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, args.steps)
     loss_fn = torch.nn.BCEWithLogitsLoss(reduction='none')
     frames_per_window = int((WINDOW_HOPS + WARMUP_HOPS) * HOP_MS / 1000 * SOURCE_FPS) + 2
+    longest_stretch = math.exp(args.stretch) if args.stretch > 0 else 1.0
+    needed = int(np.ceil(frames_per_window * longest_stretch)) + 2
+    if not any(len(levels) >= needed for levels, _, _ in data):
+        sys.exit(f'no track is long enough for a {(WINDOW_HOPS + WARMUP_HOPS) * HOP_MS / 1000:.0f} s window ({needed} frames)')
     best = -1.0
     first = 1
     # A run longer than one sitting picks up from its last checkpoint (written at every check): same model, optimizer and schedule.

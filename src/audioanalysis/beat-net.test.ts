@@ -28,4 +28,17 @@ describe('BeatNet', () => {
     // 143 frames at 144 fps last 993 ms: hops at 0, 10, ..., 990.
     expect(out).toHaveLength(100)
   })
+
+  it('starts over after a long gap (a hidden tab) instead of running every missed hop in one frame', () => {
+    const out: BeatActivation[] = []
+    const net = new BeatNet(model, (a) => out.push(a))
+    for (let i = 0; i < 60; i++) net.push((i * 1000) / 60, [10, 5, 3, 2, 1])
+    const before = out.length
+    // Five minutes later: the next frame is a fresh first hop, not 30,000 interpolated ones.
+    net.push(300000, [10, 5, 3, 2, 1])
+    expect(out.length - before).toBe(1)
+    expect(out[out.length - 1]!.t).toBe(300000)
+    net.push(300000 + 1000 / 60, [10, 5, 3, 2, 1])
+    expect(out[out.length - 1]!.t).toBe(300010)
+  })
 })

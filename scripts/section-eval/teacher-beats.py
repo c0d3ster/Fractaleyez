@@ -45,11 +45,12 @@ def mark(args: tuple) -> str:
         else:
             after = downbeats[downbeats > b]
             places.append((-int(np.sum((beats >= b - 1e-6) & (beats < after[0] - 1e-6)))) % 4 + 1 if len(after) else 0)
-    with open(target + '.tmp', 'w') as f:
+    tmp = f'{target}.{os.getpid()}.tmp'
+    with open(tmp, 'w') as f:
         f.write('time,downbeat,section\n')
         for b, p in zip(beats, places):
             f.write(f'{b:.4f},{p},\n')
-    os.replace(target + '.tmp', target)
+    os.replace(tmp, target)
     return 'done'
 
 
@@ -58,6 +59,13 @@ def main() -> None:
     jobs = int(sys.argv[sys.argv.index('--jobs') + 1]) if '--jobs' in sys.argv else 4
     os.makedirs(out, exist_ok=True)
     paths = sorted(os.path.join(audio, n) for n in os.listdir(audio) if n.lower().endswith(('.mp3', '.wav')))
+    # Two files can map to one id (song.mp3 and song.LOFI.mp3); mark one of them, not both into the same file.
+    by_id: dict = {}
+    for p in paths:
+        by_id.setdefault(ids_of(os.path.basename(p)), p)
+    if len(by_id) < len(paths):
+        print(f'{len(paths) - len(by_id)} files share an id with another; marking one of each', file=sys.stderr)
+    paths = sorted(by_id.values())
     started = time.time()
     with Pool(jobs) as pool:
         for i, result in enumerate(pool.imap_unordered(mark, [(p, out) for p in paths])):
