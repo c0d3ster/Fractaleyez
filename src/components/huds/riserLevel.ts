@@ -3,25 +3,27 @@
 // level of the highest score so far, and the meter goes off at once when the riser is over: the score under OFF_SCORE, or well under
 // its peak (a riser cut dead, or the drop landing), for OFF_AFTER_MS.
 
-export const RISER_LEVELS = 5
-// The score that starts the meter, and the one under which it stops.
-export const ON_SCORE = 0.35
-export const OFF_SCORE = 0.25
-// The score that lights every bar; the ones between are spread evenly from ON_SCORE.
-const FULL_SCORE = 0.85
-const SCORE_PER_LEVEL = (FULL_SCORE - ON_SCORE) / (RISER_LEVELS - 1)
-const SHOW_AFTER_MS = 150
+// The numbers are measured (scripts/section-eval/DRUM-HITS.md): synthetic risers alone and 1 to 4 s after a louder sample, held-out Raveform
+// tracks and SSME by section. With them 99.8% of risers alone show, 99.5% within a bar (median 0.69 s), and 1.9% of Raveform time outside
+// buildups is on the meter (7.4% on SSME, mostly the sweep). False shows are short (median 1.2 s) and peak near 0.67, so most stay at one or
+// two bars; real risers peak near 0.98. ON 0.50 with bar 2 at 0.62 trades 0.05 s of delay for about a tenth less false time.
+
+// The score each bar lights at, from the first to the last; the first is also the score that starts the meter.
+const BAR_SCORES = [0.45, 0.6, 0.75, 0.88, 0.96] as const
+export const RISER_LEVELS = BAR_SCORES.length
+export const ON_SCORE = BAR_SCORES[0]
+// Under this the meter stops.
+export const OFF_SCORE = 0.35
+const SHOW_AFTER_MS = 250
 // Bars are added one at a time, this far apart, so a riser read late still climbs instead of starting at three.
 const STEP_UP_MS = 120
-// This far under the peak is the riser ending, even while the score is still above OFF_SCORE.
-const FALL_FROM_PEAK = 0.25
+// This far under the peak is the riser ending, even while the score is still above OFF_SCORE (with 0.4, about one riser in five blinks
+// off once partway through; a tighter margin blinks more).
+const FALL_FROM_PEAK = 0.4
 const OFF_AFTER_MS = 120
 
 /** The bars a score is worth: 0 under ON_SCORE, then 1 to RISER_LEVELS. */
-export const levelForScore = (score: number): number => {
-  if (score < ON_SCORE) return 0
-  return Math.min(RISER_LEVELS, 1 + Math.floor((score - ON_SCORE) / SCORE_PER_LEVEL + 1e-9))
-}
+export const levelForScore = (score: number): number => BAR_SCORES.filter((barScore) => score >= barScore).length
 
 /** The bars shown, stepped once per HUD draw. */
 export class RiserLevel {

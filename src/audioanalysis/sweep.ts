@@ -24,7 +24,13 @@ const SWEEP_FROM_HZ = 300
 // Regions for the per-region climb, in Hz.
 const REGIONS_HZ = [[300, 1000], [1000, 3000], [3000, 8000], [8000, 16000]] as const
 const SHIFTS = [1, 2] as const
-const SMOOTH_MS = 400
+// The follower's time constants (ms) going up and down, as in riser.ts.
+const RISE_MS = 400
+const FALL_MS = 150
+// A gap: the spectrum's half-second mean this far (dB) under its highest of the last 8 s for this many slots in a row. As in riser.ts, the
+// steps before it then read as the gap, so a sweep that starts soon after something louder is not measured against it.
+const GAP_DB = 25
+const GAP_SLOTS = 5
 // Byte values (0 to 255) to dB over the analyser's -100 to -30 dB range.
 const DB_PER_BYTE = 70 / 255
 
@@ -152,6 +158,7 @@ export class SweepDetector {
   private readonly steps: number[][] = []
   private score = 0
   private lastT: number | null = null
+  private quietSlots = 0
 
   constructor(private readonly onSlot?: (slot: SweepSlot) => void) {}
 
@@ -181,13 +188,16 @@ export class SweepDetector {
     // Steps a half second apart: every fifth slot's mean, back from now.
     const spaced = (TICKS_PER_STEP / TICKS_PER_SLOT) * HISTORY_STEPS
     if (this.steps.length > spaced) this.steps.shift()
+    const quiet = Math.max(...this.steps.map(mean)) - mean(step) >= GAP_DB
+    this.quietSlots = quiet ? this.quietSlots + 1 : 0
+    if (this.quietSlots === GAP_SLOTS) this.forgetBeforeGap()
     const every = TICKS_PER_STEP / TICKS_PER_SLOT
     const history = this.steps.filter((_, i) => (this.steps.length - 1 - i) % every === 0)
     const features = sweepFeatures(history)
     const probability = history.length >= MIN_STEPS ? sweepProbability(features) : 0
     const dt = this.lastT === null ? TICK_MS * TICKS_PER_SLOT : t - this.lastT
     this.lastT = t
-    this.score += (probability - this.score) * (1 - Math.exp(-dt / SMOOTH_MS))
+    this.score += (probability - this.score) * (1 - Math.exp(-dt / (probability >= this.score ? RISE_MS : FALL_MS)))
     this.onSlot?.({ t, features, probability })
   }
 
@@ -203,6 +213,13 @@ export class SweepDetector {
     this.steps.length = 0
     this.score = 0
     this.lastT = null
+    this.quietSlots = 0
+  }
+
+  // After a gap, every step before it reads as the gap now (see riser.ts).
+  private forgetBeforeGap = (): void => {
+    const level = this.steps[this.steps.length - 1] ?? []
+    for (let i = 0; i < this.steps.length - 1; i++) this.steps[i] = [...level]
   }
 }
 

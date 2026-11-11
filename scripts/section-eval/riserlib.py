@@ -1,11 +1,13 @@
-"""Shared by riser-train.py and riser-score.py: reading riser-model.json, running it, and the app's 400 ms follower."""
+"""Shared by riser-train.py and riser-score.py: reading riser-model.json, running it, and the app's follower (up over 400 ms, down over
+150 ms, as in riser.ts and sweep.ts)."""
 import json
 import os
 import subprocess
 
 import numpy as np
 
-SMOOTH_MS = 400
+RISE_MS = 400
+FALL_MS = 150
 AUDIO = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'src', 'audioanalysis')
 
 
@@ -35,6 +37,6 @@ def smooth(t_ms: np.ndarray, p: np.ndarray) -> np.ndarray:
     for i, (t, v) in enumerate(zip(t_ms, p)):
         dt = 100 if last is None else t - last
         last = t
-        score += (v - score) * (1 - np.exp(-dt / SMOOTH_MS))
+        score += (v - score) * (1 - np.exp(-dt / (RISE_MS if v >= score else FALL_MS)))
         out[i] = score
     return out

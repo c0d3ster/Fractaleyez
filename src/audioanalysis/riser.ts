@@ -22,8 +22,20 @@ const BASS_GONE_DB = 6
 // Fewest slots a trend is read from; before that the features are zero.
 const MIN_SLOTS = 10
 const POWER_EPS = 1e-6
-// The shown score follows the model's this fast (ms), so a slot or two of doubt does not flicker it.
-const SMOOTH_MS = 400
+// The shown score follows the model's this fast (ms): up over RISE_MS, so a slot or two of doubt does not flicker it, and down over FALL_MS,
+// so it lets go soon after a riser stops (under 0.4 a median of 0.26 s after a synthetic riser's end, against 0.48 s with 400 ms both
+// ways) and a false reading on real music is over sooner (on SSME, about 1.5 points less of the time outside builds on the meter).
+const RISE_MS = 400
+const FALL_MS = 150
+// A gap: the mix this far (dB) under its loudest slot of the last 8 s for this many slots in a row (the pause between two samples, or
+// before a drop). The trends and peaks would otherwise measure the next sound against the last one for up to 32 s, so a riser that starts
+// within 8 s of something louder read as flat until it got past it. On synthetic risers played 1 to 4 s after a sample as loud or louder
+// (the user auditioning risers one after another), with the sweep, the meter showed 81% of them, a median of 4 s in; with the gap 99.6%,
+// 1.1 s in. Clearing the history instead, so it starts with the next sound, showed 91%, 2.6 s in: the model needs the quiet lead-in its
+// training risers had. On real music this calls 12 to 20 gaps an hour and 2 in 100 buildups' last halves, and adds about 0.3 points of
+// meter time outside buildups on held-out Raveform tracks (riser only) and 0.8 on SSME. See scripts/section-eval/DRUM-HITS.md.
+const GAP_DB = 25
+const GAP_SLOTS = 5
 
 /** A dense layer: `weights[out][in]`. */
 type Layer = { weights: number[][]; bias: number[] }
@@ -202,6 +214,7 @@ export class RiserDetector {
   private readonly slots: number[][] = []
   private score = 0
   private lastT: number | null = null
+  private quietSlots = 0
 
   constructor(private readonly onSlot?: (slot: RiserSlot) => void) {}
 
@@ -222,11 +235,23 @@ export class RiserDetector {
     this.slots.length = 0
     this.score = 0
     this.lastT = null
+    this.quietSlots = 0
+  }
+
+  // After a gap, every slot before it reads as the gap now: the next sound rises out of silence, the way the training clips' risers did.
+  private forgetBeforeGap = (): void => {
+    const level = this.slots[this.slots.length - 1] ?? []
+    for (let i = 0; i < this.slots.length - 1; i++) this.slots[i] = [...level]
   }
 
   private closeSlot = (t: number): void => {
     this.slots.push(Array.from(this.sums, (sum) => toDb(sum / Math.max(1, this.frames))))
     if (this.slots.length > HISTORY_SLOTS) this.slots.shift()
+    const mix = (dbs: readonly number[]): number => toDb(dbs.reduce((sum, d) => sum + 10 ** (d / 10), 0))
+    const recent = this.slots.slice(-SHORT_SLOTS)
+    const quiet = Math.max(...recent.map(mix)) - mix(recent[recent.length - 1] ?? []) >= GAP_DB
+    this.quietSlots = quiet ? this.quietSlots + 1 : 0
+    if (this.quietSlots === GAP_SLOTS) this.forgetBeforeGap()
     this.sums.fill(0)
     this.frames = 0
     this.slotStart = nextSlotStart(this.slotStart ?? t, t, SLOT_MS)
@@ -234,7 +259,7 @@ export class RiserDetector {
     const probability = this.slots.length >= MIN_SLOTS ? riserProbability(features) : 0
     const dt = this.lastT === null ? SLOT_MS : t - this.lastT
     this.lastT = t
-    this.score += (probability - this.score) * (1 - Math.exp(-dt / SMOOTH_MS))
+    this.score += (probability - this.score) * (1 - Math.exp(-dt / (probability >= this.score ? RISE_MS : FALL_MS)))
     this.onSlot?.({ t, features, probability })
   }
 }

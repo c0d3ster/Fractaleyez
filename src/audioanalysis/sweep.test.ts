@@ -57,6 +57,23 @@ describe('SweepDetector', () => {
     expect(scoreOf(() => 26)).toBeLessThan(0.2)
   })
 
+  it('reads a sweep after a gap as if it came out of silence, not against the louder sound before the gap', () => {
+    const flat = (count: number, value: number): number[][] => Array.from({ length: count }, () => new Array<number>(40).fill(value))
+    const sweep = ticksOf(60, (i) => 16 + i / 10)
+    const afterLoud = run([...flat(120, 230), ...flat(30, 20), ...sweep]).at(-1)!.features
+    const afterSilence = run([...flat(120, 20), ...flat(30, 20), ...sweep]).at(-1)!.features
+    afterSilence.forEach((v, i) => expect(afterLoud[i]).toBeCloseTo(v, 6))
+  })
+
+  it('keeps the history through a dip that is not a gap', () => {
+    // 16 dB down (55 byte steps), and the sweep under it about 20 dB down: still music.
+    const flat = (count: number, value: number): number[][] => Array.from({ length: count }, () => new Array<number>(40).fill(value))
+    const sweep = ticksOf(60, (i) => 16 + i / 10)
+    const afterLoud = run([...flat(120, 175), ...flat(30, 120), ...sweep]).at(-1)!.features
+    const afterQuiet = run([...flat(120, 120), ...flat(30, 120), ...sweep]).at(-1)!.features
+    expect(named(afterLoud, 'region3_vs_peak')).toBeLessThan(named(afterQuiet, 'region3_vs_peak') - 1)
+  })
+
   it('pools frames into 50 ms ticks the way the recorder does, and starts from nothing after a reset', () => {
     const fromFrames: SweepSlot[] = []
     const frames = new SweepDetector((slot) => fromFrames.push(slot))
