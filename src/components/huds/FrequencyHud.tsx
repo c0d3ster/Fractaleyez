@@ -8,6 +8,7 @@ import { DRUM_CENTER_HZ, DRUM_KINDS } from '../../audioanalysis/drum-hits'
 import { DEFAULT_ENABLED_BANDS, ONSET_BANDS, isValidBandSelection } from '../../audioanalysis/onset-bands'
 import { subscribeUiTick } from '../../utils/uiTicker'
 import { bandColor } from './bandColors'
+import { RISER_LEVELS, RiserLevel } from './riserLevel'
 
 const VISIBLE_BANDS = ONSET_BANDS.length
 const LABELS = ONSET_BANDS.map(({ label }) => label)
@@ -21,18 +22,29 @@ const mainWindow = (): Window => window.opener ?? window
 const W = 180
 const LABEL_H = 14
 const BAR_AREA_H = 90
-// Below the labels, a light for each drum the hit classifier names (drum-hits.ts), at the frequency its hits sit at, and under them the
-// riser meter (the higher of riser.ts and sweep.ts), filling from left to right as a riser plays.
-const INSTRUMENT_ROW_H = 12
-const RISER_ROW_H = 6
+// Below the labels, a light for each drum the hit classifier names (drum-hits.ts), at the frequency its hits sit at, with its name under
+// it, and under the air column (which has no drum) the riser meter: signal bars that light as a riser plays (riserLevel.ts).
 const BANDS_H = BAR_AREA_H + LABEL_H
-const H = BANDS_H + INSTRUMENT_ROW_H + RISER_ROW_H
+const INSTRUMENT_GAP = 8
+const ICON_H = 16
+const INSTRUMENT_LABEL_H = 10
+const INSTRUMENT_TOP = BANDS_H + INSTRUMENT_GAP
+const H = INSTRUMENT_TOP + ICON_H + INSTRUMENT_LABEL_H + 4
 const GAP = 4
-const BAR_W = Math.floor((W - (VISIBLE_BANDS - 1) * GAP) / VISIBLE_BANDS)  // 22px
+const BAR_W = Math.floor((W - (VISIBLE_BANDS - 1) * GAP) / VISIBLE_BANDS)  // 32px
 const RADIUS = 3
-const INSTRUMENT_DOT_R = 3
+const INSTRUMENT_DOT_R = 5
 // How long an instrument's light takes to fade after a hit.
 const INSTRUMENT_FLASH_MS = 180
+const INSTRUMENT_LABEL_Y = INSTRUMENT_TOP + ICON_H + 8
+// The riser's signal bars: RISER_LEVELS of them, rising left to right, in the air column.
+const RISER_BAR_W = 4
+const RISER_BAR_GAP = 2
+const RISER_MIN_BAR_H = 4
+const RISER_X = (VISIBLE_BANDS - 1) * (BAR_W + GAP) + (BAR_W - (RISER_LEVELS * RISER_BAR_W + (RISER_LEVELS - 1) * RISER_BAR_GAP)) / 2
+const LIT = 'rgba(242, 242, 242, 0.9)'
+const UNLIT = '#333'
+const LABEL_FONT = '8px monospace'
 
 // Where a frequency falls across the bars: in its band's column, at its place between the band's edges on a log scale (each band spans a
 // few times its low edge, so the chart reads roughly as a log frequency axis).
@@ -45,29 +57,40 @@ const frequencyX = (hz: number): number => {
 
 const LIGHT_X = DRUM_KINDS.map((kind) => frequencyX(DRUM_CENTER_HZ[kind]))
 
+const drawInstrumentLabel = (ctx: CanvasRenderingContext2D, text: string, x: number, lit: number): void => {
+  ctx.font = LABEL_FONT
+  ctx.textAlign = 'center'
+  ctx.fillStyle = lit > 0 ? `rgba(242, 242, 242, ${0.45 + lit * 0.55})` : '#555'
+  ctx.fillText(text, x, INSTRUMENT_LABEL_Y)
+}
+
 const drawInstrumentLights = (ctx: CanvasRenderingContext2D, source: Window, now: number): void => {
-  const y = BANDS_H + INSTRUMENT_ROW_H / 2
+  const y = INSTRUMENT_TOP + ICON_H / 2
   const last = source.getDrumHits?.()
   DRUM_KINDS.forEach((kind, i) => {
     const hit = last?.[kind] ?? null
     const flash = hit === null ? 0 : Math.max(0, 1 - (now - hit) / INSTRUMENT_FLASH_MS)
+    const x = LIGHT_X[i] ?? 0
     ctx.beginPath()
-    ctx.arc(LIGHT_X[i] ?? 0, y, INSTRUMENT_DOT_R, 0, Math.PI * 2)
-    ctx.fillStyle = flash > 0 ? `rgba(242, 242, 242, ${0.25 + flash * 0.75})` : '#333'
+    ctx.arc(x, y, INSTRUMENT_DOT_R, 0, Math.PI * 2)
+    ctx.fillStyle = flash > 0 ? `rgba(242, 242, 242, ${0.25 + flash * 0.75})` : UNLIT
     ctx.fill()
+    drawInstrumentLabel(ctx, kind, x, flash)
   })
 }
 
-const drawRiserMeter = (ctx: CanvasRenderingContext2D, source: Window): void => {
+const drawRiserMeter = (ctx: CanvasRenderingContext2D, source: Window, meter: RiserLevel, now: number): void => {
   // Whichever reads higher: the sweep (sweep.ts, from the spectrum) catches risers the band levels (riser.ts) cannot see under the hats.
   const score = Math.min(1, Math.max(0, source.getRiser?.() ?? 0, source.getSweep?.() ?? 0))
-  const y = BANDS_H + INSTRUMENT_ROW_H + 1
-  const h = RISER_ROW_H - 3
-  ctx.fillStyle = '#1a1a1a'
-  roundRect(ctx, 0, y, W, h, 1.5)
-  if (score < 0.02) return
-  ctx.fillStyle = `rgba(242, 242, 242, ${0.3 + score * 0.6})`
-  roundRect(ctx, 0, y, W * score, h, 1.5)
+  const level = meter.step(score, now)
+  const bottom = INSTRUMENT_TOP + ICON_H
+  const growth = (ICON_H - RISER_MIN_BAR_H) / (RISER_LEVELS - 1)
+  for (let i = 0; i < RISER_LEVELS; i++) {
+    const h = RISER_MIN_BAR_H + i * growth
+    ctx.fillStyle = i < level ? LIT : UNLIT
+    roundRect(ctx, RISER_X + i * (RISER_BAR_W + RISER_BAR_GAP), bottom - h, RISER_BAR_W, h, 1)
+  }
+  drawInstrumentLabel(ctx, 'riser', (VISIBLE_BANDS - 1) * (BAR_W + GAP) + BAR_W / 2, level > 0 ? 1 : 0)
 }
 
 const roundRect = (ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void => {
@@ -135,6 +158,7 @@ const FrequencyHudInner = ({ userSettings, updateUserSettings }: FrequencyHudPro
     if (!canvas) return
     const ctx = canvas.getContext('2d')
     if (!ctx) return
+    const riserMeter = new RiserLevel()
 
     const draw = (): void => {
       ctx.clearRect(0, 0, W, H)
@@ -228,7 +252,7 @@ const FrequencyHudInner = ({ userSettings, updateUserSettings }: FrequencyHudPro
       }
 
       drawInstrumentLights(ctx, mainWindow(), now)
-      drawRiserMeter(ctx, mainWindow())
+      drawRiserMeter(ctx, mainWindow(), riserMeter, now)
     }
 
     return subscribeUiTick(draw, canvas)
@@ -258,7 +282,7 @@ const FrequencyHudInner = ({ userSettings, updateUserSettings }: FrequencyHudPro
   }, [bandAt, toggleBand])
 
   return (
-    <div className='frequency-hud-wrapper' {...info('Click a band to choose whether it can set off a beat. The bass band (the kick) and the hi band (snare and clap) are on by default. The lights below flash on each hit the drum classifier calls a kick, a snare, a clap or hats, each placed at the frequency its hits sit at. The bar under them fills as the music rises (a riser or a sweep).')}>
+    <div className='frequency-hud-wrapper' {...info('Click a band to choose whether it can set off a beat. The bass band (the kick) and the hi band (snare and clap) are on by default. The lights below flash on each hit the drum classifier calls a kick, a snare, a clap or hats, each placed at the frequency its hits sit at. The signal bars under air light up once the music is clearly rising (a riser or a sweep), more bars the surer it is.')}>
       <span className='frequency-hud-label'>Frequency</span>
       <div className='frequency-hud'>
         <canvas
