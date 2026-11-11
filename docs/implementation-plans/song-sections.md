@@ -121,10 +121,21 @@ The two sets label differently. Raveform calls most of the rise before a drop a 
 
 - **More model capacity** (deeper trees, more of them) and class balancing: no gain out of fold. Stage 1 is limited by information, not fit.
 - **Riser and sweep scores** as features (`riser-section-features.py`, branch `feat/drum-hits-riser`): the band-level riser detectors
-  (pure riser B, buildup detector A, from `scripts/section-eval/DRUM-HITS.md`) and the spectrum sweep detector, each as its smoothed score, its
-  4 s mean and its 10 s max, rebuilt from scratch on SSME (clean, room, laptop), out of fold, decoder re-tuned. Mean F1 0.459 to 0.464 with B,
-  0.456 with A, 0.467 with both (drop 0.384 to 0.400, build 0.425 to 0.429); the sweep, clean and laptop only, 0.456 to 0.460. All within
-  the noise of 435 drops, so the model is unchanged. The model already reads what a riser does to the band levels.
+  (pure riser B, buildup detector A, from `scripts/section-eval/DRUM-HITS.md`) and the spectrum sweep detector, each as its smoothed score,
+  its 4 s mean and its 10 s max, rebuilt from scratch on SSME (clean, room, laptop), out of fold. Measured with a paired bootstrap over
+  songs (`paired-bootstrap.py`, shipped decoder settings) and a second training seed (`train.py --seed`):
+
+  | added | mean F1 | drop F1 | build F1 | not better in (bootstrap) |
+  |-------|---------|---------|----------|---------------------------|
+  | B | +0.007 | +0.017 | +0.002 | 12% |
+  | A | -0.002 | -0.006 | -0.001 | 60% |
+  | A and B, seed 0 | +0.010 (95% +0.000 to +0.020) | +0.025 | +0.004 | 2% |
+  | A and B, seed 1 | +0.009 | +0.020 | +0.005 | 6% |
+  | sweep (clean and laptop only) | +0.004 | +0.004 | +0.006 | 27% (build: 3%) |
+
+  Changing only the seed moves the baseline by 0.005 mean F1, so A and B together is a real gain of about 0.009 mean F1 and 0.02 drop
+  F1, found with both seeds; B alone and the sweep alone are not clear. Not shipped yet: the app would have to run both riser models and
+  feed their scores to the section features.
 - **Spectral features** from the app's 512-point FFT (14-band shape, spectral novelty over 1 and 4 s, `spectrum.py`): break +0.004, drop -0.03 F1. Not used, so the audio pipeline is unchanged.
 - **Lagged copies of the features** (2 and 4 s back): +0.002. Not used.
 - **Waiting before calling a drop** (`exp_delay.py`): a detector trained on "a drop landed 1, 1.5, 2 or 3 s ago", with the features at the drop moment next to the current ones, scored 0.35, 0.32, 0.30 and 0.29 drop F1 against 0.39 for the one that answers at once. Two seconds after it fires, real drops and false alarms look the same (bass still full in 79% against 69%, same level and beat rate): most false alarms are the music really coming back to full (the end of a fill, the next phrase) where the labels have no drop. What tells them apart is where it falls in the song's phrasing, not what follows, which points at a bar and phrase grid.

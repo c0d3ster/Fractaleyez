@@ -1,7 +1,7 @@
 """Trains the section model on expert labels, with track-level cross-validation, and exports it for section-model.ts.
 
     python train.py <features dir>[,<features dir>...] <gt.json>[,<gt.json>...] <out dir> [--export model.json] [--export-folds]
-        [--folds folds.json] [--no-grid] [--dir-weights 1,1,1,0.5[/1,1,1,0.5]]
+        [--folds folds.json] [--no-grid] [--dir-weights 1,1,1,0.5[/1,1,1,0.5]] [--seed 0]
 
 Stage 1, per 250 ms slot: other / build / break, from the features alone.
 Stage 2, per slot: "a drop just happened" (within the last second or so), from the features plus a short memory of stage 1
@@ -30,6 +30,8 @@ DROP_IGNORE = (-2.0, 3.0)
 STAGE1 = dict(max_iter=120, learning_rate=0.08, max_leaf_nodes=15, min_samples_leaf=200, l2_regularization=1.0)
 STAGE2 = dict(max_iter=120, learning_rate=0.08, max_leaf_nodes=15, min_samples_leaf=100, l2_regularization=1.0)
 MEMORY_S = (4, 10, 20)
+# The trees hold out a random 10% for early stopping; --seed picks it, to see how much a result moves with it.
+SEED = int(sys.argv[sys.argv.index('--seed') + 1]) if '--seed' in sys.argv else 0
 
 
 def labels_for(truth: dict, n: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -136,7 +138,7 @@ def main() -> None:
     fold_models: list[dict] = [{} for _ in folds]
     p1 = np.zeros((len(X), 3))
     for f, (train, test) in enumerate(folds):
-        model = HistGradientBoostingClassifier(**STAGE1, random_state=0).fit(X[train], y[train], sample_weight=weight[train])
+        model = HistGradientBoostingClassifier(**STAGE1, random_state=SEED).fit(X[train], y[train], sample_weight=weight[train])
         p1[test] = model.predict_proba(X[test])
         fold_models[f]['stage1'] = model
     pred = p1.argmax(axis=1)
@@ -148,7 +150,7 @@ def main() -> None:
     p2 = np.zeros(len(X))
     for f, (train, test) in enumerate(folds):
         train = train[keep[train]]
-        model = HistGradientBoostingClassifier(**STAGE2, random_state=0).fit(X2[train], data['drop'][train], sample_weight=weight2[train])
+        model = HistGradientBoostingClassifier(**STAGE2, random_state=SEED).fit(X2[train], data['drop'][train], sample_weight=weight2[train])
         p2[test] = model.predict_proba(X2[test])[:, 1]
         fold_models[f]['stage2'] = model
     # The grid columns go along (when the features have them) so the decoder's phrase-line prior can be tuned on the same output.
@@ -170,8 +172,8 @@ def main() -> None:
     if '--export' in sys.argv:
         path = sys.argv[sys.argv.index('--export') + 1]
         # Stage 2 is trained on out-of-fold stage 1 output (what it will see at run time), and shipped with stage 1 trained on everything.
-        m1 = HistGradientBoostingClassifier(**STAGE1, random_state=0).fit(X, y, sample_weight=weight)
-        m2 = HistGradientBoostingClassifier(**STAGE2, random_state=0).fit(X2[keep], data['drop'][keep], sample_weight=weight2[keep])
+        m1 = HistGradientBoostingClassifier(**STAGE1, random_state=SEED).fit(X, y, sample_weight=weight)
+        m2 = HistGradientBoostingClassifier(**STAGE2, random_state=SEED).fit(X2[keep], data['drop'][keep], sample_weight=weight2[keep])
         json.dump(bundle(m1, m2), open(path, 'w'), separators=(',', ':'))
         print('exported', path, os.path.getsize(path) // 1024, 'KB')
 
