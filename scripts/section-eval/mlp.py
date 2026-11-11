@@ -4,8 +4,10 @@ import numpy as np
 from scipy.optimize import minimize
 
 
-def fit(X: np.ndarray, Y: np.ndarray, hidden: int, pos_weight: np.ndarray, l2: float = 1e-3, iters: int = 1500, seed: int = 0) -> dict:
-    """X: rows x features. Y: rows x outputs of 0, 1, or -1 (left out). pos_weight: per output, how much a positive counts against a negative."""
+def fit(X: np.ndarray, Y: np.ndarray, hidden: int, pos_weight: np.ndarray, l2: float = 1e-3, iters: int = 1500, seed: int = 0,
+        sample_weight: np.ndarray | None = None) -> dict:
+    """X: rows x features. Y: rows x outputs of 0, 1, or -1 (left out). pos_weight: per output, how much a positive counts against a negative.
+    sample_weight: per row, how much it counts (a weak label less than a sure one)."""
     mu, sd = X.mean(0), X.std(0) + 1e-9
     Z = (X - mu) / sd
     n, d = Z.shape
@@ -13,6 +15,8 @@ def fit(X: np.ndarray, Y: np.ndarray, hidden: int, pos_weight: np.ndarray, l2: f
     known = (Y >= 0).astype(float)
     Yc = np.clip(Y, 0, 1).astype(float)
     W = known * np.where(Yc == 1, pos_weight[None, :], 1.0)
+    if sample_weight is not None:
+        W = W * sample_weight[:, None]
     W /= W.sum(0, keepdims=True) / n + 1e-12
     shapes = [(d, hidden), (hidden,), (hidden, k), (k,)]
     sizes = [int(np.prod(s)) for s in shapes]

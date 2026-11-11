@@ -1,6 +1,7 @@
 """Builds labelled drum and riser test clips from one-shot samples and writes the app's band levels for each (levels.py's filters).
 
-    python drum-gen.py <samples dir> <out dir> [--drum-clips 2400] [--riser-clips 500] [--plain-clips 250] [--workers 8] [--seed 1]
+    python drum-gen.py <samples dir> <out dir> [--drum-clips 2400] [--riser-clips 500] [--plain-clips 250] [--breakdown-clips 0]
+        [--workers 8] [--seed 1]
 
 <samples dir> holds one folder per kind of one-shot: kick/, snare/, clap/, hat/ (closed, pedal and open hi-hats) and cymbal/ (crashes and
 rides, played as something that is none of the four). Any format ffmpeg reads. Free sources: github.com/tidalcycles/Dirt-Samples (sn, sd,
@@ -15,6 +16,10 @@ samples it never heard. Clip types:
   riser  a riser of 2 to 8 bars (a noise sweep, a pitch riser or a high-passed whoosh) ending on a bar line, usually over drums and a snare
          roll, sometimes into a drop (the kick back with a crash)
   plain  as long as a riser clip but with none: steady layers, a fade-in of the whole mix, steady noise or a downlifter (a falling sweep)
+  breakdown (written as plain, look-alike "breakdown")  a breakdown with no riser: the kit and bass play, then for 2 to 8 bars the kick and
+         bass cut out and pads (sometimes stabs, a sung line, the hats or quiet noise) take over, sometimes into a drop. Real breakdowns read
+         as rising to a model taught only on synthetic risers (the highs stand out once the lows go), so these teach it they are not.
+         Their ids start with b, so they can go in the same folder as a --seed run's other clips.
 """
 import argparse
 import json
@@ -244,18 +249,32 @@ def make(job: dict) -> dict:
         x = np.zeros(int(length * RATE))
         rise_from = start + lead_bars * 4 * beat
         rise_to = rise_from + rise_bars * 4 * beat
-        kit = rng.random() < 0.8
+        kit = job['type'] == 'breakdown' or rng.random() < 0.8
         lead = {'kick': 'four' if kit else None, 'hat': rng.choice([None, 'offbeat', 'sixteenths']) if kit else None,
                 'snare': 'backbeat' if kit and rng.random() < 0.5 else None, 'clap': None, 'crash': kit and rng.random() < 0.3}
         drums(x, rng, pick, beat, start, lead_bars, lead, hits)
         build = {'kick': rng.choice([None, 'four']) if kit else None, 'hat': lead['hat'],
                  'snare': rng.choice(['ramp', 'eighth', 'sixteenth', None]) if kit else None, 'clap': None, 'crash': False}
+        if job['type'] == 'breakdown':
+            # The kick and bass cut out at the bar line and pads (with whatever else) come in; the hats stay on in some.
+            build = {'kick': None, 'hat': lead['hat'] if rng.random() < 0.3 else None, 'snare': None, 'clap': None, 'crash': False}
         drums(x, rng, pick, beat, rise_from, rise_bars, build, hits)
         drop = kit and rng.random() < 0.6
         after = {'kick': 'four' if drop else None, 'hat': lead['hat'] if drop else None, 'snare': 'backbeat' if drop else None, 'clap': None,
                  'crash': drop}
         drums(x, rng, pick, beat, rise_to, after_bars, after, hits)
-        melodic(x, rng, beat, 0, length, melodic_parts)
+        if job['type'] == 'breakdown':
+            melodic_parts = (melodic_parts - {'pad'}) | {'bass'}
+            melodic(x, rng, beat, 0, rise_from, melodic_parts)
+            parts = {'pad'} | {p for p in ('stabs', 'vocal') if rng.random() < 0.4}
+            melodic(x, rng, beat, rise_from, rise_to - rise_from, parts)
+            melodic(x, rng, beat, rise_to, length - rise_to, melodic_parts if drop else parts)
+            if rng.random() < 0.3:
+                n_bd = int((rise_to - rise_from) * RATE)
+                place(x, filt(2, (3000, 12000), 'bandpass', rng.standard_normal(n_bd)), rise_from, db(rng.uniform(-36, -24)))
+            melodic_parts = melodic_parts | parts
+        else:
+            melodic(x, rng, beat, 0, length, melodic_parts)
         n = int((rise_to - rise_from) * RATE)
         layers = {'lead': lead, 'build': build, 'after': after}
         if job['type'] == 'riser':
@@ -263,6 +282,8 @@ def make(job: dict) -> dict:
             place(x, y, rise_from, db(rng.uniform(-18, -6)))
             risers.append([round(rise_from, 3), round(rise_to, 3)])
             layers['riser'] = kind
+        elif job['type'] == 'breakdown':
+            layers['lookalike'] = 'breakdown'
         else:
             look = str(rng.choice(['none', 'fade', 'steady', 'downlifter']))
             layers['lookalike'] = look
@@ -286,7 +307,8 @@ def make(job: dict) -> dict:
     np.clip(x, -1, 1, out=x)
     band_levels(x).astype('<f4').tofile(os.path.join(job['out'], f"{job['id']}.f32"))
     clean = lambda v: v.item() if isinstance(v, np.generic) else v  # noqa: E731
-    return {'id': job['id'], 'type': job['type'], 'fold': job['fold'], 'bpm': round(bpm, 3), 'mic': mic, 'start': round(start, 3),
+    kind = 'plain' if job['type'] == 'breakdown' else job['type']
+    return {'id': job['id'], 'type': kind, 'fold': job['fold'], 'bpm': round(bpm, 3), 'mic': mic, 'start': round(start, 3),
             'end': round(end, 3), 'layers': json.loads(json.dumps(layers, default=clean)), 'melodic': sorted(melodic_parts),
             'hits': {k: [round(t, 4) for t in sorted(v)] for k, v in hits.items()}, 'risers': risers}
 
@@ -318,6 +340,7 @@ def main() -> None:
     ap.add_argument('--drum-clips', type=int, default=2400)
     ap.add_argument('--riser-clips', type=int, default=500)
     ap.add_argument('--plain-clips', type=int, default=250)
+    ap.add_argument('--breakdown-clips', type=int, default=0)
     ap.add_argument('--workers', type=int, default=8)
     ap.add_argument('--seed', type=int, default=1)
     args = ap.parse_args()
@@ -326,10 +349,11 @@ def main() -> None:
     kinds = KINDS + ['cymbal']
     files = {k: sorted(os.path.join(args.samples, k, f) for f in os.listdir(os.path.join(args.samples, k))) for k in kinds}
     by_fold = [{k: [p for p in files[k] if fold_of(os.path.basename(p)) == f] or files[k] for k in kinds} for f in range(FOLDS)]
-    jobs = [{'type': t} for t, n in (('drums', args.drum_clips), ('riser', args.riser_clips), ('plain', args.plain_clips)) for _ in range(n)]
+    jobs = [{'type': t} for t, n in (('drums', args.drum_clips), ('riser', args.riser_clips), ('plain', args.plain_clips),
+                                     ('breakdown', args.breakdown_clips)) for _ in range(n)]
     for i, job in enumerate(jobs):
         fold = int(rng.integers(FOLDS))
-        job.update(id=f'd{i:05d}', fold=fold, samples=by_fold[fold], mic=str(rng.choice(MICS, p=MIC_P)), seed=int(rng.integers(1 << 31)), out=args.out)
+        job.update(id=f"{'b' if job['type'] == 'breakdown' else 'd'}{i:05d}", fold=fold, samples=by_fold[fold], mic=str(rng.choice(MICS, p=MIC_P)), seed=int(rng.integers(1 << 31)), out=args.out)
     with Pool(args.workers) as pool, open(os.path.join(args.out, 'truth.jsonl'), 'w') as truth:
         for n, row in enumerate(pool.imap_unordered(make, jobs, chunksize=4)):
             truth.write(json.dumps(row) + '\n')
