@@ -8,14 +8,13 @@ import { DRUM_CENTER_HZ, DRUM_KINDS } from '../../audioanalysis/drum-hits'
 import { DEFAULT_ENABLED_BANDS, ONSET_BANDS, isValidBandSelection } from '../../audioanalysis/onset-bands'
 import { subscribeUiTick } from '../../utils/uiTicker'
 import { bandColor } from './bandColors'
+import { beatFlashes } from './beatFlashes'
 import { RISER_LEVELS, RiserLevel } from './riserLevel'
 
 const VISIBLE_BANDS = ONSET_BANDS.length
 const LABELS = ONSET_BANDS.map(({ label }) => label)
 // A bar's top is a bit above the band's recent loudness, so a hit that is the loudest in a while nearly fills it.
 const BAR_HEADROOM = 1.1
-// How long a band's bar flashes after it sets off a beat.
-const HIT_FLASH_MS = 250
 
 // The visualizer lives in the main window; a popped-out config window reads it through window.opener.
 const mainWindow = (): Window => window.opener ?? window
@@ -178,14 +177,8 @@ const FrequencyHudInner = ({ userSettings, updateUserSettings }: FrequencyHudPro
       const latest = samples[samples.length - 1]
       // The timeline's clock is the main window's, so flashes age against that and keep fading if sampling stops.
       const now = mainWindow().performance.now()
-      // Newest first, so the first hit seen on a band is its last one, and nothing older than the flash can matter.
-      const flashes = LABELS.map(() => 0)
-      for (let i = samples.length - 1; i >= 0; i--) {
-        const sample = samples[i]!
-        if (now - sample.t > HIT_FLASH_MS) break
-        const { beatBand } = sample
-        if (beatBand !== null && flashes[beatBand] === 0) flashes[beatBand] = Math.max(0, 1 - (now - sample.t) / HIT_FLASH_MS)
-      }
+      // The band that set off each recent beat, and bass too when its own onset is right by a beat another band took (beatFlashes.ts).
+      const flashes = beatFlashes(samples, now, VISIBLE_BANDS)
 
       for (let i = 0; i < VISIBLE_BANDS; i++) {
         const x = i * (BAR_W + GAP)
