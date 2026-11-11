@@ -61,8 +61,9 @@ on bass plucks on test clips, and about 250 times a minute on real EDM.
   synthetic risers as positives; SSME's drops (4 to 30 s in) and the first 60% of its breaks as negatives (builds left out: nobody marked
   where in them a riser plays). Five fits holding out a synthetic sample fold and an SSME fold together, so every clip and song is scored
   out of fold, by SSME section.
-- `riser-section-features.py`: appends riser and sweep scores to section features, to test them in `train.py` (they did not help, see
-  `docs/implementation-plans/song-sections.md`).
+- `riser-section-features.py`: appends riser and sweep scores to section features, to test them in `train.py`. A and B
+  together add about 0.009 mean F1 and 0.02 drop F1 (two seeds, paired bootstrap: `paired-bootstrap.py`); see
+  `docs/implementation-plans/song-sections.md`.
 - `mlp.py`: the shared one-hidden-layer network (now with per-row weights). `riserlib.py`: reading and running a riser model, the follower.
 - `drum-real-score.py`: proxies on real music, from Raveform's beats (no drum labels): in the drops of four-on-the-floor tracks, the share of
   kick calls on a beat and of beats with a kick, the same for snare and clap on 2 and 4, and hat calls on the eighth grid and off-beats
