@@ -105,4 +105,32 @@ describe('stripEdgeBackground', () => {
     stripEdgeBackground(ctx as CanvasRenderingContext2D, size, size, { minStripAreaFraction: 0.5 })
     expect(data).toEqual(before)
   })
+
+  it('keeps a default when the option is passed as undefined', () => {
+    const rows = ['nnnnn', 'nrrrn', 'nrrrn', 'nrrrn', 'nnnnn']
+    const { data, size } = buildGrid(rows)
+    const ctx = createFakeCtx(data)
+    stripEdgeBackground(ctx as CanvasRenderingContext2D, size, size, {
+      minStripAreaFraction: 0,
+      falloffRadiusPx: 0,
+      interiorBackgroundMatchTolerance: undefined,
+    })
+    expect(alphaAt(data, size, 0, 0)).toBe(0)
+    expect(alphaAt(data, size, 2, 2)).toBe(255)
+  })
+
+  it('keeps black foreground that touches transparent square padding', () => {
+    // A 5x3 image as prepareSprite pads it to a square: one transparent row above and below. The black pixels sit right under the
+    // padding, whose RGB (0,0,0) is within a step of theirs, so they must not be read as background through it.
+    const rows = ['.....', 'nkkkn', 'nkkkn', 'nnnnn', '.....']
+    const { data, size } = buildGrid(rows)
+    const ctx = createFakeCtx(data)
+    stripEdgeBackground(ctx as CanvasRenderingContext2D, size, size, { minStripAreaFraction: 0, falloffRadiusPx: 0 })
+    for (let x = 1; x <= 3; x++) {
+      expect(alphaAt(data, size, x, 1)).toBe(255)
+      expect(alphaAt(data, size, x, 2)).toBe(255)
+    }
+    expect(alphaAt(data, size, 0, 1)).toBe(0)
+    expect(alphaAt(data, size, 2, 3)).toBe(0)
+  })
 })

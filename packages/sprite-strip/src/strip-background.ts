@@ -94,7 +94,17 @@ export const stripEdgeBackground = (
   height: number,
   options?: StripBackgroundOptions,
 ): void => {
-  const opts = { ...DEFAULT_OPTIONS, ...options }
+  // Per field, so an option passed as `undefined` keeps its default instead of replacing it.
+  const opts: Required<StripBackgroundOptions> = {
+    neutralChannelSpread: options?.neutralChannelSpread ?? DEFAULT_OPTIONS.neutralChannelSpread,
+    floodFillStepTolerance: options?.floodFillStepTolerance ?? DEFAULT_OPTIONS.floodFillStepTolerance,
+    floodFillMaxDrift: options?.floodFillMaxDrift ?? DEFAULT_OPTIONS.floodFillMaxDrift,
+    falloffRadiusPx: options?.falloffRadiusPx ?? DEFAULT_OPTIONS.falloffRadiusPx,
+    flatImageColorCoverage: options?.flatImageColorCoverage ?? DEFAULT_OPTIONS.flatImageColorCoverage,
+    flatImageColorQuantLevels: options?.flatImageColorQuantLevels ?? DEFAULT_OPTIONS.flatImageColorQuantLevels,
+    interiorBackgroundMatchTolerance: options?.interiorBackgroundMatchTolerance ?? DEFAULT_OPTIONS.interiorBackgroundMatchTolerance,
+    minStripAreaFraction: options?.minStripAreaFraction ?? DEFAULT_OPTIONS.minStripAreaFraction,
+  }
   const imageData = ctx.getImageData(0, 0, width, height)
   const { data } = imageData
   const pixelCount = width * height
@@ -156,19 +166,20 @@ export const stripEdgeBackground = (
   // edge. Photographic images skip this and keep the conservative border-only
   // behavior, since color alone can't tell a hole from a same-colored subject region
   // (an eye, a shirt) once ML-level semantics are needed.
+  const bgAvgR = bgColorSeedCount > 0 ? bgColorSumR / bgColorSeedCount : 0
+  const bgAvgG = bgColorSeedCount > 0 ? bgColorSumG / bgColorSeedCount : 0
+  const bgAvgB = bgColorSeedCount > 0 ? bgColorSumB / bgColorSeedCount : 0
+  // Close to the background color learned from the opaque border pixels (never true when the border was all transparent).
+  const matchesLearnedBackground = (r: number, g: number, b: number): boolean =>
+    bgColorSeedCount > 0 &&
+    Math.max(Math.abs(r - bgAvgR), Math.abs(g - bgAvgG), Math.abs(b - bgAvgB)) <= opts.interiorBackgroundMatchTolerance
+
   if (bgColorSeedCount > 0 && isFlatImage(data, pixelCount, opts.flatImageColorCoverage, opts.flatImageColorQuantLevels)) {
-    const bgAvgR = bgColorSumR / bgColorSeedCount
-    const bgAvgG = bgColorSumG / bgColorSeedCount
-    const bgAvgB = bgColorSumB / bgColorSeedCount
     for (let idx = 0; idx < pixelCount; idx++) {
       if (seeded[idx]) continue
       const p = idx * 4
       if ((data[p + 3] ?? 0) === 0) continue
-      const r = data[p] ?? 0
-      const g = data[p + 1] ?? 0
-      const b = data[p + 2] ?? 0
-      const distance = Math.max(Math.abs(r - bgAvgR), Math.abs(g - bgAvgG), Math.abs(b - bgAvgB))
-      if (distance > opts.interiorBackgroundMatchTolerance) continue
+      if (!matchesLearnedBackground(data[p] ?? 0, data[p + 1] ?? 0, data[p + 2] ?? 0)) continue
       seeded[idx] = 1
       isBackground[idx] = 1
       drift[idx] = 0
@@ -194,6 +205,9 @@ export const stripEdgeBackground = (
     if (y < height - 1) neighbors.push(idx + width)
 
     const currentDrift = drift[idx] ?? 0
+    // A transparent pixel's RGB means nothing (usually 0,0,0), so stepping from padding into content is not a color step: it takes an
+    // opaque pixel only when it reads as the background itself, the way a border seed would, and the drift starts over there.
+    const fromTransparent = (data[p + 3] ?? 0) === 0
 
     for (const nIdx of neighbors) {
       if (seeded[nIdx]) continue
@@ -208,6 +222,14 @@ export const stripEdgeBackground = (
       const nr = data[np] ?? 0
       const ng = data[np + 1] ?? 0
       const nb = data[np + 2] ?? 0
+      if (fromTransparent) {
+        if (!isNearNeutral(nr, ng, nb, opts.neutralChannelSpread) || !matchesLearnedBackground(nr, ng, nb)) continue
+        seeded[nIdx] = 1
+        isBackground[nIdx] = 1
+        drift[nIdx] = 0
+        queue.push(nIdx)
+        continue
+      }
       const step = Math.max(Math.abs(nr - r0), Math.abs(ng - g0), Math.abs(nb - b0))
       if (step > opts.floodFillStepTolerance) continue
       const newDrift = currentDrift + step
