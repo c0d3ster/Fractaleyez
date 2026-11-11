@@ -1,0 +1,71 @@
+# Pushes each workspace package to its standalone mirror repo when main changes it.
+# The mirror only ever receives fast-forwards from here: if someone commits to a mirror
+# directly, the push fails until that work is pulled back in with `git subtree pull`.
+name: Mirror packages
+
+on:
+  push:
+    branches: [main]
+    paths: ['packages/**']
+  workflow_dispatch:
+
+concurrency:
+  group: mirror-packages
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # To add a package: one entry here, a deploy key with write access on the mirror,
+          # and its private half saved as the named secret in this repo.
+          - prefix: packages/sprite-strip
+            repo: c0d3ster/sprite-strip
+            secret: SPRITE_STRIP_DEPLOY_KEY
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for changes to this package
+        id: changed
+        env:
+          BEFORE: ${{ github.event.before }}
+          PREFIX: ${{ matrix.prefix }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" != "push" ] || ! git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          elif git diff --quiet "$BEFORE" HEAD -- "$PREFIX"; then
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Split subtree
+        if: steps.changed.outputs.run == 'true'
+        env:
+          PREFIX: ${{ matrix.prefix }}
+        run: git subtree split --prefix="$PREFIX" -b mirror
+
+      - name: Push to mirror
+        if: steps.changed.outputs.run == 'true'
+        env:
+          DEPLOY_KEY: ${{ secrets[matrix.secret] }}
+          REPO: ${{ matrix.repo }}
+        run: |
+          if [ -z "$DEPLOY_KEY" ]; then
+            echo "::error::Secret ${{ matrix.secret }} is not set"
+            exit 1
+          fi
+          mkdir -p ~/.ssh
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/mirror_key
+          chmod 600 ~/.ssh/mirror_key
+          ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null
+          GIT_SSH_COMMAND='ssh -i ~/.ssh/mirror_key -o IdentitiesOnly=yes' \
+            git push "git@github.com:$REPO.git" mirror:main

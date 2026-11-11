@@ -111,6 +111,9 @@ const createConfig = (devPort) => ({
   resolve: {
     extensions: ['.ts', '.tsx', '.js', '.jsx', '.mjs'],
     modules: ['node_modules'],
+    // Workspace packages (packages/*) export their TS source under this condition, so the
+    // app builds them from source with no separate build step. Published consumers ignore it.
+    conditionNames: ['@fractaleyez/source', '...'],
   },
 })
 

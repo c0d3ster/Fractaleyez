@@ -35,6 +35,16 @@ When adding an API endpoint: write the handler once in `server/routes/`, wire it
 
 Handlers → `server/services/*Service.ts` (business logic, auth-derived `userId`, validation) → `server/repositories/*Repository.ts` (Mongoose queries) → `server/models/*.ts` (schemas). Keep that layering when touching presets/packs.
 
+### Workspace packages
+
+`packages/*` is a pnpm workspace (`pnpm-workspace.yaml`) for code that is also published on its own. Each package is mirrored to its own GitHub repo with `git subtree` and published to npm from its folder; this repo is the source of truth.
+
+- **sprite-strip** (`packages/sprite-strip`, mirror `c0d3ster/sprite-strip`): background strip and square-pad resize for uploaded sprites, used by `useSpriteUpload.ts` and `clerkPhotoLogo.ts`.
+- The app depends on a package as `workspace:*`. Its `exports` has an `@fractaleyez/source` condition pointing at `src/index.ts`, which webpack (`resolve.conditionNames`) and tsc (`customConditions`) use, so the app compiles the package from source with no build step and edits show up on save. npm consumers ignore the condition and get `dist/`.
+- Each package keeps its own tooling (eslint, vitest, tsconfig, tsup) so the mirror works standalone. Root `pnpm test` and `pnpm typecheck` also run every package's; root `pnpm lint` covers `src` only, so run `pnpm lint` inside the package.
+- Mirroring is automatic: `.github/workflows/mirror-packages.yml` runs `git subtree split` on every push to `main` that touches a package and pushes it to the mirror (deploy key in the `SPRITE_STRIP_DEPLOY_KEY` secret; run it by hand from the Actions tab if needed). The mirror only takes fast-forwards, so pull outside contributions in first: `git subtree pull --prefix=packages/sprite-strip https://github.com/c0d3ster/sprite-strip.git main` (no `--squash`, so splits stay fast-forwards). A new package needs a matrix entry, a write deploy key on its mirror and the matching secret.
+- Publish: bump `version` in the package's `package.json`, then `pnpm publish` from the package folder (`prepublishOnly` builds `dist/`).
+
 ### Auth
 
 Clerk is the identity provider. Client: `ClerkProvider` wraps the app in `src/index.tsx`. Server: `server/auth.ts#verifyAuth` verifies the `Authorization: Bearer <token>` header via `@clerk/backend` and returns the Clerk user id (`sub`); it throws `AuthUnauthorizedError` for a missing/invalid token, which handlers map to 401. Read endpoints (e.g. `presetsHandler`) treat auth as optional (`viewerId` may be `null`, used to compute `isOwn`); write endpoints (e.g. `savePresetHandler`, `createPackHandler`) require it.

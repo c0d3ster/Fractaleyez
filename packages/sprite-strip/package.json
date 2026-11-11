@@ -1,0 +1,53 @@
+{
+  "name": "sprite-strip",
+  "version": "0.1.0",
+  "description": "Edge-seeded flood-fill background removal and square-pad resize for sprite images, via browser Canvas 2D.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "@fractaleyez/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src test --fix",
+    "test": "vitest run",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "canvas",
+    "sprite",
+    "background-removal",
+    "flood-fill",
+    "image-processing"
+  ],
+  "author": "Cody Douglass",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/c0d3ster/sprite-strip.git"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^8.18.0",
+    "@typescript-eslint/parser": "^8.18.0",
+    "eslint": "^9.17.0",
+    "eslint-plugin-prefer-arrow": "^1.2.3",
+    "tsup": "^9.0.0",
+    "typescript": "^6.0.2",
+    "vitest": "^4.1.11"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
