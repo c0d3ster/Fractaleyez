@@ -11,7 +11,9 @@ Per clip: <out>/<id>.f32 (frames x 5 at 60 fps, levels.py) and a line in <out>/t
 Every sample is in one of five folds (by name), and a clip draws all of its samples from one fold, so a model can be scored on folds whose
 samples it never heard. Clip types:
   drums  4 bars of a random kit pattern on the beat grid (any of kick, hats, snare and/or clap, a crash on the downbeat) over random
-         melodic layers (bass plucks, pads, chord stabs, a sung line), or with nothing at all of some kinds
+         melodic layers (bass plucks, pads, chord stabs, a sung line), or with nothing at all of some kinds. The hats are one hi-hat (each
+         strike chokes the last), on the off-beats, eighths or sixteenths, or closed with an open hat on the off-beats. About one in seven
+         has one drum alone
   riser  a riser of 2 to 8 bars (a noise sweep, a pitch riser or a high-passed whoosh) ending on a bar line, usually over drums and a snare
          roll, sometimes into a drop (the kick back with a crash)
   plain  as long as a riser clip but with none: steady layers, a fade-in of the whole mix, steady noise or a downlifter (a falling sweep)
@@ -78,6 +80,26 @@ def saw(f0: np.ndarray) -> np.ndarray:
     return 2 * (np.cumsum(f0 / RATE) % 1) - 1
 
 
+def choke(sample: np.ndarray, seconds: float) -> np.ndarray:
+    """The sample cut off `seconds` in, with a 4 ms fade (a hi-hat struck again)."""
+    n, fade = max(0, int(seconds * RATE)), int(0.004 * RATE)
+    if n >= len(sample):
+        return sample
+    out = sample[:n].copy()
+    k = min(fade, n)
+    out[n - k:] *= np.linspace(1, 0, k)
+    return out
+
+
+@lru_cache(maxsize=None)
+def is_open(path: str) -> bool:
+    """An open hat: still within 20 dB of its peak 150 ms after it (closed and pedal hats are under 120 ms)."""
+    x = decode(path)
+    env = np.sqrt(np.convolve(x ** 2, np.ones(441) / 441, 'same'))
+    peak = int(np.argmax(env))
+    return bool(np.any(env[peak + int(0.15 * RATE):] > env[peak] * 0.1))
+
+
 def env_ad(n: int, attack: float, decay: float) -> np.ndarray:
     t = np.arange(n) / RATE
     return np.clip(t / max(attack, 1e-4), 0, 1) * np.exp(-np.maximum(0, t - attack) / max(decay, 1e-4))
@@ -111,13 +133,25 @@ def drums(x: np.ndarray, rng: np.random.Generator, pick, beat: float, start: flo
                 place(x, k, t, g * rng.uniform(0.85, 1.0))
                 hits['kick'].append(t)
     if layers.get('hat'):
-        h, g = pick('hat'), db(rng.uniform(-20, -10))
-        steps = {'offbeat': [2, 6, 10, 14], 'eighths': list(range(0, 16, 2)), 'sixteenths': list(range(16))}[layers['hat']]
-        for bar in range(bars):
-            for s in steps:
-                t = start + bar * 4 * beat + s * step + jitter()
-                place(x, h, t, g * (rng.uniform(0.75, 1.0) if s % 4 == 2 else rng.uniform(0.45, 0.8)))
-                hits['hat'].append(t)
+        # One hi-hat: each strike chokes the one before, so an open hat played on sixteenths rings for a sixteenth, not over the next ones.
+        # 'open-offbeat' is closed eighths or sixteenths with an open hat on every off-beat (the house pattern).
+        pattern = layers['hat']
+        g = db(rng.uniform(-20, -10))
+        if pattern == 'open-offbeat':
+            closed, opened = pick('hat', False), pick('hat', True)
+            steps = list(range(16)) if rng.random() < 0.5 else list(range(0, 16, 2))
+            sample_at = lambda s: opened if s % 4 == 2 else closed  # noqa: E731
+        else:
+            h = pick('hat')
+            steps = {'offbeat': [2, 6, 10, 14], 'eighths': list(range(0, 16, 2)), 'sixteenths': list(range(16))}[pattern]
+            sample_at = lambda s: h  # noqa: E731
+        strikes = [(start + bar * 4 * beat + s * step + jitter(), s) for bar in range(bars) for s in steps]
+        for i, (t, s) in enumerate(strikes):
+            smp = sample_at(s)
+            if i + 1 < len(strikes):
+                smp = choke(smp, strikes[i + 1][0] - t)
+            place(x, smp, t, g * (rng.uniform(0.75, 1.0) if s % 4 == 2 else rng.uniform(0.45, 0.8)))
+            hits['hat'].append(t)
     for kind in ('snare', 'clap'):
         if not layers.get(kind):
             continue
@@ -206,8 +240,10 @@ def make(job: dict) -> dict:
     rng = np.random.default_rng(job['seed'])
     by_kind = job['samples']
 
-    def pick(kind: str) -> np.ndarray:
+    def pick(kind: str, open_hat: bool | None = None) -> np.ndarray:
         names = by_kind[kind]
+        if open_hat is not None:
+            names = [n for n in names if is_open(n) == open_hat] or names
         return decode(names[int(rng.integers(len(names)))])
 
     bpm = float(rng.uniform(120, 175))
@@ -224,7 +260,7 @@ def make(job: dict) -> dict:
         x = np.zeros(int(length * RATE))
         layers = {
             'kick': rng.choice([None, 'four', 'four', 'broken']),
-            'hat': rng.choice([None, 'offbeat', 'eighths', 'sixteenths']),
+            'hat': rng.choice([None, 'offbeat', 'eighths', 'sixteenths', 'open-offbeat']),
             'snare': None, 'clap': None, 'crash': rng.random() < 0.25,
         }
         backbeat = rng.choice(['snare', 'clap', 'both', 'none'], p=[0.35, 0.35, 0.15, 0.15])
@@ -233,6 +269,13 @@ def make(job: dict) -> dict:
             layers['snare'] = pattern
         if backbeat in ('clap', 'both'):
             layers['clap'] = pattern
+        # Some clips have one drum alone (a snare with a strong body and nothing around it read as half a kick). Drawn from a stream of its
+        # own, so the other clips are the same as without it.
+        solo = np.random.default_rng(job['seed'] + 1)
+        if solo.random() < 0.15:
+            only = str(solo.choice(KINDS))
+            pattern = {'kick': 'four', 'hat': 'eighths', 'snare': 'backbeat', 'clap': 'backbeat'}[only]
+            layers = {k: (layers[k] or pattern if k == only else None) for k in KINDS} | {'crash': False}
         # The kit starts after the lead-in, on the grid; the melodic layers play from the start.
         drums(x, rng, pick, beat, start, bars, layers, hits)
         melodic(x, rng, beat, 0, length, melodic_parts)
