@@ -53,13 +53,12 @@ describe('DrumHits', () => {
 
   it('calls the kick, the hats and the clap of a kit, the clap and the kick together, at 60 fps', () => expectKit(60))
 
-  // Known gap, failing on purpose until the model is retrained (scripts/section-eval/DRUM-HITS.md): when it passes, make it a plain `it` again.
-  // At 240 fps the first kick reads as a clap as well (0.89 against 0.875; 0.36 at 60 fps): the candidate is read on levels between frames,
-  // which the model was not trained on.
-  it.fails('calls the kick, the hats and the clap of a kit, the clap and the kick together, at 240 fps', () => expectKit(240))
+  // The candidate is read on levels between frames, which the model was not trained on (the model before this one read the first kick as a
+  // clap as well here).
+  it('calls the kick, the hats and the clap of a kit, the clap and the kick together, at 240 fps', () => expectKit(240))
 
   // Known gap, failing on purpose until the model is retrained (scripts/section-eval/DRUM-HITS.md): when it passes, make it a plain `it` again.
-  // A snare with a strong body and nothing around it reads as half a kick (snare 0.55 and 0.7 against its 0.8, kick 0.6).
+  // A snare with a strong body and nothing around it reads as half a kick (snare 0.47 and 0.59 against its 0.8, kick 0.69).
   it.fails('calls a snare alone a snare and nothing else', () => {
     const { drums } = run(CLIPS.snare)
     expect(caught(CLIPS.snare.hits.snare, callsOf(drums, 'snare'))).toBe(CLIPS.snare.hits.snare.length)
@@ -95,7 +94,7 @@ describe('DrumHits', () => {
 })
 
 const PARITY: Array<[number[], number[]]> = [
-  [[-0.3777, 3.536, 6.1765, 4.8173, 5.3715, 0.5137, 0.452, 0.342, 0.087, 0.2656, -5.546, -0.0468, -0.9923, -3.6076, -5.2168, 0.3556, -4.3256, 0.3923, 0.7838, 0.5728, -0.3895, 0, 0, 0, 0, 1, -4.3256, 0.3923, 0.7838, 0.69, 0.6475, -5.5461, -0.0468, -0.9923, -3.4905, -4.1799], [0.0105, 0.0069, 0.0017, 0.0001]],
-  [[-1.4802, 3.5425, 4.5984, 0.6595, 0.7403, 0.5638, 0.4633, 0.4102, 0.9519, 1, -6.9149, -6.9149, -6.9149, -0.9686, -0.0494, -0.9585, -7.0284, -7.0306, -5.7682, -1.4057, -0.615, 0, 1, 1, 0, 0, -7.0284, 0.2089, 0.1104, -0.6081, -0.58, -7.4999, -0.2604, -1.6212, -0.7559, -0.5993], [0.0069, 0.0124, 0.9996, 0.0373]],
-  [[0.1694, 0.6985, 4.8962, 5.9326, 8.3203, 0.0277, 0.5028, 0.7037, 0.0905, 0.0042, -5.6221, -0.2426, -0.4031, -1.4874, -3.8659, -0.1159, -4.1189, -0.2508, 0.2211, 0.264, 0.1851, 0, 0, 1, 1, 0, -1.4966, -0.2508, 0.6264, 0.7263, 0.9892, -3.2233, -0.4661, -0.2214, -1.2487, -3.2854], [0.0023, 0.006, 0.0135, 0.0012]],
+  [[9.9391, 18.122, 22.197, 6.1484, 3.7651, 0.2626, 0.9468, 0.4376, 0.4784, 0.6955, -1.2477, -0.0358, -1.6476, -7.1017, -6.8407, 1.8227, 1.3091, 1.9665, 1.0165, -3.2775, -0.829, 0, 1, 1, 1, 1, 1.3091, 2.1039, 2.6723, 0.8276, 0.2954, -1.617, -0.2676, -0.3611, -3.3659, -6.0856], [0.9409, 0.0157, 0.0197, 0.0066]],
+  [[6.5673, 7.5489, 5.2989, 12.2182, 5.704, 0.5575, 0.6748, 0.6679, 0.8141, 0.7584, -1.2502, -0.0633, -1.6701, -1.3242, -1.9758, 0.5817, 0.6246, 0.676, -0.409, 0.8729, 0.3104, 0, 1, 1, 1, 1, 0.6246, 0.8572, 0.5597, 1.2543, 0.449, -1.4796, -0.1114, -0.9308, -1.1722, -2.0666], [0.7665, 0.2689, 0.9175, 0.3088]],
+  [[4.7697, 6.9448, 9.2136, -3.1176, -8.9648, 0.9243, 0.7179, 0.375, 0.0848, 0.2913, -0.0838, -0.7963, -1.8071, -6.0075, -6.0075, 0.2672, 0.2323, 0.4673, 0.7298, -1.8434, -1.3227, 0, 1, 1, 0, 0, 0.2323, 0.6727, 0.9211, -0.4673, -1.3227, -0.1273, -0.6344, -1.6592, -4.6749, -6.051], [0.0472, 0.0081, 0.0002, 0.0001]],
 ]
