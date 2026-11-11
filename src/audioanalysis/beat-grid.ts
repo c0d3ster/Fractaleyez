@@ -192,6 +192,8 @@ export class BeatGrid {
   private phrasePosition = 0
   private barCount = 0
   private lastBeatInBar = 0
+  // The place in the bar (0 to 3, on the beat count) of the beat at lastBeatMs, for the evidence read around it a beat later.
+  private lastBeatPosition = 0
   private barStartRise = new Float64Array(BANDS)
   // The last eight bars' level profiles and the rises on their first beats, oldest first, for the cues of the bar line four back.
   private readonly barProfiles: Float64Array[] = []
@@ -350,7 +352,8 @@ export class BeatGrid {
       this.beatRises.push(rise)
       if (this.beatRises.length > 2) this.beatRises.shift()
       if (this.lastBeatInBar === 1) this.barStartRise = rise
-      if (this.net) this.addNetDownbeat(this.lastBeatMs, period, position - 1)
+      // Its own stored place, not position - 1: a re-anchor that skipped beats has moved the count on since.
+      if (this.net) this.addNetDownbeat(this.lastBeatMs, period, this.lastBeatPosition)
     }
     this.lastBeatMs = beatMs
     // The profile is the interval that just ended, from the beat before to this one. With four of them, the beat two back has an interval
@@ -367,6 +370,7 @@ export class BeatGrid {
       }
       this.downbeat.add(position - 2, this.beatCues, Math.exp(-1 / downbeatMemoryBars))
     }
+    this.lastBeatPosition = position
     this.beatCount++
     // Decided once a bar, on its last beat, so a change of mind moves the bar line, not a beat in the middle of it.
     if (position === BEATS_PER_BAR - 1) this.downbeatPosition = this.downbeat.lead(switchBars, this.net ? this.netBonusScores() : null)
