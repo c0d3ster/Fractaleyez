@@ -8,6 +8,8 @@ import { sectionTracker } from './sections'
 import { tempoTracker } from './tempo-tracker'
 import { drumHits } from './drum-hits'
 import { riserDetector } from './riser'
+import { SpectrumReducer } from './spectrum-reducer'
+import { sweepDetector } from './sweep'
 import { OnsetDetector } from './onset-detector'
 import { DEFAULT_ENABLED_BANDS, ONSET_BANDS } from './onset-bands'
 
@@ -20,6 +22,7 @@ import { DEFAULT_ENABLED_BANDS, ONSET_BANDS } from './onset-bands'
 export class AudioFeed {
   private latest: AudioAnalysedDataForVisualization | null = null
   private readonly onsetDetector = new OnsetDetector(ONSET_BANDS.length)
+  private spectrumReducer: SpectrumReducer | null = null
 
   constructor(
     private readonly stream: AudioStream,
@@ -28,7 +31,8 @@ export class AudioFeed {
 
   /** Analyse the current audio frame. Call once per animation frame. */
   tick = (deltaTime: number, currentTimer: Date): AudioAnalysedDataForVisualization => {
-    this.analyser.analyse(this.stream.getAudioData(), deltaTime, currentTimer)
+    const audioData = this.stream.getAudioData()
+    this.analyser.analyse(audioData, deltaTime, currentTimer)
     const snapshot = this.analyser.getAnalysedDataForVisualization()
 
     const { soundThreshold, ignoreTime } = window.config.audio
@@ -46,6 +50,12 @@ export class AudioFeed {
     beatMonitor.record({ t: now, bands: onset.bands, beatBand: onset.beatBand })
     drumHits.push(now, levels, deltaTime, soundThreshold.value)
     riserDetector.push(now, levels)
+    // The spectrum pooled into the training recorder's 40 bands, for the sweep detector.
+    if (!this.spectrumReducer) {
+      const { sampleRate, binCount } = this.stream.getSpectrumShape()
+      this.spectrumReducer = new SpectrumReducer(sampleRate, binCount)
+    }
+    sweepDetector.push(now, this.spectrumReducer.reduce(audioData.frequencyData))
     tempoTracker.push(now, levels)
     // After the tracker, so the grid reads this frame's tempo.
     beatGrid.push(now, levels)
