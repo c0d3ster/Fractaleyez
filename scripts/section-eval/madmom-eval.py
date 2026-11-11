@@ -13,6 +13,7 @@ Default is madmom's online mode: unidirectional RNNs and a forward-only DBN, so 
 not a fair comparison). --downbeats adds the offline downbeat tracker for beat-in-bar (offline only: madmom has no online
 downbeat model). Needs madmom (pip install from its git master) and ffmpeg.
 """
+import argparse
 import json
 import os
 import sys
@@ -24,10 +25,6 @@ READ_EVERY_S = 0.5
 WINDOW_S = 12.0
 LAST_BEATS = 8
 FPS = 100
-
-
-def option(name: str, fallback: str) -> str:
-    return sys.argv[sys.argv.index(name) + 1] if name in sys.argv else fallback
 
 
 def readings(beats: np.ndarray, duration: float) -> list:
@@ -46,8 +43,12 @@ def track_id_of(path: str) -> str:
 def track(args: tuple) -> dict:
     path, offline, downbeats, cache = args
     cached = os.path.join(cache, track_id_of(path) + '.json')
+    # A cached result counts only if it came from this file with these options; otherwise the track is run again.
+    made_by = {'source': os.path.abspath(path), 'offline': offline, 'downbeats': downbeats}
     if os.path.exists(cached):
-        return json.load(open(cached))
+        saved = json.load(open(cached))
+        if saved.get('madeBy') == made_by:
+            return saved
     from madmom.audio.signal import Signal
     from madmom.features.beats import DBNBeatTrackingProcessor, RNNBeatProcessor
 
@@ -67,17 +68,30 @@ def track(args: tuple) -> dict:
         'id': track_id_of(path),
         'readings': readings(np.asarray(beats), duration),
         'beats': [[round(float(b), 3), k, 0] for b, k in zip(beats, in_bar)],
+        'madeBy': made_by,
     }
     json.dump(result, open(cached, 'w'))
     return result
 
 
+def positive(value: str) -> int:
+    n = int(value)
+    if n < 1:
+        raise argparse.ArgumentTypeError('must be at least 1')
+    return n
+
+
 def main() -> None:
-    audio_dir, prefix = sys.argv[1], sys.argv[2]
-    offline = '--offline' in sys.argv
-    downbeats = '--downbeats' in sys.argv
-    ext = option('--ext', '')
-    jobs = int(option('--jobs', str(max(1, (os.cpu_count() or 2) - 2))))
+    parser = argparse.ArgumentParser(description='madmom beat tracking over audio files, in the shapes bpm-eval.mts and grid-eval.mts write')
+    parser.add_argument('audio_dir')
+    parser.add_argument('prefix')
+    parser.add_argument('--offline', action='store_true')
+    parser.add_argument('--downbeats', action='store_true')
+    parser.add_argument('--ext', default='')
+    parser.add_argument('--jobs', type=positive, default=max(1, (os.cpu_count() or 2) - 2))
+    args = parser.parse_args()
+    audio_dir, prefix, offline, downbeats, jobs = args.audio_dir, args.prefix, args.offline, args.downbeats, args.jobs
+    ext = args.ext
     paths = sorted(os.path.join(root, name) for root, _, names in os.walk(audio_dir) for name in names
                    if name.lower().endswith(ext or ('.mp3', '.wav')))
     cache = f'{prefix}.cache'
