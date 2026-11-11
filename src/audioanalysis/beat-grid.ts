@@ -54,6 +54,8 @@ export type BeatGridOptions = {
   /** A different downbeat takes over once it has led for this many bars; a different phrase line, for phraseSwitchBars. */
   switchBars: number
   phraseSwitchBars: number
+  /** How much the beat network's downbeat output counts toward beat 1, against the fitted cues (0: not at all). */
+  netDownbeatWeight: number
   /** How late the onsets arrive after the sound that makes them (band filters and level windows), taken off the beat times. Left out, it
    * is LATENCY_MS, or BEAT_NET_LATENCY_MS when the tempo tracker reads the beat network (which fires closer to the sound). */
   latencyMs: number
@@ -72,10 +74,14 @@ export const DEFAULT_GRID_OPTIONS: BeatGridOptions = {
   switchBars: 2,
   phraseSwitchBars: 2,
   latencyMs: 25,
+  netDownbeatWeight: 0,
 }
 
 // Measured on Raveform's held-out folds: the beat network's beats land 21 ms earlier than the band rises', so 4 ms puts them on the marks.
 const BEAT_NET_LATENCY_MS = 4
+// The network's downbeat output against the fitted cues, tuned on Raveform fold 5: 0 to 3 lifted downbeat F 0.746 to 0.770 (flat from 2
+// to 5); at 30 it fell to 0.679, the network's downbeats alone being weaker than the fitted cues.
+const BEAT_NET_DOWNBEAT_WEIGHT = 3
 
 const BANDS = 5
 const BIN_MS = 5
@@ -130,9 +136,10 @@ class Accumulator {
     }
   }
 
-  /** The position that leads, kept until another has led for `runs` calls in a row. */
-  lead = (runs: number): number => {
+  /** The position that leads, kept until another has led for `runs` calls in a row. `bonus` is added to each hypothesis's score. */
+  lead = (runs: number, bonus: ArrayLike<number> | null = null): number => {
     this.score()
+    if (bonus) for (let p = 0; p < this.size; p++) this.scores[p]! += bonus[p] ?? 0
     let best = 0
     for (let p = 1; p < this.size; p++) if (this.scores[p]! > this.scores[best]!) best = p
     if (best === this.leader) {
@@ -197,11 +204,15 @@ export class BeatGrid {
   // The beat network's hops of the last phase window (time, beat probability), when the grid runs one.
   private readonly netTimes: number[] = []
   private readonly netBeat: number[] = []
+  private readonly netDown: number[] = []
+  // The network's downbeat strength around each beat, per position in the bar, decaying like the fitted cues; and its bonus per hypothesis.
+  private readonly netDownbeat = new Float64Array(BEATS_PER_BAR)
+  private readonly netBonus = new Float64Array(BEATS_PER_BAR)
   private lastActivation: BeatActivation | null = null
 
   constructor(private readonly tempo: TempoTracker, options: Partial<BeatGridOptions> = {}, beatNet: BeatNetModel | null = null) {
-    const usesNet = beatNet !== null || tempo.hasBeatNet()
-    this.options = { ...DEFAULT_GRID_OPTIONS, ...(usesNet ? { latencyMs: BEAT_NET_LATENCY_MS } : {}), ...options }
+    const netDefaults = beatNet ? { latencyMs: BEAT_NET_LATENCY_MS, netDownbeatWeight: BEAT_NET_DOWNBEAT_WEIGHT } : {}
+    this.options = { ...DEFAULT_GRID_OPTIONS, ...netDefaults, ...options }
     this.bins = new Float64Array(Math.ceil(this.options.phaseWindowMs / BIN_MS))
     this.net = beatNet ? new BeatNet(beatNet, this.addActivation) : null
   }
@@ -210,15 +221,17 @@ export class BeatGrid {
     this.lastActivation = activation
     this.netTimes.push(activation.t)
     this.netBeat.push(activation.beat)
+    this.netDown.push(activation.downbeat)
     if (this.netTimes[0]! < activation.t - this.options.phaseWindowMs - 2000) {
       const keep = this.netTimes.findIndex((time) => time >= activation.t - this.options.phaseWindowMs - 1000)
       this.netTimes.splice(0, keep)
       this.netBeat.splice(0, keep)
+      this.netDown.splice(0, keep)
     }
   }
 
   /** The beat network's last hop (null without one): how likely a beat and a downbeat are right now. */
-  getActivation = (): BeatActivation | null => this.lastActivation ?? this.tempo.getActivation()
+  getActivation = (): BeatActivation | null => this.lastActivation
 
   /** Adds one frame (call after the tempo tracker's push for the same frame). Returns true on the frame a beat lands. */
   push = (t: number, levels: readonly number[]): boolean => {
@@ -337,6 +350,7 @@ export class BeatGrid {
       this.beatRises.push(rise)
       if (this.beatRises.length > 2) this.beatRises.shift()
       if (this.lastBeatInBar === 1) this.barStartRise = rise
+      if (this.net) this.addNetDownbeat(this.lastBeatMs, period, position - 1)
     }
     this.lastBeatMs = beatMs
     // The profile is the interval that just ended, from the beat before to this one. With four of them, the beat two back has an interval
@@ -355,7 +369,7 @@ export class BeatGrid {
     }
     this.beatCount++
     // Decided once a bar, on its last beat, so a change of mind moves the bar line, not a beat in the middle of it.
-    if (position === BEATS_PER_BAR - 1) this.downbeatPosition = this.downbeat.lead(switchBars)
+    if (position === BEATS_PER_BAR - 1) this.downbeatPosition = this.downbeat.lead(switchBars, this.net ? this.netBonusScores() : null)
     const beatInBar = wrap(this.beatCount - 1 - this.downbeatPosition, BEATS_PER_BAR) + 1
     this.lastBeatInBar = beatInBar
     // The beat that just ended belongs to the bar now closing; a new bar starts on beat 1.
@@ -378,6 +392,28 @@ export class BeatGrid {
       downbeatConfidence: this.downbeat.confidence(),
       phraseConfidence: this.phrase.confidence(),
     }
+  }
+
+  // The network's strongest downbeat output around a beat (a quarter beat before to half a beat after, now all heard), kept for its place.
+  private addNetDownbeat = (beatMs: number, period: number, position: number): void => {
+    let top = 0
+    for (let k = this.netTimes.length - 1; k >= 0; k--) {
+      const time = this.netTimes[k]!
+      if (time < beatMs - period / 4) break
+      if (time <= beatMs + period / 2) top = Math.max(top, this.netDown[k]!)
+    }
+    const at = wrap(position, BEATS_PER_BAR)
+    this.netDownbeat[at] = this.netDownbeat[at]! * Math.exp(-1 / this.options.downbeatMemoryBars) + top
+  }
+
+  // Hypothesis d ("position d is beat 1"): the weighted share of the network's downbeat evidence at d, against the mean over positions.
+  private netBonusScores = (): Float64Array => {
+    let mean = 0
+    for (let p = 0; p < BEATS_PER_BAR; p++) mean += this.netDownbeat[p]! / BEATS_PER_BAR
+    for (let p = 0; p < BEATS_PER_BAR; p++) {
+      this.netBonus[p] = mean > 1e-6 ? this.options.netDownbeatWeight * (this.netDownbeat[p]! / mean - 1) : 0
+    }
+    return this.netBonus
   }
 
   // A bar line: the bar that just finished, and with eight of them the cues of the bar line four back (four bars on each side of it).

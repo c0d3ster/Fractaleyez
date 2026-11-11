@@ -61,8 +61,34 @@ The tempo tracker showed nothing until 75% of its 12 s window had audio and then
 Through the laptop mic the same: acc1 0.85, lock 5.0 s. Faster settings show tempos on noise (`noise.py`, through `levels.py`), so 0.3 and
 3 is the floor without a stronger noise gate.
 
+## Downbeats from the network
+
+The grid picks beat 1 with weights fitted on band cues (`grid-train.py`). It now also keeps, per place in the bar, the network's strongest
+downbeat output around each beat (decaying like the fitted cues), and adds `netDownbeatWeight` times its share against the mean to each
+hypothesis. Tuned on Raveform fold 5: 0 0.746, 1 0.759, 2 0.768, 3 0.770, 4 0.770, 5 0.769, 10 0.751, 30 0.679 downbeat F; 3 ships. On
+folds 6 and 7:
+
+| | downbeat F | bar right | 8-bar F | phrase right |
+|---|---|---|---|---|
+| Beat net, clean | 0.722 | 0.82 | 0.520 | 0.55 |
+| **Plus its downbeats, clean** | **0.744** | **0.85** | **0.537** | **0.59** |
+| Beat net, laptop | 0.750 | 0.85 | 0.548 | 0.59 |
+| **Plus its downbeats, laptop** | **0.767** | **0.88** | **0.560** | **0.61** |
+
+Beat F is unchanged (0.925 clean, 0.923 laptop).
+
+## The tempo stays on the band rises
+
+Fed the network's beat probability instead, with the period scoring retuned for it (its output has no off-beat energy, so the half-beat
+credit matters): half-beat 0 acc1 0.79, 0.5 0.83, 0.75 0.84, 1.0 0.84 on GiantSteps, against 0.85 for the band rises; 0.2 jumps a minute
+against 0.1; both 0.98 on Raveform fold 5's full tracks. And it showed a tempo on 85 to 92% of the noise files, which the band rises never
+do: the network has never heard noise. So the network-to-tempo path was removed; the tempo reads the band rises only.
+
+There is little to win there: madmom online scored 0.82 on GiantSteps against our 0.84, and Beat This!, offline, 0.83. What is left is
+mostly which octave a track is counted in (87 or 174), on the same genres for every method (chill-out, nu-disco, glitch-hop).
+
 ## Next
 
-- Downbeats (0.72) and 8-bar lines (0.52) are the weak part now. The network's own downbeat output is not used yet (the grid keeps its
-  fitted downbeat model); feeding it in is the obvious next step.
+- 8-bar lines (0.54) are the weak part now. The network's downbeat output is its weakest (peak-picked F about 0.4): training it harder
+  on downbeats, or a phrase output, is the next step there.
 - More hand-marked EDM, and the user's own recordings, scored the same way.

@@ -13,9 +13,9 @@
 //     different peak once that peak has clearly won for a few readings in a row. Small drifts on the same peak are followed smoothly.
 //     Through a stretch with no rhythm (a breakdown) the last tempo is held; after a long one it is dropped.
 //
-// With a beat network (beat-net.ts), step 1 is its beat probability every 10 ms instead: it knows which rises are beats, so the period
-// and, through getOnsets, the beat grid's phase both read cleaner evidence. Steps 2 and 3 are unchanged.
-import { BeatActivation, BeatNet, BeatNetModel } from './beat-net'
+// The beat network (beat-net.ts) is not read here: fed its beat probability instead of the band rises, the best setting tied on accuracy
+// (GiantSteps acc1 0.84 against 0.85), was twice as jumpy and showed a tempo on 85 to 92% of noise (docs/experiments/beat-net.md). The
+// beat grid reads it for the phase instead.
 
 export type TempoTrackerOptions = {
   /** Each band's onset is its rise over a follower of its level with this time constant. */
@@ -126,12 +126,8 @@ export class TempoTracker {
   private readonly grid: Float64Array
   private readonly acf = new Float64Array(MAX_LAG * HARMONIC_LIMIT + 1)
 
-  private readonly net: BeatNet | null
-  private lastActivation: BeatActivation | null = null
-
-  constructor(options: Partial<TempoTrackerOptions> = {}, beatNet: BeatNetModel | null = null) {
+  constructor(options: Partial<TempoTrackerOptions> = {}) {
     this.options = { ...DEFAULT_TEMPO_OPTIONS, ...options }
-    this.net = beatNet ? new BeatNet(beatNet, this.addActivation) : null
     if (this.options.harmonics.length > HARMONIC_LIMIT - 1) throw new Error(`tempo tracker: at most ${HARMONIC_LIMIT - 1} harmonics`)
     this.grid = new Float64Array(Math.ceil(this.options.windowMs / GRID_MS))
     const { priorBpm, priorOctaves, harmonics, subdivision } = this.options
@@ -144,11 +140,6 @@ export class TempoTracker {
 
   /** Adds one frame: the five onset-band levels (% of full scale). The beat flag is not used; the tracker reads the levels itself. */
   push = (t: number, levels: readonly number[], _beat?: boolean): void => {
-    if (this.net) {
-      this.net.push(t, levels)
-      this.afterPush(t)
-      return
-    }
     const dt = this.lastT === null ? 0 : Math.max(1, t - this.lastT)
     // Each band's rise over its own recent level (a follower of `onsetTauMs`), weighted by how long the frame lasted: an integral over time,
     // so the same at any frame rate. Rises from one frame to the next would count every jitter as an onset, more of them the faster the frames.
@@ -170,23 +161,6 @@ export class TempoTracker {
     this.lastT = t
     this.times.push(t)
     this.strength.push(onset)
-    this.afterPush(t)
-  }
-
-  // One hop of the beat network: its beat probability is the onset strength of that 10 ms.
-  private addActivation = (activation: BeatActivation): void => {
-    this.lastActivation = activation
-    this.times.push(activation.t)
-    this.strength.push(activation.beat)
-  }
-
-  /** Whether the onset strength is the beat network's (it arrives with less delay than the band rises). */
-  hasBeatNet = (): boolean => this.net !== null
-
-  /** The beat network's last hop (null without a network): how likely a beat and a downbeat are right now. */
-  getActivation = (): BeatActivation | null => this.lastActivation
-
-  private afterPush = (t: number): void => {
     // Trimmed in batches, so a frame is not an array shift.
     if (this.times.length > 0 && this.times[0]! < t - this.options.windowMs - TRIM_SLACK_MS * 2) {
       const keep = this.times.findIndex((time) => time >= t - this.options.windowMs - TRIM_SLACK_MS)
