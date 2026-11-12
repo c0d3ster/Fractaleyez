@@ -16,7 +16,8 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "NOTICE"
   ],
   "sideEffects": false,
   "scripts": {
@@ -33,7 +34,7 @@
     "web-audio"
   ],
   "author": "Cody Douglass",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/c0d3ster/Fractaleyez.git",

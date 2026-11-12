@@ -1,0 +1,14 @@
+beatsense
+Copyright (c) 2026 Cody Douglass. Code and trained model weights are released under the MIT License (see LICENSE).
+
+The model weights in src/*-model.json are derived from training on the sources below. No audio from any of them is included
+in this package: training used band levels and features computed from the audio, and the labels.
+
+- Raveform (Kim et al., TISMIR 2026): expert section labels for EDM tracks, CC BY 4.0,
+  https://huggingface.co/datasets/taejunkim/raveform. Band levels were computed locally from the tracks' public audio and
+  the audio was not kept.
+- SSME: song section annotations on Creative Commons tracks (full citation to be added with the model cards).
+- Beat This! (CPJKU): beat and downbeat marks from its released model, used as a teacher for the beat net,
+  https://github.com/CPJKU/beat_this.
+- Drum one-shots from Dirt-Samples (https://github.com/tidalcycles/Dirt-Samples) and tidal-drum-machines
+  (https://github.com/geikha/tidal-drum-machines), used to synthesize labelled training clips for the drum and riser models.

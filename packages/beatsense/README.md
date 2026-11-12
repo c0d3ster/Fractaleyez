@@ -2,7 +2,7 @@
 
 Real-time music analysis from five band levels a frame: the beat (a drum onset), tempo, the bar and phrase grid, song sections (intro, groove, buildup, drop, break, outro), drum hits, risers and sweeps, and rhythm names.
 
-Private for now and not published: the license is undecided, and whether the trained models can ship publicly is still open (they are trained on Creative Commons tracks, some NonCommercial, and on Raveform). See `docs/implementation-plans/beatsense-package.md` in the Fractaleyez repo for the plan and the API.
+MIT licensed, code and trained models (see LICENSE and NOTICE for the training data credits). Private for now and not published until launch. See `docs/implementation-plans/beatsense-package.md` in the Fractaleyez repo for the plan and the API.
 
 ## Use
 
