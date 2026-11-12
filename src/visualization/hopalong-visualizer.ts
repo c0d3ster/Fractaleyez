@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 
-import { AudioAnalysedDataForVisualization } from '../audioanalysis/audio-analysed-data'
+import type { AudioSnapshot } from '../audioanalysis/audio-snapshot'
 import { getResolvedSpriteUrl } from '../utils/spriteCache'
 import { acquireSpriteTexture, releaseSpriteTexture } from '../utils/textureCache'
 import { getParticleCrossfadeDurationMs, MAX_CROSSFADE_GENERATIONS } from '../config/visualizer.config'
@@ -172,7 +172,7 @@ export class HopalongVisualizer {
     this.updateInterval = setInterval(() => { this.updateOrbit() }, 250)
   }
 
-  update(deltaTime: number, audioData: AudioAnalysedDataForVisualization): void {
+  update(deltaTime: number, audioData: AudioSnapshot): void {
     this.advanceOrbitFade(deltaTime)
     this.syncColor()
 

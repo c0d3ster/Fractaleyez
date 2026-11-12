@@ -1,14 +1,10 @@
-import { CAPTURE_HZ, AudioFeed as BeatsenseFeed, DEFAULT_ENABLED_BANDS, toAudioFrame } from 'beatsense'
+import { CAPTURE_HZ, AudioFeed as BeatsenseFeed, DEFAULT_ENABLED_BANDS, NO_BEAT, toAudioFrame, VisualMeter } from 'beatsense'
 import type { BeatState, CaptureFrame } from 'beatsense'
 import type { AudioAnalysis } from '../audio'
-import type { AudioStream } from '../audiostream/audio-stream'
-import { analyserConfig as AnalyserConfig } from '../config/analyser.config'
-import { AudioAnalyser } from './audio-analyser'
-import { AudioAnalysedDataForVisualization } from './audio-analysed-data'
+import { audioConfig } from '../config/audio.config'
+import type { AudioSnapshot } from './audio-snapshot'
 import { FrameClock } from './frame-clock'
-
-/** What the feed reads from the stream each drawn frame (an AudioStream, or a recording or synthetic source in a test). */
-export type AudioFeedStream = Pick<AudioStream, 'getAudioData'>
+import type { ByteSource } from './visual-tap'
 
 export type AudioFeedOptions = {
   /**
@@ -21,21 +17,24 @@ export type AudioFeedOptions = {
 /**
  * The app's side of the analysis. `push` takes the frames the worklet measures (a fixed 60 a second, on the sample clock) and runs
  * beatsense's driver on each, so what the detectors hear never depends on the display's frame rate, the quality tier or a hidden tab.
- * `tick` runs once per drawn frame for the visuals (the analyser node's energy and peaks) and hands every consumer the same
+ * `tick` runs once per drawn frame for the visuals (the analyser node's energy and bands) and hands every consumer the same
  * read-only snapshot carrying the newest beat. The sliders, the HUD's band toggles and the page clock come in here.
  */
 export class AudioFeed {
-  private latest: AudioAnalysedDataForVisualization | null = null
+  private latest: AudioSnapshot | null = null
   private readonly driver: BeatsenseFeed
   private readonly clock = new FrameClock()
+  private readonly meter: VisualMeter
+  private readonly snapshot: AudioSnapshot
   private beat: BeatState | null = null
 
   constructor(
-    private readonly stream: AudioFeedStream,
-    private readonly analyser: AudioAnalyser,
+    private readonly source: ByteSource,
     analysis: AudioAnalysis,
     options: AudioFeedOptions = {},
   ) {
+    this.meter = new VisualMeter({ sampleRate: source.sampleRate, binCount: source.binCount })
+    this.snapshot = { energy: 0, energyAverage: 0, bands: [], beat: NO_BEAT }
     this.driver = new BeatsenseFeed(analysis, {
       readsRiserAndSweep: options.readsRiserAndSweep,
       settings: () => {
@@ -44,7 +43,7 @@ export class AudioFeed {
           sensitivity: soundThreshold.value,
           ignoreMs: ignoreTime.value,
           enabledBands: window.enabledFreqBands ?? DEFAULT_ENABLED_BANDS,
-          decayMs: AnalyserConfig.options.peakDetection.options.peakPersistency,
+          decayMs: audioConfig.beatDecayMs,
         }
       },
     })
@@ -61,10 +60,14 @@ export class AudioFeed {
     this.beat = this.beat?.fresh && !onset.beat.fresh ? { ...onset.beat, fresh: true } : onset.beat
   }
 
-  /** The visuals' side of one drawn frame. Call once per animation frame. */
-  tick = (deltaTime: number, currentTimer: Date): AudioAnalysedDataForVisualization => {
-    this.analyser.analyse(this.stream.getAudioData(), deltaTime, currentTimer)
-    const snapshot = this.analyser.getAnalysedDataForVisualization()
+  /** The visuals' side of one drawn frame. Call once per animation frame; the returned object is reused, so read it within the frame. */
+  tick = (deltaTime: number): AudioSnapshot => {
+    const { timeDomain, frequency } = this.source.read()
+    const { energy, energyAverage, bands } = this.meter.read(timeDomain, frequency, deltaTime)
+    const { snapshot } = this
+    snapshot.energy = energy
+    snapshot.energyAverage = energyAverage
+    snapshot.bands = bands
     if (this.beat) {
       snapshot.beat = this.beat
       this.beat = { ...this.beat, fresh: false }
@@ -73,7 +76,7 @@ export class AudioFeed {
     return snapshot
   }
 
-  getLatest = (): AudioAnalysedDataForVisualization | null => this.latest
+  getLatest = (): AudioSnapshot | null => this.latest
 
   /** True until the first frame with sound, e.g. while a click is still needed to let the audio context start. */
   isSilent = (): boolean => this.driver.isSilent()

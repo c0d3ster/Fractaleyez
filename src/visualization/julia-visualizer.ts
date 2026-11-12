@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import { CAMERA_STEER_SCREEN_FRACTION_PER_PAD_UNIT } from '../config/visualizer.config'
-import { AudioAnalysedDataForVisualization } from '../audioanalysis/audio-analysed-data'
+import type { AudioSnapshot } from '../audioanalysis/audio-snapshot'
 import { juliaFragmentShader, juliaVertexShader } from './shaders/julia-fragment.glsl'
 import { JULIA_MAP_VIEW, JULIA_TOUR } from './julia-tour'
 import { userConfig } from '../config/user.config'
@@ -569,14 +569,14 @@ export class JuliaVisualizer {
     return { x: this.steerX / steerScale, y: -this.steerY / steerScale }
   }
 
-  update(deltaTime: number, audioData: AudioAnalysedDataForVisualization): void {
+  update(deltaTime: number, audioData: AudioSnapshot): void {
     if (!this.material) return
     const dt = deltaTime / 1000
     if (this.iterationCurrent !== null && this.iterationCurrent !== this.iterationTarget) {
       this.applyIterations(stepToward(this.iterationCurrent, this.iterationTarget, ITERATION_STEP_PER_SECOND * dt))
     }
 
-    const bands = audioData.multibandEnergy ?? []
+    const bands = audioData.bands
     const bassRaw = (bands[0] ?? 0) / 255
     const trebleRaw = (bands[bands.length - 1] ?? 0) / 255
     this.smoothBass = this.emaTowards(this.smoothBass, bassRaw, dt)
@@ -589,7 +589,7 @@ export class JuliaVisualizer {
     const targetOffsetY = Math.sin(this.driftPhase * 1.3) * C_DRIFT_RADIUS + this.smoothTreble * TREBLE_C_INFLUENCE
 
     const peakValue = audioData.beat.value
-    const energyTarget = ((audioData.energyAverage ?? 0) + (audioData.energy ?? 0)) / 2
+    const energyTarget = (audioData.energyAverage + audioData.energy) / 2
     const kEnergy = 1 - Math.pow(0.5, dt / ENERGY_EMA_HALF_LIFE_SECONDS)
     this.smoothEnergy += (energyTarget - this.smoothEnergy) * kEnergy
 

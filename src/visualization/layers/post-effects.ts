@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import { BloomEffect, EffectComposer, EffectPass, Pass, RenderPass, ShockWaveEffect } from 'postprocessing'
 
-import { AudioAnalysedDataForVisualization } from '../../audioanalysis/audio-analysed-data'
+import type { AudioSnapshot } from '../../audioanalysis/audio-snapshot'
 import { CAMERA_STEER_SCREEN_FRACTION_PER_PAD_UNIT } from '../../config/visualizer.config'
 import { perfProbe } from '../perf'
 import { KaleidoscopeEffect } from './kaleidoscope-effect'
@@ -110,7 +110,7 @@ export class PostEffects {
   }
 
   /** Beat-driven effect state, then renders the composite scene through the effects to the screen. */
-  render = (audio: AudioAnalysedDataForVisualization): void => {
+  render = (audio: AudioSnapshot): void => {
     const { kaleidoscope, kaleidoscopeCount, kaleidoscopeMode, kaleidoscopeSource } = window.config.effects
     const mode = Math.round(kaleidoscopeMode.value)
     // Auto, while it is on, decides the fold (on and how many wedges); the stored settings stay as they are. Mode and source are still the user's.

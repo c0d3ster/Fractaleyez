@@ -1,4 +1,4 @@
-import { analyserConfig } from './analyser.config'
+import { audioConfig } from './audio.config'
 import { userConfig } from './user.config'
 import { visualizerConfig } from './visualizer.config'
 import { orbitConfig } from './orbit.config'
@@ -157,7 +157,7 @@ const createLayerMeta = (enabled: boolean, blendMode: BlendMode = 'mask'): Layer
   blendMode,
 })
 
-const pd = analyserConfig.options.peakDetection.options
+const pd = audioConfig
 
 export const configDefaults: AppConfig = {
   user: {
