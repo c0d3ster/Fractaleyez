@@ -4,13 +4,13 @@
 //   tsx bpm-eval.mts <levels dir> <out.json> [--reader current|tracker] [--fps 60] [--opts '{"memoryMs":8000}']
 //
 // current: estimateTempo over the last 12 s of beat times (what the Beat HUD shows today).
-// tracker: TempoTracker (packages/soundsense/src/tempo-tracker.ts), fed every frame.
+// tracker: TempoTracker (packages/beatsense/src/tempo-tracker.ts), fed every frame.
 import { readFileSync, readdirSync, writeFileSync, existsSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { OnsetDetector } from '../../packages/soundsense/src/onset-detector.ts'
-import { DEFAULT_ENABLED_BANDS } from '../../packages/soundsense/src/onset-bands.ts'
-import { estimateTempo } from '../../packages/soundsense/src/tempo.ts'
+import { OnsetDetector } from '../../packages/beatsense/src/onset-detector.ts'
+import { DEFAULT_ENABLED_BANDS } from '../../packages/beatsense/src/onset-bands.ts'
+import { estimateTempo } from '../../packages/beatsense/src/tempo.ts'
 import { BANDS, SOURCE_FPS, loadLevels } from './stream.mts'
 
 type Reader = { push: (t: number, levels: readonly number[], beat: boolean) => void; read: (t: number) => number | null }
@@ -36,7 +36,7 @@ const currentReader = (): Reader => {
   }
 }
 
-const trackerPath = resolve('../../packages/soundsense/src/tempo-tracker.ts')
+const trackerPath = resolve('../../packages/beatsense/src/tempo-tracker.ts')
 const trackerReader = existsSync(trackerPath)
   ? ((await import(pathToFileURL(trackerPath).href)) as { TempoTracker: new (options?: unknown) => { push: Reader['push']; getBpm: () => number | null } }).TempoTracker
   : null

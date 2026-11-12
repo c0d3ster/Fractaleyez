@@ -1,5 +1,5 @@
 {
-  "name": "soundsense",
+  "name": "beatsense",
   "version": "0.0.0",
   "private": true,
   "description": "Real-time music analysis: beats, tempo, the bar grid, song sections, drum hits, risers and sweeps, from five band levels a frame.",
@@ -37,7 +37,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/c0d3ster/Fractaleyez.git",
-    "directory": "packages/soundsense"
+    "directory": "packages/beatsense"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^8.18.0",

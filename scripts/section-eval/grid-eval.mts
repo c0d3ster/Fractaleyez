@@ -3,9 +3,9 @@
 //
 //   tsx grid-eval.mts <levels dir> <out.json> [--fps 60] [--opts '{"latencyMs":20}'] [--tempo-opts '{}'] [--beat-net model.json] [--ids ids.txt]
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs'
-import { TempoTracker } from '../../packages/soundsense/src/tempo-tracker.ts'
-import type { BeatNetModel } from '../../packages/soundsense/src/beat-net.ts'
-import { BeatGrid } from '../../packages/soundsense/src/beat-grid.ts'
+import { TempoTracker } from '../../packages/beatsense/src/tempo-tracker.ts'
+import type { BeatNetModel } from '../../packages/beatsense/src/beat-net.ts'
+import { BeatGrid } from '../../packages/beatsense/src/beat-grid.ts'
 import { BANDS, SOURCE_FPS, loadLevels } from './stream.mts'
 
 const args = process.argv.slice(2)

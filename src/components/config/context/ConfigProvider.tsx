@@ -27,7 +27,7 @@ import {
 } from '../../../utils/userReference'
 import { setParticleCrossfadeDurationMs } from '../../../config/visualizer.config'
 import { UserSettings, USER_SETTINGS_SAVE_DEBOUNCE_MS } from '../../../config/userSettings.config'
-import { isValidBandSelection } from 'soundsense'
+import { isValidBandSelection } from 'beatsense'
 import { QUALITY_SETTING_DEFAULT } from '../../../config/quality.config'
 import { qualityController } from '../../../visualization/quality-controller'
 

@@ -7,18 +7,18 @@ against real riser labels yet (there are none). Read this before picking it up.
 
 ## What it is
 
-- `packages/soundsense/src/drum-hits.ts`: every rising edge in any of the five onset bands (trackers with a 70 ms reference window, so a 1/16
+- `packages/beatsense/src/drum-hits.ts`: every rising edge in any of the five onset bands (trackers with a 70 ms reference window, so a 1/16
   roll re-triggers, and a level gate of 0.1 of the band's loudness where the beat detector has 0.25) is a candidate. 33 ms after its first
   edge, a small network (`drum-hit-model.json`: 36 inputs, 32 tanh units, one sigmoid per drum) says which of kick, hat, snare and clap it
   is. The inputs are the band levels at that moment and each band's peak since the first edge. It can be several at once (a clap on 2 and 4 lands with the kick). Per-drum
   thresholds were chosen on held-out folds. `getHits()`, `getRollHits()` (snare and clap, for a roll reader), `getLastHits()`.
-- `packages/soundsense/src/riser.ts`: 100 ms slots of band power and 32 s of history. `riserFeatures` computes every input in
+- `packages/beatsense/src/riser.ts`: 100 ms slots of band power and 32 s of history. `riserFeatures` computes every input in
   `RISER_FEATURE_NAMES` (52): the trend over 2, 4 and 8 s (band slopes, centroid slope, highs against lows, line fit of the highs, highs
   against their peak), inputs that hold when the lows drop out (Theil-Sen slopes of the highs and the mid band, the share of rising steps,
   the highs above their low), and 32 s of context from one-second means (16 and 32 s slopes of bass, mid, highs and the mix, each against
   its peak, seconds the bass has been 6 dB under its peak). The model (`riser-model.json`: it names the inputs it reads, now the 31 that
   do not read the bass or the whole mix, with 16 units) is smoothed with a 400 ms follower. `getScore()` is 0 to 1.
-- `packages/soundsense/src/sweep.ts`: the sweep detector. It reads the analyser's spectrum pooled into the training recorder's 40 log bands
+- `packages/beatsense/src/sweep.ts`: the sweep detector. It reads the analyser's spectrum pooled into the training recorder's 40 log bands
   (40 Hz to 16 kHz, `spectrum-reducer.ts` and `tick-extras.ts`, the same files as on `feat/listen-recording`) in 50 ms ticks, so recorded
   sessions replay exactly. Half-second means over 8 s, each band less its own mean over that time (the hats and the pads' steady shape drop
   out), then per 2, 4 and 8 s window: where the standing-out energy sits and its line (bands a second, R squared), how much each half second
@@ -109,8 +109,8 @@ feature shards of the clips and the 300 train tracks:
 
 ```sh
 python -E -P riser-train.py $C --features highs --real-negatives $TR --real-every 2 \
-  --save ../../packages/soundsense/src/riser-model.json --parity parity.json
-python -E -P riser-score.py ../../packages/soundsense/src/riser-model.json $TE
+  --save ../../packages/beatsense/src/riser-model.json --parity parity.json
+python -E -P riser-score.py ../../packages/beatsense/src/riser-model.json $TE
 ```
 
 Retrain the drums (about 25 min with 6 workers; each fit is memory-bound at about 0.4 s a step, and more workers slow every fit, 18
@@ -119,7 +119,7 @@ made each step about 1.7 s), from `scripts/section-eval`, with `$C` the `feature
 ```sh
 python -E -P drum-train.py $C --later ignore --real <features-v2/real-train shards> --real-every 6 --real-weight 2 \
   --segments <segments.json> --beats <beats dir> --test <features-v2/real-test shards> --workers 6 \
-  --save ../../packages/soundsense/src/drum-hit-model.json --parity parity.json
+  --save ../../packages/beatsense/src/drum-hit-model.json --parity parity.json
 ```
 
 Then raise the kick threshold in the model to 0.875 by hand (the trainer picks 0.85, where one bass-and-pad onset of the melodic test

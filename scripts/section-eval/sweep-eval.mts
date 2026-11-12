@@ -6,8 +6,8 @@
 // truth.jsonl (default <dir>/truth.jsonl) has one line per clip or song with at least its id; every field is copied into the output.
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { SPECTRUM_BANDS } from '../../packages/soundsense/src/tick-extras.ts'
-import { SweepDetector, type SweepSlot } from '../../packages/soundsense/src/sweep.ts'
+import { SPECTRUM_BANDS } from '../../packages/beatsense/src/tick-extras.ts'
+import { SweepDetector, type SweepSlot } from '../../packages/beatsense/src/sweep.ts'
 
 type Truth = { id: string } & Record<string, unknown>
 

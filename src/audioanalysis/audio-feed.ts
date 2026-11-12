@@ -1,4 +1,4 @@
-import { DEFAULT_ENABLED_BANDS, DRUM_SENSITIVITY, ONSET_BANDS, OnsetDetector, SpectrumReducer } from 'soundsense'
+import { DEFAULT_ENABLED_BANDS, DRUM_SENSITIVITY, ONSET_BANDS, OnsetDetector, SpectrumReducer } from 'beatsense'
 import type { AudioAnalysis } from '../audio'
 import { AudioStream } from '../audiostream/audio-stream'
 import { analyserConfig as AnalyserConfig } from '../config/analyser.config'
@@ -12,7 +12,7 @@ export type AudioFeedStream = Pick<AudioStream, 'getAudioData' | 'getBandLevels'
  * Single producer of analysed audio. Runs the stream -> analyser pipeline exactly once per frame and
  * hands the same read-only snapshot to every consumer (visualizers, HUDs), so adding more active
  * modes never means more analysis passes and no consumer owns shared audio state. It also owns the one
- * definition of a beat (a drum onset, see soundsense's OnsetDetector) and feeds the audio HUD's timeline, pushing each frame into the
+ * definition of a beat (a drum onset, see beatsense's OnsetDetector) and feeds the audio HUD's timeline, pushing each frame into the
  * app's analysers (`analysis`, src/audio.ts) in a fixed order.
  */
 export class AudioFeed {

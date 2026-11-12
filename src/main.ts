@@ -1,4 +1,4 @@
-import { DEFAULT_ENABLED_BANDS, nameRhythm, RhythmLabel, RhythmLabeler, RhythmPattern } from 'soundsense'
+import { DEFAULT_ENABLED_BANDS, nameRhythm, RhythmLabel, RhythmLabeler, RhythmPattern } from 'beatsense'
 import { audioAnalysis } from './audio'
 import { AudioSource } from './audiostream/audio-source'
 import { AudioStream } from './audiostream/audio-stream'

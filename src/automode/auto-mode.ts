@@ -1,4 +1,4 @@
-import type { SectionState } from 'soundsense'
+import type { SectionState } from 'beatsense'
 import { ghostKey, ghostStore, type GhostStore } from '../utils/ghostStore'
 import { KaleidoscopeAuto, type KaleidoscopeFold } from './kaleidoscope-target'
 import type { RollLevel } from './roll-rate'

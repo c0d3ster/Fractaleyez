@@ -1,4 +1,4 @@
-/** The note value the drums are rolling at: 4 is quarter notes, 8 eighths, 16 sixteenths (or faster). Read from the snare's and the clap's hits (soundsense's DrumHits). */
+/** The note value the drums are rolling at: 4 is quarter notes, 8 eighths, 16 sixteenths (or faster). Read from the snare's and the clap's hits (beatsense's DrumHits). */
 export type RollLevel = 4 | 8 | 16
 
 // A snare and a clap layered on the same step are one hit. Sixteenths at 150 BPM are 100 ms apart, so this stays under half of that.

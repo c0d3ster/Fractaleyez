@@ -1,4 +1,4 @@
-"""Grid search for the tempo-change song cue (packages/soundsense/src/tempo-change.ts) over runs made with run.mts --no-tempo.
+"""Grid search for the tempo-change song cue (packages/beatsense/src/tempo-change.ts) over runs made with run.mts --no-tempo.
 
     python tune_tempo_change.py <playlist runs>[,...] <single-song runs>[,...] [--folds 0,1]
 

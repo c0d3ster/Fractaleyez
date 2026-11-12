@@ -1,4 +1,4 @@
-import { type BeatSample, type GridState, ONSET_BANDS } from 'soundsense'
+import { type BeatSample, type GridState, ONSET_BANDS } from 'beatsense'
 import { bandColor } from './bandColors'
 
 // The Beat HUD's plot: a scrolling waveform of the five onset bands, with what each band had to pass to count as a hit, the hits

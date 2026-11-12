@@ -10,11 +10,11 @@
 // ([{ fold, kind, songs, gapSeconds, crossfadeSeconds, segments, starts, slots }]).
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { OnsetDetector } from '../../packages/soundsense/src/onset-detector.ts'
-import { DEFAULT_ENABLED_BANDS } from '../../packages/soundsense/src/onset-bands.ts'
-import { FEATURE_NAMES, SectionFeatures } from '../../packages/soundsense/src/section-features.ts'
-import { TempoTracker } from '../../packages/soundsense/src/tempo-tracker.ts'
-import { BeatGrid } from '../../packages/soundsense/src/beat-grid.ts'
+import { OnsetDetector } from '../../packages/beatsense/src/onset-detector.ts'
+import { DEFAULT_ENABLED_BANDS } from '../../packages/beatsense/src/onset-bands.ts'
+import { FEATURE_NAMES, SectionFeatures } from '../../packages/beatsense/src/section-features.ts'
+import { TempoTracker } from '../../packages/beatsense/src/tempo-tracker.ts'
+import { BeatGrid } from '../../packages/beatsense/src/beat-grid.ts'
 import { BANDS, SOURCE_FPS, Segment, joinSongs, loadLevels } from './stream.mts'
 
 const args = process.argv.slice(2)

@@ -1,4 +1,4 @@
-"""Trains the riser detector (packages/soundsense/src/riser-model.json) on drum-eval.mts --features output from drum-gen.py clips.
+"""Trains the riser detector (packages/beatsense/src/riser-model.json) on drum-eval.mts --features output from drum-gen.py clips.
 
     python riser-train.py <eval.json>[,<eval.json>...] [--hidden 16] [--features base|short|all|highs|<name,...>] [--save riser-model.json]
         [--parity parity.json] [--real-negatives eval.json[,...]] [--real-folds 0,1,2] [--real-every 3] [--buildups] [--buildup-weight 0.5]

@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useInfo } from '../config/info/info'
 import './BeatHud.css'
 
-import { DEFAULT_ENABLED_BANDS, estimateTempo } from 'soundsense'
+import { DEFAULT_ENABLED_BANDS, estimateTempo } from 'beatsense'
 import type { RollLevel } from '../../automode'
 import { subscribeUiTick } from '../../utils/uiTicker'
 import { DEFAULT_VIEW_MS, MIN_VIEW_MS, WAVEFORM_H, WAVEFORM_HISTORY_MS, WAVEFORM_W, WaveformTrack, WaveformView } from './waveformTrack'

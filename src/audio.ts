@@ -1,7 +1,7 @@
-import { BEAT_NET_MODEL, BeatGrid, BeatMonitor, DrumHits, RiserDetector, SectionTracker, SweepDetector, TempoTracker } from 'soundsense'
+import { BEAT_NET_MODEL, BeatGrid, BeatMonitor, DrumHits, RiserDetector, SectionTracker, SweepDetector, TempoTracker } from 'beatsense'
 
 /**
- * The app's analysers, one of each. The soundsense package keeps no instances of its own, so they are created here: AudioFeed pushes
+ * The app's analysers, one of each. The beatsense package keeps no instances of its own, so they are created here: AudioFeed pushes
  * every frame into them, main.ts hangs their getters on `window` for the HUDs, and the effects read the song section, tempo and drums.
  */
 export type AudioAnalysis = {

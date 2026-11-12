@@ -1,4 +1,4 @@
-"""Trains the drum hit classifier (packages/soundsense/src/drum-hit-model.json) on drum-eval.mts --features (or --drum-features) output from
+"""Trains the drum hit classifier (packages/beatsense/src/drum-hit-model.json) on drum-eval.mts --features (or --drum-features) output from
 drum-gen.py clips.
 
     python drum-train.py <eval.json>[,<eval.json>...] [--hidden 32] [--later ignore|negative] [--save drum-hit-model.json] [--parity parity.json]
