@@ -13,6 +13,9 @@ import { sweepDetector } from './sweep'
 import { OnsetDetector } from './onset-detector'
 import { DEFAULT_ENABLED_BANDS, ONSET_BANDS } from './onset-bands'
 
+/** What the feed reads from the stream each frame (an AudioStream, or a recording or synthetic source in a test). */
+export type AudioFeedStream = Pick<AudioStream, 'getAudioData' | 'getBandLevels' | 'getSpectrumShape'>
+
 /**
  * Single producer of analysed audio. Runs the stream -> analyser pipeline exactly once per frame and
  * hands the same read-only snapshot to every consumer (visualizers, HUDs), so adding more active
@@ -26,7 +29,7 @@ export class AudioFeed {
   private heardSound = false
 
   constructor(
-    private readonly stream: AudioStream,
+    private readonly stream: AudioFeedStream,
     private readonly analyser: AudioAnalyser,
   ) {}
 

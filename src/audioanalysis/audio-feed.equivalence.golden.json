@@ -1,0 +1,64 @@
+{
+  "hashes": {
+    "frames": "ea8b4e4a30dd8f8a2c732d1cd3ac7cc851d9df624cede94d4f9ffb1ee1a09289",
+    "periodic": "7a0d8b9ad3b579ed8926fab2d78e345042452af2d9f4a8a300653b266eff77a9",
+    "recording": "375c0913d33e41693c178094cd70b1ae88fce09561c6ba3742daf6220ec1a72a",
+    "replay": "101a90e382adc3f9893028a6a2bd5e095bd3902fe907422fea5ea23676c31b72"
+  },
+  "checkpoints": [
+    "baef249c9bb3f8aa",
+    "1bcf57462ab04a78",
+    "c52c2efb73ec330b",
+    "736847297edbdac1",
+    "66505ff3d8b52d96",
+    "2d01a7d82c60316e",
+    "8e062f03c3edbb1b",
+    "a6ea53cb2ed095db",
+    "83ff4d8a113ed5ac",
+    "a6607abcc21e9fbf",
+    "077392640d8a8585",
+    "5fdecd1b85361317",
+    "ca2e6fc23873b7b9",
+    "4ca3584ced640272",
+    "db9a7b829d7e8aa4"
+  ],
+  "coverage": {
+    "frames": 9301,
+    "beats": 265,
+    "beatListenerCalls": 265,
+    "framesWithTempo": 7711,
+    "bpmsSeen": [
+      124,
+      139,
+      140
+    ],
+    "maxGridBeat": 274,
+    "sections": [
+      "quiet",
+      "intro",
+      "buildup",
+      "groove",
+      "buildup",
+      "drop",
+      "break",
+      "buildup",
+      "intro",
+      "quiet"
+    ],
+    "maxDropCount": 1,
+    "maxSongIndex": 2,
+    "drumHits": {
+      "kick": 149,
+      "hat": 478,
+      "snare": 6,
+      "clap": 103
+    },
+    "maxRiser": 0.9125721220087472,
+    "maxSweep": 0.6767761259331948,
+    "rhythmNames": [
+      "four on the floor"
+    ],
+    "recordedTicks": 3099,
+    "replayedSlots": 480
+  }
+}
