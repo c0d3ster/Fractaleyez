@@ -1,6 +1,4 @@
-import type { BeatSample } from '../../audioanalysis/beat'
-import type { GridState } from '../../audioanalysis/beat-grid'
-import { ONSET_BANDS } from '../../audioanalysis/onset-bands'
+import { type BeatSample, type GridState, ONSET_BANDS } from 'soundsense'
 import { bandColor } from './bandColors'
 
 // The Beat HUD's plot: a scrolling waveform of the five onset bands, with what each band had to pass to count as a hit, the hits

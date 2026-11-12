@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { buildSectionLog } from './section-export'
-import { SectionTracker } from './sections'
+import { buildSectionLog } from '../src/section-log'
+import { SectionTracker } from '../src/sections'
 
 describe('section log', () => {
   it('keeps every tick of a session', () => {

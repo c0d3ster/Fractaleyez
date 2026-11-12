@@ -1,6 +1,6 @@
 /* eslint-disable max-classes-per-file */
 import { analyserConfig as AnalyserConfig } from '../config/analyser.config'
-import { BeatState, NO_BEAT } from './beat'
+import { BeatState, NO_BEAT } from 'soundsense'
 
 export class Peak {
   value: number

@@ -9,19 +9,12 @@ import { createHash, type Hash } from 'node:crypto'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import { buildSectionLog, DRUM_KINDS, nameRhythm, RhythmLabeler, SectionTracker, type DrumKind, type RhythmInput, type SongSection } from 'soundsense'
+import { createAudioAnalysis } from '../audio'
 import { AudioData } from '../audiostream/audio-data'
 import { analyserConfig } from '../config/analyser.config'
 import { AudioAnalyser } from './audio-analyser'
 import { AudioFeed, type AudioFeedStream } from './audio-feed'
-import { beatMonitor } from './beat'
-import { beatGrid } from './beat-grid'
-import { DRUM_KINDS, drumHits, type DrumKind } from './drum-hits'
-import { nameRhythm, RhythmLabeler, type RhythmInput } from './rhythm-pattern'
-import { riserDetector } from './riser'
-import { buildSectionLog } from './section-export'
-import { sectionTracker, SectionTracker, type SongSection } from './sections'
-import { sweepDetector } from './sweep'
-import { tempoTracker } from './tempo-tracker'
 
 const GOLDEN = new URL('./audio-feed.equivalence.golden.json', import.meta.url)
 
@@ -223,7 +216,9 @@ const run = (): EquivalenceResult => {
     getBandLevels: () => frame.levels,
     getSpectrumShape: () => ({ sampleRate: SAMPLE_RATE, binCount: BINS }),
   }
-  const feed = new AudioFeed(stream, new AudioAnalyser(BINS))
+  const analysis = createAudioAnalysis()
+  const { beatMonitor, tempoTracker, beatGrid, sectionTracker, drumHits, riserDetector, sweepDetector } = analysis
+  const feed = new AudioFeed(stream, new AudioAnalyser(BINS), analysis)
   const rhythmLabeler = new RhythmLabeler()
   let beatListenerCalls = 0
   beatMonitor.subscribe(() => {

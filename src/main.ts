@@ -1,20 +1,13 @@
+import { DEFAULT_ENABLED_BANDS, nameRhythm, RhythmLabel, RhythmLabeler, RhythmPattern } from 'soundsense'
+import { audioAnalysis } from './audio'
 import { AudioSource } from './audiostream/audio-source'
 import { AudioStream } from './audiostream/audio-stream'
 import { AudioAnalyser } from './audioanalysis/audio-analyser'
 import { AudioFeed } from './audioanalysis/audio-feed'
-import { beatMonitor } from './audioanalysis/beat'
-import { drumHits } from './audioanalysis/drum-hits'
-import { riserDetector } from './audioanalysis/riser'
-import { sweepDetector } from './audioanalysis/sweep'
-import { sectionTracker } from './audioanalysis/sections'
-import { tempoTracker } from './audioanalysis/tempo-tracker'
-import { beatGrid } from './audioanalysis/beat-grid'
-import { nameRhythm, RhythmLabel, RhythmLabeler, RhythmPattern } from './audioanalysis/rhythm-pattern'
 import { snareRoll, type RollLevel } from './automode'
 import { exportSectionLog } from './audioanalysis/section-export'
 import { DEFAULT_DETECTOR_MS, detectorCalibration, estimateLag, LagEstimate, median } from './audioanalysis/lag-estimate'
 import { LagProbe } from './audioanalysis/lag-probe'
-import { DEFAULT_ENABLED_BANDS } from './audioanalysis/onset-bands'
 import { LayerKey } from './config/configDefaults'
 import { LAYER_REGISTRY } from './config/layers'
 import { createLayerPipeline, LayerPipeline } from './visualization/layers'
@@ -29,9 +22,10 @@ import { videoFrameSignal } from './visualization/video-frame-signal'
 const FFT_SIZE = 512
 
 // Create the audio components required for analysis
+const { beatMonitor, tempoTracker, beatGrid, sectionTracker, drumHits, riserDetector, sweepDetector } = audioAnalysis
 const audiosource = new AudioSource()
 const audiostream = new AudioStream(audiosource, FFT_SIZE)
-const audioFeed = new AudioFeed(audiostream, new AudioAnalyser(audiostream.getBufferSize()))
+const audioFeed = new AudioFeed(audiostream, new AudioAnalyser(audiostream.getBufferSize()), audioAnalysis)
 const lagProbe = new LagProbe({
   context: audiosource.getAudioContext(),
   injectClick: audiostream.injectClick,

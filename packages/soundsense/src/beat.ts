@@ -118,5 +118,3 @@ export class BeatMonitor {
     if (keepFrom > 0) items.splice(0, keepFrom)
   }
 }
-
-export const beatMonitor = new BeatMonitor()

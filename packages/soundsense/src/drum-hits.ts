@@ -194,5 +194,3 @@ export class DrumHits {
     return sums.map((sum) => (n > 0 ? sum / n : 0))
   }
 }
-
-export const drumHits = new DrumHits()

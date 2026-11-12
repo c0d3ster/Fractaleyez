@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { BeatMonitor, BeatSample } from './beat'
+import { BeatMonitor, BeatSample } from '../src/beat'
 
 const sample = (t: number, beatBand: number | null): BeatSample => ({ t, bands: [], beatBand })
 

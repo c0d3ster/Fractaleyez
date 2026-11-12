@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { TempoTracker } from './tempo-tracker'
-import { BeatGrid, GridState } from './beat-grid'
+import { TempoTracker } from '../src/tempo-tracker'
+import { BeatGrid, GridState } from '../src/beat-grid'
 
 // How well the grid finds beats and bar lines on real music is measured offline (scripts/section-eval/grid-eval.mts). These pin what must
 // hold on synthetic dance music where the answer is known: a kick on every beat, a clap on beats 2 and 4, a new bass note each bar, and a

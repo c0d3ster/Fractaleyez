@@ -7,13 +7,13 @@
 //
 //   tsx pattern-eval.mts <levels dir> <out.json> [--fps 60] [--ids a,b,c] [--shard i/n] [--no-dump]
 import { readdirSync, writeFileSync } from 'node:fs'
-import { OnsetDetector } from '../../src/audioanalysis/onset-detector.ts'
-import { DEFAULT_ENABLED_BANDS } from '../../src/audioanalysis/onset-bands.ts'
-import { estimateTempo } from '../../src/audioanalysis/tempo.ts'
-import { TempoTracker } from '../../src/audioanalysis/tempo-tracker.ts'
-import { BeatGrid } from '../../src/audioanalysis/beat-grid.ts'
-import { BeatMonitor } from '../../src/audioanalysis/beat.ts'
-import { nameRhythm, RhythmLabeler } from '../../src/audioanalysis/rhythm-pattern.ts'
+import { OnsetDetector } from '../../packages/soundsense/src/onset-detector.ts'
+import { DEFAULT_ENABLED_BANDS } from '../../packages/soundsense/src/onset-bands.ts'
+import { estimateTempo } from '../../packages/soundsense/src/tempo.ts'
+import { TempoTracker } from '../../packages/soundsense/src/tempo-tracker.ts'
+import { BeatGrid } from '../../packages/soundsense/src/beat-grid.ts'
+import { BeatMonitor } from '../../packages/soundsense/src/beat.ts'
+import { nameRhythm, RhythmLabeler } from '../../packages/soundsense/src/rhythm-pattern.ts'
 import { BANDS, SOURCE_FPS, loadLevels } from './stream.mts'
 
 const args = process.argv.slice(2)

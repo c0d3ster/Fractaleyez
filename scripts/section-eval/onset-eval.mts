@@ -5,8 +5,8 @@
 //
 // onset-score.py turns it into beats per minute per band (for noise: every one is false) and an F-measure against marked beats.
 import { readdirSync, writeFileSync } from 'node:fs'
-import { OnsetDetector } from '../../src/audioanalysis/onset-detector.ts'
-import { TempoTracker } from '../../src/audioanalysis/tempo-tracker.ts'
+import { OnsetDetector } from '../../packages/soundsense/src/onset-detector.ts'
+import { TempoTracker } from '../../packages/soundsense/src/tempo-tracker.ts'
 import { BANDS, SOURCE_FPS, loadLevels } from './stream.mts'
 
 const args = process.argv.slice(2)

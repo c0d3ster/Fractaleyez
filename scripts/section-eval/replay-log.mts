@@ -3,7 +3,7 @@
 //
 //   tsx replay-log.mts <section-log.json> <out.json>
 import { readFileSync, writeFileSync } from 'node:fs'
-import { SectionTick, SectionTracker } from '../../src/audioanalysis/sections.ts'
+import { SectionTick, SectionTracker } from '../../packages/soundsense/src/sections.ts'
 
 const [input, output] = [process.argv[2]!, process.argv[3]!]
 const log = JSON.parse(readFileSync(input, 'utf8')) as { version: number; ticks?: SectionTick[] }

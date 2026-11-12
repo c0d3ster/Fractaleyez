@@ -294,5 +294,3 @@ export class TempoTracker {
     return lag + Math.max(-0.5, Math.min(0.5, (0.5 * (a - c)) / denominator))
   }
 }
-
-export const tempoTracker = new TempoTracker()

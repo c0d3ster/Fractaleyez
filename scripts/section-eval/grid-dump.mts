@@ -6,8 +6,8 @@
 // One <id>.grid file per song: raw float32, slots x GRID_COLUMNS.
 import { mkdirSync, readdirSync, writeFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
-import { TempoTracker } from '../../src/audioanalysis/tempo-tracker.ts'
-import { BeatGrid } from '../../src/audioanalysis/beat-grid.ts'
+import { TempoTracker } from '../../packages/soundsense/src/tempo-tracker.ts'
+import { BeatGrid } from '../../packages/soundsense/src/beat-grid.ts'
 import { BANDS, SOURCE_FPS, loadLevels } from './stream.mts'
 
 export const GRID_COLUMNS = [

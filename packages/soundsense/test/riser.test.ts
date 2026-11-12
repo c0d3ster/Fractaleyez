@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { RISER_FEATURE_NAMES, RiserDetector, nextSlotStart, riserFeatures, riserProbability, type RiserSlot } from './riser'
+import { RISER_FEATURE_NAMES, RiserDetector, nextSlotStart, riserFeatures, riserProbability, type RiserSlot } from '../src/riser'
 import fixture from './riser.fixture.json'
 
 // Slots of band levels in dB (bass, lo, mid, hi, air), one every 100 ms.

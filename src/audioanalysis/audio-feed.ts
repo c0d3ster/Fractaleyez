@@ -1,17 +1,9 @@
+import { DEFAULT_ENABLED_BANDS, DRUM_SENSITIVITY, ONSET_BANDS, OnsetDetector, SpectrumReducer } from 'soundsense'
+import type { AudioAnalysis } from '../audio'
 import { AudioStream } from '../audiostream/audio-stream'
 import { analyserConfig as AnalyserConfig } from '../config/analyser.config'
 import { AudioAnalyser } from './audio-analyser'
 import { AudioAnalysedDataForVisualization } from './audio-analysed-data'
-import { beatMonitor } from './beat'
-import { beatGrid } from './beat-grid'
-import { sectionTracker } from './sections'
-import { tempoTracker } from './tempo-tracker'
-import { DRUM_SENSITIVITY, drumHits } from './drum-hits'
-import { riserDetector } from './riser'
-import { SpectrumReducer } from './spectrum-reducer'
-import { sweepDetector } from './sweep'
-import { OnsetDetector } from './onset-detector'
-import { DEFAULT_ENABLED_BANDS, ONSET_BANDS } from './onset-bands'
 
 /** What the feed reads from the stream each frame (an AudioStream, or a recording or synthetic source in a test). */
 export type AudioFeedStream = Pick<AudioStream, 'getAudioData' | 'getBandLevels' | 'getSpectrumShape'>
@@ -20,7 +12,8 @@ export type AudioFeedStream = Pick<AudioStream, 'getAudioData' | 'getBandLevels'
  * Single producer of analysed audio. Runs the stream -> analyser pipeline exactly once per frame and
  * hands the same read-only snapshot to every consumer (visualizers, HUDs), so adding more active
  * modes never means more analysis passes and no consumer owns shared audio state. It also owns the one
- * definition of a beat (a drum onset, see onset-detector.ts) and feeds the audio HUD's timeline.
+ * definition of a beat (a drum onset, see soundsense's OnsetDetector) and feeds the audio HUD's timeline, pushing each frame into the
+ * app's analysers (`analysis`, src/audio.ts) in a fixed order.
  */
 export class AudioFeed {
   private latest: AudioAnalysedDataForVisualization | null = null
@@ -31,10 +24,12 @@ export class AudioFeed {
   constructor(
     private readonly stream: AudioFeedStream,
     private readonly analyser: AudioAnalyser,
+    private readonly analysis: AudioAnalysis,
   ) {}
 
   /** Analyse the current audio frame. Call once per animation frame. */
   tick = (deltaTime: number, currentTimer: Date): AudioAnalysedDataForVisualization => {
+    const { beatMonitor, tempoTracker, beatGrid, sectionTracker, drumHits, riserDetector, sweepDetector } = this.analysis
     const audioData = this.stream.getAudioData()
     this.analyser.analyse(audioData, deltaTime, currentTimer)
     const snapshot = this.analyser.getAnalysedDataForVisualization()
