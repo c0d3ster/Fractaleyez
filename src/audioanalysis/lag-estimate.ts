@@ -1,21 +1,21 @@
 // The Lag figure in the Performance panel: the delay from a sound reaching the audio engine to the screen, short of the
 // microphone before the engine and the monitor's own response. Three parts follow the page live (waiting for the frame that reads
 // the audio, drawing it, one monitor refresh); the fourth, the beat detector's own delay, cannot be seen on real music, so the
-// calibration (see lag-probe.ts) measures it once per quality mode and it is kept for next time.
-
-import type { QualityTier } from '../config/quality.config'
+// calibration (see lag-probe.ts) measures it once per setup and it is kept for next time.
 
 /**
- * A typical detector delay for each quality mode until that mode has been calibrated: the average of three runs of the lag test
- * per mode on one 48 kHz machine with the config window open (24.9, 9.6, 15.2 and 14.5 ms). It differs by mode because the
- * detector smooths in steps of the frame time, so it reacts differently at each frame rate. Single runs vary by about ±8 ms.
+ * A typical detector delay until this setup has been calibrated. The detectors now run on the capture worklet's fixed 60 Hz hop, so
+ * the delay no longer differs by quality mode. PROVISIONAL: 15 ms is the old Balanced figure (the average of three runs of the lag
+ * test on one 48 kHz machine, single runs varying by about ±8 ms); it has to be re-measured with the lag test on a real microphone
+ * now that the hop, the worklet's block size and the message to the page all sit in the path.
  */
-export const DEFAULT_DETECTOR_MS: Readonly<Record<QualityTier, number>> = { saver: 14.5, balanced: 15, quality: 10, ultra: 25 }
+export const DEFAULT_DETECTOR_MS = 15
 
 /**
- * How many drawn frames a sound waits for before the frame that shows it has been drawn. The audio is read once per drawn frame,
- * so half a frame on average, and a little more because a hit is only seen on the read after its window has filled. Fitted
- * so the detector delay comes out the same at 238, 120, 60 and 30 fps, where half a frame left it growing from 8 to 12.5 ms.
+ * How many drawn frames a sound waits for before the frame that shows it has been drawn: half a frame on average, and a little more
+ * (fitted at 238, 120, 60 and 30 fps, where half a frame left the detector delay growing from 8 to 12.5 ms). The detectors now decide
+ * on the worklet's hop and the draw only shows the result, so this fit is due to be redone on a real microphone with
+ * DEFAULT_DETECTOR_MS; until then it stays as it was.
  */
 const WAIT_FRAMES = 0.65
 
@@ -74,7 +74,7 @@ const isStoredCalibrations = (value: unknown): value is StoredCalibrations =>
 /**
  * The detector delays the calibration found, kept in storage so they carry over to the next visit. They are read from storage once
  * (the panel asks several times a second), and each only applies to the setup it was measured with: the sample rate (the windows are
- * a number of samples), which bands can set off a beat, the Threshold slider and the quality mode. Any other setup reads as the
+ * a number of samples), which bands can set off a beat, and the Threshold slider. Any other setup reads as the
  * typical figure given for it.
  */
 export class DetectorCalibration {

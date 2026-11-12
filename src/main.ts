@@ -1,6 +1,5 @@
-import { DEFAULT_ENABLED_BANDS, nameRhythm, RhythmLabel, RhythmLabeler, RhythmPattern, RollLevel } from 'beatsense'
+import { AudioSource, DEFAULT_ENABLED_BANDS, nameRhythm, RhythmLabel, RhythmLabeler, RhythmPattern, RollLevel } from 'beatsense'
 import { audioAnalysis, createReadWatch } from './audio'
-import { AudioSource } from './audiostream/audio-source'
 import { AudioStream } from './audiostream/audio-stream'
 import { AudioAnalyser } from './audioanalysis/audio-analyser'
 import { AudioFeed } from './audioanalysis/audio-feed'
@@ -22,13 +21,15 @@ const FFT_SIZE = 512
 
 // Create the audio components required for analysis
 const { beatMonitor, tempoTracker, beatGrid, sectionTracker, drumHits, riserDetector, sweepDetector, snareRoll } = audioAnalysis
-const audiosource = new AudioSource()
-const audiostream = new AudioStream(audiosource, FFT_SIZE)
+const audioContext = new (window.AudioContext || window.webkitAudioContext)()
+// Measures for the detectors in an AudioWorklet at a fixed 60 frames a second (the bundle is its own webpack entry, see webpack.config.js).
+const capture = new AudioSource({ context: audioContext, workletUrl: '/beatsense-worklet.js' })
+const audiostream = new AudioStream(audioContext, FFT_SIZE)
 // The riser and sweep detectors only feed the Frequency HUD, which polls their scores each frame while it is open.
 const riserSweepReads = createReadWatch(1000)
 const audioFeed = new AudioFeed(audiostream, new AudioAnalyser(audiostream.getBufferSize()), audioAnalysis, { readsRiserAndSweep: riserSweepReads.isActive })
 const lagProbe = new LagProbe({
-  context: audiosource.getAudioContext(),
+  context: audioContext,
   injectClick: audiostream.injectClick,
   subscribeBeat: beatMonitor.subscribe,
   lastBeatTime: beatMonitor.getLastBeatTime,
@@ -87,16 +88,15 @@ const frameWorkMs: number[] = []
 // The gap between display frames (the monitor's refresh, whatever the frame cap); the other term of the Lag figure.
 const displayGapMs: number[] = []
 
-// What the beat detector's delay depends on: the sample rate (its windows are a number of samples), which bands can set off a beat, the Threshold slider, and the quality mode (its frame rate changes how the detector smooths).
+// What the beat detector's delay depends on: the sample rate (its windows are a number of samples), which bands can set off a beat, and the Threshold slider. The quality tier no longer does: the detectors run on the worklet's fixed hop.
 const detectorSetup = (): string => [
-  audiosource.getAudioContext().sampleRate,
+  audioContext.sampleRate,
   (window.enabledFreqBands ?? DEFAULT_ENABLED_BANDS).map((on) => (on ? 1 : 0)).join(''),
   window.config.audio.soundThreshold.value,
-  qualityController.getTier(),
 ].join('|')
 
 const currentLag = (): LagEstimate => estimateLag(
-  detectorCalibration.read(detectorSetup(), DEFAULT_DETECTOR_MS[qualityController.getTier()]),
+  detectorCalibration.read(detectorSetup(), DEFAULT_DETECTOR_MS),
   medianFpsFromDeltas(frameDeltaMs).frameMs,
   median(frameWorkMs),
   median(displayGapMs),
@@ -121,20 +121,25 @@ let idleSoundTimer = 0
 
 // Intiatialize Mic input stream & then set up Audio Analysis
 export const initWithMicrophone = (): void => {
-  audiosource
-    .getStreamFromMicrophone(false)
+  capture.start()
+    .then(() => capture.connectMicrophone())
     .then(init)
-    .catch((err) => {
-      console.error('Microphone setup failed:', err)
-      init()
+    .catch((err: unknown) => {
+      console.error('Audio capture setup failed:', err)
+      init(null)
     })
 }
 
 // Set up the Audio Analysis, Visualization manager
-const init = (): void => {
+const init = (microphone: MediaStreamAudioSourceNode | null): void => {
   hideCursorOnInactivity()
 
-  audiostream.init()
+  audiostream.init(microphone, capture.input)
+  // Every frame the worklet measures goes to the detectors, whatever the display is doing (a slow tier, a hidden tab): they run off its sample clock, not the drawn frames.
+  capture.onFrame((frame) => {
+    audioFeed.push(frame)
+    capture.setSpectrum(audioFeed.wantsSpectrum())
+  })
   lastFrameTime = performance.now()
   lastDisplayFrameTime = lastFrameTime
 
@@ -220,8 +225,7 @@ const analyze = (): void => {
     if (displayGapMs.length > FRAME_DELTA_SAMPLES) displayGapMs.shift()
   }
 
-  // Analysis and drawing share the cap: a skipped frame does neither, so a beat is never detected on a frame that is not drawn.
-  // A new video frame is also drawn when it arrives if the cap's next draw is not close, so no frame is shown for longer than another.
+  // The cap limits drawing only; the beat detectors run on the worklet's frames and never skip. A new video frame is also drawn when it arrives if the cap's next draw is not close, so no frame is shown for longer than another.
   const { frameCapFps } = qualityController.getProfile()
   const sinceLastDraw = now - lastFrameTime
   if (frameCapFps !== null && !shouldDrawUnderCap(sinceLastDraw, frameCapFps, displayGap)) {
@@ -250,7 +254,7 @@ const analyze = (): void => {
     if (idleSoundTimer > 100) {
       console.info('retrying sound')
       idleSoundTimer = 0
-      audiosource.getAudioContext().resume()
+      audioContext.resume()
     }
   }
 

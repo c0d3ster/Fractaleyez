@@ -1,12 +1,14 @@
-import { AudioFeed as BeatsenseFeed, DEFAULT_ENABLED_BANDS, SpectrumReducer } from 'beatsense'
+import { CAPTURE_HZ, AudioFeed as BeatsenseFeed, DEFAULT_ENABLED_BANDS, toAudioFrame } from 'beatsense'
+import type { BeatState, CaptureFrame } from 'beatsense'
 import type { AudioAnalysis } from '../audio'
-import { AudioStream } from '../audiostream/audio-stream'
+import type { AudioStream } from '../audiostream/audio-stream'
 import { analyserConfig as AnalyserConfig } from '../config/analyser.config'
 import { AudioAnalyser } from './audio-analyser'
 import { AudioAnalysedDataForVisualization } from './audio-analysed-data'
+import { FrameClock } from './frame-clock'
 
-/** What the feed reads from the stream each frame (an AudioStream, or a recording or synthetic source in a test). */
-export type AudioFeedStream = Pick<AudioStream, 'getAudioData' | 'getBandLevels' | 'getSpectrumShape'>
+/** What the feed reads from the stream each drawn frame (an AudioStream, or a recording or synthetic source in a test). */
+export type AudioFeedStream = Pick<AudioStream, 'getAudioData'>
 
 export type AudioFeedOptions = {
   /**
@@ -17,15 +19,16 @@ export type AudioFeedOptions = {
 }
 
 /**
- * The app's side of the analysis: single producer of analysed audio. Runs the stream -> analyser pipeline exactly once per frame and
- * hands the same read-only snapshot to every consumer (visualizers, HUDs), so adding more active modes never means more analysis passes
- * and no consumer owns shared audio state. The frame's analysis itself (the beat and every analyser's push, in a fixed order) is
- * beatsense's driver; this reads the app's globals (the sliders, the HUD's band toggles) and the wall clock into it.
+ * The app's side of the analysis. `push` takes the frames the worklet measures (a fixed 60 a second, on the sample clock) and runs
+ * beatsense's driver on each, so what the detectors hear never depends on the display's frame rate, the quality tier or a hidden tab.
+ * `tick` runs once per drawn frame for the visuals (the analyser node's energy and peaks) and hands every consumer the same
+ * read-only snapshot carrying the newest beat. The sliders, the HUD's band toggles and the page clock come in here.
  */
 export class AudioFeed {
   private latest: AudioAnalysedDataForVisualization | null = null
   private readonly driver: BeatsenseFeed
-  private spectrumReducer: SpectrumReducer | null = null
+  private readonly clock = new FrameClock()
+  private beat: BeatState | null = null
 
   constructor(
     private readonly stream: AudioFeedStream,
@@ -47,30 +50,31 @@ export class AudioFeed {
     })
   }
 
-  /** Analyse the current audio frame. Call once per animation frame. */
+  /** Whether the next frame should carry the pooled spectrum. */
+  wantsSpectrum = (): boolean => this.driver.wantsSpectrum()
+
+  /** Run one measured frame through the analysers. Call for every frame the worklet posts, in order. */
+  push = (frame: CaptureFrame, nowMs: number = performance.now()): void => {
+    const audioFrame = toAudioFrame(frame, CAPTURE_HZ)
+    const { onset } = this.driver.push({ ...audioFrame, t: this.clock.toPageMs(audioFrame.t, nowMs) })
+    // A beat is fresh for one frame, and several frames can pass between two draws: keep it until the next draw reads it.
+    this.beat = this.beat?.fresh && !onset.beat.fresh ? { ...onset.beat, fresh: true } : onset.beat
+  }
+
+  /** The visuals' side of one drawn frame. Call once per animation frame. */
   tick = (deltaTime: number, currentTimer: Date): AudioAnalysedDataForVisualization => {
-    const audioData = this.stream.getAudioData()
-    this.analyser.analyse(audioData, deltaTime, currentTimer)
+    this.analyser.analyse(this.stream.getAudioData(), deltaTime, currentTimer)
     const snapshot = this.analyser.getAnalysedDataForVisualization()
-    const energy = this.analyser.getAnalysedData().getEnergy()
-    // The spectrum pooled into the training recorder's 40 bands, for the sweep detector; not before the first sound, and not while unread.
-    let spectrum: Uint8Array | undefined
-    if (this.driver.wantsSpectrum() && (energy || !this.driver.isSilent())) {
-      if (!this.spectrumReducer) {
-        const { sampleRate, binCount } = this.stream.getSpectrumShape()
-        this.spectrumReducer = new SpectrumReducer(sampleRate, binCount)
-      }
-      spectrum = this.spectrumReducer.reduce(audioData.frequencyData)
+    if (this.beat) {
+      snapshot.beat = this.beat
+      this.beat = { ...this.beat, fresh: false }
     }
-    // The app keeps the wall clock for the analysers' time (its AudioStream has no sample counter yet); the package only needs it steady.
-    const { onset } = this.driver.push({ t: performance.now(), deltaMs: deltaTime, levels: this.stream.getBandLevels(), energy, spectrum })
-    snapshot.beat = onset.beat
     this.latest = snapshot
     return snapshot
   }
 
   getLatest = (): AudioAnalysedDataForVisualization | null => this.latest
 
-  /** True while the analyser sees silence, e.g. before a click lets the audio context start. */
-  isSilent = (): boolean => !this.analyser.getAnalysedData().getEnergy()
+  /** True until the first frame with sound, e.g. while a click is still needed to let the audio context start. */
+  isSilent = (): boolean => this.driver.isSilent()
 }

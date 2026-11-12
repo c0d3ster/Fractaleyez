@@ -27,12 +27,18 @@ const findDevPort = async () => {
 }
 
 const createConfig = (devPort) => ({
-  entry: ['@babel/polyfill', APP_DIR + '/index.tsx'],
+  entry: {
+    app: ['@babel/polyfill', APP_DIR + '/index.tsx'],
+    // The beatsense capture worklet is loaded by URL (audioWorklet.addModule), so it is its own bundle: /beatsense-worklet.js.
+    'beatsense-worklet': 'beatsense/worklet',
+  },
   output:
   {
     path: BUILD_DIR,
-    filename: 'app.js',
+    filename: '[name].js',
     publicPath: '/',
+    // The worklet runs where there is no window or self.
+    globalObject: 'globalThis',
   },
   // must include modules for webpack to integrate with babel for es6 syntax
   module: {

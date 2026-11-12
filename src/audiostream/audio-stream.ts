@@ -1,8 +1,6 @@
 import { userConfig as UserConfig } from '../config/user.config'
 
-import { AudioSource } from './audio-source'
 import { AudioData } from './audio-data'
-import { MAX_BAND_WINDOW_SAMPLES, ONSET_BANDS } from 'beatsense'
 
 const ANALYSER_SMOOTHING = 0.2
 
@@ -23,29 +21,21 @@ const buildClickBuffer = (context: BaseAudioContext): AudioBuffer => {
   return buffer
 }
 
-// Onset bands (see onset-bands.ts): the signal is split by band-pass filters so beat detection can hear the kick, snare,
-// hats and so on on their own, then each band is read as a time-domain window (not FFT bins, which are ~94Hz wide at the
-// main analyser's size). A 1024-sample window is ~21ms, longer than a 60fps frame, so consecutive frames cover all of
-// the audio.
-type OnsetBand = { filters: BiquadFilterNode[]; analyser: AnalyserNode }
-
+/**
+ * The visuals' side of the audio: a volume and an analyser node whose time-domain and frequency bytes the layers read each drawn frame.
+ * What the beat detectors hear is measured separately, in the capture worklet (see AudioSource in beatsense), fed from the same volume.
+ */
 export class AudioStream {
-  private audioSource: AudioSource
   private audioContext: AudioContext
   private volume: number
-  private sourceNode: AudioNode | null
   private gainNode: GainNode
   private analyserNode: AnalyserNode
-  private onsetBands: OnsetBand[]
-  private bandBuffer: Float32Array<ArrayBuffer>
   private bufferLength: number
   private clickBuffer: AudioBuffer | null = null
 
-  constructor(audiosource: AudioSource, fftsize: number) {
-    this.audioSource = audiosource
-    this.audioContext = audiosource.getAudioContext()
+  constructor(audioContext: AudioContext, fftsize: number) {
+    this.audioContext = audioContext
     this.volume = UserConfig.volume
-    this.sourceNode = null
 
     this.gainNode = this.audioContext.createGain()
     this.gainNode.gain.setValueAtTime(this.volume, this.audioContext.currentTime)
@@ -55,43 +45,21 @@ export class AudioStream {
     // The default (0.8) averages frequency data over many frames, which delays and softens band attacks.
     this.analyserNode.smoothingTimeConstant = ANALYSER_SMOOTHING
     this.bufferLength = this.analyserNode.frequencyBinCount
-
-    this.onsetBands = ONSET_BANDS.map(({ lowHz, highHz, windowSamples }) => {
-      // Two cascaded filters per edge give a steeper (24 dB/octave) cut.
-      const filters = [
-        this.createFilter('highpass', lowHz),
-        this.createFilter('highpass', lowHz),
-        this.createFilter('lowpass', highHz),
-        this.createFilter('lowpass', highHz),
-      ]
-      const analyser = this.audioContext.createAnalyser()
-      analyser.fftSize = windowSamples
-      return { filters, analyser }
-    })
-    this.bandBuffer = new Float32Array(MAX_BAND_WINDOW_SAMPLES)
   }
 
-  init(): void {
-    this.sourceNode = this.audioSource.getSourceNode()
-    if (!this.sourceNode) {
+  /** Route `sourceNode` (the microphone) through the volume into the analyser and into `capture`, the worklet that measures for the detectors. */
+  init(sourceNode: AudioNode | null, capture: AudioNode): void {
+    if (!sourceNode) {
       if (UserConfig.showerrors) console.error('Couldn\'t init the audio stream class. The audio source is empty.')
-    } else {
-      this.sourceNode.connect(this.gainNode)
-      this.gainNode.connect(this.analyserNode)
-      this.onsetBands.forEach(({ filters, analyser }) => {
-        const chain: AudioNode[] = [this.gainNode, ...filters, analyser]
-        chain.forEach((node, i) => {
-          const next = chain[i + 1]
-          if (next) node.connect(next)
-        })
-      })
-      if (this.audioSource.isThereFeedback())
-        this.analyserNode.connect(this.audioContext.destination)
-      if (UserConfig.showloginfos) console.info('AudioStream class initialized\n------------')
+      return
     }
+    sourceNode.connect(this.gainNode)
+    this.gainNode.connect(this.analyserNode)
+    this.gainNode.connect(capture)
+    if (UserConfig.showloginfos) console.info('AudioStream class initialized\n------------')
   }
 
-  /** Starts a silent test click at `contextTime` (audio-clock seconds), entering where the microphone's sound does (before the volume and the band filters). */
+  /** Starts a silent test click at `contextTime` (audio-clock seconds), entering where the microphone's sound does (before the volume). */
   injectClick = (contextTime: number): void => {
     this.clickBuffer ??= buildClickBuffer(this.audioContext)
     const click = this.audioContext.createBufferSource()
@@ -100,37 +68,12 @@ export class AudioStream {
     click.start(contextTime)
   }
 
-  /** The audio context's sample rate and the analyser's bin count, for reading its frequency data in Hz. */
-  getSpectrumShape = (): { sampleRate: number; binCount: number } => ({ sampleRate: this.audioContext.sampleRate, binCount: this.bufferLength })
-
   getAudioData(): AudioData {
     const tdData = new Uint8Array(this.bufferLength)
     const fData = new Uint8Array(this.bufferLength)
     this.analyserNode.getByteTimeDomainData(tdData)
     this.analyserNode.getByteFrequencyData(fData)
     return new AudioData(tdData, fData, this.bufferLength)
-  }
-
-  /** RMS level of each onset band (see ONSET_BANDS), in percent of full scale. */
-  getBandLevels(): number[] {
-    return this.onsetBands.map(({ analyser }) => {
-      analyser.getFloatTimeDomainData(this.bandBuffer)
-      // The shared buffer is sized for the longest window; only the first fftSize samples are this band's.
-      const windowSamples = analyser.fftSize
-      let sumOfSquares = 0
-      for (let i = 0; i < windowSamples; i++) {
-        const sample = this.bandBuffer[i] ?? 0
-        sumOfSquares += sample * sample
-      }
-      return Math.sqrt(sumOfSquares / windowSamples) * 100
-    })
-  }
-
-  private createFilter(type: BiquadFilterType, frequency: number): BiquadFilterNode {
-    const filter = this.audioContext.createBiquadFilter()
-    filter.type = type
-    filter.frequency.value = frequency
-    return filter
   }
 
   setVolume(volume: number): void {
