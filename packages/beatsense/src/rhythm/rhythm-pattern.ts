@@ -36,8 +36,9 @@ export const DEFAULT_RHYTHM_OPTIONS: RhythmOptions = {
   windowMs: 12000,
 }
 
-type RhythmModel = { classes: string[]; features: string[]; mean: number[]; scale: number[]; coef: number[][]; intercept: number[] }
-const MODEL = modelData as RhythmModel
+export type RhythmModel = { classes: string[]; features: string[]; mean: number[]; scale: number[]; coef: number[][]; intercept: number[] }
+/** The bundled rhythm model (rhythm-model.json); `readRhythm` and `RhythmLabeler` take another as an argument. */
+export const RHYTHM_MODEL = modelData as RhythmModel
 
 // The lags (in beats) each band's repeats are measured at: the beat and its multiples, the off-beat lags of a two-step, a third and a
 // quarter of a beat (triplet and sixteenth hats). Named the way rhythm-model.json names its features.
@@ -99,8 +100,8 @@ export const rhythmFeatures = ({ bandOnsets, periodMs }: RhythmInput, options: P
 }
 
 // Multinomial logistic regression over the standardized features.
-const probabilities = (features: readonly number[]): number[] => {
-  const logits = MODEL.coef.map((row, k) => row.reduce((sum, w, i) => sum + w * (((features[i] ?? 0) - (MODEL.mean[i] ?? 0)) / (MODEL.scale[i] ?? 1)), MODEL.intercept[k] ?? 0))
+const probabilities = (features: readonly number[], model: RhythmModel): number[] => {
+  const logits = model.coef.map((row, k) => row.reduce((sum, w, i) => sum + w * (((features[i] ?? 0) - (model.mean[i] ?? 0)) / (model.scale[i] ?? 1)), model.intercept[k] ?? 0))
   const top = Math.max(...logits)
   const exp = logits.map((x) => Math.exp(x - top))
   const total = exp.reduce((sum, x) => sum + x, 0)
@@ -125,19 +126,20 @@ const shownName = (likeliest: RhythmReading['likeliest'], confidence: number, o:
  * two-step when that is read surely enough to be drum and bass's kick on 1 and the "and" of 3. Half time is a class the model knows but never shows: it could not be told from breaks at 90% precision. The tempo
  * itself is not a feature, so the name says what the drums do, not what the BPM suggests.
  */
-export const readRhythm = (input: RhythmInput, options: Partial<RhythmOptions> = {}): RhythmReading => {
+export const readRhythm = (input: RhythmInput, options: Partial<RhythmOptions> = {}, model: RhythmModel = RHYTHM_MODEL): RhythmReading => {
   const o = { ...DEFAULT_RHYTHM_OPTIONS, ...options }
   const features = rhythmFeatures(input, o)
   if (features === null) return { pattern: null, likeliest: null, confidence: 0 }
-  const p = probabilities(features)
+  const p = probabilities(features, model)
   const best = p.reduce((at, x, i) => (x > (p[at] ?? 0) ? i : at), 0)
-  const likeliest = asClass(MODEL.classes[best])
+  const likeliest = asClass(model.classes[best])
   const confidence = p[best] ?? 0
   return { pattern: shownName(likeliest, confidence, o), likeliest, confidence }
 }
 
 /** The name alone, or null when no name is confident enough (a breakdown, silence, a rhythm the model does not know). */
-export const nameRhythm = (input: RhythmInput, options: Partial<RhythmOptions> = {}): RhythmPattern | null => readRhythm(input, options).pattern
+export const nameRhythm = (input: RhythmInput, options: Partial<RhythmOptions> = {}, model: RhythmModel = RHYTHM_MODEL): RhythmPattern | null =>
+  readRhythm(input, options, model).pattern
 
 /** The line the Beat HUD shows: the held pattern. */
 export type RhythmLabel = {
@@ -174,7 +176,7 @@ export class RhythmLabeler {
   private lastStepMs = -Infinity
   private label: RhythmLabel = EMPTY_LABEL
 
-  constructor(hold: Partial<RhythmHoldOptions> = {}, options: Partial<RhythmOptions> = {}) {
+  constructor(hold: Partial<RhythmHoldOptions> = {}, options: Partial<RhythmOptions> = {}, private readonly model: RhythmModel = RHYTHM_MODEL) {
     this.hold = { ...DEFAULT_RHYTHM_HOLD, ...hold }
     this.options = options
   }
@@ -182,7 +184,7 @@ export class RhythmLabeler {
   read = (input: RhythmInput, nowMs: number): RhythmLabel => {
     if (nowMs - this.lastStepMs < this.hold.stepMs) return this.label
     this.lastStepMs = nowMs
-    const reading = readRhythm(input, this.options)
+    const reading = readRhythm(input, this.options, this.model)
     this.step(reading.pattern)
     if (this.shown === null) {
       this.label = EMPTY_LABEL

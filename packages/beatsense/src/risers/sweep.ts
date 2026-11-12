@@ -1,4 +1,5 @@
 import modelData from './sweep-model.json'
+import { fit, inputIndexes, scoreProbability, type MlpModel } from '../shared/mlp'
 import { SPECTRUM_BANDS, spectrumEdgesHz } from './tick-extras'
 import { nextSlotStart } from './riser'
 
@@ -34,9 +35,9 @@ const GAP_SLOTS = 5
 // Byte values (0 to 255) to dB over the analyser's -100 to -30 dB range.
 const DB_PER_BYTE = 70 / 255
 
-type Layer = { weights: number[][]; bias: number[] }
-type SweepModel = { features: string[]; mean: number[]; scale: number[]; hidden: Layer; output: Layer }
-const MODEL: SweepModel = modelData
+export type SweepModel = MlpModel
+/** The bundled sweep model (sweep-model.json); `SweepDetector` takes another as its second argument. */
+export const SWEEP_MODEL: SweepModel = modelData
 
 const EDGES = spectrumEdgesHz()
 const centreHz = (b: number): number => Math.sqrt((EDGES[b] ?? 1) * (EDGES[b + 1] ?? 1))
@@ -55,23 +56,6 @@ export const SWEEP_FEATURE_NAMES: readonly string[] = [
 export type SweepSlot = { t: number; features: number[]; probability: number }
 
 const mean = (values: readonly number[]): number => (values.length ? values.reduce((sum, v) => sum + v, 0) / values.length : 0)
-
-// Least-squares slope (per step) and R squared of `values` against their index.
-const fit = (values: readonly number[]): { slope: number; r2: number } => {
-  const n = values.length
-  if (n < 2) return { slope: 0, r2: 0 }
-  const meanX = (n - 1) / 2
-  const meanY = mean(values)
-  let sxy = 0
-  let sxx = 0
-  let syy = 0
-  values.forEach((v, i) => {
-    sxy += (i - meanX) * (v - meanY)
-    sxx += (i - meanX) ** 2
-    syy += (v - meanY) ** 2
-  })
-  return { slope: sxx > 0 ? sxy / sxx : 0, r2: sxx > 0 && syy > 0 ? (sxy * sxy) / (sxx * syy) : 0 }
-}
 
 // Where the standing-out energy sits, in bands (0 is the lowest sweep band), and how far it stands out at most (dB).
 const ridgeOf = (residual: readonly number[]): { at: number; standout: number } => {
@@ -128,21 +112,12 @@ export const sweepFeatures = (steps: ReadonlyArray<readonly number[]>): number[]
   return [...trends, last.at, last.standout, ...vsPeak]
 }
 
-const MODEL_INPUTS = MODEL.features.map((name) => {
-  const at = SWEEP_FEATURE_NAMES.indexOf(name)
-  if (at < 0) throw new Error(`sweep-model.json reads an unknown feature: ${name}`)
-  return at
-})
-
-const dense = ({ weights, bias }: Layer, input: readonly number[]): number[] =>
-  weights.map((row, j) => row.reduce((sum, w, i) => sum + w * (input[i] ?? 0), bias[j] ?? 0))
+// Where each of the model's inputs sits in SWEEP_FEATURE_NAMES.
+const sweepInputs = (model: SweepModel): number[] => inputIndexes(model, SWEEP_FEATURE_NAMES, 'sweep-model.json')
 
 /** The model's probability that a sweep is playing, from every input (sweepFeatures). */
-export const sweepProbability = (features: readonly number[]): number => {
-  const scaled = MODEL_INPUTS.map((at, i) => ((features[at] ?? 0) - (MODEL.mean[i] ?? 0)) / (MODEL.scale[i] ?? 1))
-  const score = dense(MODEL.output, dense(MODEL.hidden, scaled).map(Math.tanh))[0] ?? 0
-  return 1 / (1 + Math.exp(-score))
-}
+export const sweepProbability = (features: readonly number[], model: SweepModel = SWEEP_MODEL): number =>
+  scoreProbability(model, sweepInputs(model), features)
 
 /**
  * Reads the pooled spectrum (SpectrumReducer) every frame, or recorded 50 ms ticks (pushTick), and keeps the smoothed score. Frames are
@@ -160,7 +135,11 @@ export class SweepDetector {
   private lastT: number | null = null
   private quietSlots = 0
 
-  constructor(private readonly onSlot?: (slot: SweepSlot) => void) {}
+  private readonly inputs: number[]
+
+  constructor(private readonly onSlot?: (slot: SweepSlot) => void, private readonly model: SweepModel = SWEEP_MODEL) {
+    this.inputs = sweepInputs(model)
+  }
 
   /** One frame's pooled spectrum (0 to 255 per band). */
   push = (t: number, bands: ArrayLike<number>): void => {
@@ -194,7 +173,7 @@ export class SweepDetector {
     const every = TICKS_PER_STEP / TICKS_PER_SLOT
     const history = this.steps.filter((_, i) => (this.steps.length - 1 - i) % every === 0)
     const features = sweepFeatures(history)
-    const probability = history.length >= MIN_STEPS ? sweepProbability(features) : 0
+    const probability = history.length >= MIN_STEPS ? scoreProbability(this.model, this.inputs, features) : 0
     const dt = this.lastT === null ? TICK_MS * TICKS_PER_SLOT : t - this.lastT
     this.lastT = t
     this.score += (probability - this.score) * (1 - Math.exp(-dt / (probability >= this.score ? RISE_MS : FALL_MS)))

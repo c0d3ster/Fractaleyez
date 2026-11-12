@@ -5,7 +5,7 @@ import { AudioAnalysedDataForVisualization } from '../../audioanalysis/audio-ana
 import { CAMERA_STEER_SCREEN_FRACTION_PER_PAD_UNIT } from '../../config/visualizer.config'
 import { perfProbe } from '../perf'
 import { KaleidoscopeEffect } from './kaleidoscope-effect'
-import { autoMode, snareRoll } from '../../automode'
+import { autoMode } from '../../automode'
 import { audioAnalysis } from '../../audio'
 
 // The shockwave effect projects its position through a fixed camera at this distance and field of view,
@@ -114,7 +114,7 @@ export class PostEffects {
     const { kaleidoscope, kaleidoscopeCount, kaleidoscopeMode, kaleidoscopeSource } = window.config.effects
     const mode = Math.round(kaleidoscopeMode.value)
     // Auto, while it is on, decides the fold (on and how many wedges); the stored settings stay as they are. Mode and source are still the user's.
-    const { sectionTracker, tempoTracker, drumHits } = audioAnalysis
+    const { sectionTracker, tempoTracker, drumHits, snareRoll } = audioAnalysis
     const section = sectionTracker.getState()
     const now = performance.now()
     // The snare's roll is read all the time (20 times a second), so the Beat HUD always shows it; Auto steers by it only in a buildup.

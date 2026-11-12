@@ -1,4 +1,5 @@
 import modelData from './riser-model.json'
+import { fit, inputIndexes, scoreProbability, type MlpModel } from '../shared/mlp'
 
 // How much the music sounds like a riser right now (a noise sweep, a pitch riser, a high-passed whoosh): 0 to 1, for the Frequency HUD
 // and, read offline, for the section model. A riser is not a hit but a climb over bars, so instead of onsets this follows the five band
@@ -37,33 +38,14 @@ const FALL_MS = 150
 const GAP_DB = 25
 const GAP_SLOTS = 5
 
-/** A dense layer: `weights[out][in]`. */
-type Layer = { weights: number[][]; bias: number[] }
-type RiserModel = { features: string[]; mean: number[]; scale: number[]; hidden: Layer; output: Layer }
-const MODEL: RiserModel = modelData
+export type RiserModel = MlpModel
+/** The bundled riser model (riser-model.json); `RiserDetector` takes another as its second argument. */
+export const RISER_MODEL: RiserModel = modelData
 
 /** Every slot, with every input (riserFeatures): for replaying clips and songs offline and retraining (drum-eval.mts). */
 export type RiserSlot = { t: number; features: number[]; probability: number }
 
 const toDb = (power: number): number => 10 * Math.log10(power + POWER_EPS)
-
-// Least-squares slope (per slot) and R squared of `values` against their index.
-const fit = (values: readonly number[]): { slope: number; r2: number } => {
-  const n = values.length
-  if (n < 2) return { slope: 0, r2: 0 }
-  const meanX = (n - 1) / 2
-  const meanY = values.reduce((sum, v) => sum + v, 0) / n
-  let sxy = 0
-  let sxx = 0
-  let syy = 0
-  values.forEach((v, i) => {
-    sxy += (i - meanX) * (v - meanY)
-    sxx += (i - meanX) ** 2
-    syy += (v - meanY) ** 2
-  })
-  const slope = sxx > 0 ? sxy / sxx : 0
-  return { slope, r2: sxx > 0 && syy > 0 ? (sxy * sxy) / (sxx * syy) : 0 }
-}
 
 // Where the power sits across the bands, 0 (all bass) to 4 (all air), from one slot's levels in dB.
 const centroidOf = (dbs: readonly number[]): number => {
@@ -179,22 +161,12 @@ const longContext = (history: ReadonlyArray<readonly number[]>, total: (dbs: rea
   return [...slopes, vsPeak(bass), vsPeak(highsSeries), vsPeak(totalSeries), bass.length - 1 - lastLoud]
 }
 
-const dense = ({ weights, bias }: Layer, input: readonly number[]): number[] =>
-  weights.map((row, j) => row.reduce((sum, w, i) => sum + w * (input[i] ?? 0), bias[j] ?? 0))
-
 // Where each of the model's inputs sits in RISER_FEATURE_NAMES.
-const MODEL_INPUTS = MODEL.features.map((name) => {
-  const at = RISER_FEATURE_NAMES.indexOf(name)
-  if (at < 0) throw new Error(`riser-model.json reads an unknown feature: ${name}`)
-  return at
-})
+const riserInputs = (model: RiserModel): number[] => inputIndexes(model, RISER_FEATURE_NAMES, 'riser-model.json')
 
 /** The model's probability that the slot is inside a riser, from every input (riserFeatures). */
-export const riserProbability = (features: readonly number[]): number => {
-  const scaled = MODEL_INPUTS.map((at, i) => ((features[at] ?? 0) - (MODEL.mean[i] ?? 0)) / (MODEL.scale[i] ?? 1))
-  const score = dense(MODEL.output, dense(MODEL.hidden, scaled).map(Math.tanh))[0] ?? 0
-  return 1 / (1 + Math.exp(-score))
-}
+export const riserProbability = (features: readonly number[], model: RiserModel = RISER_MODEL): number =>
+  scoreProbability(model, riserInputs(model), features)
 
 /**
  * Where the next slot starts once one closes at `t`: a fixed step on from where the closed one started, so slots average `slotMs` at any
@@ -216,7 +188,11 @@ export class RiserDetector {
   private lastT: number | null = null
   private quietSlots = 0
 
-  constructor(private readonly onSlot?: (slot: RiserSlot) => void) {}
+  private readonly inputs: number[]
+
+  constructor(private readonly onSlot?: (slot: RiserSlot) => void, private readonly model: RiserModel = RISER_MODEL) {
+    this.inputs = riserInputs(model)
+  }
 
   push = (t: number, levels: readonly number[]): void => {
     if (this.slotStart === null) this.slotStart = t
@@ -256,7 +232,7 @@ export class RiserDetector {
     this.frames = 0
     this.slotStart = nextSlotStart(this.slotStart ?? t, t, SLOT_MS)
     const features = riserFeatures(this.slots)
-    const probability = this.slots.length >= MIN_SLOTS ? riserProbability(features) : 0
+    const probability = this.slots.length >= MIN_SLOTS ? scoreProbability(this.model, this.inputs, features) : 0
     const dt = this.lastT === null ? SLOT_MS : t - this.lastT
     this.lastT = t
     this.score += (probability - this.score) * (1 - Math.exp(-dt / (probability >= this.score ? RISE_MS : FALL_MS)))

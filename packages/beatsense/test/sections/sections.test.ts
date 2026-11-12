@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { SectionSample, SectionState, SectionTracker } from '../../src/sections/sections'
-import { Booster, SectionModelData, boosterScores, sigmoid, softmaxInPlace } from '../../src/sections/section-model'
+import { Booster, SectionModelData, boosterScores, softmaxInPlace } from '../../src/sections/section-model'
+import { sigmoid } from '../../src/shared/mlp'
 import { FEATURE_NAMES } from '../../src/sections/section-features'
 
 // How well the tracker labels real songs is measured offline against expert labels (scripts/section-eval, see the plan doc).

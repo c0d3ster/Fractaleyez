@@ -106,6 +106,3 @@ export class RollReader {
     return null
   }
 }
-
-/** The page's snare roll, ticked every frame (post-effects, read 20 times a second) whatever Auto is doing, so the Beat HUD shows it all the time. */
-export const snareRoll = new RollReader()

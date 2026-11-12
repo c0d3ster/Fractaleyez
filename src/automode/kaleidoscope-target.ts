@@ -1,5 +1,4 @@
-import type { SectionState } from 'beatsense'
-import type { RollLevel } from './roll-rate'
+import type { RollLevel, SectionState } from 'beatsense'
 
 /** What Auto wants the kaleidoscope to do: `on` false is no fold; `count` is the number of wedges (even). */
 export type KaleidoscopeFold = { on: boolean, count: number }
@@ -26,7 +25,7 @@ export const DEFAULT_TUNING: KaleidoscopeTuning = { wantMs: 0, dwellMs: 2500, be
 
 const same = (a: KaleidoscopeFold, b: KaleidoscopeFold): boolean => a.on === b.on && a.count === b.count
 
-/** What the section alone asks for, before any smoothing. `roll` is how fast the snare is rolling, if it is (see roll-rate.ts). */
+/** What the section alone asks for, before any smoothing. `roll` is how fast the snare is rolling, if it is (see beatsense's RollReader). */
 export const wantedFold = (state: SectionState, roll: RollLevel | null = null): KaleidoscopeFold => {
   if (state.songMs === null) return OFF
   if (state.section === 'buildup') {

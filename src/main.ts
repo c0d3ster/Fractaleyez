@@ -1,10 +1,9 @@
-import { DEFAULT_ENABLED_BANDS, nameRhythm, RhythmLabel, RhythmLabeler, RhythmPattern } from 'beatsense'
-import { audioAnalysis } from './audio'
+import { DEFAULT_ENABLED_BANDS, nameRhythm, RhythmLabel, RhythmLabeler, RhythmPattern, RollLevel } from 'beatsense'
+import { audioAnalysis, createReadWatch } from './audio'
 import { AudioSource } from './audiostream/audio-source'
 import { AudioStream } from './audiostream/audio-stream'
 import { AudioAnalyser } from './audioanalysis/audio-analyser'
 import { AudioFeed } from './audioanalysis/audio-feed'
-import { snareRoll, type RollLevel } from './automode'
 import { exportSectionLog } from './audioanalysis/section-export'
 import { DEFAULT_DETECTOR_MS, detectorCalibration, estimateLag, LagEstimate, median } from './audioanalysis/lag-estimate'
 import { LagProbe } from './audioanalysis/lag-probe'
@@ -22,10 +21,12 @@ import { videoFrameSignal } from './visualization/video-frame-signal'
 const FFT_SIZE = 512
 
 // Create the audio components required for analysis
-const { beatMonitor, tempoTracker, beatGrid, sectionTracker, drumHits, riserDetector, sweepDetector } = audioAnalysis
+const { beatMonitor, tempoTracker, beatGrid, sectionTracker, drumHits, riserDetector, sweepDetector, snareRoll } = audioAnalysis
 const audiosource = new AudioSource()
 const audiostream = new AudioStream(audiosource, FFT_SIZE)
-const audioFeed = new AudioFeed(audiostream, new AudioAnalyser(audiostream.getBufferSize()), audioAnalysis)
+// The riser and sweep detectors only feed the Frequency HUD, which polls their scores each frame while it is open.
+const riserSweepReads = createReadWatch(1000)
+const audioFeed = new AudioFeed(audiostream, new AudioAnalyser(audiostream.getBufferSize()), audioAnalysis, { readsRiserAndSweep: riserSweepReads.isActive })
 const lagProbe = new LagProbe({
   context: audiosource.getAudioContext(),
   injectClick: audiostream.injectClick,
@@ -159,8 +160,8 @@ const init = (): void => {
   const rhythmLabeler = new RhythmLabeler()
   window.getRhythmLabel = (): RhythmLabel => rhythmLabeler.read(rhythmInput(), performance.now())
   window.getDrumHits = drumHits.getLastHits
-  window.getRiser = riserDetector.getScore
-  window.getSweep = sweepDetector.getScore
+  window.getRiser = riserSweepReads.wrap(riserDetector.getScore)
+  window.getSweep = riserSweepReads.wrap(sweepDetector.getScore)
   window.getSnareRoll = (): RollLevel | null => snareRoll.current()
   window.getSectionHistory = sectionTracker.getHistory
   window.exportSectionLog = (): void => exportSectionLog(sectionTracker.getRecording())

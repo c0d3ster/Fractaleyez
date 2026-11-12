@@ -1,7 +1,8 @@
 import modelData from './drum-hit-model.json'
+import { forward, sigmoid, standardize, type Layer } from '../shared/mlp'
 import { BandTracker, thresholdDbFor, type BandReading, type ReferenceWindow } from '../onset/onset-detector'
 
-// The kick's, the hats', the snare's and the clap's hits, for the Frequency HUD's lights and the snare roll (automode/roll-rate.ts). A rise in
+// The kick's, the hats', the snare's and the clap's hits, for the Frequency HUD's lights and the snare roll (roll-rate.ts). A rise in
 // a band is not an instrument: a rise in lo or mid fired 150 times a minute on a kick alone, 230 on hats and 200 on bass plucks on test clips,
 // and about 250 times a minute on real EDM. So each rise is a candidate, and a small model (drum-hit-model.json: one hidden layer of tanh units
 // and one sigmoid output per drum, trained on one-shot kicks, hats, snares and claps over synthetic beds, through clean, room and laptop mics:
@@ -40,11 +41,10 @@ export const DRUM_SENSITIVITY = 2
 export const DRUM_KINDS = ['kick', 'hat', 'snare', 'clap'] as const
 export type DrumKind = (typeof DRUM_KINDS)[number]
 
-/** A dense layer: `weights[out][in]`. */
-type Layer = { weights: number[][]; bias: number[] }
 /** `thresholds`: how sure the model has to be for each drum, chosen on held-out folds (drum-train.py). */
-type DrumHitModel = { kinds: string[]; features: string[]; mean: number[]; scale: number[]; hidden: Layer; output: Layer; thresholds: number[] }
-const MODEL: DrumHitModel = modelData
+export type DrumHitModel = { kinds: string[]; features: string[]; mean: number[]; scale: number[]; hidden: Layer; output: Layer; thresholds: number[] }
+/** The bundled drum model (drum-hit-model.json); `DrumHits` takes another as its second argument. */
+export const DRUM_HIT_MODEL: DrumHitModel = modelData
 
 /**
  * Where each drum's hits sit in frequency (Hz), for placing its light under the Frequency HUD: the band centres on a log scale, weighted by
@@ -92,19 +92,14 @@ export const drumFeatures = (
   ]
 }
 
-const dense = ({ weights, bias }: Layer, input: readonly number[]): number[] =>
-  weights.map((row, j) => row.reduce((sum, w, i) => sum + w * (input[i] ?? 0), bias[j] ?? 0))
-
 /** The model's probability for each drum (kick, hat, snare, clap), each on its own: they do not add up to one. */
-export const drumProbabilities = (features: readonly number[]): number[] => {
-  const scaled = features.map((v, i) => (v - (MODEL.mean[i] ?? 0)) / (MODEL.scale[i] ?? 1))
-  return dense(MODEL.output, dense(MODEL.hidden, scaled).map(Math.tanh)).map((s) => 1 / (1 + Math.exp(-s)))
-}
+export const drumProbabilities = (features: readonly number[], model: DrumHitModel = DRUM_HIT_MODEL): number[] =>
+  forward(model, standardize(model, features)).map(sigmoid)
 
-const kindsOf = (probabilities: readonly number[]): DrumKind[] =>
+const kindsOf = (probabilities: readonly number[], model: DrumHitModel): DrumKind[] =>
   DRUM_KINDS.filter((kind) => {
-    const k = MODEL.kinds.indexOf(kind)
-    return k >= 0 && (probabilities[k] ?? 0) > (MODEL.thresholds[k] ?? 1)
+    const k = model.kinds.indexOf(kind)
+    return k >= 0 && (probabilities[k] ?? 0) > (model.thresholds[k] ?? 1)
   })
 
 /**
@@ -124,7 +119,7 @@ export class DrumHits {
   private readonly pending: Pending[] = []
   private firstT: number | null = null
 
-  constructor(private readonly onCandidate?: (candidate: DrumCandidate) => void) {
+  constructor(private readonly onCandidate?: (candidate: DrumCandidate) => void, private readonly model: DrumHitModel = DRUM_HIT_MODEL) {
     this.rollHits = [this.listOf('snare'), this.listOf('clap')]
   }
 
@@ -148,7 +143,7 @@ export class DrumHits {
   /** Each drum's hits over the last few seconds (ms, oldest first), in DRUM_KINDS order. Not a copy: do not keep it. */
   getHits = (): ReadonlyArray<readonly number[]> => this.hits
 
-  /** The snare's and the clap's hits, the ones the snare roll is read from (automode/roll-rate.ts). Not a copy: do not keep it. */
+  /** The snare's and the clap's hits, the ones the snare roll is read from (roll-rate.ts). Not a copy: do not keep it. */
   getRollHits = (): ReadonlyArray<readonly number[]> => this.rollHits
 
   /** When each drum last hit (the time of the candidate's first edge), or null before the first. */
@@ -160,8 +155,8 @@ export class DrumHits {
 
   private classify = (candidate: Pending, steps: ReadonlyArray<{ reading: BandReading }>, levels: readonly number[]): void => {
     const features = drumFeatures(this.trackers, steps.map(({ reading }) => reading), levels, candidate)
-    const probabilities = drumProbabilities(features)
-    const kinds = kindsOf(probabilities)
+    const probabilities = drumProbabilities(features, this.model)
+    const kinds = kindsOf(probabilities, this.model)
     kinds.forEach((kind) => {
       const k = DRUM_KINDS.indexOf(kind)
       const last = this.last[k]

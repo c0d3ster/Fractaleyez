@@ -54,6 +54,9 @@ export class BeatMonitor {
   private bandOnsets: number[][] = []
   private readonly listeners = new Set<() => void>()
 
+  /** `clock` is what the read-time trims (`getBeatTimes`, `getBandOnsets`) measure against, in the same ms as the samples' `t`. */
+  constructor(private readonly clock: () => number = () => performance.now()) {}
+
   record = (sample: BeatSample): void => {
     this.samples.push(sample)
     this.trim(this.samples, sample.t)
@@ -89,13 +92,13 @@ export class BeatMonitor {
   /** When each recent beat landed (the last few seconds' worth), oldest first, for reading a tempo from. */
   getBeatTimes = (): readonly number[] => {
     // Trimmed on read as well as on each beat, so the tempo goes away when the beats stop instead of showing the last one forever.
-    const oldest = performance.now() - TEMPO_HISTORY_MS
+    const oldest = this.clock() - TEMPO_HISTORY_MS
     return this.beatTimes.filter((time) => time >= oldest)
   }
 
   /** Each band's own onsets over the last few seconds (ms, oldest first), one list per band: what the kick, the snare and the hats are doing, which the merged beats cannot say. */
   getBandOnsets = (): ReadonlyArray<readonly number[]> => {
-    const oldest = performance.now() - TEMPO_HISTORY_MS
+    const oldest = this.clock() - TEMPO_HISTORY_MS
     return this.bandOnsets.map((times) => times.filter((time) => time >= oldest))
   }
 

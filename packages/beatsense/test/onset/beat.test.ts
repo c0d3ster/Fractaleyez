@@ -93,3 +93,17 @@ describe('BeatMonitor.getBandOnsets', () => {
     vi.restoreAllMocks()
   })
 })
+
+describe('BeatMonitor clock', () => {
+  it('trims beat times and band onsets against the injected clock, not wall time', () => {
+    let now = 0
+    const monitor = new BeatMonitor(() => now)
+    monitor.record({ t: 1000, bands: [{ rising: true }], beatBand: 0 } as unknown as BeatSample)
+    now = 2000
+    expect(monitor.getBeatTimes()).toEqual([1000])
+    expect(monitor.getBandOnsets()[0]).toEqual([1000])
+    now = 1000 + 60000
+    expect(monitor.getBeatTimes()).toEqual([])
+    expect(monitor.getBandOnsets()[0]).toEqual([])
+  })
+})
