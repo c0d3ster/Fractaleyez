@@ -1,6 +1,7 @@
-// Replays a fixed, seeded piece of synthetic music through the real AudioFeed and AudioAnalyser frame by frame and checks that every
-// analyser says exactly what it said when audio-feed.equivalence.golden.json was recorded. It is there for refactors that must not change
-// the analysis (moving the audio code into packages/beatsense): the output is hashed, so any difference at all fails it.
+// Replays a fixed, seeded piece of synthetic music through the real AudioFeed and AudioAnalyser frame by frame (a measured capture frame
+// pushed, then a drawn frame ticked, every 1/60 s) and checks that every analyser says exactly what it said when
+// audio-feed.equivalence.golden.json was recorded. It is there for refactors that must not change the analysis: the output is hashed, so
+// any difference at all fails it. The golden was re-recorded for the worklet capture (frames at a fixed hop, timed by their index).
 //
 //   pnpm vitest run src/audioanalysis/audio-feed.equivalence.test.ts
 //   UPDATE_GOLDEN=1 ...      rewrites the golden (only for an intended change in the analysis output)
@@ -9,7 +10,7 @@ import { createHash, type Hash } from 'node:crypto'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { buildSectionLog, DRUM_KINDS, nameRhythm, RhythmLabeler, SectionTracker, type DrumKind, type RhythmInput, type SongSection } from 'beatsense'
+import { buildSectionLog, DRUM_KINDS, nameRhythm, RhythmLabeler, SectionTracker, SpectrumReducer, type CaptureFrame, type DrumKind, type RhythmInput, type SongSection } from 'beatsense'
 import { createAudioAnalysis } from '../audio'
 import { AudioData } from '../audiostream/audio-data'
 import { analyserConfig } from '../config/analyser.config'
@@ -211,10 +212,13 @@ const run = (): EquivalenceResult => {
 
   const music = createMusic(20261111)
   let frame: Frame = music(0)
-  const stream: AudioFeedStream = {
-    getAudioData: () => frame.audio,
-    getBandLevels: () => frame.levels,
-    getSpectrumShape: () => ({ sampleRate: SAMPLE_RATE, binCount: BINS }),
+  const stream: AudioFeedStream = { getAudioData: () => frame.audio }
+  const reducer = new SpectrumReducer(SAMPLE_RATE, BINS)
+  // What the worklet's front end would measure from this frame: the band levels, the energy (mean distance of the time-domain bytes from 128) and the pooled spectrum.
+  const captureOf = (index: number): CaptureFrame => {
+    const { levels, audio } = frame
+    const energy = audio.timedomainData.reduce((sum, byte) => sum + Math.abs(byte - 128), 0) / audio.timedomainData.length
+    return { index, levels, energy, spectrum: Uint8Array.from(reducer.reduce(audio.frequencyData)) }
   }
   const analysis = createAudioAnalysis()
   const { beatMonitor, tempoTracker, beatGrid, sectionTracker, drumHits, riserDetector, sweepDetector } = analysis
@@ -238,6 +242,7 @@ const run = (): EquivalenceResult => {
   for (let n = 0; clock < END_MS; n++) {
     clock = n * FRAME_MS
     frame = music(clock)
+    feed.push(captureOf(n + 1), clock)
     const snapshot = feed.tick(FRAME_MS, new Date(start + Math.round(clock)))
     const samples = beatMonitor.getTimeline().samples
     const section = sectionTracker.getState()
