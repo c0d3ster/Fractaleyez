@@ -34,6 +34,8 @@ jobs:
           # private half saved as a secret in this repo, and that secret named in DEPLOY_KEY below.
           - prefix: packages/sprite-strip
             repo: c0d3ster/sprite-strip
+          - prefix: packages/beatsense
+            repo: c0d3ster/beatsense
     steps:
       - uses: actions/checkout@v4
         with:
@@ -48,7 +50,7 @@ jobs:
         env:
           # Each package's key by name, so the job gets only the secret it uses (a secrets[...] lookup
           # hands the runner every secret in the repo).
-          DEPLOY_KEY: ${{ matrix.prefix == 'packages/sprite-strip' && secrets.SPRITE_STRIP_DEPLOY_KEY || '' }}
+          DEPLOY_KEY: ${{ (matrix.prefix == 'packages/sprite-strip' && secrets.SPRITE_STRIP_DEPLOY_KEY) || (matrix.prefix == 'packages/beatsense' && secrets.BEATSENSE_DEPLOY_KEY) || '' }}
           REPO: ${{ matrix.repo }}
         run: |
           if [ -z "$DEPLOY_KEY" ]; then
