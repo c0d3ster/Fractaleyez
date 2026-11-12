@@ -329,6 +329,6 @@ The sweep cannot run on Raveform (band levels only), so its numbers come from SS
    near, the hats still move between 1.9 and 3.4 kHz across mics and folds, and the beds pull every drum (kick 130 to 160 Hz, 300 on a
    laptop mic), so it is no more stable than before.
 6. Check it live in the app (nothing here has been looked at in the browser yet).
-7. After this merges: bring the roll reader onto these hits on `feat/auto-mode-mvp` (see branch `wip/auto-mode-drum-roll`, commit c9b6784:
-   `RollReader` reading `getRollHits()`, a 4.5 beat window with a half-note cutoff, `roll-onsets.ts` removed), and offer the drum rates and
-   the riser score to the section model as features (all of it can be computed offline from saved band levels with `drum-eval.mts`).
+7. Done on `feat/auto-mode-mvp`: the roll reader reads these hits (`RollReader` reading `getRollHits()`, a 4.5 beat window with a half-note
+   cutoff, `roll-onsets.ts` removed); not yet checked on a real mic. Still open: offer the drum rates and the riser score to the section
+   model as features (all of it can be computed offline from saved band levels with `drum-eval.mts`).
