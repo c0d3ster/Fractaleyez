@@ -29,6 +29,9 @@ importers:
       axios:
         specifier: ^1.20.0
         version: 1.20.0
+      beatsense:
+        specifier: workspace:*
+        version: link:packages/beatsense
       classnames:
         specifier: ^2.2.6
         version: 2.5.1
@@ -50,9 +53,6 @@ importers:
       react-dom:
         specifier: ^18.2.0
         version: 18.3.1(react@18.3.1)
-      beatsense:
-        specifier: workspace:*
-        version: link:packages/beatsense
       sprite-strip:
         specifier: workspace:*
         version: link:packages/sprite-strip
@@ -234,6 +234,9 @@ importers:
       tsup:
         specifier: ^9.0.0
         version: 9.0.0(jiti@2.7.0)(postcss@8.5.29)(tsx@4.23.15)(typescript@6.0.2)
+      tsx:
+        specifier: ^4.23.15
+        version: 4.23.15
       typescript:
         specifier: ^6.0.2
         version: 6.0.2
