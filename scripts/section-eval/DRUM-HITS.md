@@ -76,6 +76,10 @@ gives the counts below exactly) and can add `github.com/geikha/tidal-drum-machin
 score with it, do not ship it): kick 566, hat 321, snare 679, clap 93, cymbal 255. It names each file by its drum machine, and
 `drum-gen.py` puts a machine's samples in one fold, so held-out folds are machines never heard.
 
+`models/riser-buildup-model.json` is the buildup detector (A in the results): all 52 inputs, trained with `riser-train.py $C --features all
+--real-negatives $TR --buildups --negative-weight 2 --intros --real-every 2` on the 300 train tracks. Kept for the section model's
+retrain (it reads what a buildup does, which the meter does not want); `riser-score.py` and `riser-section-features.py` (`A=<path>`) read it.
+
 ## Data on this machine
 
 `C:\Users\codyd\Documents\audio-datasets\drum-hits\` (not in the repo, 729 MB):
@@ -312,11 +316,12 @@ The sweep cannot run on Raveform (band levels only), so its numbers come from SS
 1. Riser labels on real music. Nothing so far can say how many real risers either detector misses or whether the sweep's readings in
    breaks are right. Mark riser spans on recorded sessions (a hotkey in the labelling tool) and score both with `sweep-train.py` and
    `riser-score.py` against them; then retrain the sweep with real positives. The recorder's ticks carry the 40-band spectrum the sweep
-   reads, so labelled sessions train it directly. Known weak spots: fade-ins of the whole mix and steady noise read as rising. Ideas: the drum rates as inputs (a snare
-   roll speeding up is the clearest buildup cue and the band levels hide it), a threshold or calibration per use (the HUD could fill the
-   meter from 0.3), more real tracks, or both models side by side (B for the HUD's riser meter, A for the section model). The pure riser
-   (B) is reproducible with `--features highs --real-negatives $TR`. The `it.fails` riser test now rises through the riser (0.998) but
-   single raw slots of the plain clip still read over 0.5.
+   reads, so labelled sessions train it directly. Known weak spots: fade-ins of the whole mix and steady noise read as rising. Other ideas:
+   the drum rates as inputs (a snare roll speeding up is the clearest buildup cue and the band levels hide it), more real tracks. The
+   `it.fails` riser test rises through the riser but single raw slots of the plain clip still read over 0.5.
+   For the section model's full retrain: the buildup detector (A, `models/riser-buildup-model.json`, not used by the app) and the pure
+   riser (B, the app's `riser-model.json`) together added about 0.009 mean F1 and 0.02 drop F1 as section features (see
+   `docs/implementation-plans/song-sections.md`); offer both, and the sweep, as candidate inputs then and keep what survives.
 2. Hats: 44% caught at 4.7 false a minute (hats a snare or a clap hides not counted), but worse than the first model on real off-beat hats
    (above). Thresholds chosen on real music (Raveform folds, with `drum-real-score.py`'s proxies) or real music in training would go at
    that. Most synthetic misses never rise in the band levels at all, so more recall needs something finer than five bands at 60 fps. A lower threshold trades the other way (on the first setup: 0.75
