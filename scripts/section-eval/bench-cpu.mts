@@ -11,13 +11,13 @@ import { readFileSync, readdirSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { performance } from 'node:perf_hooks'
-import { OnsetDetector } from '../../src/audioanalysis/onset-detector.ts'
-import { DEFAULT_ENABLED_BANDS } from '../../src/audioanalysis/onset-bands.ts'
-import { estimateTempo } from '../../src/audioanalysis/tempo.ts'
-import { SectionTracker } from '../../src/audioanalysis/sections.ts'
-import { TempoTracker } from '../../src/audioanalysis/tempo-tracker.ts'
-import { BeatGrid } from '../../src/audioanalysis/beat-grid.ts'
-import type { BeatSample } from '../../src/audioanalysis/beat.ts'
+import { OnsetDetector } from '../../packages/soundsense/src/onset-detector.ts'
+import { DEFAULT_ENABLED_BANDS } from '../../packages/soundsense/src/onset-bands.ts'
+import { estimateTempo } from '../../packages/soundsense/src/tempo.ts'
+import { SectionTracker } from '../../packages/soundsense/src/sections.ts'
+import { TempoTracker } from '../../packages/soundsense/src/tempo-tracker.ts'
+import { BeatGrid } from '../../packages/soundsense/src/beat-grid.ts'
+import type { BeatSample } from '../../packages/soundsense/src/beat.ts'
 import { DEFAULT_VIEW_MS, WaveformTrack, type WaveformContext, type WaveformView } from '../../src/components/huds/waveformTrack.ts'
 import { BANDS, loadLevels } from './stream.mts'
 
@@ -117,7 +117,7 @@ for (const timer of timers) {
   console.log(`${''.padEnd(32)} frames over 2 ms: ${over(2)} per hour, over 4 ms: ${over(4)} per hour, over 8 ms: ${over(8)} per hour`)
   console.log(`${timer.name.padEnd(32)} ${msPerSecond.toFixed(3).padStart(7)} ms per second of audio (${((msPerSecond / 60 / FRAME_MS) * 100).toFixed(2)}% of each frame, ${(timer.total / timer.calls).toFixed(4)} ms per call), slowest frame ${timer.max.toFixed(2)} ms, p99 of the frames doing work ${p99.toFixed(2)} ms`)
 }
-const json = readFileSync(resolve('../../src/audioanalysis/section-model.json'), 'utf8')
+const json = readFileSync(resolve('../../packages/soundsense/src/section-model.json'), 'utf8')
 const start = performance.now()
 for (let i = 0; i < 10; i++) JSON.parse(json)
 console.log(`parsing section-model.json (${(json.length / 1024).toFixed(0)} KB): ${((performance.now() - start) / 10).toFixed(1)} ms, once at startup`)

@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 
 import { AudioAnalysedDataForVisualization } from '../../audioanalysis/audio-analysed-data'
-import { DEFAULT_ENABLED_BANDS } from '../../audioanalysis/onset-bands'
+import { DEFAULT_ENABLED_BANDS } from 'soundsense'
 import { getParticleCrossfadeDurationMs, MAX_CROSSFADE_GENERATIONS } from '../../config/visualizer.config'
 import { CameraManager, cameraFollowSign } from '../camera-manager'
 import { HopalongVisualizer } from '../hopalong-visualizer'

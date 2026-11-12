@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { BeatSample } from '../../audioanalysis/beat'
-import type { GridState } from '../../audioanalysis/beat-grid'
+import type { BeatSample, GridState } from 'soundsense'
 import { WAVEFORM_H, WaveformContext, WaveformTrack, WaveformView } from './waveformTrack'
 
 type Rect = { x: number; y: number; w: number; h: number; alpha: number; fill: string }

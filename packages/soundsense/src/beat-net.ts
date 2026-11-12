@@ -6,6 +6,7 @@
 // The input has to match beat-net.py exactly (see its header): each frame's band levels in dB, interpolated onto a 10 ms hop grid starting
 // at the first frame, then per hop and band the level against a 3 s follower, the rise over a 30 ms follower and the step from the hop
 // before. The GRU uses PyTorch's equations, gates in its order (reset, update, new).
+import trainedModel from './beat-net-model.json'
 
 export type GruLayer = {
   /** (3 x hidden) x inputs, row-major, gates reset, update, new. */
@@ -28,6 +29,9 @@ export type BeatNetModel = {
   outWeight: number[]
   outBias: number[]
 }
+
+/** The trained network (beat-net-model.json), for BeatGrid's phase. */
+export const BEAT_NET_MODEL: BeatNetModel = trainedModel
 
 export type BeatActivation = {
   /** The hop's time (ms, the clock of the frames). */

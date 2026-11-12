@@ -640,5 +640,3 @@ export class SectionTracker {
     return clamp01((toDb(recent / count) - toDb(peak) + 18) / 18)
   }
 }
-
-export const sectionTracker = new SectionTracker()

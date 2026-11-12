@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { SectionState } from '../audioanalysis/sections'
+import type { SectionState } from 'soundsense'
 import { GhostStore } from '../utils/ghostStore'
 import { AutoMode, isAutomatedEffectItem } from './auto-mode'
 import { DEFAULT_TUNING, KaleidoscopeAuto, type KaleidoscopeTuning, wantedFold } from './kaleidoscope-target'

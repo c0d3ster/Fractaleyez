@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import type { BeatSample } from '../../audioanalysis/beat'
+import type { BeatSample } from 'soundsense'
 import { BASS_CREDIT_MS, HIT_FLASH_MS, beatFlashes } from './beatFlashes'
 
 const BANDS = 5

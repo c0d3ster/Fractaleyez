@@ -1,4 +1,4 @@
-// Writes the section features (src/audioanalysis/section-features.ts) of every song in a levels directory, for training the section model.
+// Writes the section features (packages/soundsense/src/section-features.ts) of every song in a levels directory, for training the section model.
 //
 //   tsx dump-features.mts <levels dir> <out dir>
 //
@@ -6,11 +6,11 @@
 // The grid columns come from a TempoTracker and BeatGrid fed the same frames, in the order AudioFeed feeds them.
 import { mkdirSync, readFileSync, readdirSync, writeFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
-import { OnsetDetector } from '../../src/audioanalysis/onset-detector.ts'
-import { ONSET_BANDS, DEFAULT_ENABLED_BANDS } from '../../src/audioanalysis/onset-bands.ts'
-import { FEATURE_COUNT, FEATURE_NAMES, SectionFeatures } from '../../src/audioanalysis/section-features.ts'
-import { TempoTracker } from '../../src/audioanalysis/tempo-tracker.ts'
-import { BeatGrid } from '../../src/audioanalysis/beat-grid.ts'
+import { OnsetDetector } from '../../packages/soundsense/src/onset-detector.ts'
+import { ONSET_BANDS, DEFAULT_ENABLED_BANDS } from '../../packages/soundsense/src/onset-bands.ts'
+import { FEATURE_COUNT, FEATURE_NAMES, SectionFeatures } from '../../packages/soundsense/src/section-features.ts'
+import { TempoTracker } from '../../packages/soundsense/src/tempo-tracker.ts'
+import { BeatGrid } from '../../packages/soundsense/src/beat-grid.ts'
 
 const [dir, out] = [process.argv[2]!, process.argv[3]!]
 mkdirSync(out, { recursive: true })

@@ -222,5 +222,3 @@ export class SweepDetector {
     for (let i = 0; i < this.steps.length - 1; i++) this.steps[i] = [...level]
   }
 }
-
-export const sweepDetector = new SweepDetector()

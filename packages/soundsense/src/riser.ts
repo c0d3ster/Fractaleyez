@@ -263,5 +263,3 @@ export class RiserDetector {
     this.onSlot?.({ t, features, probability })
   }
 }
-
-export const riserDetector = new RiserDetector()

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { TempoChangeCue } from './tempo-change'
+import { TempoChangeCue } from '../src/tempo-change'
 
 const feed = (cue: TempoChangeCue, readings: Array<[number, number | null, boolean]>): boolean[] =>
   readings.map(([t, bpm, armed]) => cue.push(t, bpm, armed))

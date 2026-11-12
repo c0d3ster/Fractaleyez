@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { SWEEP_FEATURE_NAMES, SweepDetector, sweepFeatures, sweepProbability, type SweepSlot } from './sweep'
+import { SWEEP_FEATURE_NAMES, SweepDetector, sweepFeatures, sweepProbability, type SweepSlot } from '../src/sweep'
 import fixture from './sweep.fixture.json'
 
 const named = (features: number[], name: string): number => features[SWEEP_FEATURE_NAMES.indexOf(name)] ?? Number.NaN

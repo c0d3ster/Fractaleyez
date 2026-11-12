@@ -1,4 +1,4 @@
-import type { SectionState } from '../audioanalysis/sections'
+import type { SectionState } from 'soundsense'
 import type { RollLevel } from './roll-rate'
 
 /** What Auto wants the kaleidoscope to do: `on` false is no fold; `count` is the number of wedges (even). */

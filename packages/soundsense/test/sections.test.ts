@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { SectionSample, SectionState, SectionTracker } from './sections'
-import { Booster, SectionModelData, boosterScores, sigmoid, softmaxInPlace } from './section-model'
-import { FEATURE_NAMES } from './section-features'
+import { SectionSample, SectionState, SectionTracker } from '../src/sections'
+import { Booster, SectionModelData, boosterScores, sigmoid, softmaxInPlace } from '../src/section-model'
+import { FEATURE_NAMES } from '../src/section-features'
 
 // How well the tracker labels real songs is measured offline against expert labels (scripts/section-eval, see the plan doc).
 // These tests pin what has to hold whatever the model learned: no labels without a song, the song clock, song changes on long

@@ -1,4 +1,4 @@
-import type { BeatSample } from '../../audioanalysis/beat'
+import type { BeatSample } from 'soundsense'
 
 // How long a band's bar flashes after it sets off a beat.
 export const HIT_FLASH_MS = 250

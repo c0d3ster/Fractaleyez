@@ -2,7 +2,7 @@ import { userConfig as UserConfig } from '../config/user.config'
 
 import { AudioSource } from './audio-source'
 import { AudioData } from './audio-data'
-import { MAX_BAND_WINDOW_SAMPLES, ONSET_BANDS } from '../audioanalysis/onset-bands'
+import { MAX_BAND_WINDOW_SAMPLES, ONSET_BANDS } from 'soundsense'
 
 const ANALYSER_SMOOTHING = 0.2
 

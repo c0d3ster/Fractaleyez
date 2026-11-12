@@ -67,7 +67,7 @@ const COINCIDENCE_MS = 40
  */
 export const ANALYSIS_ONSET = { enabledBands: DEFAULT_ENABLED_BANDS, sensitivity: 2, ignoreMs: 250 } as const
 
-type OnsetParams = {
+export type OnsetParams = {
   /** Which bands may set off a beat (the Frequency HUD toggles). Disabled bands are still tracked, just not heard. */
   enabledBands: boolean[]
   /** The Threshold slider: higher asks for a bigger jump over the recent maximum. */

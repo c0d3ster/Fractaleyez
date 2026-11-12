@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { TempoTracker } from './tempo-tracker'
+import { TempoTracker } from '../src/tempo-tracker'
 
 // How accurate the tracker is on real music is measured offline against labelled tempos (scripts/section-eval/bpm-eval.mts). These pin
 // what must hold on clean synthetic beats: the right tempo at any frame rate, dotted hats not taken for the beat, a clean switch when the
