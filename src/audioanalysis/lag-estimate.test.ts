@@ -9,7 +9,7 @@ describe('estimateLag', () => {
   })
 
   it('grows with a lower frame cap but not with it alone: the monitor refresh is separate', () => {
-    const detector = { ms: DEFAULT_DETECTOR_MS.saver, calibrated: false }
+    const detector = { ms: DEFAULT_DETECTOR_MS, calibrated: false }
     expect(estimateLag(detector, 32.8, 1, 4.2).totalMs).toBeGreaterThan(estimateLag(detector, 4.2, 1, 4.2).totalMs)
     expect(estimateLag(detector, 32.8, 1, 4.2).displayMs).toBe(4.2)
   })
