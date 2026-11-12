@@ -64,7 +64,8 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-          registry-url: https://registry.npmjs.org
+          # No registry-url: with it, setup-node writes an .npmrc that sends NODE_AUTH_TOKEN, which it fills with a placeholder
+          # when there is no token, and npm publishes with that instead of trusted publishing (the registry answers 404).
 
       - name: Install
         if: steps.version.outputs.publish == 'true'
