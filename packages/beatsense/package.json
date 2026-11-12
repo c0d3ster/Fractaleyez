@@ -13,13 +13,26 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
+    },
+    "./worklet": {
+      "@fractaleyez/source": "./src/worklet/processor.ts",
+      "import": "./dist/worklet.js"
+    },
+    "./worker": {
+      "@fractaleyez/source": "./src/host/worker.ts",
+      "import": "./dist/worker.js"
     }
   },
   "files": [
     "dist",
     "NOTICE"
   ],
-  "sideEffects": false,
+  "sideEffects": [
+    "./src/worklet/processor.ts",
+    "./src/host/worker.ts",
+    "./dist/worklet.js",
+    "./dist/worker.js"
+  ],
   "scripts": {
     "build": "tsup",
     "typecheck": "tsc --noEmit",

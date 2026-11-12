@@ -37,9 +37,10 @@ export class FrontEnd {
     this.analyser.push(samples)
   }
 
-  read = (): FrontEndReading => {
+  /** `withSpectrum` overrides the constructor's `spectrum` for this read (a no-op when the front end was built without one). */
+  read = (withSpectrum: boolean = true): FrontEndReading => {
     const reading: FrontEndReading = { levels: this.bands.read(), energy: this.analyser.energy() }
-    if (this.reducer) reading.spectrum = this.reducer.reduce(this.analyser.read())
+    if (this.reducer && withSpectrum) reading.spectrum = this.reducer.reduce(this.analyser.read())
     return reading
   }
 }
