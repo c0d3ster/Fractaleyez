@@ -1,6 +1,11 @@
 # Publishes each workspace package to npm when main has a version of it npm does not.
 # Bump "version" in the package's package.json to release it; a push that leaves the version alone
 # publishes nothing. The package's typecheck, tests and build run first.
+#
+# No npm token: npm trusts this workflow through trusted publishing (OIDC). Each package lists it on
+# npmjs.com under Settings, Trusted Publisher: GitHub Actions, owner c0d3ster, repository Fractaleyez,
+# workflow publish-packages.yml. npm then attaches provenance, which needs the package's
+# repository.url to be this repo (with "directory" for the package's folder).
 name: Publish packages
 
 on:
@@ -23,11 +28,15 @@ jobs:
     # Only main publishes, also for a manual run started from another branch.
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # The OIDC token npm's trusted publishing exchanges for a one-off publish credential.
+      id-token: write
     strategy:
       fail-fast: false
       matrix:
         include:
-          # To add a package: one entry here. The npm token must be able to publish it.
+          # To add a package: one entry here, and this workflow added as its trusted publisher on npmjs.com.
           - dir: packages/sprite-strip
     steps:
       - uses: actions/checkout@v4
@@ -74,11 +83,8 @@ jobs:
       - name: Publish ${{ steps.version.outputs.name }}@${{ steps.version.outputs.version }}
         if: steps.version.outputs.publish == 'true'
         working-directory: ${{ matrix.dir }}
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        # npm, not pnpm: trusted publishing needs npm 11.5.1 or later. The package has no workspace: dependencies for pnpm to
+        # rewrite, and dist/ was built and checked above, so its own build script is skipped.
         run: |
-          if [ -z "$NODE_AUTH_TOKEN" ]; then
-            echo "::error::The NPM_TOKEN secret is not set"
-            exit 1
-          fi
-          pnpm publish --no-git-checks
+          npm install -g npm@^11.5.1
+          npm publish --ignore-scripts
