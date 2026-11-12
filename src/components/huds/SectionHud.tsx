@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useInfo } from '../config/info/info'
 import './SectionHud.css'
 
-import { SectionState, SectionSlot, SongSection } from 'soundsense'
+import { SectionState, SectionSlot, SongSection } from 'beatsense'
 import { subscribeUiTick } from '../../utils/uiTicker'
 import { listenWheel, zoomView } from './wheelZoom'
 

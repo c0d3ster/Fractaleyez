@@ -8,7 +8,7 @@ import numpy as np
 
 RISE_MS = 400
 FALL_MS = 150
-AUDIO = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'packages', 'soundsense', 'src')
+AUDIO = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'packages', 'beatsense', 'src')
 
 
 def feature_names() -> list[str]:

@@ -1,6 +1,6 @@
 // Replays a fixed, seeded piece of synthetic music through the real AudioFeed and AudioAnalyser frame by frame and checks that every
 // analyser says exactly what it said when audio-feed.equivalence.golden.json was recorded. It is there for refactors that must not change
-// the analysis (moving the audio code into packages/soundsense): the output is hashed, so any difference at all fails it.
+// the analysis (moving the audio code into packages/beatsense): the output is hashed, so any difference at all fails it.
 //
 //   pnpm vitest run src/audioanalysis/audio-feed.equivalence.test.ts
 //   UPDATE_GOLDEN=1 ...      rewrites the golden (only for an intended change in the analysis output)
@@ -9,7 +9,7 @@ import { createHash, type Hash } from 'node:crypto'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { buildSectionLog, DRUM_KINDS, nameRhythm, RhythmLabeler, SectionTracker, type DrumKind, type RhythmInput, type SongSection } from 'soundsense'
+import { buildSectionLog, DRUM_KINDS, nameRhythm, RhythmLabeler, SectionTracker, type DrumKind, type RhythmInput, type SongSection } from 'beatsense'
 import { createAudioAnalysis } from '../audio'
 import { AudioData } from '../audiostream/audio-data'
 import { analyserConfig } from '../config/analyser.config'

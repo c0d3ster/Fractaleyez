@@ -1,5 +1,5 @@
 import type { AppConfig, LayerKey } from '../config/configDefaults'
-import type { BeatTimeline, DrumKind, GridState, SectionSlot, SectionState, TempoReading, RhythmLabel, RhythmPattern } from 'soundsense'
+import type { BeatTimeline, DrumKind, GridState, SectionSlot, SectionState, TempoReading, RhythmLabel, RhythmPattern } from 'beatsense'
 import type { LagEstimate } from '../audioanalysis/lag-estimate'
 import type { LagMeasurement } from '../audioanalysis/lag-probe'
 import type { QualityStatus } from '../visualization/quality-controller'

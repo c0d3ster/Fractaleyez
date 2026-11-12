@@ -9,8 +9,8 @@
 // 1 lo, 2 mid, 3 hi, 4 air), r<b>_<lag> (share of band b's hits repeating `lag` beats later within 40 ms), ph<k> (share of hi hits in each
 // sixth of a beat after the latest kick: swing shows late). `rhythm` is the run's held label when it has one (pattern-eval.mts), else its name.
 import { readFileSync, writeFileSync } from 'node:fs'
-import { rhythmFeatures } from '../../packages/soundsense/src/rhythm-pattern.ts'
-import modelData from '../../packages/soundsense/src/rhythm-model.json' with { type: 'json' }
+import { rhythmFeatures } from '../../packages/beatsense/src/rhythm-pattern.ts'
+import modelData from '../../packages/beatsense/src/rhythm-model.json' with { type: 'json' }
 
 const [input, output] = process.argv.slice(2) as [string, string]
 const WINDOW_MS = 12000

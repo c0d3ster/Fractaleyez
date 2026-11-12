@@ -1,13 +1,13 @@
-"""Trains the beat network (packages/soundsense/src/beat-net.ts): a small causal GRU that reads the five onset-band levels and says, every 10 ms,
+"""Trains the beat network (packages/beatsense/src/beat-net.ts): a small causal GRU that reads the five onset-band levels and says, every 10 ms,
 how likely a beat (and a downbeat) is right now. It learns what a beat sounds like in each song from what it has heard so far (the kick in
 one, a clap in another), which a rise in energy alone cannot tell (docs/experiments/madmom-benchmark.md: our grid's beats land on the
 off-beat 14% of the time).
 
     python beat-net.py train <levels dir> <structures dir> <out dir> [--steps 6000] [--hidden 32] [--threads 16]
         [--extra '<levels dir>|<beats dir>[,...]'] [--stretch 0] [--init earlier/model.pt]
-    python beat-net.py export <out dir>/model.pt ../../packages/soundsense/src/beat-net-model.json
+    python beat-net.py export <out dir>/model.pt ../../packages/beatsense/src/beat-net-model.json
     python beat-net.py score <out dir>/model.pt <levels dir> <structures dir> [--folds 6,7]
-    python beat-net.py fixture <out dir>/model.pt <levels file> ../../packages/soundsense/test/beat-net.fixture.json   (for beat-net.test.ts)
+    python beat-net.py fixture <out dir>/model.pt <levels file> ../../packages/beatsense/test/beat-net.fixture.json   (for beat-net.test.ts)
 
 Levels are Raveform's (raveform-fetch.py: <key>.f16, or levels.py's <key>.f32), 60 fps, frames x 5, % of full scale. Labels are its marked
 beats (structures/beats/<key>.beat.csv: time, beat in bar). Raveform's folds: train on 0 to 4, choose on 5, report on 6 and 7.

@@ -1,4 +1,4 @@
-import { buildSectionLog, type SectionTick } from 'soundsense'
+import { buildSectionLog, type SectionTick } from 'beatsense'
 
 /** Downloads the log as a JSON file. Called from the console as `exportSectionLog()` after a listening session. */
 export const exportSectionLog = (ticks: readonly SectionTick[]): void => {
