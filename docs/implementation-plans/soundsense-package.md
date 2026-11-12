@@ -95,10 +95,10 @@ export const audioAnalysis = createAudioAnalysis()
 
 Each phase is its own commit or commits, with the app's behavior unchanged.
 
-1. **Survey and plan** (this doc). This PR.
-2. **Package skeleton**: `packages/soundsense` with `package.json` (private, one entry with the source condition and the `dist` files), tsconfig, tsup, eslint and vitest configs like sprite-strip's, an `index.ts` barrel, the app depending on it as `workspace:*`. This PR.
-3. **The pure analysis core**: every module in the first table except `roll-rate.ts`, with the model JSONs, their tests (into `test/`, as in sprite-strip) and the test fixtures. The singletons become `src/audio.ts`; `AudioFeed` takes the set as a constructor argument. `section-export.ts` splits: the format (`buildSectionLog`, `SectionLog`) moves as `section-log.ts`, the browser download stays in the app. The scripts and the Python trainers point at the new paths. This PR.
-4. **Equivalence check**: recorded before phase 3, rerun after it (see below). This PR.
+1. **Survey and plan** (this doc). Done.
+2. **Package skeleton**: `packages/soundsense` with `package.json` (private, one entry with the source condition and the `dist` files), tsconfig, tsup, eslint and vitest configs like sprite-strip's, an `index.ts` barrel, the app depending on it as `workspace:*`. Done; the root vitest config resolves the source condition through `ssr.resolve.conditions`.
+3. **The pure analysis core**: every module in the first table except `roll-rate.ts`, with the model JSONs, their tests (into `test/`, as in sprite-strip) and the test fixtures. The singletons become `src/audio.ts`; `AudioFeed` takes the set as a constructor argument. `section-export.ts` splits: the format (`buildSectionLog`, `SectionLog`) moves as `section-log.ts`, the browser download stays in the app. The scripts and the Python trainers point at the new paths. Done (see Status).
+4. **Equivalence check**: recorded before phase 3, rerun after it (see below). Done.
 5. **Snare roll**: `roll-rate.ts` (`RollReader`) into the package, `snareRoll` into `src/audio.ts`. `automode/` keeps only the visual side.
 6. **The driver**: `AudioFeed` into the package. Its `window` reads become options: `{ enabledBands: () => boolean[], sensitivity: () => number, ignoreMs: () => number, decayMs: number }`, plus a `now` clock (today `performance.now()`) and its analyser set. The older `AudioAnalyser` either moves with it (its `window.config.audio` reads and `analyserConfig` as options, `userConfig` log flags dropped or passed in) or stays in the app and hands the feed its energy; `AudioAnalysedDataForVisualization` is the visualizer's type and may stay in the app. Then BeatMonitor takes the same clock.
 7. **Web Audio**: `AudioSource`, `AudioStream`, `AudioData`. The lag probe's pure parts can go with them; `DetectorCalibration` takes its storage (it already does) and the tier-keyed defaults stay in the app.
@@ -113,6 +113,15 @@ Each phase is its own commit or commits, with the app's behavior unchanged.
 The golden was recorded on main's code before anything moved, and the same test (only its imports changed) matches it after the move. Rerun with `pnpm vitest run src/audioanalysis/audio-feed.equivalence.test.ts`; `UPDATE_GOLDEN=1` rewrites the golden (only for an intended change in the analysis output). `SECTION_LOG_OUT=<file>` also writes the recording as a section log, which `scripts/section-eval/replay-log.mts` can replay to check the script before and after a move.
 
 No real recordings are used: the datasets are on Google Drive and no exported section logs were local. Real songs through the mic remain the check that matters for analysis changes; this one only proves a refactor changed nothing.
+
+## Status
+
+Phases 1 to 4 are in (branch `feat/soundsense-package`):
+
+- Moved to `packages/soundsense/src`: `onset-bands`, `onset-detector`, `beat`, `tempo`, `tempo-tracker`, `tempo-change`, `beat-net`, `beat-grid`, `section-features`, `section-model`, `sections`, `tick-recorder`, `tick-extras`, `spectrum-reducer`, `drum-hits`, `riser`, `sweep`, `rhythm-pattern`, `section-log` (the format half of `section-export`), the seven model JSONs; to `packages/soundsense/test`: their fifteen test files and the four fixtures. The code moved as is, apart from the removed singletons, `BEAT_NET_MODEL` (the beat net import moved from `beat-grid.ts` to `beat-net.ts`) and `OnsetParams` now exported.
+- `src/audio.ts` builds the app's set (`createAudioAnalysis`, `audioAnalysis`); `AudioFeed` takes it as its third constructor argument; `main.ts` and `post-effects.ts` read from it. `src/audioanalysis/section-export.ts` keeps only the browser download.
+- Equivalence: the golden hashes recorded on main's code (a54f7d3) match after the move, and a section log written by the test replays through `replay-log.mts` to byte-identical output before and after. Changing one constant (the riser's `RISE_MS` by 1 ms) fails the check, so it does see the package code.
+- Still in the app: `AudioFeed`, `AudioAnalyser` and `AudioAnalysedData`, `lag-estimate`, `lag-probe`, the dead `utility/analysed-data-visualizer.ts`, `src/audiostream/*`, `automode/roll-rate.ts`. Next is phase 5.
 
 ## Open questions
 
