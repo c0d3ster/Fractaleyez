@@ -140,7 +140,7 @@ export const BeatHud = (): React.ReactElement => {
         <span className='beat-hud-feel' {...info('The rhythm the drums play, read from the kick, snare and hat bands: a kick on every beat (four on the floor) or a broken kick (breakbeat), or, when it is sure, the drum and bass kick on 1 and the "and" of 3 (two-step). It only names a rhythm it is sure of, so it is often blank: in a breakdown, without a clear beat, or for rhythms it cannot tell apart. A name shows after 2 seconds and clears after 3.')}>
           {rhythm}
         </span>
-        <span className='beat-hud-roll' {...info('The snare roll heard in the lo and mid bands: 1/4, 1/8 or 1/16. In a buildup, Auto steps the mirrors 2, 4, 6, 8 with it. Shown once it has been heard for half a beat, and held until it has gone a beat without one.')}>
+        <span className='beat-hud-roll' {...info('The snare roll, read from the snare and clap hits (the drum lights under the Frequency HUD): 1/4, 1/8 or 1/16. In a buildup, Auto steps the mirrors 2, 4, 6, 8 with it. Shown once it has been heard for half a beat, and held until it has gone a beat without one.')}>
           {typeof roll === 'number' ? `1/${roll}` : ''}
         </span>
       </div>

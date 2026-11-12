@@ -5,7 +5,6 @@ import { AudioAnalysedDataForVisualization } from './audio-analysed-data'
 import { beatMonitor } from './beat'
 import { beatGrid } from './beat-grid'
 import { sectionTracker } from './sections'
-import { rollOnsets } from './roll-onsets'
 import { tempoTracker } from './tempo-tracker'
 import { DRUM_SENSITIVITY, drumHits } from './drum-hits'
 import { riserDetector } from './riser'
@@ -63,7 +62,6 @@ export class AudioFeed {
       }
       sweepDetector.push(now, this.spectrumReducer.reduce(audioData.frequencyData))
     }
-    rollOnsets.push(now, levels, deltaTime, soundThreshold.value)
     tempoTracker.push(now, levels)
     // After the tracker, so the grid reads this frame's tempo.
     beatGrid.push(now, levels)

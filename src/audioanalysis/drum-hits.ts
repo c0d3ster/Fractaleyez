@@ -1,7 +1,7 @@
 import modelData from './drum-hit-model.json'
 import { BandTracker, thresholdDbFor, type BandReading, type ReferenceWindow } from './onset-detector'
 
-// The kick's, the hats', the snare's and the clap's hits, for the Frequency HUD's lights (and next, auto mode's snare roll). A rise in
+// The kick's, the hats', the snare's and the clap's hits, for the Frequency HUD's lights and the snare roll (automode/roll-rate.ts). A rise in
 // a band is not an instrument: a rise in lo or mid fired 150 times a minute on a kick alone, 230 on hats and 200 on bass plucks on test clips,
 // and about 250 times a minute on real EDM. So each rise is a candidate, and a small model (drum-hit-model.json: one hidden layer of tanh units
 // and one sigmoid output per drum, trained on one-shot kicks, hats, snares and claps over synthetic beds, through clean, room and laptop mics:
@@ -148,7 +148,7 @@ export class DrumHits {
   /** Each drum's hits over the last few seconds (ms, oldest first), in DRUM_KINDS order. Not a copy: do not keep it. */
   getHits = (): ReadonlyArray<readonly number[]> => this.hits
 
-  /** The snare's and the clap's hits, the ones a snare roll will be read from. Not a copy: do not keep it. */
+  /** The snare's and the clap's hits, the ones the snare roll is read from (automode/roll-rate.ts). Not a copy: do not keep it. */
   getRollHits = (): ReadonlyArray<readonly number[]> => this.rollHits
 
   /** When each drum last hit (the time of the candidate's first edge), or null before the first. */
