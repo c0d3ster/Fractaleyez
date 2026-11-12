@@ -74,7 +74,7 @@ Measured with `scripts/section-eval/bench-cpu.mts` (Node 22, the same V8 as Chro
 
 ## Rhythm pattern names
 
-The line under the BPM in the Beat HUD names the rhythm. It now shows four on the floor, breakbeat or two-step with a tempo range, only when confident (see "Confidence, tempo ranges, breakbeat and two-step" below). It used to show four on the floor, half time, double time, sixteenths, dembow or syncopated, from `estimateTempo` (`tempo.ts`) reading the app's beats, the merged bass and hi band onsets with the Ignore Time (250 ms) between them. That input cannot say much: a beat does not say whether it was the kick or a hat, and 250 ms of dead time drops every eighth note at dance tempos, so double time, sixteenths and dembow almost never fire.
+The line under the BPM in the Beat HUD names the rhythm. It now shows four on the floor, breakbeat or two-step, only when confident (see "Confidence, tempo ranges, breakbeat and two-step" below). It used to show four on the floor, half time, double time, sixteenths, dembow or syncopated, from `estimateTempo` (`tempo.ts`) reading the app's beats, the merged bass and hi band onsets with the Ignore Time (250 ms) between them. That input cannot say much: a beat does not say whether it was the kick or a hat, and 250 ms of dead time drops every eighth note at dance tempos, so double time, sixteenths and dembow almost never fire.
 
 ### How it was scored
 
@@ -123,7 +123,7 @@ What did not help:
 
 ### Confidence, tempo ranges, breakbeat and two-step
 
-The names above were shown whenever the drums played, so "syncopated" fired in every four on the floor breakdown: on the held-out half, a shown "syncopated" was right 31% of the time on Raveform and 35% on GiantSteps. The Beat HUD now shows a name only when the model behind it is confident, holds it so it does not flicker, and adds the tempo range it is played at.
+The names above were shown whenever the drums played, so "syncopated" fired in every four on the floor breakdown: on the held-out half, a shown "syncopated" was right 31% of the time on Raveform and 35% on GiantSteps. The Beat HUD now shows a name only when the model behind it is confident and holds it so it does not flicker. It also added the tempo range the rhythm was played at, until that text was removed (see Tempo ranges below).
 
 - **Model.** `readRhythm` (`rhythm-pattern.ts`) is a multinomial logistic regression (`rhythm-model.json`, fitted by `scripts/section-eval/rhythm-fit.py`) over 61 features of the last 12 s: per band, hits per beat and how often its hits repeat 1/4, 1/3, 1/2, 3/4, 1, 1.5, 2, 2.5, 3 and 4 beats later (40 ms tolerance), and where the hats fall after the kick. Classes four on the floor, breakbeat (drum and bass, breaks) and half time (dubstep). The BPM is not a feature, so the name says what the drums do, not what the tempo suggests. Half time is never shown; it is there so dubstep-like readings have somewhere to go.
 - **Names and thresholds.** Four on the floor at confidence 0.7 (chosen on the tune half for at least 90% precision on every set), breakbeat at 0.85 (about 80% precision, chosen for coverage), two-step at 0.95 (a breakbeat read that surely is nearly always drum and bass, whose kick plays 1 and the "and" of 3).
@@ -177,5 +177,5 @@ What did not make the bar, and why:
 
 - `tempo-tracker.test.ts`: the right tempo at 30, 60 and 144 fps, dotted hats not taken for the beat, steady on a steady track, one clean switch on a real tempo change, held through a breakdown, nothing in silence, the same at a tenth of the level.
 - `scripts/section-eval/bpm-eval.mts` and `bpm-score.py` against the GiantSteps labels.
-- `rhythm-pattern.test.ts`: four on the floor with and without the rest of the kit, with a stray bass note and at 124 to 174 BPM, a two-step read as breakbeat (and as two-step without eighth hats), nothing without a tempo or hits, the tempo ranges, and the labeler's 2 s hold, 3 s release and fixed step. `beat.test.ts`: each band's onsets kept, 100 ms dead time, trimmed to 12 s.
+- `rhythm-pattern.test.ts`: four on the floor with and without the rest of the kit, with a stray bass note and at 124 to 174 BPM, a two-step read as breakbeat (and as two-step without eighth hats), nothing without a tempo or hits, a name held back below its confidence threshold, and the labeler's 2 s hold, 3 s release and fixed step. `beat.test.ts`: each band's onsets kept, 100 ms dead time, trimmed to 12 s.
 - `scripts/section-eval/pattern-eval.mts`, `pattern-rename.mts`, `pattern-labels.py` and `pattern-score.py` against the genre proxies (Raveform, GiantSteps clean and laptop, Ballroom); `rhythm-features.mts`, `rhythm-fit.py` and `rhythm-names.py` for the model, its precision and coverage and the tempo ranges.
