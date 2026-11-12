@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { DRUM_KINDS, DrumHits, drumProbabilities, type DrumCandidate, type DrumKind } from '../src/drum-hits'
+import { DRUM_KINDS, DrumHits, drumProbabilities, type DrumCandidate, type DrumKind } from '../../src/drums/drum-hits'
 import fixture from './drum-hits.fixture.json'
 
 // The first 3.2 s of band levels (60 fps, levels.py's filters, clean feed) of three generated test clips (scripts/section-eval/drum-gen.py),

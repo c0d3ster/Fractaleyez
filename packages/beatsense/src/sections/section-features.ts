@@ -13,7 +13,7 @@
 // plus the beat rate, the song's age and how long since the bass was last full or last gone.
 // And where the beat grid (beat-grid.ts) puts the moment: the place in the bar and the 8-bar phrase, how far to the next phrase line, and
 // how sure the grid is. EDM sections start on phrase lines, so a drop's step on the line and the same step mid-phrase mean different things.
-import type { GridState } from './beat-grid'
+import type { GridState } from '../grid/beat-grid'
 
 export const TICK_MS = 50
 export const SLOT_MS = 250

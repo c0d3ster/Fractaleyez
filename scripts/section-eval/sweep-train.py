@@ -1,4 +1,4 @@
-"""Trains the sweep detector (packages/beatsense/src/sweep-model.json) on sweep-eval.mts --features output: synthetic clips (drum-gen.py
+"""Trains the sweep detector (packages/beatsense/src/risers/sweep-model.json) on sweep-eval.mts --features output: synthetic clips (drum-gen.py
 --spectrum) and real songs with SSME labels, and scores it on both out of fold.
 
     python sweep-train.py <clips eval.json>[,...] [--real eval.json[,...] --gt gt.json] [--hidden 16] [--real-every 2] [--features <names>]
@@ -37,7 +37,7 @@ DROP_FROM_S, DROP_MAX_S = 4.0, 30.0
 def sweep_names() -> list[str]:
     import subprocess
     code = "import { SWEEP_FEATURE_NAMES } from './sweep.ts'; console.log(JSON.stringify(SWEEP_FEATURE_NAMES))"
-    audio = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'packages', 'beatsense', 'src')
+    audio = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'packages', 'beatsense', 'src', 'risers')
     out = subprocess.run(['npx', 'tsx', '--eval', code], cwd=audio, capture_output=True, text=True, check=True, shell=os.name == 'nt')
     return json.loads(out.stdout.strip().splitlines()[-1])
 

@@ -1,6 +1,6 @@
 # Section evaluation and training
 
-Offline tools that train the song section model (`packages/beatsense/src/section-model.json`) on expert labels and score `SectionTracker` (`packages/beatsense/src/sections.ts`) against them. Everything here is causal in the same way the app is: the tracker only ever sees the past.
+Offline tools that train the song section model (`packages/beatsense/src/sections/section-model.json`) on expert labels and score `SectionTracker` (`packages/beatsense/src/sections/sections.ts`) against them. Everything here is causal in the same way the app is: the tracker only ever sees the past.
 
 ## Data
 
@@ -22,16 +22,16 @@ cd scripts/section-eval
 python levels.py song.mp3 levels/clean/<id>.f32
 python levels.py song.mp3 levels/room/<id>.f32 --mic room --seed <n>
 python levels.py song.mp3 levels/laptop/<id>.f32 --mic laptop --seed <n>
-# 2. Section features (packages/beatsense/src/section-features.ts) for every song, and random playlists for the song change detector.
+# 2. Section features (packages/beatsense/src/sections/section-features.ts) for every song, and random playlists for the song change detector.
 ../../node_modules/.bin/tsx dump-features.mts levels/clean features/clean
 ../../node_modules/.bin/tsx dump-features.mts levels/room features/room
 ../../node_modules/.bin/tsx dump-features.mts levels/laptop features/laptop
 ../../node_modules/.bin/tsx dump-playlists.mts levels/clean folds.json playlists/clean --per-fold 40
 ../../node_modules/.bin/tsx dump-playlists.mts levels/laptop folds.json playlists/laptop --per-fold 40
 # 3. Train with 5-fold cross-validation (fold = track id mod 5), tune the decoder on out-of-fold output, add the song change detector.
-python train.py features/clean,features/room,features/laptop gt.json out --export-folds --export ../../packages/beatsense/src/section-model.json
+python train.py features/clean,features/room,features/laptop gt.json out --export-folds --export ../../packages/beatsense/src/sections/section-model.json
 python decode.py out/oof.npz gt.json --grid
-python train_boundary.py playlists/clean,playlists/laptop features/clean --export-folds out --export ../../packages/beatsense/src/section-model.json
+python train_boundary.py playlists/clean,playlists/laptop features/clean --export-folds out --export ../../packages/beatsense/src/sections/section-model.json
 # 4. Score the real tracker (TypeScript), each song through the fold model that never saw it.
 ../../node_modules/.bin/tsx run.mts levels/clean out/run.json --fold-models out
 python score.py out/run.json gt.json
@@ -64,15 +64,15 @@ python tune_tempo_change.py out/pl-before.json out/single-before.json --folds 0,
 - `chart.py`: one song's band levels with the expert labels and each tracker's sections underneath.
 - `replay-log.mts`: replays a session exported from the app (`exportSectionLog()` in the console, 50 ms ticks) through the current tracker, exactly as it ran.
 - `bpm-eval.mts`, `bpm-score.py`: the BPM the Beat HUD would show every 500 ms, old estimator or `TempoTracker` (`--opts` for variants, `--fps` for the frame rate), scored against labelled tempos (the GiantSteps tempo set: https://github.com/GiantSteps/giantsteps-tempo-dataset, audio from the JKU research mirror its `audio_dl.sh` points at).
-- `beat-net.py`: trains the beat network (`packages/beatsense/src/beat-net.ts`, `beat-net-model.json`), a 2-layer causal GRU over the band levels that says every 10 ms how likely a beat and a downbeat are; the grid reads it for its phase. `train` (Raveform folds 0 to 4, `--extra 'levels|beats,...'` for more marked sets, `--init` to start from an earlier model, resumable), `export`, `score` (quick peak-picking check) and `fixture` (the parity data for `beat-net.test.ts`). Results: `docs/experiments/beat-net.md`.
+- `beat-net.py`: trains the beat network (`packages/beatsense/src/grid/beat-net.ts`, `beat-net-model.json`), a 2-layer causal GRU over the band levels that says every 10 ms how likely a beat and a downbeat are; the grid reads it for its phase. `train` (Raveform folds 0 to 4, `--extra 'levels|beats,...'` for more marked sets, `--init` to start from an earlier model, resumable), `export`, `score` (quick peak-picking check) and `fixture` (the parity data for `beat-net.test.ts`). Results: `docs/experiments/beat-net.md`.
 - `teacher-beats.py`: marks beats and downbeats offline with Beat This! (CPJKU, MIT), in Raveform's beat-file shape, as extra training targets for `beat-net.py` (GiantSteps, SSME); keep only the tracks where its tempo agrees with a label or with our tracker.
 - `grid-eval.mts --beat-net model.json [--ids ids.txt]`: score the grid with the beat network for its phase and downbeats.
 - `madmom-eval.py`: madmom's beat tracker (online by default, `--offline --downbeats` for the whole-song ceiling) over audio files, written in `bpm-eval.mts`'s and `grid-eval.mts`'s shapes so `bpm-score.py` and `grid-score.py` score it like ours; resumable (`<prefix>.cache/`). `levels.py --wav-out` gives it the same mic-simulated audio. Results: `docs/experiments/madmom-benchmark.md`.
 - `bpm-loop-eval.py`: the frozen evaluation of the stage 4 BPM loop (`docs/experiments/bpm-loop.md`): `TempoTracker` over one part of `docs/experiments/bpm-loop-split.json`, clean and laptop, scored as acc1 + 0.5 x track - 0.05 x jumps per minute; `--noise` for the noise files.
-- `bench-cpu.mts`: CPU time of each per-frame piece (onset detector, section tracker, tempo, beat grid, and the Beat HUD plot's 20 Hz tick without the canvas; `--view-ms` and `--mirrored` pick its view) on real songs at 60 fps: average per second of audio, slowest frame, frames over 2, 4 and 8 ms per hour. `--old <file>` adds the old rule-based tracker for comparison (`git show 5e81479:src/audioanalysis/sections.ts > packages/beatsense/src/sections-old.tmp.ts`).
+- `bench-cpu.mts`: CPU time of each per-frame piece (onset detector, section tracker, tempo, beat grid, and the Beat HUD plot's 20 Hz tick without the canvas; `--view-ms` and `--mirrored` pick its view) on real songs at 60 fps: average per second of audio, slowest frame, frames over 2, 4 and 8 ms per hour. `--old <file>` adds the old rule-based tracker for comparison (`git show 5e81479:src/audioanalysis/sections.ts > packages/beatsense/src/sections/sections-old.tmp.ts`).
 - `grid-eval.mts`, `grid-score.py`: the beats, bar lines and phrase lines `BeatGrid` fires, scored against hand-marked beats and downbeats (the Ballroom set: audio from https://mtg.upf.edu/ismir2004/contest/tempoContest/data1.tar.gz over https, annotations from https://github.com/CPJKU/BallroomAnnotations).
-- `grid-score-raveform.py`, `grid-train.py`: the grid scored against Raveform's marked beats (beat, downbeat and 8-bar line F, section starts on the grid's lines, by genre, `--folds` for a split), and the fit of its downbeat and phrase cue weights on Raveform's folds 0 to 5 (`--export ../../packages/beatsense/src/beat-grid-model.json`).
-- `rhythm-features.mts`, `rhythm-fit.py`, `rhythm-names.py`: the rhythm names under the Beat HUD's BPM. Features per reading from `pattern-eval.mts` dumps (through the app's own `rhythmFeatures`), the fit of `packages/beatsense/src/rhythm-model.json` on the tune halves (`--export`), and precision, coverage, per-name and per-tempo-range accuracy on the held-out halves (see `tempo.md`).
+- `grid-score-raveform.py`, `grid-train.py`: the grid scored against Raveform's marked beats (beat, downbeat and 8-bar line F, section starts on the grid's lines, by genre, `--folds` for a split), and the fit of its downbeat and phrase cue weights on Raveform's folds 0 to 5 (`--export ../../packages/beatsense/src/grid/beat-grid-model.json`).
+- `rhythm-features.mts`, `rhythm-fit.py`, `rhythm-names.py`: the rhythm names under the Beat HUD's BPM. Features per reading from `pattern-eval.mts` dumps (through the app's own `rhythmFeatures`), the fit of `packages/beatsense/src/rhythm/rhythm-model.json` on the tune halves (`--export`), and precision, coverage, per-name and per-tempo-range accuracy on the held-out halves (see `tempo.md`).
 - `raveform-sections.py`: maps Raveform's sections onto SSME's labels (buildup to build, breakdown and cooldown to break, a drop after a non-drop to a drop event) and writes its folds, for `train.py` (several label files, `--folds`, `--dir-weights`, `--no-grid`) and `score.py`.
 - `raveform-fetch.py`: run on a machine where YouTube works; fetches Raveform's audio and keeps only the band levels (see its header).
 - `dump-beats.mts`, `exp_beats.py`: beats per slot under several band selections (each band's own onsets, then the merged beat per selection), and the section model retrained with each as its beat features, scored out of fold with the decoder tuned on the default. `--mismatch` scores the default model on beats from another selection, `variant#seed` reruns one with another seed to measure the noise. Why the section tracker counts its beats on fixed settings (see the plan doc).

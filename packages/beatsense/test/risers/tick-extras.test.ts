@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { SPECTRUM_BANDS, TickExtrasAccumulator, spectrumEdgesHz } from '../src/tick-extras'
-import { SpectrumReducer } from '../src/spectrum-reducer'
+import { SPECTRUM_BANDS, TickExtrasAccumulator, spectrumEdgesHz } from '../../src/risers/tick-extras'
+import { SpectrumReducer } from '../../src/risers/spectrum-reducer'
 
 describe('TickExtrasAccumulator', () => {
   it('keeps each band\'s peak power, the onsets that fired and the mean spectrum, then starts over', () => {

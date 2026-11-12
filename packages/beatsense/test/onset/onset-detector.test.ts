@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { OnsetDetector } from '../src/onset-detector'
+import { OnsetDetector } from '../../src/onset/onset-detector'
 
 const KICK_GAP_MS = 60000 / 128
 const FRAME_MS = 1000 / 120

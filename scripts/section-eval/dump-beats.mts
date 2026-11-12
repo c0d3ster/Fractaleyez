@@ -7,9 +7,9 @@
 // then the merged beat (Ignore Time 250 ms, Threshold 2) for each selection in SELECTIONS, as the app's OnsetDetector fires it.
 import { mkdirSync, readFileSync, readdirSync, writeFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
-import { OnsetDetector } from '../../packages/beatsense/src/onset-detector.ts'
-import { ONSET_BANDS } from '../../packages/beatsense/src/onset-bands.ts'
-import { SectionFeatures } from '../../packages/beatsense/src/section-features.ts'
+import { OnsetDetector } from '../../packages/beatsense/src/onset/onset-detector.ts'
+import { ONSET_BANDS } from '../../packages/beatsense/src/onset/onset-bands.ts'
+import { SectionFeatures } from '../../packages/beatsense/src/sections/section-features.ts'
 
 const SELECTIONS = ['10010', '11111', '10000', '01000', '00100', '00010', '00001', '11010', '10011', '11110', '01110']
 

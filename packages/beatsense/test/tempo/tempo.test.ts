@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { estimateTempo } from '../src/tempo'
+import { estimateTempo } from '../../src/tempo/tempo'
 
 // Onset times for `count` beats at `bpm`, with a little timing wobble.
 const beats = (bpm: number, count: number, wobbleMs = 0): number[] =>

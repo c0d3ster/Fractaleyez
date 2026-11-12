@@ -12,8 +12,8 @@
 // work too: levels.py's .f32 files and a truth file with their ids.
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { DRUM_KINDS, DRUM_SENSITIVITY, DrumHits, type DrumCandidate } from '../../packages/beatsense/src/drum-hits.ts'
-import { RiserDetector, type RiserSlot } from '../../packages/beatsense/src/riser.ts'
+import { DRUM_KINDS, DRUM_SENSITIVITY, DrumHits, type DrumCandidate } from '../../packages/beatsense/src/drums/drum-hits.ts'
+import { RiserDetector, type RiserSlot } from '../../packages/beatsense/src/risers/riser.ts'
 import { BANDS, SOURCE_FPS, loadLevels } from './stream.mts'
 
 type Truth = { id: string; bpm: number; start: number; end: number } & Record<string, unknown>

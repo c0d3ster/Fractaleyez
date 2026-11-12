@@ -1,7 +1,7 @@
 // Replays saved band levels (levels.py, raw float32 frames x 5 at 60 fps) through the real OnsetDetector and a section tracker,
 // and writes the tracker's section every 250 ms. Batch mode, so hundreds of songs run in one process.
 //
-//   tsx run.mts <levels dir> <out.json> [--tracker ../../packages/beatsense/src/sections.ts] [--only id,id] [--fps 60]
+//   tsx run.mts <levels dir> <out.json> [--tracker ../../packages/beatsense/src/sections/sections.ts] [--only id,id] [--fps 60]
 //   tsx run.mts <levels dir> <out.json> --playlist <playlist.json>
 //   tsx run.mts <levels dir> <out.json> --tuning '{"turnaroundDropThreshold":0.15}'   (decoder overrides, see SectionTuning)
 //   tsx run.mts <levels dir> <out.json> --fold-models <dir> [--folds folds.json]   (dir/fold<n>.json; each song is run through the model of the
@@ -18,11 +18,11 @@
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { OnsetDetector } from '../../packages/beatsense/src/onset-detector.ts'
-import { ONSET_BANDS, DEFAULT_ENABLED_BANDS } from '../../packages/beatsense/src/onset-bands.ts'
-import { TempoTracker } from '../../packages/beatsense/src/tempo-tracker.ts'
+import { OnsetDetector } from '../../packages/beatsense/src/onset/onset-detector.ts'
+import { ONSET_BANDS, DEFAULT_ENABLED_BANDS } from '../../packages/beatsense/src/onset/onset-bands.ts'
+import { TempoTracker } from '../../packages/beatsense/src/tempo/tempo-tracker.ts'
 import { Segment, joinSongs, loadLevels } from './stream.mts'
-import { BeatGrid, GridState } from '../../packages/beatsense/src/beat-grid.ts'
+import { BeatGrid, GridState } from '../../packages/beatsense/src/grid/beat-grid.ts'
 
 type Tracker = {
   push: (sample: { t: number; levels: readonly number[]; beat: boolean; bpm?: number | null; grid?: GridState | null }) => void
@@ -35,7 +35,7 @@ const option = (name: string, fallback: string | null = null): string | null => 
   return at >= 0 ? args[at + 1]! : fallback
 }
 const [dir, output] = [args[0]!, args[1]!]
-const trackerPath = resolve(option('tracker', '../../packages/beatsense/src/sections.ts')!)
+const trackerPath = resolve(option('tracker', '../../packages/beatsense/src/sections/sections.ts')!)
 const fps = Number(option('fps', '60'))
 // --smoothed feeds the tracker the onset detector's 20 ms followed levels instead of the raw band levels (what AudioFeed used to pass).
 const smoothed = args.includes('--smoothed')

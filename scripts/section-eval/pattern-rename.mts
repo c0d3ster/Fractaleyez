@@ -9,8 +9,8 @@
 // tempo:  estimateTempo over the last 12 s of beats (what the Beat HUD shows), with --opts as its PatternOptions.
 // rhythm: nameRhythm (rhythm-pattern.ts) over the last 12 s of each band's onsets, at the tempo tracker's beat, with --opts as its options.
 import { readFileSync, writeFileSync } from 'node:fs'
-import { estimateTempo } from '../../packages/beatsense/src/tempo.ts'
-import { nameRhythm } from '../../packages/beatsense/src/rhythm-pattern.ts'
+import { estimateTempo } from '../../packages/beatsense/src/tempo/tempo.ts'
+import { nameRhythm } from '../../packages/beatsense/src/rhythm/rhythm-pattern.ts'
 
 type Dump = { id: string; beats: number[]; bandOnsets: number[][]; bpm: Array<number | null>; patterns: Array<string | null> }
 
