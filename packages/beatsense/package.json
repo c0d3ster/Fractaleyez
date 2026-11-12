@@ -38,7 +38,9 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint src test --fix",
     "test": "vitest run",
-    "example": "tsx examples/node-example.mts"
+    "example": "tsx examples/node-example.mts",
+    "bench": "tsx ../../scripts/section-eval/bench-cpu.mts",
+    "check-size": "tsx scripts/check-size.mts"
   },
   "keywords": [
     "audio",

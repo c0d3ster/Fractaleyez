@@ -2,10 +2,13 @@ import { describe, expect, it } from 'vitest'
 
 import { buildSectionLog } from '../../src/sections/section-log'
 import { SectionTracker } from '../../src/sections/sections'
+import { loadSectionModel } from '../../src/sections/load-model'
+
+const shipped = await loadSectionModel()
 
 describe('section log', () => {
   it('keeps every tick of a session', () => {
-    const tracker = new SectionTracker()
+    const tracker = new SectionTracker(shipped)
     for (let t = 0; t <= 60000; t += 16) tracker.push({ t, levels: [10, 6, 3, 4, 2], beat: Math.round(t / 16) % 31 === 0 })
     const recording = tracker.getRecording()
     // One tick per 50 ms (a frame of 16 ms closes a tick every 4 frames, 64 ms), well beyond the two minutes of history.
@@ -18,7 +21,7 @@ describe('section log', () => {
   })
 
   it('does not grow without bound', () => {
-    const tracker = new SectionTracker()
+    const tracker = new SectionTracker(shipped)
     for (let t = 0; t <= 45 * 60 * 1000; t += 50) tracker.push({ t, levels: [10, 6, 3, 4, 2], beat: false })
     expect(tracker.getRecording().length).toBeLessThanOrEqual(48000)
   }, 30000)

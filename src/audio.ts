@@ -1,4 +1,4 @@
-import { BEAT_NET_MODEL, BeatGrid, BeatMonitor, DrumHits, RiserDetector, RollReader, SectionTracker, SweepDetector, TempoTracker } from 'beatsense'
+import { BEAT_NET_MODEL, BeatGrid, BeatMonitor, DrumHits, RiserDetector, RollReader, SectionTracker, SweepDetector, TempoTracker, loadSectionModel } from 'beatsense'
 
 /**
  * The app's analysers, one of each. The beatsense package keeps no instances of its own, so they are created here: AudioFeed pushes
@@ -15,20 +15,24 @@ export type AudioAnalysis = {
   sweepDetector: SweepDetector
   /** The snare roll's note value, ticked every frame (post-effects, read 20 times a second) whatever Auto is doing, so the Beat HUD shows it all the time. */
   snareRoll: RollReader
+  /** Resolves once the section model (a lazy chunk) has loaded into `sectionTracker`, which idles until then. Tests await it. */
+  sectionModelReady: Promise<void>
 }
 
 /** A fresh set, wired the way the app runs it (tests and replays build their own). */
 export const createAudioAnalysis = (): AudioAnalysis => {
   const tempoTracker = new TempoTracker()
+  const sectionTracker = new SectionTracker()
   return {
     beatMonitor: new BeatMonitor(),
     tempoTracker,
     beatGrid: new BeatGrid(tempoTracker, {}, BEAT_NET_MODEL),
-    sectionTracker: new SectionTracker(),
+    sectionTracker,
     drumHits: new DrumHits(),
     riserDetector: new RiserDetector(),
     sweepDetector: new SweepDetector(),
     snareRoll: new RollReader(),
+    sectionModelReady: loadSectionModel().then(sectionTracker.setModel),
   }
 }
 

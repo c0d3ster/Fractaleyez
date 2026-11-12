@@ -42,11 +42,12 @@ export type Analysis = {
  * Analyse a whole recording: PCM (through the front end) or band levels in, a reading per frame out. Frame f ends at sample
  * floor(f * sampleRate / fps), as levels.py cuts it, and its time is f / fps seconds on the audio clock.
  */
-export const analyze = (input: PcmInput | LevelsInput, options: AnalyzeOptions = {}): Analysis => {
+export const analyze = async (input: PcmInput | LevelsInput, options: AnalyzeOptions = {}): Promise<Analysis> => {
   const { fps = 60, ...feedOptions } = options
   // The beat monitor trims what it returns against its clock, so that clock is the audio's: the time of the frame just pushed.
   let now = 0
   const analysers = createAnalysers(() => now)
+  await analysers.sectionModelReady
   const feed = new AudioFeed(analysers, feedOptions)
   const frameMs = 1000 / fps
   const frames: FrameReading[] = []

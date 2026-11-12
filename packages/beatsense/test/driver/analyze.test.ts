@@ -18,14 +18,14 @@ const fourOnTheFloor = (seconds: number): Float64Array => {
 }
 
 describe('analyze', () => {
-  it('reads one frame per 1/60 s of PCM, timed on the audio clock', () => {
-    const { frames } = analyze({ pcm: parityPcm(RATE), sampleRate: RATE })
+  it('reads one frame per 1/60 s of PCM, timed on the audio clock', async () => {
+    const { frames } = await analyze({ pcm: parityPcm(RATE), sampleRate: RATE })
     expect(frames).toHaveLength(180)
     expect(frames[60]!.t).toBeCloseTo(1000, 6)
   })
 
-  it('finds the kicks of a steady beat in PCM', () => {
-    const { frames } = analyze({ pcm: fourOnTheFloor(20), sampleRate: RATE })
+  it('finds the kicks of a steady beat in PCM', async () => {
+    const { frames } = await analyze({ pcm: fourOnTheFloor(20), sampleRate: RATE })
     const beats = frames.filter(({ beat }) => beat).map(({ t }) => t)
     expect(beats.length).toBeGreaterThan(25)
     const gaps = beats.slice(1).map((t, i) => t - beats[i]!)
@@ -33,15 +33,15 @@ describe('analyze', () => {
     expect(gaps.every((gap) => Math.abs(gap - 250) < 40 || Math.abs(gap - 500) < 40)).toBe(true)
   })
 
-  it('takes levels instead of PCM and gives the same readings as PCM through the front end', () => {
+  it('takes levels instead of PCM and gives the same readings as PCM through the front end', async () => {
     const pcm = fourOnTheFloor(10)
-    const fromPcm = analyze({ pcm, sampleRate: RATE })
-    const fromLevels = analyze({ levels: fromPcm.frames.map(({ levels }) => levels) })
+    const fromPcm = await analyze({ pcm, sampleRate: RATE })
+    const fromLevels = await analyze({ levels: fromPcm.frames.map(({ levels }) => levels) })
     expect(fromLevels.frames.map(({ beat }) => beat)).toEqual(fromPcm.frames.map(({ beat }) => beat))
   })
 
-  it('accepts a different frame rate', () => {
-    const { frames } = analyze({ pcm: parityPcm(RATE), sampleRate: RATE }, { fps: 30 })
+  it('accepts a different frame rate', async () => {
+    const { frames } = await analyze({ pcm: parityPcm(RATE), sampleRate: RATE }, { fps: 30 })
     expect(frames).toHaveLength(90)
     expect(frames[1]!.t).toBeCloseTo(1000 / 30, 6)
   })

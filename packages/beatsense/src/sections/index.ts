@@ -2,5 +2,6 @@
 export { SectionTracker } from './sections'
 export type { SectionSample, SectionSlot, SectionState, SectionTick, SectionTuning, SongSection } from './sections'
 export type { SectionModelData } from './section-model'
+export { loadSectionModel } from './load-model'
 export { buildSectionLog } from './section-log'
 export type { SectionLog } from './section-log'
