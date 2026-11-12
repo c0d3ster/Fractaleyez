@@ -1,8 +1,7 @@
 import { AudioSource, DEFAULT_ENABLED_BANDS, nameRhythm, RhythmLabel, RhythmLabeler, RhythmPattern, RollLevel } from 'beatsense'
 import { audioAnalysis, createReadWatch } from './audio'
-import { AudioStream } from './audiostream/audio-stream'
-import { AudioAnalyser } from './audioanalysis/audio-analyser'
 import { AudioFeed } from './audioanalysis/audio-feed'
+import { VisualTap } from './audioanalysis/visual-tap'
 import { exportSectionLog } from './audioanalysis/section-export'
 import { DEFAULT_DETECTOR_MS, detectorCalibration, estimateLag, LagEstimate, median } from './audioanalysis/lag-estimate'
 import { LagProbe } from './audioanalysis/lag-probe'
@@ -24,13 +23,13 @@ const { beatMonitor, tempoTracker, beatGrid, sectionTracker, drumHits, riserDete
 const audioContext = new (window.AudioContext || window.webkitAudioContext)()
 // Measures for the detectors in an AudioWorklet at a fixed 60 frames a second (the bundle is its own webpack entry, see webpack.config.js).
 const capture = new AudioSource({ context: audioContext, workletUrl: '/beatsense-worklet.js' })
-const audiostream = new AudioStream(audioContext, FFT_SIZE)
+const visualTap = new VisualTap(audioContext, FFT_SIZE)
 // The riser and sweep detectors only feed the Frequency HUD, which polls their scores each frame while it is open.
 const riserSweepReads = createReadWatch(1000)
-const audioFeed = new AudioFeed(audiostream, new AudioAnalyser(audiostream.getBufferSize()), audioAnalysis, { readsRiserAndSweep: riserSweepReads.isActive })
+const audioFeed = new AudioFeed(visualTap, audioAnalysis, { readsRiserAndSweep: riserSweepReads.isActive })
 const lagProbe = new LagProbe({
   context: audioContext,
-  injectClick: audiostream.injectClick,
+  injectClick: visualTap.injectClick,
   subscribeBeat: beatMonitor.subscribe,
   lastBeatTime: beatMonitor.getLastBeatTime,
   now: () => performance.now(),
@@ -135,7 +134,7 @@ const init = (microphone: MediaStreamAudioSourceNode | null): void => {
   hideCursorOnInactivity()
 
   // Without a microphone (denied, or the capture worklet failed to load) the visuals still run, on silence.
-  if (microphone) audiostream.init(microphone, capture.input)
+  if (microphone) visualTap.connect(microphone, capture.input)
   // Every frame the worklet measures goes to the detectors, whatever the display is doing (a slow tier, a hidden tab): they run off its sample clock, not the drawn frames.
   capture.onFrame((frame) => {
     audioFeed.push(frame)
@@ -151,7 +150,6 @@ const init = (microphone: MediaStreamAudioSourceNode | null): void => {
   window.addEventListener('resize', qualityController.disturb)
   document.addEventListener('visibilitychange', qualityController.disturb)
   // Owned here (not by a visualizer) so the frequency HUD keeps working in every layer combination.
-  window.getAudioData = audioFeed.getLatest
   window.getBeatTimeline = beatMonitor.getTimeline
   window.getLastBeatTime = beatMonitor.getLastBeatTime
   window.getBeatTimes = beatMonitor.getBeatTimes
@@ -184,7 +182,7 @@ const init = (microphone: MediaStreamAudioSourceNode | null): void => {
       stutters: { display: displayStutters.summary(now), video: videoStutters.summary(now) },
     }
   }
-  // TODO create a message modal here telling the user to click anywhere to connect mic as long as audiostream has intialized correctly (aka permissions are good)
+  // TODO create a message modal here telling the user to click anywhere to connect mic as long as the audio capture has intialized correctly (aka permissions are good)
   analyze()
 }
 
@@ -237,7 +235,6 @@ const analyze = (): void => {
   perfProbe.frameStart()
   const deltaTime = now - lastFrameTime
   lastFrameTime = now
-  const currentTimer = new Date()
 
   // Ignore tab-background gaps and bogus zero-length intervals (Date had 1ms resolution; RAF can be sub-ms).
   if (deltaTime > 0 && deltaTime < 250) {
@@ -247,7 +244,7 @@ const analyze = (): void => {
 
   // Analyse once per frame; every layer and HUD reads this same snapshot
   perfProbe.begin('audio')
-  const visualizationData = audioFeed.tick(deltaTime, currentTimer)
+  const visualizationData = audioFeed.tick(deltaTime)
   perfProbe.end('audio')
 
   if (audioFeed.isSilent()) { // if the user hasnt clicked the page, the audio context wont be allowed to start automatically

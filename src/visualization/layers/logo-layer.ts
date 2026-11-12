@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 
-import { AudioAnalysedDataForVisualization } from '../../audioanalysis/audio-analysed-data'
+import type { AudioSnapshot } from '../../audioanalysis/audio-snapshot'
 import { getResolvedSpriteUrl } from '../../utils/spriteCache'
 import { acquireSpriteTexture, releaseSpriteTexture } from '../../utils/textureCache'
 import { logoConfig } from '../../config/logo.config'
@@ -140,7 +140,7 @@ export class LogoLayer implements Layer {
     this.logo.visible = false
   }
 
-  render = (target: THREE.WebGLRenderTarget, deltaTime: number, audio: AudioAnalysedDataForVisualization): void => {
+  render = (target: THREE.WebGLRenderTarget, deltaTime: number, audio: AudioSnapshot): void => {
     this.syncSprite()
     if (this.texture) this.animate(deltaTime, audio)
     const camera = this.cameraManager.getCamera()
@@ -226,7 +226,7 @@ export class LogoLayer implements Layer {
     })
   }
 
-  private animate = (deltaTime: number, audio: AudioAnalysedDataForVisualization): void => {
+  private animate = (deltaTime: number, audio: AudioSnapshot): void => {
     const { beat } = audio
     const { logo } = window.config
     const image: unknown = this.texture?.image

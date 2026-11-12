@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 
-import { AudioAnalysedDataForVisualization } from '../../audioanalysis/audio-analysed-data'
+import type { AudioSnapshot } from '../../audioanalysis/audio-snapshot'
 import { QualityProfile } from '../../config/quality.config'
 import { stepDisplayedColor } from '../../config/displayedColor'
 import { perfProbe } from '../perf'
@@ -14,7 +14,7 @@ import { PostEffects } from './post-effects'
 import { VideoLayer } from './video-layer'
 
 export type LayerPipeline = {
-  render: (deltaTime: number, audio: AudioAnalysedDataForVisualization) => void
+  render: (deltaTime: number, audio: AudioSnapshot) => void
   /** Where the camera pad's trailing dot sits: the fractal's steering when it is the only camera-driven layer, else the orbit camera. */
   getCameraSteer: () => { x: number; y: number }
   dispose: () => void

@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 
-import { AudioAnalysedDataForVisualization } from '../../audioanalysis/audio-analysed-data'
+import type { AudioSnapshot } from '../../audioanalysis/audio-snapshot'
 import { JuliaVisualizer } from '../julia-visualizer'
 import { Layer } from './layer'
 
@@ -12,7 +12,7 @@ export class FractalLayer implements Layer {
     this.visualizer.init()
   }
 
-  render = (target: THREE.WebGLRenderTarget, deltaTime: number, audio: AudioAnalysedDataForVisualization): void => {
+  render = (target: THREE.WebGLRenderTarget, deltaTime: number, audio: AudioSnapshot): void => {
     this.visualizer.update(deltaTime, audio)
     this.visualizer.renderTo(this.renderer, target)
   }

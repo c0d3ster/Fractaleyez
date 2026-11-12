@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 
-import { AudioAnalysedDataForVisualization } from '../../audioanalysis/audio-analysed-data'
+import type { AudioSnapshot } from '../../audioanalysis/audio-snapshot'
 import { DEFAULT_ENABLED_BANDS } from 'beatsense'
 import { getParticleCrossfadeDurationMs, MAX_CROSSFADE_GENERATIONS } from '../../config/visualizer.config'
 import { CameraManager, cameraFollowSign } from '../camera-manager'
@@ -38,7 +38,7 @@ export class OrbitLayer implements Layer {
     document.addEventListener('keydown', this.onKeyDown)
   }
 
-  render = (target: THREE.WebGLRenderTarget, deltaTime: number, audio: AudioAnalysedDataForVisualization): void => {
+  render = (target: THREE.WebGLRenderTarget, deltaTime: number, audio: AudioSnapshot): void => {
     if (this.particleConfigChanged()) this.startCrossfade()
     this.visualizer.update(deltaTime, audio)
     this.crossfades.forEach((cf) => cf.outgoing.update(deltaTime, audio))

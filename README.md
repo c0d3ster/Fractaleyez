@@ -128,5 +128,4 @@ You need `MONGO_URI`, `CLERK_SECRET_KEY` and `CLERK_PUBLISHABLE_KEY` in `.env`. 
 
 - **The idea behind the fractal layer**: the zoom into a Julia set, with a Mandelbrot inset to choose which Julia set you are looking at, comes from [Mandelbrot Maps by jmaio](https://jmaio.dev/mandelbrot-maps/#/m@-1.2537433,-0.3789756,14248274.52,0/j@0.4364131,-0.6468786,2000,0). Fractaleyez does its own thing with it: an audio-reactive endless dive, a guided tour through famous shapes and layers composited with video, particles and a logo.
 - **r/fractals** on Reddit, for the inspiration and endless supply of beautiful fractals.
-- Audio Visualization Starter Pack by bcrespy: https://github.com/bcrespy/audio-visualization-starter
 - Barry Martin's Hopalong Orbits Visualizer by Iacopo Sassarini: http://iacopoapps.appspot.com/hopalongwebgl/

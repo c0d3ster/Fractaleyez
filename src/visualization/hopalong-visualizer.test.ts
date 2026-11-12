@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { AudioAnalysedDataForVisualization } from '../audioanalysis/audio-analysed-data'
+import type { AudioSnapshot } from '../audioanalysis/audio-snapshot'
 import { AppConfig, configDefaults } from '../config/configDefaults'
 import { HopalongVisualizer } from './hopalong-visualizer'
 import { geometryGroupCount, isReshapedOnBeat } from './orbit-geometry-groups'
@@ -24,7 +24,7 @@ const setConfig = (levels: number, layers: number, particlesPerLayer = 40): void
   ;(globalThis as unknown as { window: TestWindow }).window = { config }
 }
 
-const beat = { beat: { fresh: true, active: true, value: 1, energy: 1 }, energy: 0, energyAverage: 0 } as unknown as AudioAnalysedDataForVisualization
+const beat: AudioSnapshot = { beat: { fresh: true, active: true, value: 1, energy: 1 }, energy: 0, energyAverage: 0, bands: [] }
 
 const positionAttribute = (geometry: THREE.BufferGeometry): THREE.BufferAttribute => geometry.attributes.position as THREE.BufferAttribute
 

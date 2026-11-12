@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 
-import { AudioAnalysedDataForVisualization } from '../../audioanalysis/audio-analysed-data'
+import type { AudioSnapshot } from '../../audioanalysis/audio-snapshot'
 import { LayerKey, LayersConfigSection } from '../../config/configDefaults'
 import { BLEND_CODES, compositeFragmentShader, compositeVertexShader, MAX_COMPOSITE_LAYERS } from './composite.glsl'
 import { Layer } from './layer'
@@ -61,7 +61,7 @@ export class LayerCompositor {
   getCamera = (): THREE.OrthographicCamera => this.camera
 
   /** Draws every planned layer into its target and points the composite pass at them. */
-  renderLayers = (deltaTime: number, audio: AudioAnalysedDataForVisualization, config: LayersConfigSection): void => {
+  renderLayers = (deltaTime: number, audio: AudioSnapshot, config: LayersConfigSection): void => {
     perfProbe.begin('layers.plan')
     const planned = planLayers(config, this.stepOpacities(deltaTime, config)).filter(({ key }) => this.layers[key]?.isActive?.() ?? Boolean(this.layers[key]))
     perfProbe.end('layers.plan')

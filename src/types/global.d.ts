@@ -38,11 +38,6 @@ declare global {
     updateConfigItem?: (category: string, item: string, value: string | boolean | number) => void
     toggleLiveVideo?: () => void
     getCameraSteer?: () => { x: number; y: number } | null
-    getAudioData?: () => {
-      multibandEnergy?: number[]
-      multibandEnergyAverage?: number[]
-      multibandPeak?: Array<{ value: number }>
-    } | null
     getBeatTimeline?: () => BeatTimeline
     getLastBeatTime?: () => number | null
     getBeatTimes?: () => readonly number[]
