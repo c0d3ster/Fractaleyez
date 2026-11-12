@@ -91,20 +91,24 @@ export const audioAnalysis = createAudioAnalysis()
 
 `main.ts` passes it to `AudioFeed` and hangs its getters on `window` as before; `post-effects.ts` reads `sectionTracker`, `tempoTracker` and `drumHits` from it. Tests and scripts call `createAudioAnalysis()` (or build the classes themselves) for a fresh set.
 
-## Phases
+## Phases to launch
 
-Each phase is its own commit or commits, with the app's behavior unchanged.
+Reconciled on 2026-11-12 with the earlier Claude Code sessions on this work (section grid training, model bands, drum hits, performance testing, the sprite-strip package) and `docs/experiments`. Those sessions recommended building the package around an **AudioWorklet** from the start (also `docs/experiments/madmom-benchmark.md` item 4 and the beat net plan); that and the items below were missing from the first version of this plan.
 
-1. **Survey and plan** (this doc). Done.
-2. **Package skeleton**: `packages/beatsense` with `package.json` (private, one entry with the source condition and the `dist` files), tsconfig, tsup, eslint and vitest configs like sprite-strip's, an `index.ts` barrel, the app depending on it as `workspace:*`. Done; the root vitest config resolves the source condition through `ssr.resolve.conditions`.
-3. **The pure analysis core**: every module in the first table except `roll-rate.ts`, with the model JSONs, their tests (into `test/`, as in sprite-strip) and the test fixtures. The singletons become `src/audio.ts`; `AudioFeed` takes the set as a constructor argument. `section-export.ts` splits: the format (`buildSectionLog`, `SectionLog`) moves as `section-log.ts`, the browser download stays in the app. The scripts and the Python trainers point at the new paths. Done (see Status).
-4. **Equivalence check**: recorded before phase 3, rerun after it (see below). Done.
-5. **Snare roll**: `roll-rate.ts` (`RollReader`) into the package, `snareRoll` into `src/audio.ts`. `automode/` keeps only the visual side.
-6. **The driver**: `AudioFeed` into the package. Its `window` reads become options: `{ enabledBands: () => boolean[], sensitivity: () => number, ignoreMs: () => number, decayMs: number }`, plus a `now` clock (today `performance.now()`) and its analyser set. The older `AudioAnalyser` either moves with it (its `window.config.audio` reads and `analyserConfig` as options, `userConfig` log flags dropped or passed in) or stays in the app and hands the feed its energy; `AudioAnalysedDataForVisualization` is the visualizer's type and may stay in the app. Then BeatMonitor takes the same clock.
-7. **Web Audio**: `AudioSource`, `AudioStream`, `AudioData`. The lag probe's pure parts can go with them; `DetectorCalibration` takes its storage (it already does) and the tier-keyed defaults stay in the app.
-8. **Listen recording and the server**: after `feat/listen-recording` lands, `tick-encoding.ts` moves in and the server's tick-format check imports `TICK_BYTES` and the version from `beatsense`. The server runs under `tsx` and Vercel's bundler, which do not know the source condition: either `tsx --conditions=@fractaleyez/source` plus a Vercel check, or the server builds against `dist` (a build step before `server-dev` and in `vercel.json`). To decide then.
-9. **section-eval**: `scripts/section-eval` (TypeScript and Python, with its README and `DRUM-HITS.md`) into the package (for example `packages/beatsense/scripts`), importing from `../src`. The trainers' output paths follow.
-10. **Publishing**, once the open questions are settled: license, README, a mirror and publish matrix entry.
+Each phase lands as its own PR or PRs. Refactor phases keep the equivalence golden unchanged; phases that change analysis on purpose (E, F, J) get an evaluation gate instead (datasets at several frame rates plus real-mic sessions), then a deliberate golden update.
+
+- **A. Land the pure core** (this PR). Survey and plan, package skeleton, the pure analysis core moved, the equivalence check. Done; merge on the user's word.
+- **B. Finish the core surface** (no behavior change). `RollReader` into the package; every model a constructor argument with the bundled default (drums, riser, sweep and rhythm load at module level today); one shared `mlp.ts`; an injected clock for `BeatMonitor`; detectors nobody reads are skipped (issue #302); the folder layout.
+- **C. Listen recording onto main** (needs the merge order). Rebase `feat/listen-recording` after this PR; `tick-encoding.ts` into the package; the server imports `TICK_BYTES` and the version (`tsx --conditions=@fractaleyez/source` plus a Vercel check, or a `dist` build); room in the tick format for a source or clock flag.
+- **D. Driver API and a TypeScript front end** (no app behavior change yet). `AudioFeed` becomes the package driver, with today's `window` reads as options and a `push(frame)` contract keyed to an audio clock, not to drawn frames; one pure TS front end (the five band filters matching Web Audio's biquads, RMS per band window, the 40-band spectrum pooling) that runs in the browser and in Node, with a parity check against `levels.py` and the current Web Audio levels; an offline API (PCM or levels in, readings out) and a Node example.
+- **E. AudioWorklet capture.** A worklet runs the Phase D front end and posts fixed-hop frames (60 Hz matches training; 100 Hz would come with the retrain) to a Worker running the driver, with the main thread as fallback. Heavy, bursty work (beat net, section slots) stays off the audio thread; no SharedArrayBuffer at first (it needs COOP/COEP headers). A clean-room `AudioSource` (getUserMedia with AGC, noise suppression and echo cancellation off, as today). Fixes analysis that depends on the display frame rate and the quality tier's cap (30 fps sees a third of the audio, drum timing assumes 60 fps), the hidden-tab pause, and main-thread contention with the pop-out. Lag probe and detector delay recalibrated. Exit: accuracy at the fixed hop at least today's 60 fps numbers on the datasets, identical analysis at 30, 60 and 144 fps, analysis and recording continue with the tab hidden, then real-mic sessions.
+- **F. Retire the starter-pack code.** `AudioAnalyser`, `AudioAnalysedData`, `AudioData`, `AudioSource`, `AudioStream`, `analyser.config` and the dead visualizer came from an unlicensed 2018 starter (credited in the README): they are replaced, not moved. Clean-room versions of what the visualizers read (energy, its average, multiband energy, the beat), with visual parity checked; the audit's quick wins (the `peakHistory` leak, the empty treble band, per-frame allocations) on the way.
+- **G. section-eval into the package** (needs a public or private decision): `scripts/section-eval` to `packages/beatsense/training`, kept out of npm `files`, reviewed (fetchers, dataset paths and links) before any public mirror, or left out of it.
+- **H. Budgets and tests.** A CPU budget (proposal: all analysis under 10 ms of CPU per second of audio on a mid laptop, the worklet under 0.3 ms per 128-sample quantum), `bench-cpu.mts` extended to drums, riser, sweep, the beat net and the front end; a bundle size budget and lazy loading of the section model; tests for the driver, front end and source.
+- **I. Real-mic data loop** (alongside, after C). Live label buttons and hotkeys, the review page, a riser hotkey, every detector scored on recorded sessions, a few non-EDM sessions. Exit: 30 to 50 labelled songs.
+- **J. Full retrain and the section net** (after E's inputs and I's labels). Beat net, drums, riser, sweep and sections retrained on worklet inputs; a section neural net against the trees on the user's songs; each model ships only if it beats the current one on held-out data and real-mic songs.
+- **K. License and model distribution** (blocked on decisions). Code license; weights per dataset provenance and terms (bundle only clearly licensed weights, a separate weights package, fetch on demand, or code only with a training guide); attribution; a model card per model.
+- **L. Launch** (after K). API review and freeze for 0.1.0; README quickstarts (browser mic through the worklet, Node file analysis), examples or a demo page, CHANGELOG; the `c0d3ster/beatsense` mirror, deploy key, mirror and publish matrix entries and the npm trusted publisher; drop `"private"`. Exit: `npm install beatsense` works in a fresh Vite app and in Node.
 
 ## Equivalence check
 
@@ -116,16 +120,19 @@ No real recordings are used: the datasets are on Google Drive and no exported se
 
 ## Status
 
-Phases 1 to 4 are in (branch `feat/beatsense-package`):
+Phase A is in (branch `feat/soundsense-package`, named before the package was renamed):
 
 - Moved to `packages/beatsense/src`: `onset-bands`, `onset-detector`, `beat`, `tempo`, `tempo-tracker`, `tempo-change`, `beat-net`, `beat-grid`, `section-features`, `section-model`, `sections`, `tick-recorder`, `tick-extras`, `spectrum-reducer`, `drum-hits`, `riser`, `sweep`, `rhythm-pattern`, `section-log` (the format half of `section-export`), the seven model JSONs; to `packages/beatsense/test`: their fifteen test files and the four fixtures. The code moved as is, apart from the removed singletons, `BEAT_NET_MODEL` (the beat net import moved from `beat-grid.ts` to `beat-net.ts`) and `OnsetParams` now exported.
 - `src/audio.ts` builds the app's set (`createAudioAnalysis`, `audioAnalysis`); `AudioFeed` takes it as its third constructor argument; `main.ts` and `post-effects.ts` read from it. `src/audioanalysis/section-export.ts` keeps only the browser download.
 - Equivalence: the golden hashes recorded on main's code (a54f7d3) match after the move, and a section log written by the test replays through `replay-log.mts` to byte-identical output before and after. Changing one constant (the riser's `RISE_MS` by 1 ms) fails the check, so it does see the package code.
-- Still in the app: `AudioFeed`, `AudioAnalyser` and `AudioAnalysedData`, `lag-estimate`, `lag-probe`, the dead `utility/analysed-data-visualizer.ts`, `src/audiostream/*`, `automode/roll-rate.ts`. Next is phase 5.
+- Still in the app: `AudioFeed`, `AudioAnalyser` and `AudioAnalysedData`, `lag-estimate`, `lag-probe`, the dead `utility/analysed-data-visualizer.ts`, `src/audiostream/*`, `automode/roll-rate.ts`. Next is phase B.
 
 ## Open questions
 
-- **License.** Undecided; the package is `UNLICENSED` and private until then.
+- **License.** Undecided (MIT or Apache-2.0 suggested); the package is `UNLICENSED` and private until then.
+- **AudioWorklet threading and hop.** Worklet front end plus Worker analysis (recommended) or more on the audio thread; a 60 Hz hop (no retrain) or 100 Hz (with the retrain).
+- **Mirror and name.** Create the `c0d3ster/beatsense` mirror now (it can stay private) or at launch; reserve the npm name early.
+- **Starter-pack replacement timing.** Phase F in this effort, or later.
 - **Model weights.** The section model is trained on SSME's Creative Commons tracks (some NonCommercial) and Raveform; the beat net, grid cues, drum, riser and sweep models on Raveform and SSME too. Can they ship publicly, and under what terms? If not, the weights could live in a separate (private) package or be fetched, and every class would take its model as a constructor argument (today only `SectionTracker` and `BeatGrid` do; the drum, riser, sweep and rhythm models load at module level).
 - **listen-recording.** Rebase it after this merges (see Overlap), or merge it first and rebase this branch.
 - **section-eval move.** Into the package as `scripts/`, or its own private package next to it? It has Python and data paths, which a published package would not ship anyway (`files` is `dist` only).
