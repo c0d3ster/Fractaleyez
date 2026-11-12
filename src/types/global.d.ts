@@ -1,11 +1,10 @@
 import type { AppConfig, LayerKey } from '../config/configDefaults'
-import type { BeatTimeline, DrumKind, GridState, SectionSlot, SectionState, TempoReading, RhythmLabel, RhythmPattern } from 'beatsense'
+import type { BeatTimeline, DrumKind, GridState, SectionSlot, SectionState, TempoReading, RhythmLabel, RhythmPattern, RollLevel } from 'beatsense'
 import type { LagEstimate } from '../audioanalysis/lag-estimate'
 import type { LagMeasurement } from '../audioanalysis/lag-probe'
 import type { QualityStatus } from '../visualization/quality-controller'
 import type { StutterSummary } from '../visualization/stutter-monitor'
 import type { PerfProbeControls } from '../visualization/perf'
-import type { RollLevel } from '../automode/roll-rate'
 
 // Window Management API — not yet in TypeScript's lib.dom.d.ts.
 // https://developer.mozilla.org/en-US/docs/Web/API/Window_Management_API

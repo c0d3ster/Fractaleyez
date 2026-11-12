@@ -11,7 +11,8 @@
 // docs/implementation-plans/song-sections.md for how it was measured and how well it does.
 import { estimateTempo } from '../tempo/tempo'
 import { FEATURE_COUNT, FEATURE_NAMES, SLOT_MS, SectionFeatures } from './section-features'
-import { SectionModelData, boosterScores, sigmoid, softmaxInPlace } from './section-model'
+import { sigmoid } from '../shared/mlp'
+import { SectionModelData, boosterScores, softmaxInPlace } from './section-model'
 import modelData from './section-model.json'
 import { TickRecorder } from './tick-recorder'
 import { DEFAULT_TEMPO_CHANGE, TempoChangeCue } from '../tempo/tempo-change'

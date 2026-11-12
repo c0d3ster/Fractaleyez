@@ -8,6 +8,14 @@ import { AudioAnalysedDataForVisualization } from './audio-analysed-data'
 /** What the feed reads from the stream each frame (an AudioStream, or a recording or synthetic source in a test). */
 export type AudioFeedStream = Pick<AudioStream, 'getAudioData' | 'getBandLevels' | 'getSpectrumShape'>
 
+export type AudioFeedOptions = {
+  /**
+   * Whether anything is reading the riser and sweep scores right now (the Frequency HUD). While it says no, the 40-band pooling and both
+   * detectors are skipped, and their histories restart when it says yes again so stale slots are not read as the music. Default: always.
+   */
+  readsRiserAndSweep?: () => boolean
+}
+
 /**
  * Single producer of analysed audio. Runs the stream -> analyser pipeline exactly once per frame and
  * hands the same read-only snapshot to every consumer (visualizers, HUDs), so adding more active
@@ -20,11 +28,13 @@ export class AudioFeed {
   private readonly onsetDetector = new OnsetDetector(ONSET_BANDS.length)
   private spectrumReducer: SpectrumReducer | null = null
   private heardSound = false
+  private ranRiserAndSweep = true
 
   constructor(
     private readonly stream: AudioFeedStream,
     private readonly analyser: AudioAnalyser,
     private readonly analysis: AudioAnalysis,
+    private readonly options: AudioFeedOptions = {},
   ) {}
 
   /** Analyse the current audio frame. Call once per animation frame. */
@@ -52,13 +62,21 @@ export class AudioFeed {
     if (!this.heardSound && !this.isSilent()) this.heardSound = true
     if (this.heardSound) {
       drumHits.push(now, levels, deltaTime, DRUM_SENSITIVITY)
-      riserDetector.push(now, levels)
-      // The spectrum pooled into the training recorder's 40 bands, for the sweep detector.
-      if (!this.spectrumReducer) {
-        const { sampleRate, binCount } = this.stream.getSpectrumShape()
-        this.spectrumReducer = new SpectrumReducer(sampleRate, binCount)
+      const reads = this.options.readsRiserAndSweep?.() ?? true
+      if (reads && !this.ranRiserAndSweep) {
+        riserDetector.reset()
+        sweepDetector.reset()
       }
-      sweepDetector.push(now, this.spectrumReducer.reduce(audioData.frequencyData))
+      this.ranRiserAndSweep = reads
+      if (reads) {
+        riserDetector.push(now, levels)
+        // The spectrum pooled into the training recorder's 40 bands, for the sweep detector.
+        if (!this.spectrumReducer) {
+          const { sampleRate, binCount } = this.stream.getSpectrumShape()
+          this.spectrumReducer = new SpectrumReducer(sampleRate, binCount)
+        }
+        sweepDetector.push(now, this.spectrumReducer.reduce(audioData.frequencyData))
+      }
     }
     tempoTracker.push(now, levels)
     // After the tracker, so the grid reads this frame's tempo.

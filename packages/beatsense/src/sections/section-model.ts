@@ -40,8 +40,6 @@ export const boosterScores = (booster: Booster, x: ArrayLike<number>, out: numbe
   return out
 }
 
-export const sigmoid = (score: number): number => 1 / (1 + Math.exp(-score))
-
 export const softmaxInPlace = (scores: number[]): number[] => {
   const top = Math.max(...scores)
   let sum = 0

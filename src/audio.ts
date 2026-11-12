@@ -1,4 +1,4 @@
-import { BEAT_NET_MODEL, BeatGrid, BeatMonitor, DrumHits, RiserDetector, SectionTracker, SweepDetector, TempoTracker } from 'beatsense'
+import { BEAT_NET_MODEL, BeatGrid, BeatMonitor, DrumHits, RiserDetector, RollReader, SectionTracker, SweepDetector, TempoTracker } from 'beatsense'
 
 /**
  * The app's analysers, one of each. The beatsense package keeps no instances of its own, so they are created here: AudioFeed pushes
@@ -13,6 +13,8 @@ export type AudioAnalysis = {
   drumHits: DrumHits
   riserDetector: RiserDetector
   sweepDetector: SweepDetector
+  /** The snare roll's note value, ticked every frame (post-effects, read 20 times a second) whatever Auto is doing, so the Beat HUD shows it all the time. */
+  snareRoll: RollReader
 }
 
 /** A fresh set, wired the way the app runs it (tests and replays build their own). */
@@ -26,7 +28,23 @@ export const createAudioAnalysis = (): AudioAnalysis => {
     drumHits: new DrumHits(),
     riserDetector: new RiserDetector(),
     sweepDetector: new SweepDetector(),
+    snareRoll: new RollReader(),
   }
 }
 
 export const audioAnalysis = createAudioAnalysis()
+
+/** Tracks whether a getter was called lately: `wrap` returns the getter with a timestamp on each call, `isActive` says if one landed within `windowMs`. */
+export const createReadWatch = (windowMs: number, clock: () => number = () => performance.now()): {
+  wrap: <T>(read: () => T) => () => T
+  isActive: () => boolean
+} => {
+  let lastReadMs = Number.NEGATIVE_INFINITY
+  return {
+    wrap: (read) => () => {
+      lastReadMs = clock()
+      return read()
+    },
+    isActive: () => clock() - lastReadMs <= windowMs,
+  }
+}

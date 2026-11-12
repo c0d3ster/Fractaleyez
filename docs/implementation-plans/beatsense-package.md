@@ -127,7 +127,16 @@ Phase A is merged (#306, branch `feat/soundsense-package`, named before the pack
 - Moved to `packages/beatsense/src`: `onset-bands`, `onset-detector`, `beat`, `tempo`, `tempo-tracker`, `tempo-change`, `beat-net`, `beat-grid`, `section-features`, `section-model`, `sections`, `tick-recorder`, `tick-extras`, `spectrum-reducer`, `drum-hits`, `riser`, `sweep`, `rhythm-pattern`, `section-log` (the format half of `section-export`), the seven model JSONs; to `packages/beatsense/test`: their fifteen test files and the four fixtures. The code moved as is, apart from the removed singletons, `BEAT_NET_MODEL` (the beat net import moved from `beat-grid.ts` to `beat-net.ts`) and `OnsetParams` now exported.
 - `src/audio.ts` builds the app's set (`createAudioAnalysis`, `audioAnalysis`); `AudioFeed` takes it as its third constructor argument; `main.ts` and `post-effects.ts` read from it. `src/audioanalysis/section-export.ts` keeps only the browser download.
 - Equivalence: the golden hashes recorded on main's code (a54f7d3) match after the move, and a section log written by the test replays through `replay-log.mts` to byte-identical output before and after. Changing one constant (the riser's `RISE_MS` by 1 ms) fails the check, so it does see the package code.
-- Still in the app: `AudioFeed`, `AudioAnalyser` and `AudioAnalysedData`, `lag-estimate`, `lag-probe`, the dead `utility/analysed-data-visualizer.ts`, `src/audiostream/*`, `automode/roll-rate.ts`. Next is phase B.
+- Still in the app: `AudioFeed`, `AudioAnalyser` and `AudioAnalysedData`, `lag-estimate`, `lag-probe`, the dead `utility/analysed-data-visualizer.ts`, `src/audiostream/*`. Phase B is below; next is D.
+
+Phase B is done (#310, plus #302's shared model code and unread-detector items), golden unchanged:
+
+- `RollReader` and `rollLevel` moved to `packages/beatsense/src/drums/roll-rate.ts` (test beside the others). The `snareRoll` singleton is now `audioAnalysis.snareRoll` (`src/audio.ts`).
+- Models are constructor arguments with the bundled default, and the defaults are exported: `DrumHits(onCandidate?, DRUM_HIT_MODEL)`, `RiserDetector(onSlot?, RISER_MODEL)`, `SweepDetector(onSlot?, SWEEP_MODEL)`, `RhythmLabeler(hold, options, RHYTHM_MODEL)`, and `readRhythm`, `nameRhythm`, `drumProbabilities`, `riserProbability` and `sweepProbability` take one as a last argument. `BeatGrid` (`BEAT_NET_MODEL`) and `SectionTracker` already did.
+- `shared/mlp.ts` (barrel `shared/index.ts`, exported from the root): `dense`, `forward`, `standardize`, `inputIndexes`, `scoreProbability`, `fit`, `sigmoid`, float operation order unchanged. The beat net and sections use its `sigmoid`.
+- `BeatMonitor(clock = () => performance.now())`: the read-time trims use the injected clock.
+- Unread detectors: `AudioFeed` takes `{ readsRiserAndSweep }`. While it says no, the 40-band pooling, `RiserDetector` and `SweepDetector` are skipped, and they reset when it says yes again. The app passes a read watch on `window.getRiser` and `getSweep` (the Frequency HUD polls them each frame). The default is always on, so the equivalence test is unchanged. `DrumHits` keeps running: the snare roll reads it every frame.
+- `section-log.test.ts`'s 45 minute test got a 30 s timeout (4.4 s alone, timed out under the parallel suite).
 
 ## Open questions
 

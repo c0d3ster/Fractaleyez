@@ -7,6 +7,7 @@
 // at the first frame, then per hop and band the level against a 3 s follower, the rise over a 30 ms follower and the step from the hop
 // before. The GRU uses PyTorch's equations, gates in its order (reset, update, new).
 import trainedModel from './beat-net-model.json'
+import { sigmoid } from '../shared/mlp'
 
 export type GruLayer = {
   /** (3 x hidden) x inputs, row-major, gates reset, update, new. */
@@ -47,7 +48,6 @@ const FEATURES_PER_BAND = 3
 // frame on audio that was never heard. The network starts over from the next frame instead.
 const MAX_GAP_MS = 250
 
-const sigmoid = (x: number): number => 1 / (1 + Math.exp(-x))
 
 class GruCell {
   readonly h: Float64Array

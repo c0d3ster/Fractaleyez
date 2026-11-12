@@ -1,7 +1,6 @@
-import type { SectionState } from 'beatsense'
+import type { RollLevel, SectionState } from 'beatsense'
 import { ghostKey, ghostStore, type GhostStore } from '../utils/ghostStore'
 import { KaleidoscopeAuto, type KaleidoscopeFold } from './kaleidoscope-target'
-import type { RollLevel } from './roll-rate'
 
 // What Auto publishes for the config to draw. Everything it steers sits in the Effects section for now.
 const AUTO_GHOST_PREFIX = 'effects.'

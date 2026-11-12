@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { RollReader, rollLevel, type RollLevel } from './roll-rate'
+import { RollReader, rollLevel, type RollLevel } from '../../src/drums/roll-rate'
 
 const PERIOD = 500 // 120 BPM
 
