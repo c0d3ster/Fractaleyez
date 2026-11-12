@@ -21,6 +21,21 @@ grid.push(now, levels)
 sections.push({ t: now, levels, beat, bpm: tempo.getBpm() })
 ```
 
+## Offline and Node
+
+`analyze` runs a whole recording through the front end and the driver: mono PCM (or band levels a frame) in, a reading per frame out (time, beat, tempo, section, riser and sweep scores), plus the analysers for everything else.
+
+```ts
+import { analyze } from 'beatsense'
+
+const { frames, analysers } = analyze({ pcm, sampleRate: 44100 }) // pcm: Float32Array, -1..1
+const beats = frames.filter(({ beat }) => beat).map(({ t }) => t)
+```
+
+For live audio, build the set with `createAnalysers()`, wrap it in `AudioFeed` (the driver) and call `push({ t, deltaMs, levels, energy, spectrum })` once per frame, `t` on the audio clock. Its beat settings and the riser/sweep read switch are options (functions, read each frame), not globals. The pure TypeScript `FrontEnd` turns PCM into those levels, energy and the 40-band spectrum, in the browser or Node; it matches the Web Audio chain `AudioStream` builds (2 highpass and 2 lowpass biquads a band, RMS over the band's window) and `scripts/section-eval/levels.py` to 1e-4 relative (`test/frontend`, fixture from `scripts/section-eval/levels-fixture.py`). Not yet checked against a live Web Audio capture.
+
+`pnpm example` runs `examples/node-example.mts`, a synthetic 120 bpm track generated in code.
+
 ## Development
 
 ```sh

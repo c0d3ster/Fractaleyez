@@ -24,7 +24,8 @@
     "build": "tsup",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src test --fix",
-    "test": "vitest run"
+    "test": "vitest run",
+    "example": "tsx examples/node-example.mts"
   },
   "keywords": [
     "audio",
@@ -46,6 +47,7 @@
     "eslint": "^9.17.0",
     "eslint-plugin-prefer-arrow": "^1.2.3",
     "tsup": "^9.0.0",
+    "tsx": "^4.23.15",
     "typescript": "^6.0.2",
     "vitest": "^4.1.11"
   }
