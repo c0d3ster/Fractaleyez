@@ -9,13 +9,13 @@
 //
 // The thresholds below were tuned on out-of-fold model output (scripts/section-eval/decode.py), not by eye. See
 // docs/implementation-plans/song-sections.md for how it was measured and how well it does.
-import { estimateTempo } from './tempo'
+import { estimateTempo } from '../tempo/tempo'
 import { FEATURE_COUNT, FEATURE_NAMES, SLOT_MS, SectionFeatures } from './section-features'
 import { SectionModelData, boosterScores, sigmoid, softmaxInPlace } from './section-model'
 import modelData from './section-model.json'
 import { TickRecorder } from './tick-recorder'
-import { DEFAULT_TEMPO_CHANGE, TempoChangeCue } from './tempo-change'
-import type { GridState } from './beat-grid'
+import { DEFAULT_TEMPO_CHANGE, TempoChangeCue } from '../tempo/tempo-change'
+import type { GridState } from '../grid/beat-grid'
 
 export type SongSection = 'intro' | 'quiet' | 'groove' | 'buildup' | 'turnaround' | 'break' | 'drop' | 'outro'
 

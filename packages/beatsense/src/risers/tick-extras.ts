@@ -1,7 +1,7 @@
 // What a recorded tick carries beyond the section tracker's own input (the mean band power, the beats and the BPM shown): the peak of
 // each band, which band's own onsets fired, and a coarse spectrum. None of these can be worked out later from the mean band power, so a
 // listening session recorded for training keeps them from the start (src/spotify/listen-recorder.ts).
-import { ONSET_BANDS } from './onset-bands'
+import { ONSET_BANDS } from '../onset/onset-bands'
 
 const BANDS = ONSET_BANDS.length
 

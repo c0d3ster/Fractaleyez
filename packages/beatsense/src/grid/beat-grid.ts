@@ -18,7 +18,7 @@
 //  3. Phrase. The same at bar level, four bars after each bar line: the rise on its first beat and how much the level changed across it
 //     over one, two and four bars, kept per position in an 8-bar cycle and weighed per hypothesis with fitted weights.
 import model from './beat-grid-model.json'
-import { TempoTracker } from './tempo-tracker'
+import { TempoTracker } from '../tempo/tempo-tracker'
 import { BeatActivation, BeatNet, BeatNetModel } from './beat-net'
 
 export type GridState = {

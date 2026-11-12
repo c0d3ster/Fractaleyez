@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { nameRhythm, readRhythm, RhythmInput, RhythmLabeler } from '../src/rhythm-pattern'
+import { nameRhythm, readRhythm, RhythmInput, RhythmLabeler } from '../../src/rhythm/rhythm-pattern'
 
 const BEAT = 60000 / 128
 const WINDOW_MS = 12000

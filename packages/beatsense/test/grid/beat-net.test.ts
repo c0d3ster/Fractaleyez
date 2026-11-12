@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { BeatActivation, BeatNet, BeatNetModel } from '../src/beat-net'
-import model from '../src/beat-net-model.json'
+import { BeatActivation, BeatNet, BeatNetModel } from '../../src/grid/beat-net'
+import model from '../../src/grid/beat-net-model.json'
 import fixture from './beat-net.fixture.json'
 
 const run = (net: BeatNetModel, levels: readonly (readonly number[])[], fps: number): BeatActivation[] => {

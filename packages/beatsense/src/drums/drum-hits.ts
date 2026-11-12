@@ -1,5 +1,5 @@
 import modelData from './drum-hit-model.json'
-import { BandTracker, thresholdDbFor, type BandReading, type ReferenceWindow } from './onset-detector'
+import { BandTracker, thresholdDbFor, type BandReading, type ReferenceWindow } from '../onset/onset-detector'
 
 // The kick's, the hats', the snare's and the clap's hits, for the Frequency HUD's lights and the snare roll (automode/roll-rate.ts). A rise in
 // a band is not an instrument: a rise in lo or mid fired 150 times a minute on a kick alone, 230 on hats and 200 on bass plucks on test clips,

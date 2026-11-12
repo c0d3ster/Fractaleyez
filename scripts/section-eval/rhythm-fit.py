@@ -1,6 +1,6 @@
-"""Fits the rhythm model (packages/beatsense/src/rhythm-model.json) behind nameRhythm's confidence.
+"""Fits the rhythm model (packages/beatsense/src/rhythm/rhythm-model.json) behind nameRhythm's confidence.
 
-    python rhythm-fit.py <sets.json> [--export ../../packages/beatsense/src/rhythm-model.json]
+    python rhythm-fit.py <sets.json> [--export ../../packages/beatsense/src/rhythm/rhythm-model.json]
 
 <sets.json> as for rhythm-names.py (features from rhythm-features.mts). A multinomial logistic regression over the standardized features
 (every band's hits per beat and repeat shares, the hats' phases after the kick; not the BPM, so the name says what the drums do rather

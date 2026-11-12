@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { SectionFeatures, TICK_MS } from '../src/section-features'
+import { SectionFeatures, TICK_MS } from '../../src/sections/section-features'
 
 const ticksFor = (fps: number, seconds: number, jitterMs = 0): number => {
   const features = new SectionFeatures()

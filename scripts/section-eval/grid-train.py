@@ -1,6 +1,6 @@
-"""Fits BeatGrid's downbeat and phrase cues on Raveform's marked beats and bars, and exports them (packages/beatsense/src/beat-grid-model.json).
+"""Fits BeatGrid's downbeat and phrase cues on Raveform's marked beats and bars, and exports them (packages/beatsense/src/grid/beat-grid-model.json).
 
-    python grid-train.py <levels dir> <structures dir> [--folds 0,1,2,3,4,5] [--validate 4,5] [--export ../../packages/beatsense/src/beat-grid-model.json]
+    python grid-train.py <levels dir> <structures dir> [--folds 0,1,2,3,4,5] [--validate 4,5] [--export ../../packages/beatsense/src/grid/beat-grid-model.json]
 
 Levels are levels.py output (float32, frames x 5, 60 fps); structures is Raveform's raveform/structures (segments.json and beats/).
 
