@@ -4,7 +4,7 @@
 
 All of the app's audio code moves out of `src/` into its own pnpm workspace package, `packages/beatsense`, so audio analysis and the visualizer are cleanly split and the audio side has a surface designed as a public API (see the memory note on the split). The name `beatsense` is free on npm (picked over SoundWorks, which is IRCAM's framework, and soundsense, beatworks and beatdrop).
 
-The package follows `packages/sprite-strip`: the app depends on it as `workspace:*`, its `exports` has an `@fractaleyez/source` condition pointing at `src/index.ts` (webpack `resolve.conditionNames`, tsc `customConditions` and the root vitest config use it, so the app compiles it from source with no build step), and it keeps its own eslint, vitest, tsconfig and tsup. Unlike sprite-strip it is `"private": true`, with `"license": "UNLICENSED"`, and it is not in `mirror-packages.yml` or `publish-packages.yml`: whether the trained model weights can ship publicly is unresolved (see Open questions).
+The package follows `packages/sprite-strip`: the app depends on it as `workspace:*`, its `exports` has an `@fractaleyez/source` condition pointing at `src/index.ts` (webpack `resolve.conditionNames`, tsc `customConditions` and the root vitest config use it, so the app compiles it from source with no build step), and it keeps its own eslint, vitest, tsconfig and tsup. It is MIT (code and trained weights, decided 2026-11-12, with the training data credited in `NOTICE`), but unlike sprite-strip it stays `"private": true` and out of `mirror-packages.yml` and `publish-packages.yml` until launch (phase L).
 
 Rules for the surface:
 
@@ -107,8 +107,8 @@ Each phase lands as its own PR or PRs. Refactor phases keep the equivalence gold
 - **H. Budgets and tests.** A CPU budget (proposal: all analysis under 10 ms of CPU per second of audio on a mid laptop, the worklet under 0.3 ms per 128-sample quantum), `bench-cpu.mts` extended to drums, riser, sweep, the beat net and the front end; a bundle size budget and lazy loading of the section model; tests for the driver, front end and source.
 - **I. Real-mic data loop** (alongside, after C). Live label buttons and hotkeys, the review page, a riser hotkey, every detector scored on recorded sessions, a few non-EDM sessions. Exit: 30 to 50 labelled songs.
 - **J. Full retrain and the section net** (after E's inputs and I's labels). Beat net, drums, riser, sweep and sections retrained on worklet inputs; a section neural net against the trees on the user's songs; each model ships only if it beats the current one on held-out data and real-mic songs.
-- **K. License and model distribution** (blocked on decisions). Code license; weights per dataset provenance and terms (bundle only clearly licensed weights, a separate weights package, fetch on demand, or code only with a training guide); attribution; a model card per model.
-- **L. Launch** (after K). API review and freeze for 0.1.0; README quickstarts (browser mic through the worklet, Node file analysis), examples or a demo page, CHANGELOG; the `c0d3ster/beatsense` mirror, deploy key, mirror and publish matrix entries and the npm trusted publisher; drop `"private"`. Exit: `npm install beatsense` works in a fresh Vite app and in Node.
+- **K. Attribution and model cards.** Decided 2026-11-12: MIT for the code and the trained weights, which ship with the package (no audio is included; training used band levels, features and labels). Left: complete `NOTICE` (the SSME citation), a model card per model (data, metrics, intended use), and the credits in the README. Raveform's labels are CC BY 4.0, so its credit is required.
+- **L. Launch** (after K and the user's go). API review and freeze for 0.1.0; README quickstarts (browser mic through the worklet, Node file analysis), examples or a demo page, CHANGELOG; the `c0d3ster/beatsense` mirror, deploy key, mirror and publish matrix entries and the npm trusted publisher; drop `"private"`. Exit: `npm install beatsense` works in a fresh Vite app and in Node.
 
 ## Equivalence check
 
@@ -129,11 +129,11 @@ Phase A is in (branch `feat/soundsense-package`, named before the package was re
 
 ## Open questions
 
-- **License.** Undecided (MIT or Apache-2.0 suggested); the package is `UNLICENSED` and private until then.
+- **License.** Decided: MIT, code and weights (`LICENSE`, `NOTICE` with the training data credits).
 - **AudioWorklet threading and hop.** Worklet front end plus Worker analysis (recommended) or more on the audio thread; a 60 Hz hop (no retrain) or 100 Hz (with the retrain).
 - **Mirror and name.** Create the `c0d3ster/beatsense` mirror now (it can stay private) or at launch; reserve the npm name early.
 - **Starter-pack replacement timing.** Phase F in this effort, or later.
-- **Model weights.** The section model is trained on SSME's Creative Commons tracks (some NonCommercial) and Raveform; the beat net, grid cues, drum, riser and sweep models on Raveform and SSME too. Can they ship publicly, and under what terms? If not, the weights could live in a separate (private) package or be fetched, and every class would take its model as a constructor argument (today only `SectionTracker` and `BeatGrid` do; the drum, riser, sweep and rhythm models load at module level).
+- **Model weights.** They ship with the package under MIT (decided). Still worth doing for strangers: every class takes its model as a constructor argument (today only `SectionTracker` and `BeatGrid` do; the drum, riser, sweep and rhythm models load at module level), phase B.
 - **listen-recording.** Rebase it after this merges (see Overlap), or merge it first and rebase this branch.
 - **section-eval move.** Into the package as `scripts/`, or its own private package next to it? It has Python and data paths, which a published package would not ship anyway (`files` is `dist` only).
 - **Browser and node parts.** One entry means node consumers import the Web Audio classes too. That is fine as long as nothing touches `window` or `AudioContext` at import time (true today). A second entry (`beatsense/browser`) would break the one-entry rule, so only if needed.
