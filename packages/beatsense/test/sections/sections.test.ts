@@ -3,6 +3,9 @@ import { SectionSample, SectionState, SectionTracker } from '../../src/sections/
 import { Booster, SectionModelData, boosterScores, softmaxInPlace } from '../../src/sections/section-model'
 import { sigmoid } from '../../src/shared/mlp'
 import { FEATURE_NAMES } from '../../src/sections/section-features'
+import { loadSectionModel } from '../../src/sections/load-model'
+
+const shipped = await loadSectionModel()
 
 // How well the tracker labels real songs is measured offline against expert labels (scripts/section-eval, see the plan doc).
 // These tests pin what has to hold whatever the model learned: no labels without a song, the song clock, song changes on long
@@ -58,7 +61,7 @@ const end = (frames: SectionSample[]): number => (frames[frames.length - 1]?.t ?
 
 describe('SectionTracker', () => {
   it('shows quiet and has no song time with no regular beat (noise, typing)', () => {
-    const tracker = new SectionTracker()
+    const tracker = new SectionTracker(shipped)
     const typing: Shape = (t) => ({ bass: 0.05, mid: 0.4 + (Math.sin(t * 13.7) > 0.7 ? 1 : 0), high: 0.3, beats: false })
     // Keystrokes at irregular times: gaps drawn at random between 80 and 900 ms.
     let seed = 7
@@ -74,7 +77,7 @@ describe('SectionTracker', () => {
   })
 
   it('confirms a song with a steady beat and runs the song clock', () => {
-    const tracker = new SectionTracker()
+    const tracker = new SectionTracker(shipped)
     const states = play(tracker, render(40, groove))
     const last = states[states.length - 1]!
     expect(last.section).not.toBe('quiet')
@@ -84,13 +87,13 @@ describe('SectionTracker', () => {
 
   it('gives the same labels at a tenth of the level (a quiet mic)', () => {
     const shape: Shape = (t) => (t > 40 && t < 56 ? { bass: 0.1, mid: 0.5 + (t - 40) / 16, high: 0.5 + (t - 40) / 10, beats: t % 2 < 1 } : groove(t))
-    const loud = play(new SectionTracker(), render(90, shape)).map((s) => s.section)
-    const quiet = play(new SectionTracker(), render(90, shape, { scale: 0.1 })).map((s) => s.section)
+    const loud = play(new SectionTracker(shipped), render(90, shape)).map((s) => s.section)
+    const quiet = play(new SectionTracker(shipped), render(90, shape, { scale: 0.1 })).map((s) => s.section)
     expect(quiet).toEqual(loud)
   })
 
   it('starts the next song after a long silence and restarts the clock', () => {
-    const tracker = new SectionTracker()
+    const tracker = new SectionTracker(shipped)
     const first = render(70, groove)
     const gap = silence(8, end(first))
     const second = render(30, groove, { start: end(gap), seed: 2 })
@@ -102,7 +105,7 @@ describe('SectionTracker', () => {
   })
 
   it('does not start a new song on a short stop inside a song', () => {
-    const tracker = new SectionTracker()
+    const tracker = new SectionTracker(shipped)
     const first = render(70, groove)
     const stop = silence(2, end(first))
     const rest = render(40, groove, { start: end(stop), seed: 3 })
@@ -112,14 +115,14 @@ describe('SectionTracker', () => {
   })
 
   it('does not call the app opening on silence and then music a second song', () => {
-    const tracker = new SectionTracker()
+    const tracker = new SectionTracker(shipped)
     const opening = silence(10, 0)
     const states = play(tracker, [...opening, ...render(30, groove, { start: end(opening) })])
     expect(states[states.length - 1]!.songIndex).toBe(1)
   })
 
   it('treats a long gap in samples (the tab was in the background) as a fresh start', () => {
-    const tracker = new SectionTracker()
+    const tracker = new SectionTracker(shipped)
     const first = render(30, groove)
     const later = render(20, groove, { start: end(first) + 300000 })
     play(tracker, first)
@@ -129,7 +132,7 @@ describe('SectionTracker', () => {
   })
 
   it('replays its own recording to the same states', () => {
-    const live = new SectionTracker()
+    const live = new SectionTracker(shipped)
     const shape: Shape = (t) => (t > 30 && t < 45 ? { bass: 0.05, mid: 1, high: 1.5, beats: true } : groove(t))
     const liveStates: SectionState[] = []
     render(70, shape).forEach((frame) => {
@@ -137,7 +140,7 @@ describe('SectionTracker', () => {
       live.push(frame)
       if (live.getHistory().length !== before) liveStates.push(live.getState())
     })
-    const replay = new SectionTracker()
+    const replay = new SectionTracker(shipped)
     const replayStates: SectionState[] = []
     live.getRecording().forEach((tick) => {
       const before = replay.getHistory().length
@@ -153,7 +156,7 @@ describe('SectionTracker', () => {
     frames.map((frame) => ({ ...frame, bpm: frame.t < at * 1000 ? before : after }))
 
   it('starts a new song when the tempo moves to a clearly different one and stays there', () => {
-    const tracker = new SectionTracker()
+    const tracker = new SectionTracker(shipped)
     const states = play(tracker, withBpm(render(100, groove), 128, 140, 60))
     expect(states.findIndex((s) => s.songIndex === 2) / 60).toBeGreaterThan(60)
     expect(states[states.length - 1]!.songIndex).toBe(2)
@@ -161,30 +164,30 @@ describe('SectionTracker', () => {
 
   it('keeps the song on a tempo read at another level (double, 3:2, 4:3), a short blip, a small drift, or no BPM at all', () => {
     for (const after of [256, 192, 170.7, 132]) {
-      const states = play(new SectionTracker(), withBpm(render(100, groove), 128, after, 60))
+      const states = play(new SectionTracker(shipped), withBpm(render(100, groove), 128, after, 60))
       expect(states[states.length - 1]!.songIndex).toBe(1)
     }
     const blip = render(100, groove).map((frame) => ({ ...frame, bpm: frame.t > 60000 && frame.t < 61500 ? 140 : 128 }))
-    expect(play(new SectionTracker(), blip).at(-1)!.songIndex).toBe(1)
-    expect(play(new SectionTracker(), render(100, groove)).at(-1)!.songIndex).toBe(1)
+    expect(play(new SectionTracker(shipped), blip).at(-1)!.songIndex).toBe(1)
+    expect(play(new SectionTracker(shipped), render(100, groove)).at(-1)!.songIndex).toBe(1)
   })
 
   it('does not change songs on tempo in the first stretch of a song', () => {
-    const states = play(new SectionTracker(), withBpm(render(40, groove), 128, 140, 20))
+    const states = play(new SectionTracker(shipped), withBpm(render(40, groove), 128, 140, 20))
     expect(states[states.length - 1]!.songIndex).toBe(1)
   })
 
   it('records the BPM it was given, so a replay makes the same tempo song change', () => {
-    const live = new SectionTracker()
+    const live = new SectionTracker(shipped)
     const liveStates = play(live, withBpm(render(100, groove), 128, 140, 60))
-    const replay = new SectionTracker()
+    const replay = new SectionTracker(shipped)
     live.getRecording().forEach((tick) => replay.pushTick(tick))
     expect(replay.getState().songIndex).toBe(liveStates[liveStates.length - 1]!.songIndex)
     expect(replay.getState().songIndex).toBe(2)
   })
 
   it('keeps a bounded history and stays fast', () => {
-    const tracker = new SectionTracker()
+    const tracker = new SectionTracker(shipped)
     const frames = render(600, groove)
     const started = performance.now()
     play(tracker, frames)

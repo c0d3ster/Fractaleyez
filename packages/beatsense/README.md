@@ -28,13 +28,15 @@ sections.push({ t: now, levels, beat, bpm: tempo.getBpm() })
 ```ts
 import { analyze } from 'beatsense'
 
-const { frames, analysers } = analyze({ pcm, sampleRate: 44100 }) // pcm: Float32Array, -1..1
+const { frames, analysers } = await analyze({ pcm, sampleRate: 44100 }) // pcm: Float32Array, -1..1
 const beats = frames.filter(({ beat }) => beat).map(({ t }) => t)
 ```
 
 For live audio, build the set with `createAnalysers()`, wrap it in `AudioFeed` (the driver) and call `push({ t, deltaMs, levels, energy, spectrum })` once per frame, `t` on the audio clock. Its beat settings and the riser/sweep read switch are options (functions, read each frame), not globals. The pure TypeScript `FrontEnd` turns PCM into those levels, energy and the 40-band spectrum, in the browser or Node; it matches the Web Audio chain `AudioStream` builds (2 highpass and 2 lowpass biquads a band, RMS over the band's window) and `scripts/section-eval/levels.py` to 1e-4 relative (`test/frontend`, fixture from `scripts/section-eval/levels-fixture.py`). Not yet checked against a live Web Audio capture.
 
-`pnpm example` runs `examples/node-example.mts`, a synthetic 120 bpm track generated in code.
+The section model (about 290 KB of trees) is a lazy chunk, so the ESM entry stays small: `createAnalysers()` starts loading it, its `sectionTracker` idles (state `quiet`) until it arrives, and `analysers.sectionModelReady` resolves then (`analyze` awaits it). To build a `SectionTracker` yourself, pass it `await loadSectionModel()`. The CJS and worker bundles inline it.
+
+`pnpm example` runs `examples/node-example.mts`, a synthetic 120 bpm track generated in code. `pnpm build && pnpm check-size` asserts the bundle sizes and the lazy chunk; `pnpm bench` times every analyser, the front end and a worklet quantum against the CPU budgets (10 ms of CPU per second of audio for the analysis, 0.3 ms per 128-sample quantum), on a synthetic track or a levels directory.
 
 ## Development
 

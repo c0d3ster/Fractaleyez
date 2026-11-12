@@ -10,7 +10,7 @@ import { createHash, type Hash } from 'node:crypto'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { buildSectionLog, DRUM_KINDS, nameRhythm, RhythmLabeler, SectionTracker, SpectrumReducer, type CaptureFrame, type DrumKind, type RhythmInput, type SongSection } from 'beatsense'
+import { buildSectionLog, DRUM_KINDS, nameRhythm, RhythmLabeler, SectionTracker, SpectrumReducer, loadSectionModel, type CaptureFrame, type DrumKind, type RhythmInput, type SongSection } from 'beatsense'
 import { createAudioAnalysis } from '../audio'
 import { audioConfig } from '../config/audio.config'
 import { AudioFeed } from './audio-feed'
@@ -203,7 +203,7 @@ const update = (hash: Hash, value: unknown): void => {
   hash.update('\n')
 }
 
-const run = (): EquivalenceResult => {
+const run = async (): Promise<EquivalenceResult> => {
   let clock = 0
   vi.spyOn(performance, 'now').mockImplementation(() => clock)
   const { threshold_DEFAULT: soundThreshold, ignoreTime_DEFAULT: ignoreTime } = audioConfig
@@ -220,6 +220,7 @@ const run = (): EquivalenceResult => {
     return { index, levels, energy, spectrum: Uint8Array.from(reducer.reduce(audio.frequency)) }
   }
   const analysis = createAudioAnalysis()
+  await analysis.sectionModelReady
   const { beatMonitor, tempoTracker, beatGrid, sectionTracker, drumHits, riserDetector, sweepDetector } = analysis
   const feed = new AudioFeed(source, analysis)
   const rhythmLabeler = new RhythmLabeler()
@@ -294,7 +295,7 @@ const run = (): EquivalenceResult => {
   const log = buildSectionLog(ticks, new Date(start))
   if (process.env.SECTION_LOG_OUT) writeFileSync(process.env.SECTION_LOG_OUT, JSON.stringify(log))
   const replay = createHash('sha256')
-  const replayTracker = new SectionTracker()
+  const replayTracker = new SectionTracker(await loadSectionModel())
   log.ticks.forEach((tick) => {
     replayTracker.pushTick(tick)
     update(replay, replayTracker.getState())
@@ -317,8 +318,8 @@ describe('AudioFeed equivalence', () => {
     vi.unstubAllGlobals()
   })
 
-  it('gives exactly the recorded analysis for the synthetic song', () => {
-    const result = run()
+  it('gives exactly the recorded analysis for the synthetic song', async () => {
+    const result = await run()
     if (process.env.UPDATE_GOLDEN) {
       writeFileSync(GOLDEN, `${JSON.stringify(result, null, 2)}\n`)
       return

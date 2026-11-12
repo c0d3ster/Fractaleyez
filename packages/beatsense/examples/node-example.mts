@@ -23,7 +23,7 @@ const track = (): Float32Array => {
   return out
 }
 
-const { frames } = analyze({ pcm: track(), sampleRate: SAMPLE_RATE })
+const { frames } = await analyze({ pcm: track(), sampleRate: SAMPLE_RATE })
 const beats = frames.filter(({ beat }) => beat)
 const last = frames[frames.length - 1]!
 

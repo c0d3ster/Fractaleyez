@@ -13,7 +13,6 @@ import { estimateTempo } from '../tempo/tempo'
 import { FEATURE_COUNT, FEATURE_NAMES, SLOT_MS, SectionFeatures } from './section-features'
 import { sigmoid } from '../shared/mlp'
 import { SectionModelData, boosterScores, softmaxInPlace } from './section-model'
-import modelData from './section-model.json'
 import { TickRecorder } from './tick-recorder'
 import { DEFAULT_TEMPO_CHANGE, TempoChangeCue } from '../tempo/tempo-change'
 import type { GridState } from '../grid/beat-grid'
@@ -138,7 +137,6 @@ const DEFAULT_TUNING: SectionTuning = {
 /** One recorded 50 ms tick: when it closed, the mean power of each band, the beats in it and the BPM shown. Enough to replay a session exactly. */
 export type SectionTick = { t: number; power: number[]; beats: number; bpm?: number | null }
 
-const DEFAULT_MODEL = modelData as SectionModelData
 const HISTORY_MS = 120000
 // Every tick of the last 40 minutes is kept, so a listening session can be exported and replayed offline (1.6 MB, see TickRecorder).
 const RECORDING_TICKS = 48000
@@ -231,8 +229,8 @@ export class SectionTracker {
   private smoothedReady = false
   private readonly memoryBuild: number[] = []
   private readonly memoryBreak: number[] = []
-  private readonly stage2Input: Float64Array
-  private readonly model: SectionModelData
+  private stage2Input = new Float64Array(0)
+  private model: SectionModelData | null = null
   private readonly tuning: SectionTuning
 
   // Decoder state.
@@ -266,14 +264,22 @@ export class SectionTracker {
   private bpm: number | null = null
   private state: SectionState = SectionTracker.emptyState()
 
-  /** `model` and `tuning` are for evaluating variants offline and for tests; the app uses the shipped model and the defaults. */
-  constructor(model: SectionModelData = DEFAULT_MODEL, tuning: Partial<SectionTuning> = {}) {
-    this.model = checkModel(model)
+  /**
+   * With no `model` the tracker idles (pushes are ignored, the state stays `quiet`) until `setModel`: the shipped model is a lazy chunk
+   * (`loadSectionModel`), so nothing here pays for it until it is wanted. `tuning` is for evaluating variants offline and for tests.
+   */
+  constructor(model: SectionModelData | null = null, tuning: Partial<SectionTuning> = {}) {
+    if (model) this.setModel(model)
     this.tuning = { ...DEFAULT_TUNING, ...tuning }
     const { tempoMinChange, tempoHarmonicTolerance, tempoHoldMs } = this.tuning
     this.tempoCue = tempoMinChange === null
       ? null
       : new TempoChangeCue({ ...DEFAULT_TEMPO_CHANGE, minChange: tempoMinChange, harmonicTolerance: tempoHarmonicTolerance, holdMs: tempoHoldMs })
+  }
+
+  /** Starts the tracker on `model`. Frames pushed before it were ignored. */
+  setModel = (model: SectionModelData): void => {
+    this.model = checkModel(model)
     this.stage2Input = new Float64Array(model.features.length + 3 + model.memorySeconds.length * 4)
   }
 
@@ -282,6 +288,7 @@ export class SectionTracker {
   })
 
   push = ({ t, levels, beat, bpm = null, grid = null }: SectionSample): void => {
+    if (!this.model) return
     // A long gap between samples (the tab was in the background) is a fresh start, not a song that went quiet.
     if (this.lastT !== null && t - this.lastT > HISTORY_MS) this.startSong(t, this.beatsThisSong >= SONG_MIN_BEATS, false)
     this.lastT = t
@@ -313,6 +320,7 @@ export class SectionTracker {
 
   /** Replays one recorded tick (see getRecording): the same path as live frames from the tick on. */
   pushTick = ({ t, power, beats, bpm = null }: SectionTick): void => {
+    if (!this.model) return
     if (this.lastT !== null && t - this.lastT > HISTORY_MS) this.startSong(t, this.beatsThisSong >= SONG_MIN_BEATS, false)
     this.lastT = t
     this.bpm = bpm
@@ -422,7 +430,9 @@ export class SectionTracker {
 
   // Stage 1 (build, break), its short memory, stage 2 (drop) and the boundary model. Returns [build, break, drop, boundary].
   private runModel = (row: Float64Array): [number, number, number, number] => {
-    const p1 = softmaxInPlace(boosterScores(this.model.stage1, row, this.scores))
+    const { model } = this
+    if (!model) return [0, 0, 0, 0]
+    const p1 = softmaxInPlace(boosterScores(model.stage1, row, this.scores))
     const [pOther = 1, pBuild = 0, pBreak = 0] = p1
     const alpha = this.smoothedReady ? 1 - Math.exp(-SLOT_MS / 1000 / SMOOTH_S) : 1
     this.smoothed[0]! += (pOther - this.smoothed[0]!) * alpha
@@ -432,19 +442,19 @@ export class SectionTracker {
 
     this.memoryBuild.push(pBuild)
     this.memoryBreak.push(pBreak)
-    const longest = Math.max(...this.model.memorySeconds) * 4
+    const longest = Math.max(...model.memorySeconds) * 4
     if (this.memoryBuild.length > longest) {
       this.memoryBuild.shift()
       this.memoryBreak.shift()
     }
     const input = this.stage2Input
-    const count = this.model.features.length
+    const count = model.features.length
     input.set(row.subarray(0, count), 0)
     input[count] = pOther
     input[count + 1] = pBuild
     input[count + 2] = pBreak
     let at = count + 3
-    this.model.memorySeconds.forEach((seconds) => {
+    model.memorySeconds.forEach((seconds) => {
       const window = seconds * 4
       for (const memory of [this.memoryBuild, this.memoryBreak]) {
         let sum = 0
@@ -458,8 +468,8 @@ export class SectionTracker {
         input[at++] = top
       }
     })
-    const pDrop = sigmoid(boosterScores(this.model.stage2, input, this.scores)[0]!)
-    const pBoundary = this.model.boundary ? sigmoid(boosterScores(this.model.boundary, row, this.scores)[0]!) : 0
+    const pDrop = sigmoid(boosterScores(model.stage2, input, this.scores)[0]!)
+    const pBoundary = model.boundary ? sigmoid(boosterScores(model.boundary, row, this.scores)[0]!) : 0
     return [this.smoothed[1]!, this.smoothed[2]!, pDrop, pBoundary]
   }
 
