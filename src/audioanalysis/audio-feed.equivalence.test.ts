@@ -250,7 +250,7 @@ const run = (): EquivalenceResult => {
     const hitsNow = drumHits.getLastHits()
     update(frames, [
       snapshot.beat, samples[samples.length - 1] ?? null, reading, grid, beatGrid.getActivation(), section, hitsNow,
-      riserDetector.getScore(), sweepDetector.getScore(), feed.isSilent(),
+      riserDetector.getScore(), sweepDetector.getScore(), feed.isSilent(), [snapshot.energy, snapshot.energyAverage, Array.from(snapshot.bands)],
     ])
 
     coverage.frames++
