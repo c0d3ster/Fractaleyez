@@ -1,0 +1,7 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+# Review a PR once when it opens. Pushes after that (fixes for its comments, stack restacks) do not start another review; the plan allows
+# one review an hour. Ask for one by hand with `@coderabbitai review` only when a PR changes a lot after its first review.
+reviews:
+  auto_review:
+    enabled: true
+    auto_incremental_review: false
