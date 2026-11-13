@@ -126,7 +126,7 @@ body {
   grid-area: drums;
 }
 
-/* The label buttons: the drum and riser row starts under the Frequency HUD, the song row centers under the Section HUD. */
+/* The label buttons: the drum row starts under the Frequency HUD, the song and riser row centers under the Section HUD. */
 .lab-huds .lab-labels {
   flex-wrap: nowrap;
   gap: 8px;
