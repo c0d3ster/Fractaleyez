@@ -130,12 +130,14 @@ saved.
 Once the analysis runs, Record starts a session and Stop ends it (a new Record drops the last one, so export first). While recording:
 
 - Every `FrameReading` the `AnalysisHost` gives is kept (60 a second), with each drum hit the drum model calls.
-- The label buttons, or their hotkeys, stamp a label at the audio clock's now. The drum labels sit under the Frequency HUD's drum lights,
-  the song labels (drop, buildup, breakdown, riser start and end) under the Section HUD; Record, Stop, Undo and Export stay in the bar.
-  A label lands at the audio clock's now (the newest audio delivered, so a label lands where the hit
-  was heard plus the reaction time, fixed on the review page): the drums on `Q` kick, `W` snare, `E` clap, `R` hat, and the song
-  labels on `1` drop, `2` buildup, `3` breakdown, `4` riser start, `5` riser end, in the order of their buttons. Held keys, keys with Ctrl, Cmd or Alt, and typing in a field add nothing. Backspace (or Undo)
-  removes the newest label.
+- The label buttons, or their hotkeys, add labels. The drum and riser buttons sit under the Frequency HUD (its
+  drum lights and riser meter), the song labels under the Section HUD; Record, Stop, Undo and Export stay in the bar.
+  A label is stamped at the audio clock's now (the newest audio delivered, so it lands where the hit was heard plus the reaction time,
+  fixed on the review page). The keys: the drums as a block on `Q` kick, `W` snare, `A` clap, `S` hat; `R` riser, which
+  starts a riser and ends it on the next press (the file keeps a riser start and a riser end label; the button says which is next); and
+  the song labels on `1` intro, `2` buildup, `3` drop, `4` breakdown, `5` outro, in song order. Intro and outro are the tracker's own
+  calls too, so labelling them shows where it calls an outro mid-song. Held keys, keys with Ctrl, Cmd or Alt, and typing in a field add
+  nothing. Backspace (or Undo) removes the newest label.
 - The live strip under the HUDs shows the last 6 s of your labels against the model's as they happen. Per drum, your labels on top and
   the model's hits below, a pair joined by a green line (a hit from 350 ms before the label to 100 ms after it, one to one, nearest first)
   and anything unpaired drawn hollow; then your section labels over the model's sections, and your riser spans over its riser score.
