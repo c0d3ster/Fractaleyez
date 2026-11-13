@@ -16,6 +16,7 @@ import { ApiPack, ApiPreset, readPresetListCache, updatePresetListCache } from '
 import { isCurrent, readCachedPresetBody, writeCachedPresetBody } from '../../../utils/presetBodyCache'
 import { FocusPoint, loadZoomFocus } from '../../../utils/zoomFocus'
 import { persistClerkPhotoAsLogo } from '../../../utils/clerkPhotoLogo'
+import { readGuestQuality, writeGuestQuality } from '../../../utils/guestQuality'
 import {
   resolveUserParticle,
   resolveUserSprites,
@@ -409,6 +410,16 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
     return () => { cancelled = true }
   }, [getToken, isLoaded, viewerId])
 
+  // Signed out, the quality setting a guest picked in this browser applies (see guestQuality). Signed in, the account's setting (or Auto)
+  // is applied when /api/me loads below, so it takes precedence.
+  useEffect(() => {
+    if (!isLoaded || isSignedIn) return
+    const quality = readGuestQuality()
+    if (!quality) return
+    setUserSettings(prev => ({ ...prev, quality }))
+    applyUserSettingsSideEffects({ quality })
+  }, [isLoaded, isSignedIn])
+
   // Lazy-creates/fetches the app-data user doc. Independent of the preset/pack loads above:
   // a timeout or 5xx here must never block preset/pack data or the bundled-preset fallback.
   useEffect(() => {
@@ -461,7 +472,11 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
     }))
     applyUserSettingsSideEffects(patch)
 
-    if (!isSignedIn) return
+    // Signed out there is no account to save to; the quality setting is remembered in this browser instead.
+    if (!isSignedIn) {
+      if (patch.quality) writeGuestQuality(patch.quality)
+      return
+    }
 
     pendingSettingsPatchRef.current = {
       ...pendingSettingsPatchRef.current,
