@@ -102,7 +102,7 @@ handlers). `titleHint` gives the browser's tooltip; the Fractaleyez app passes i
 ## Lab
 
 A standalone page with the three HUDs on a live microphone, for working on beatsense without the Fractaleyez app. It uses only beatsense
-and beatsense-ui, and will also be where recording (record and stop, live labels, hotkeys) goes.
+and beatsense-ui. It records labelled sessions for scoring and retraining the detectors, and has a review page for fixing the labels.
 
 ```sh
 pnpm lab         # from this folder or the repo root: Vite dev server on http://localhost:4000
@@ -125,11 +125,46 @@ same delivery-delay tracking as the app's frame clock. The snare roll is ticked 
 app does. The beat settings are beatsense's `DEFAULT_FEED_SETTINGS` (Ignore Time 250 ms); the band toggles are page state and are not
 saved.
 
+### Recording
+
+Once the analysis runs, Record starts a session and Stop ends it (a new Record drops the last one, so export first). While recording:
+
+- Every `FrameReading` the `AnalysisHost` gives is kept (60 a second), with each drum hit the drum model calls.
+- The label buttons, or their hotkeys, stamp a label at the audio clock's now (the newest audio delivered, so a label lands where the hit
+  was heard plus the reaction time, fixed on the review page): kick `K`, snare `S`, clap `C`, hat `H`, drop `D`, buildup `B`, breakdown
+  `N`, riser start `R` and riser end `E`. Held keys, keys with Ctrl, Cmd or Alt, and typing in a field add nothing. Backspace (or Undo)
+  removes the newest label.
+
+Export saves the stopped session as `beatsense-session-<date>-<time>.json`, version 1 of the format in `lab/recording/sessionFile.ts`:
+
+| Field | What |
+| --- | --- |
+| `format`, `version` | `'beatsense-lab-session'`, `1`. A reader refuses other versions, and a change to the shape bumps it. |
+| `recordedAt`, `editedAt` | When it stopped, and when the labels were last edited on the review page (absent before). ISO 8601. |
+| `sampleRate` | The audio context's, Hz. |
+| `startMs`, `endMs` | When Record and Stop were pressed, on the audio clock (ms; the same clock as everything below). |
+| `frames` | Every `FrameReading`: `t`, the five band `levels`, `beat`, `beatBand`, `bpm`, `section`, `riser`, `sweep`. |
+| `drumHits` | `{ kind, t }` per hit the drum model called, sorted by time. |
+| `labels` | `{ id, kind, t }`, sorted by time; the id stays with a label through edits. |
+| `sectionLog` | beatsense's `SectionLog` (version 2) with the section tracker's 50 ms ticks inside the session, for replaying through a fresh tracker (`SectionTracker.pushTick`, or `scripts/section-eval/replay-log.mts`). |
+
+The **Review** link opens `review.html`: open or drop an exported session to see its timelines (the sections, the five band levels, the
+beats colored by band, the drum model's hits per drum, the tempo, the riser and the sweep), with the labels as lines through every lane.
+The wheel zooms around the pointer, dragging empty space pans and a double-click shows the whole session. Click a label to select it, drag
+it to move it, the arrow keys nudge it a frame (Shift: 100 ms) and Delete removes it. Export saves the session with the edited labels
+as `<name>-labelled.json`; the page asks before leaving with unsaved edits.
+
+The recording logic is plain TypeScript in `lab/recording/` (labels and hotkeys, `SessionRecorder`, the file format, the label edits, the
+plot geometry), tested in `test/lab/` with synthetic frames, including a run of the real `AnalysisHost` whose section log replays to the
+same ticks.
+
+### Build
+
 The worklet is imported as `beatsense/worklet?worker&url`, so Vite bundles it on its own (one file in `lab:build`) and serves it as a
 module in dev, with nothing but Vite's `/@vite/env` defines added (no HMR client, which would throw in a worklet scope). Vite resolves the
 `@fractaleyez/source` condition (`vite.config.ts`), so the page compiles both packages from source and picks up edits on save.
 
-The lab is outside `src`, so it is never in the package build or the published files. `pnpm typecheck` checks it with its own tsconfig
+`lab:build` builds both pages (`index.html` and `review.html`). The lab is outside `src`, so it is never in the package build or the published files. `pnpm typecheck` checks it with its own tsconfig
 (`lab/tsconfig.json`, which adds Vite's client types) and `pnpm lint` covers it.
 
 ## Development

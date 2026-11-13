@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url'
 import react from '@vitejs/plugin-react'
 import { defaultClientConditions, defineConfig } from 'vite'
 
@@ -26,5 +27,12 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
+    // Two pages: the lab (live HUDs and recording) and the review page for an exported session.
+    rollupOptions: {
+      input: {
+        lab: fileURLToPath(new URL('./lab/index.html', import.meta.url)),
+        review: fileURLToPath(new URL('./lab/review.html', import.meta.url)),
+      },
+    },
   },
 })
