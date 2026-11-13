@@ -26,46 +26,72 @@ const findDevPort = async () => {
   return DEV_PORT
 }
 
-const createConfig = (devPort) => ({
-  entry: {
-    app: ['@babel/polyfill', APP_DIR + '/index.tsx'],
-    // The beatsense capture worklet is loaded by URL (audioWorklet.addModule), so it is its own bundle: /beatsense-worklet.js.
-    'beatsense-worklet': 'beatsense/worklet',
+// TypeScript and modern JS through babel, for the app and the worklet.
+const scriptRule = {
+  test: /\.(js|jsx|ts|tsx)$/,
+  use: {
+    loader: 'babel-loader',
+    options: {
+      presets: [
+        '@babel/preset-env',
+        '@babel/preset-react',
+        '@babel/preset-typescript'
+      ],
+      plugins: [
+        '@babel/plugin-proposal-class-properties',
+        '@babel/plugin-proposal-optional-chaining',
+        '@babel/plugin-proposal-nullish-coalescing-operator'
+      ]
+    }
   },
-  output:
-  {
+  // Transpile @clerk/* (optional chaining), @vercel/analytics (?? / modern syntax); skip other node_modules
+  exclude: (modulePath) =>
+    /node_modules/.test(modulePath) &&
+    !/node_modules[\\/]@clerk/.test(modulePath) &&
+    !/node_modules[\\/]@vercel[\\/]analytics/.test(modulePath)
+}
+
+// resolves directory to look for modules and resolves extensions
+const resolve = {
+  extensions: ['.ts', '.tsx', '.js', '.jsx', '.mjs'],
+  modules: ['node_modules'],
+  // Workspace packages (packages/*) export their TS source under this condition, so the
+  // app builds them from source with no separate build step. Published consumers ignore it.
+  conditionNames: ['@fractaleyez/source', '...'],
+}
+
+// The beatsense capture worklet is loaded by URL (audioWorklet.addModule), so it is its own bundle: /beatsense-worklet.js. It is its own
+// compiler with `devServer: false` because the dev server adds its live-reload client and HMR runtime to every entry of the compilers it
+// serves, and those throw in an AudioWorkletGlobalScope (no window, self or WebSocket) before the processor registers.
+const workletConfig = {
+  name: 'beatsense-worklet',
+  entry: { 'beatsense-worklet': 'beatsense/worklet' },
+  output: {
     path: BUILD_DIR,
     filename: '[name].js',
     publicPath: '/',
     // The worklet runs where there is no window or self.
     globalObject: 'globalThis',
   },
+  module: { rules: [scriptRule] },
+  resolve,
+  devServer: false,
+}
+
+const createConfig = (devPort) => ({
+  entry: {
+    app: ['@babel/polyfill', APP_DIR + '/index.tsx'],
+  },
+  output:
+  {
+    path: BUILD_DIR,
+    filename: '[name].js',
+    publicPath: '/',
+  },
   // must include modules for webpack to integrate with babel for es6 syntax
   module: {
     rules: [
-      {
-        test: /\.(js|jsx|ts|tsx)$/,
-        use: {
-          loader: 'babel-loader',
-          options: {
-            presets: [
-              '@babel/preset-env',
-              '@babel/preset-react',
-              '@babel/preset-typescript'
-            ],
-            plugins: [
-              '@babel/plugin-proposal-class-properties',
-              '@babel/plugin-proposal-optional-chaining',
-              '@babel/plugin-proposal-nullish-coalescing-operator'
-            ]
-          }
-        },
-        // Transpile @clerk/* (optional chaining), @vercel/analytics (?? / modern syntax); skip other node_modules
-        exclude: (modulePath) =>
-          /node_modules/.test(modulePath) &&
-          !/node_modules[\\/]@clerk/.test(modulePath) &&
-          !/node_modules[\\/]@vercel[\\/]analytics/.test(modulePath)
-      },
+      scriptRule,
       {
         test: /\.css$/,
         use: [{
@@ -114,14 +140,8 @@ const createConfig = (devPort) => ({
     new webpack.EnvironmentPlugin({ CLERK_PUBLISHABLE_KEY: '' }),
   ],
   // resolves directory to look for modules and resolves extensions
-  resolve: {
-    extensions: ['.ts', '.tsx', '.js', '.jsx', '.mjs'],
-    modules: ['node_modules'],
-    // Workspace packages (packages/*) export their TS source under this condition, so the
-    // app builds them from source with no separate build step. Published consumers ignore it.
-    conditionNames: ['@fractaleyez/source', '...'],
-  },
+  resolve,
 })
 
 // Only a dev-server run needs a port; a plain build skips the probe.
-module.exports = async (env) => createConfig(env && env.WEBPACK_SERVE ? await findDevPort() : DEV_PORT)
+module.exports = async (env) => [createConfig(env && env.WEBPACK_SERVE ? await findDevPort() : DEV_PORT), workletConfig]

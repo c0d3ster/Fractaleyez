@@ -134,7 +134,8 @@ export const initWithMicrophone = (): void => {
 const init = (microphone: MediaStreamAudioSourceNode | null): void => {
   hideCursorOnInactivity()
 
-  audiostream.init(microphone, capture.input)
+  // Without a microphone (denied, or the capture worklet failed to load) the visuals still run, on silence.
+  if (microphone) audiostream.init(microphone, capture.input)
   // Every frame the worklet measures goes to the detectors, whatever the display is doing (a slow tier, a hidden tab): they run off its sample clock, not the drawn frames.
   capture.onFrame((frame) => {
     audioFeed.push(frame)
