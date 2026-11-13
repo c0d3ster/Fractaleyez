@@ -13,28 +13,29 @@ import { getMusicSpeedMultiplier } from '../music-speed'
 import { createBicubicUniforms, enableBicubicMap } from './bicubic-map'
 import { fillFromEdges } from './edge-fill'
 import { Layer } from './layer'
+import { traceWalls, type WallMesh } from './logo-walls'
 
 // Local distance in front of the camera. The logo fills `logoConfig.baseHeightFraction` of the viewport height at Size 1.
 const LOGO_DISTANCE = 10
 const SHAKE_VIEWPORT_FRACTION = 0.05
 
-// Fake thickness: the image is drawn as this many parallel slices spread over `DEPTH_FRACTION` of the logo's height.
-// The two outer slices are the front and back faces, blended so the image keeps its soft edges. The slices between
-// are cut out at `SIDE_ALPHA_CUTOFF` and drawn solid with depth, and their copy of the image has every solid pixel recolored to the
-// nearest edge of the shape (edge-fill.ts), so where the stack turns away the sides show a wall in the edge's color instead of the
-// image's inside between the slices. More slices hide the gaps between them when seen nearly
-// edge-on.
-const SLICE_COUNT = 64
+// Thickness: the image's front and back faces sit `DEPTH_FRACTION` of the logo's height apart, blended so the image keeps its soft
+// edges, and joined by walls traced from the image's alpha at `SIDE_ALPHA_CUTOFF` (logo-walls.ts), each wall in the color of the
+// edge it stands on. Just inside each face is a cap: the shape cut out at the same cutoff and drawn solid with depth, from a copy of
+// the image with every solid pixel recolored to the nearest edge (edge-fill.ts). Caps and walls close the solid, so where a face is
+// faded out (below) or see-through, a turned logo shows a solid in its edge colors instead of its hollow inside and the far face.
 const DEPTH_FRACTION = 0.1
 const SIDE_ALPHA_CUTOFF = 0.5
-// The sides' copy of the image is made at most this many pixels across: they are only ever seen edge-on, and the edge fill runs once
-// over every pixel when the logo loads.
+// How far each cap sits inside its face, as a fraction of the thickness, so a face never fights its own cap for depth.
+const CAP_INSET = 1 / 63
+// The walls are traced from, and the caps cut from, a copy of the image at most this many pixels across: the trace and the edge fill
+// each run once over every pixel when the logo loads.
 const SIDE_TEXTURE_MAX_PX = 512
 
 // Seen nearly edge-on, a face is a sliver so thin that each pixel spans most of the texture, and the GPU falls back to
 // the smallest mipmap: the average of the whole image, which is dim and part transparent. That drew a faint line
 // across the full image height, transparent margins included. So the faces fade out as the logo turns edge-on: fully
-// visible while |cos(spin)| is above `FACE_FADE_START`, gone below `FACE_FADE_END`. The cutout sides carry the shape.
+// visible while |cos(spin)| is above `FACE_FADE_START`, gone below `FACE_FADE_END`. The caps and walls carry the shape.
 const FACE_FADE_START = 0.3
 const FACE_FADE_END = 0.05
 
@@ -69,20 +70,19 @@ const moveToward = (value: number, target: number, step: number): number =>
 
 const wrap01 = (value: number): number => value - Math.floor(value)
 
-const isFace = (slice: number): boolean => slice === 0 || slice === SLICE_COUNT - 1
-
 // What a canvas can draw the loaded logo image from.
 const isDrawable = (image: unknown): image is HTMLImageElement | HTMLCanvasElement | ImageBitmap =>
   (typeof HTMLImageElement !== 'undefined' && image instanceof HTMLImageElement)
   || (typeof HTMLCanvasElement !== 'undefined' && image instanceof HTMLCanvasElement)
   || (typeof ImageBitmap !== 'undefined' && image instanceof ImageBitmap)
 
+type ReadBack = { context: CanvasRenderingContext2D; pixels: ImageData }
+
 /**
- * The image for the sides: each solid pixel recolored to the nearest edge of the shape (see fillFromEdges), so a turned logo shows a
- * solid wall in its edge color instead of the image's inside between the slices. Null when the image cannot be read back (a
+ * The image drawn on a canvas at most `SIDE_TEXTURE_MAX_PX` across, and its pixels. Null when the image cannot be read back (a
  * cross-origin image taints the canvas).
  */
-const edgeFilledCanvas = (image: HTMLImageElement | HTMLCanvasElement | ImageBitmap, width: number, height: number): HTMLCanvasElement | null => {
+const readBack = (image: HTMLImageElement | HTMLCanvasElement | ImageBitmap, width: number, height: number): ReadBack | null => {
   const scale = Math.min(1, SIDE_TEXTURE_MAX_PX / Math.max(width, height))
   const canvas = document.createElement('canvas')
   canvas.width = Math.max(1, Math.round(width * scale))
@@ -91,14 +91,34 @@ const edgeFilledCanvas = (image: HTMLImageElement | HTMLCanvasElement | ImageBit
   if (!context) return null
   try {
     context.drawImage(image, 0, 0, canvas.width, canvas.height)
-    const pixels = context.getImageData(0, 0, canvas.width, canvas.height)
-    const filled = fillFromEdges(pixels.data, canvas.width, canvas.height, SIDE_ALPHA_CUTOFF * 255)
-    pixels.data.set(filled)
-    context.putImageData(pixels, 0, 0)
-    return canvas
+    return { context, pixels: context.getImageData(0, 0, canvas.width, canvas.height) }
   } catch {
     return null
   }
+}
+
+/** The traced walls as one geometry: positions, vertex colors and triangles in the logo group's unit space. */
+const toGeometry = ({ positions, colors, indices }: WallMesh): THREE.BufferGeometry => {
+  const geometry = new THREE.BufferGeometry()
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
+  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3))
+  geometry.setIndex(new THREE.BufferAttribute(indices, 1))
+  return geometry
+}
+
+/** A plane of the logo at depth `z` (unit space) drawn with `material`, which is returned. */
+const addPlane = (parent: THREE.Group, geometry: THREE.PlaneGeometry, material: THREE.MeshBasicMaterial, z: number): THREE.MeshBasicMaterial => {
+  const mesh = new THREE.Mesh(geometry, material)
+  mesh.position.z = z
+  parent.add(mesh)
+  return material
+}
+
+const assignMap = (materials: THREE.MeshBasicMaterial[], map: THREE.Texture | null): void => {
+  materials.forEach((material) => {
+    material.map = map
+    material.needsUpdate = true
+  })
 }
 
 const hasSize = (image: unknown): image is { width: number; height: number } =>
@@ -106,33 +126,32 @@ const hasSize = (image: unknown): image is { width: number; height: number } =>
   && typeof image.width === 'number' && typeof image.height === 'number' && image.width > 0 && image.height > 0
 
 /**
- * Logo as a layer: a stack of textured planes parented to its own camera, so it ignores `sway` panning (the
+ * Logo as a layer: two textured faces joined by traced walls, parented to its own camera, so it ignores `sway` panning (the
  * camera is never steered) and `scaleFactor`. Reacts to the shared beat: scale pulse, shake, glow (the Effects glow
- * switch), and a spin (speed 0 is still) that turns the whole stack around its vertical axis.
+ * switch), and a spin (speed 0 is still) that turns the whole logo around its vertical axis.
  */
 export class LogoLayer implements Layer {
   private readonly scene = new THREE.Scene()
   private readonly cameraManager = new CameraManager()
   // Planes, not a Sprite (which always faces the camera), so the logo can turn on its vertical axis. Both faces draw,
-  // so the back shows the image mirrored. The group's scale sets the logo size and, on z, the thickness; the slices
-  // sit at unit z offsets in [-0.5, 0.5]. Swappable for a real extrusion later.
+  // so the back shows the image mirrored. The group's scale sets the logo size and, on z, the thickness; the faces
+  // sit at unit z -0.5 and 0.5, and the walls run between them.
   private readonly geometry = new THREE.PlaneGeometry(1, 1)
   // The lean toward the camera position turns this pivot, and the spin turns `logo` inside it, so the two compose
   // (the spin stays about the logo's own axis, whichever way it leans).
   private readonly pivot = new THREE.Group()
   private readonly logo = new THREE.Group()
   private readonly faceNormal = new THREE.Vector3()
-  private readonly slices: THREE.MeshBasicMaterial[] = Array.from({ length: SLICE_COUNT }, (_, i): THREE.MeshBasicMaterial => {
-    // Faces: transparent without depth writes, so their soft edges blend over what is behind. Slices between: opaque
-    // cutouts that write depth, so the nearest one wins and nothing beneath shows through the side.
-    const material = isFace(i)
-      ? new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide })
-      : new THREE.MeshBasicMaterial({ alphaTest: SIDE_ALPHA_CUTOFF, side: THREE.DoubleSide })
-    const mesh = new THREE.Mesh(this.geometry, material)
-    mesh.position.z = i / (SLICE_COUNT - 1) - 0.5
-    this.logo.add(mesh)
-    return material
-  })
+  // Back then front: transparent without depth writes, so their soft edges blend over what is behind.
+  private readonly faces: THREE.MeshBasicMaterial[] = [-0.5, 0.5].map((z) =>
+    addPlane(this.logo, this.geometry, new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide }), z))
+  // Opaque cutouts that write depth, just inside the faces, so nothing behind a face shows through the shape.
+  private readonly caps: THREE.MeshBasicMaterial[] = [-0.5 + CAP_INSET, 0.5 - CAP_INSET].map((z) =>
+    addPlane(this.logo, this.geometry, new THREE.MeshBasicMaterial({ alphaTest: SIDE_ALPHA_CUTOFF, side: THREE.DoubleSide }), z))
+  // Unlit and opaque, in the vertex colors the trace gives each wall. Only the outside draws: every wall faces out of the solid.
+  private readonly wallMaterial = new THREE.MeshBasicMaterial({ vertexColors: true })
+  private readonly walls = new THREE.Mesh(new THREE.BufferGeometry(), this.wallMaterial)
+  private hasWalls = false
   // The chain of copies for the endless zoom, biggest first so each draws over the one it sits in.
   private readonly zoomCopies: THREE.Mesh[] = []
   private readonly zoomMaterials: THREE.MeshBasicMaterial[] = Array.from({ length: ZOOM_COPIES }, (_, i): THREE.MeshBasicMaterial => {
@@ -152,14 +171,14 @@ export class LogoLayer implements Layer {
   /** How far the logo has turned (radians clockwise): the spin in the screen plane when flat, around the vertical axis in 3D. */
   private bearing = 0
   private readonly headingFollower = new HeadingFollower(logoHeading)
-  private readonly faces: THREE.MeshBasicMaterial[] = this.slices.filter((_, i) => isFace(i))
-  private readonly sides: THREE.MeshBasicMaterial[] = this.slices.filter((_, i) => !isFace(i))
+  // Every material the glow brightens.
+  private readonly glowing: THREE.MeshBasicMaterial[] = [...this.faces, ...this.caps, this.wallMaterial, ...this.zoomMaterials]
   private spriteUrl = ''
   private texture: THREE.Texture | null = null
-  // The sides' own copy of the image without mipmaps. Seen nearly edge-on, a mipmapped lookup averages the whole image
+  // The caps' own copy of the image without mipmaps. Seen nearly edge-on, a mipmapped lookup averages the whole image
   // down to a partly transparent blur, which falls under `SIDE_ALPHA_CUTOFF` and cuts the middle of the sliver out.
-  // Without mipmaps each pixel samples real texels, so the sides keep their coverage (a little aliasing, briefly).
-  private sideTexture: THREE.Texture | null = null
+  // Without mipmaps each pixel samples real texels, so the caps keep their coverage (a little aliasing, briefly).
+  private capTexture: THREE.Texture | null = null
   // Ultra samples the faces and the zoom copies bicubically where the image is drawn larger than its own size.
   private readonly bicubic = createBicubicUniforms()
 
@@ -168,6 +187,8 @@ export class LogoLayer implements Layer {
     if (renderer.capabilities.isWebGL2) [...this.faces, ...this.zoomMaterials].forEach((material) => enableBicubicMap(material, this.bicubic))
     this.cameraManager.init()
     const camera = this.cameraManager.getCamera()
+    this.walls.visible = false
+    this.logo.add(this.walls)
     this.pivot.add(this.logo)
     camera.add(this.pivot)
     this.pivot.position.z = -LOGO_DISTANCE
@@ -199,8 +220,8 @@ export class LogoLayer implements Layer {
 
   dispose = (): void => {
     this.releaseTexture()
-    this.slices.forEach((material) => material.dispose())
-    this.zoomMaterials.forEach((material) => material.dispose())
+    this.glowing.forEach((material) => material.dispose())
+    this.walls.geometry.dispose()
     this.geometry.dispose()
   }
 
@@ -218,18 +239,24 @@ export class LogoLayer implements Layer {
   private releaseTexture = (): void => {
     if (this.texture) releaseSpriteTexture(this.texture)
     this.texture = null
-    this.sideTexture?.dispose()
-    this.sideTexture = null
+    this.capTexture?.dispose()
+    this.capTexture = null
+    assignMap(this.caps, null)
+    this.setWalls(null)
     this.setMap(null)
     this.logo.visible = false
   }
 
   private setMap = (map: THREE.Texture | null): void => {
-    const materials = [...this.slices, ...this.zoomMaterials]
-    materials.forEach((material) => {
-      material.map = map
-      material.needsUpdate = true
-    })
+    assignMap(this.faces, map)
+    assignMap(this.zoomMaterials, map)
+  }
+
+  /** Swaps in the walls of a newly traced image, or none. */
+  private setWalls = (walls: WallMesh | null): void => {
+    this.walls.geometry.dispose()
+    this.walls.geometry = walls ? toGeometry(walls) : new THREE.BufferGeometry()
+    this.hasWalls = walls !== null && walls.indices.length > 0
   }
 
   /** Lays out the chain of copies at the current zoom phase; the unit plane spans [-0.5, 0.5], so the focus is an offset from the middle. */
@@ -249,25 +276,29 @@ export class LogoLayer implements Layer {
   }
 
   /**
-   * The sides' copy of the loaded image, without mipmaps and with its inside recolored to the nearest edge (see edgeFilledCanvas); the
-   * original (shared, mipmapped) stays on the faces. Falls back to a plain copy when the image cannot be read back.
+   * Once per loaded image: traces the walls from its pixels and gives the caps their copy of it, without mipmaps and with its inside
+   * recolored to the nearest edge; the original (shared, mipmapped) stays on the faces. When the image cannot be read back (a
+   * cross-origin image) there are no walls, and the caps get a plain copy.
    */
-  private createSideTexture = (source: THREE.Texture): void => {
+  private createSides = (source: THREE.Texture): void => {
     const image: unknown = source.image
-    const filled = isDrawable(image) && hasSize(image) ? edgeFilledCanvas(image, image.width, image.height) : null
-    const texture = filled ? new THREE.CanvasTexture(filled) : source.clone()
-    if (filled) {
+    const read = isDrawable(image) && hasSize(image) ? readBack(image, image.width, image.height) : null
+    if (read) {
+      const { context, pixels: { data, width, height } } = read
+      this.setWalls(traceWalls(data, width, height, SIDE_ALPHA_CUTOFF * 255))
+      data.set(fillFromEdges(data, width, height, SIDE_ALPHA_CUTOFF * 255))
+      context.putImageData(read.pixels, 0, 0)
+    }
+    const texture = read ? new THREE.CanvasTexture(read.context.canvas) : source.clone()
+    if (read) {
       texture.encoding = source.encoding
       texture.flipY = source.flipY
     }
     texture.generateMipmaps = false
     texture.minFilter = THREE.LinearFilter
     texture.needsUpdate = true
-    this.sideTexture = texture
-    this.sides.forEach((material) => {
-      material.map = texture
-      material.needsUpdate = true
-    })
+    this.capTexture = texture
+    assignMap(this.caps, texture)
   }
 
   private animate = (deltaTime: number, audio: AudioSnapshot): void => {
@@ -276,7 +307,7 @@ export class LogoLayer implements Layer {
     const image: unknown = this.texture?.image
     if (!this.texture || !hasSize(image)) return // still loading
     this.bicubic.uMapSize.value.set(image.width, image.height)
-    if (!this.sideTexture) this.createSideTexture(this.texture)
+    if (!this.capTexture) this.createSides(this.texture)
     const camera = this.cameraManager.getCamera()
     const viewHeight = 2 * LOGO_DISTANCE * Math.tan((camera.fov / 2) * (Math.PI / 180))
     // The beat only swells the logo while the Effects Wob Wob switch is on, like the particles' recoil.
@@ -300,7 +331,7 @@ export class LogoLayer implements Layer {
     const is3D = logo.threeD.value
     // Flat: only the near face draws and the image rolls in the screen plane (positive is clockwise, like Rotation).
     // 3D: turns around the vertical axis through the logo's center, like a planet on its axis.
-    // Zoom swaps the thick stack for the chain of flat copies (they spin and lean with the rest), crossfading over the
+    // Zoom swaps the thick logo for the chain of flat copies (they spin and lean with the rest), crossfading over the
     // Crossfade Duration. The chain starts at the logo's own size, so it takes over from the plain logo without a jump.
     const crossfadeMs = getParticleCrossfadeDurationMs()
     const zoomTarget = logo.zoom.value ? 1 : 0
@@ -311,8 +342,10 @@ export class LogoLayer implements Layer {
     this.zoomMix = crossfadeMs > 0 ? moveToward(this.zoomMix, zoomTarget, deltaTime / crossfadeMs) : zoomTarget
     const isZooming = this.zoomMix > 0
     if (!isZooming) this.zoomPhase = 0
-    // The thick sides cannot fade (they are cut out, not blended), so they give way as soon as the chain starts.
-    this.sides.forEach((material) => { material.visible = is3D && !isZooming })
+    // The caps and walls cannot fade (they are opaque, not blended), so they give way as soon as the chain starts.
+    const showSides = is3D && !isZooming
+    this.caps.forEach((material) => { material.visible = showSides })
+    this.walls.visible = showSides && this.hasWalls
     this.faces.forEach((material, i) => { material.visible = this.zoomMix < 1 && (is3D || i === this.faces.length - 1) })
     this.zoomCopies.forEach((mesh) => { mesh.visible = isZooming })
     // A drag on the Spin dial turns the logo by the difference at once; the speed carries on from there.
@@ -349,7 +382,6 @@ export class LogoLayer implements Layer {
     }
     // The Effects glow switch drives the logo too, with the same formula as the global bloom.
     const glow = window.config.effects.glow.value ? Math.min(1, beat.value * beat.energy) : 0
-    this.slices.forEach((material) => material.color.setScalar(1 + glow))
-    this.zoomMaterials.forEach((material) => material.color.setScalar(1 + glow))
+    this.glowing.forEach((material) => material.color.setScalar(1 + glow))
   }
 }
