@@ -2,7 +2,7 @@ import { DRUM_KINDS } from 'beatsense'
 
 import { RISER_COLOR, SECTION_COLORS } from '../colors'
 import type { LiveSnapshot } from '../labSession'
-import { LABEL_INFO, type Label } from '../recording/labels'
+import { LABEL_INFO, SONG_LABEL_KINDS, type Label, type LabelKind } from '../recording/labels'
 import { between, drumLanes, liveView, riserSpans } from '../recording/liveView'
 import { sectionRuns, timeToX } from '../recording/timeline'
 
@@ -23,7 +23,7 @@ export const LIVE_HEIGHT = DRUM_KINDS.length * (DRUM_LANE_PX + GAP_PX) + SECTION
 const PAIR_COLOR = 'rgba(120, 220, 140, 0.9)'
 const LANE_COLOR = 'rgba(255, 255, 255, 0.03)'
 
-const SECTION_LABELS = new Set(['drop', 'buildup', 'breakdown'])
+const SONG_LABELS: ReadonlySet<LabelKind> = new Set(SONG_LABEL_KINDS)
 
 export const drawLive = (ctx: CanvasRenderingContext2D, width: number, { nowMs, startMs, labels, drumHits, frames }: LiveSnapshot): void => {
   const view = liveView(nowMs)
@@ -110,7 +110,7 @@ export const drawLive = (ctx: CanvasRenderingContext2D, width: number, { nowMs, 
     ctx.textAlign = 'left'
     ctx.fillText(short, x + 4, y + 7)
   }
-  between(labels, view.startMs - 1000, view.endMs).filter(({ kind }) => SECTION_LABELS.has(kind)).forEach((label) => drawTag(label, top + 1))
+  between(labels, view.startMs - 1000, view.endMs).filter(({ kind }) => SONG_LABELS.has(kind)).forEach((label) => drawTag(label, top + 1))
   top += SECTION_LANE_PX + GAP_PX
 
   // Riser: the model's score as a filled line, your spans shaded behind it with their start and end tags.

@@ -2,8 +2,8 @@ import { useCallback, useEffect, useState } from 'react'
 
 import { downloadJson } from './download'
 import type { LabSession, RecordingStatus } from './labSession'
-import { labelForKey } from './recording/hotkeys'
-import type { LabelKind } from './recording/labels'
+import { actionForKey } from './recording/hotkeys'
+import type { LabelAction } from './recording/labels'
 import { serializeSessionFile, sessionFileName } from './recording/sessionFile'
 
 // Often enough for the recorded time to tick visibly.
@@ -14,7 +14,7 @@ export type RecordingControls = {
   recording: boolean
   /** Record, or Stop while recording. */
   toggle: () => void
-  addLabel: (kind: LabelKind) => void
+  addLabel: (action: LabelAction) => void
   undo: () => void
   /** Downloads the stopped session. */
   exportFile: () => void
@@ -35,8 +35,8 @@ export const useRecording = (session: LabSession): RecordingControls => {
     return (): void => window.clearInterval(timer)
   }, [recording, refresh])
 
-  const addLabel = useCallback((kind: LabelKind): void => {
-    session.addLabel(kind)
+  const addLabel = useCallback((action: LabelAction): void => {
+    session.addLabel(action)
     refresh()
   }, [session, refresh])
 
@@ -56,10 +56,10 @@ export const useRecording = (session: LabSession): RecordingControls => {
       }
       // The event's fields are getters on its prototype, so they are read one by one (a spread would copy none).
       const { key, ctrlKey, metaKey, altKey, repeat } = event
-      const kind = labelForKey({ key, ctrlKey, metaKey, altKey, repeat, targetTag: target })
-      if (!kind) return
+      const action = actionForKey({ key, ctrlKey, metaKey, altKey, repeat, targetTag: target })
+      if (!action) return
       event.preventDefault()
-      addLabel(kind)
+      addLabel(action)
     }
     window.addEventListener('keydown', handleKey)
     return (): void => window.removeEventListener('keydown', handleKey)
