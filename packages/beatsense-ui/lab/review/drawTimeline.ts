@@ -1,5 +1,6 @@
-import { DRUM_KINDS, ONSET_BANDS, type DrumKind, type FrameReading, type SongSection } from 'beatsense'
+import { DRUM_KINDS, ONSET_BANDS, type DrumKind, type FrameReading } from 'beatsense'
 
+import { bandColor, RISER_COLOR, SECTION_COLORS, SWEEP_COLOR } from '../colors'
 import { LABEL_INFO, type Label } from '../recording/labels'
 import type { DrumDetection } from '../recording/sessionFile'
 import { columnRanges, formatTime, timeTicks, timeToX, type BeatMark, type ColumnRange, type SectionRun, type View } from '../recording/timeline'
@@ -29,22 +30,6 @@ const LANES: Lane[] = [
 const LANE_GAP_PX = 3
 
 export const TIMELINE_HEIGHT = LANES.reduce((sum, { height }) => sum + height + LANE_GAP_PX, 0)
-
-// The Section HUD's colors, a little stronger on this darker, flat strip.
-const SECTION_COLORS: Record<SongSection, string> = {
-  intro: 'rgba(80, 190, 210, 0.45)',
-  quiet: 'rgba(120, 130, 150, 0.30)',
-  groove: 'rgba(90, 160, 120, 0.35)',
-  buildup: 'rgba(240, 190, 60, 0.55)',
-  turnaround: 'rgba(255, 255, 255, 0.55)',
-  break: 'rgba(90, 140, 220, 0.50)',
-  drop: 'rgba(235, 80, 110, 0.65)',
-  outro: 'rgba(160, 110, 210, 0.50)',
-}
-
-// The HUDs' band colors (beatsense-ui's bandColor), so a band looks the same here.
-const bandColor = (band: number, lightness: number, alpha: number = 1): string =>
-  `hsla(${Math.round((band * 360) / ONSET_BANDS.length + 200) % 360}, 80%, ${lightness}%, ${alpha})`
 
 const DRUM_COLORS: Record<DrumKind, string> = {
   kick: LABEL_INFO.kick.color,
@@ -171,7 +156,7 @@ export const drawTimeline = (ctx: CanvasRenderingContext2D, width: number, data:
       ctx.fillText(`${Math.round(min)}`, GUTTER_PX - 4, top + height - 6)
     } else if (kind === 'riser' || kind === 'sweep') {
       const columns = columnRanges(data.frames, (frame) => frame[kind], view, plotWidth)
-      drawSeries(ctx, columns, top, height, unit, kind === 'riser' ? '#b388ff' : '#80cbc4', msPerPx)
+      drawSeries(ctx, columns, top, height, unit, kind === 'riser' ? RISER_COLOR : SWEEP_COLOR, msPerPx)
     } else if (kind === 'axis') {
       ctx.textAlign = 'center'
       ctx.fillStyle = '#888'

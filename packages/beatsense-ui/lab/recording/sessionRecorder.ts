@@ -2,6 +2,7 @@ import { buildSectionLog, DRUM_KINDS, type DrumKind, type FrameReading, type Sec
 
 import { countLabels, sortLabels, type Label, type LabelKind } from './labels'
 import { SESSION_FORMAT, SESSION_VERSION, type DrumDetection, type LabSessionFile } from './sessionFile'
+import { frameIndexAt } from './timeline'
 
 export type RecorderPhase = 'idle' | 'recording' | 'stopped'
 
@@ -81,6 +82,18 @@ export class SessionRecorder {
 
   /** Audio clock, ms, when the recording started. */
   getStartMs = (): number => this.startMs
+
+  /** Audio clock, ms: the newest frame's time while recording, the stop time after. */
+  getEndMs = (): number => this.endMs
+
+  /** The labels so far, oldest first (live, not a copy: read, do not change). */
+  getLabels = (): readonly Label[] => this.labels
+
+  /** The model's drum hits so far (live, not a copy), in the order they were called. */
+  getDrumHits = (): readonly DrumDetection[] => this.drumHits
+
+  /** The frames from `t` on (a new list), for the live strip's window. */
+  framesSince = (t: number): FrameReading[] => this.frames.slice(frameIndexAt(this.frames, t))
 
   frameCount = (): number => this.frames.length
 
