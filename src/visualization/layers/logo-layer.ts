@@ -11,6 +11,7 @@ import { HeadingFollower } from '../../config/headingFollower'
 import { CameraManager } from '../camera-manager'
 import { getMusicSpeedMultiplier } from '../music-speed'
 import { createBicubicUniforms, enableBicubicMap } from './bicubic-map'
+import { fillFromEdges } from './edge-fill'
 import { Layer } from './layer'
 
 // Local distance in front of the camera. The logo fills `logoConfig.baseHeightFraction` of the viewport height at Size 1.
@@ -19,12 +20,16 @@ const SHAKE_VIEWPORT_FRACTION = 0.05
 
 // Fake thickness: the image is drawn as this many parallel slices spread over `DEPTH_FRACTION` of the logo's height.
 // The two outer slices are the front and back faces, blended so the image keeps its soft edges. The slices between
-// are cut out at `SIDE_ALPHA_CUTOFF` and drawn solid with depth, so where the stack turns away the sides show the
-// image's own edge colors instead of see-through layers. More slices hide the gaps between them when seen nearly
+// are cut out at `SIDE_ALPHA_CUTOFF` and drawn solid with depth, and their copy of the image has every solid pixel recolored to the
+// nearest edge of the shape (edge-fill.ts), so where the stack turns away the sides show a wall in the edge's color instead of the
+// image's inside between the slices. More slices hide the gaps between them when seen nearly
 // edge-on.
 const SLICE_COUNT = 64
 const DEPTH_FRACTION = 0.1
 const SIDE_ALPHA_CUTOFF = 0.5
+// The sides' copy of the image is made at most this many pixels across: they are only ever seen edge-on, and the edge fill runs once
+// over every pixel when the logo loads.
+const SIDE_TEXTURE_MAX_PX = 512
 
 // Seen nearly edge-on, a face is a sliver so thin that each pixel spans most of the texture, and the GPU falls back to
 // the smallest mipmap: the average of the whole image, which is dim and part transparent. That drew a faint line
@@ -65,6 +70,36 @@ const moveToward = (value: number, target: number, step: number): number =>
 const wrap01 = (value: number): number => value - Math.floor(value)
 
 const isFace = (slice: number): boolean => slice === 0 || slice === SLICE_COUNT - 1
+
+// What a canvas can draw the loaded logo image from.
+const isDrawable = (image: unknown): image is HTMLImageElement | HTMLCanvasElement | ImageBitmap =>
+  (typeof HTMLImageElement !== 'undefined' && image instanceof HTMLImageElement)
+  || (typeof HTMLCanvasElement !== 'undefined' && image instanceof HTMLCanvasElement)
+  || (typeof ImageBitmap !== 'undefined' && image instanceof ImageBitmap)
+
+/**
+ * The image for the sides: each solid pixel recolored to the nearest edge of the shape (see fillFromEdges), so a turned logo shows a
+ * solid wall in its edge color instead of the image's inside between the slices. Null when the image cannot be read back (a
+ * cross-origin image taints the canvas).
+ */
+const edgeFilledCanvas = (image: HTMLImageElement | HTMLCanvasElement | ImageBitmap, width: number, height: number): HTMLCanvasElement | null => {
+  const scale = Math.min(1, SIDE_TEXTURE_MAX_PX / Math.max(width, height))
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.max(1, Math.round(width * scale))
+  canvas.height = Math.max(1, Math.round(height * scale))
+  const context = canvas.getContext('2d', { willReadFrequently: true })
+  if (!context) return null
+  try {
+    context.drawImage(image, 0, 0, canvas.width, canvas.height)
+    const pixels = context.getImageData(0, 0, canvas.width, canvas.height)
+    const filled = fillFromEdges(pixels.data, canvas.width, canvas.height, SIDE_ALPHA_CUTOFF * 255)
+    pixels.data.set(filled)
+    context.putImageData(pixels, 0, 0)
+    return canvas
+  } catch {
+    return null
+  }
+}
 
 const hasSize = (image: unknown): image is { width: number; height: number } =>
   typeof image === 'object' && image !== null && 'width' in image && 'height' in image
@@ -213,9 +248,18 @@ export class LogoLayer implements Layer {
     })
   }
 
-  /** Copies the loaded image for the sides without mipmaps; the original (shared, mipmapped) stays on the faces. */
+  /**
+   * The sides' copy of the loaded image, without mipmaps and with its inside recolored to the nearest edge (see edgeFilledCanvas); the
+   * original (shared, mipmapped) stays on the faces. Falls back to a plain copy when the image cannot be read back.
+   */
   private createSideTexture = (source: THREE.Texture): void => {
-    const texture = source.clone()
+    const image: unknown = source.image
+    const filled = isDrawable(image) && hasSize(image) ? edgeFilledCanvas(image, image.width, image.height) : null
+    const texture = filled ? new THREE.CanvasTexture(filled) : source.clone()
+    if (filled) {
+      texture.encoding = source.encoding
+      texture.flipY = source.flipY
+    }
     texture.generateMipmaps = false
     texture.minFilter = THREE.LinearFilter
     texture.needsUpdate = true
