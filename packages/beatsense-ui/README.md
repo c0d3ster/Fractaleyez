@@ -133,8 +133,8 @@ Once the analysis runs, Record starts a session and Stop ends it (a new Record d
 - The label buttons, or their hotkeys, stamp a label at the audio clock's now. The drum labels sit under the Frequency HUD's drum lights,
   the song labels (drop, buildup, breakdown, riser start and end) under the Section HUD; Record, Stop, Undo and Export stay in the bar.
   A label lands at the audio clock's now (the newest audio delivered, so a label lands where the hit
-  was heard plus the reaction time, fixed on the review page): kick `K`, snare `S`, clap `C`, hat `H`, drop `D`, buildup `B`, breakdown
-  `N`, riser start `R` and riser end `E`. Held keys, keys with Ctrl, Cmd or Alt, and typing in a field add nothing. Backspace (or Undo)
+  was heard plus the reaction time, fixed on the review page): the drums on `Q` kick, `W` snare, `E` clap, `R` hat, and the song
+  labels on `1` drop, `2` buildup, `3` breakdown, `4` riser start, `5` riser end, in the order of their buttons. Held keys, keys with Ctrl, Cmd or Alt, and typing in a field add nothing. Backspace (or Undo)
   removes the newest label.
 - The live strip under the HUDs shows the last 6 s of your labels against the model's as they happen. Per drum, your labels on top and
   the model's hits below, a pair joined by a green line (a hit from 350 ms before the label to 100 ms after it, one to one, nearest first)

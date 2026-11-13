@@ -27,22 +27,25 @@ type LabelInfo = {
   name: string
   /** Its tag on the review page's timeline. */
   short: string
-  /** The key that adds it while recording (lower case; shown on the button). */
+  /**
+   * The key that adds it while recording (lower case; shown on the button): the drums on Q W E R and the song labels on 1 to 5, in the
+   * order of their buttons, so every key is under the left hand.
+   */
   key: string
   /** Its color on the review page. */
   color: string
 }
 
 export const LABEL_INFO: Record<LabelKind, LabelInfo> = {
-  kick: { short: 'K', name: 'Kick', key: 'k', color: '#ff6b6b' },
-  snare: { short: 'S', name: 'Snare', key: 's', color: '#ffd166' },
-  clap: { short: 'C', name: 'Clap', key: 'c', color: '#f78fb3' },
-  hat: { short: 'H', name: 'Hat', key: 'h', color: '#4ecdc4' },
-  drop: { short: 'Drop', name: 'Drop', key: 'd', color: '#ef476f' },
-  buildup: { short: 'Build', name: 'Buildup', key: 'b', color: '#f4a261' },
-  breakdown: { short: 'Break', name: 'Breakdown', key: 'n', color: '#6c8ef5' },
-  riserStart: { short: 'Riser', name: 'Riser start', key: 'r', color: '#b388ff' },
-  riserEnd: { short: '/Riser', name: 'Riser end', key: 'e', color: '#7e57c2' },
+  kick: { short: 'K', name: 'Kick', key: 'q', color: '#ff6b6b' },
+  snare: { short: 'S', name: 'Snare', key: 'w', color: '#ffd166' },
+  clap: { short: 'C', name: 'Clap', key: 'e', color: '#f78fb3' },
+  hat: { short: 'H', name: 'Hat', key: 'r', color: '#4ecdc4' },
+  drop: { short: 'Drop', name: 'Drop', key: '1', color: '#ef476f' },
+  buildup: { short: 'Build', name: 'Buildup', key: '2', color: '#f4a261' },
+  breakdown: { short: 'Break', name: 'Breakdown', key: '3', color: '#6c8ef5' },
+  riserStart: { short: 'Riser', name: 'Riser start', key: '4', color: '#b388ff' },
+  riserEnd: { short: '/Riser', name: 'Riser end', key: '5', color: '#7e57c2' },
 }
 
 export const isLabelKind = (value: unknown): value is LabelKind => typeof value === 'string' && (LABEL_KINDS as readonly string[]).includes(value)
