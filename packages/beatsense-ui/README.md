@@ -105,7 +105,7 @@ A standalone page with the three HUDs on a live microphone, for working on beats
 and beatsense-ui, and will also be where recording (record and stop, live labels, hotkeys) goes.
 
 ```sh
-pnpm lab         # from this folder or the repo root: Vite dev server on http://localhost:5180
+pnpm lab         # from this folder or the repo root: Vite dev server on http://localhost:4000
 pnpm lab:build   # a static build in lab/dist
 ```
 

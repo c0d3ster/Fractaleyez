@@ -3,6 +3,7 @@ import './FrequencyHud.css'
 
 import { DRUM_CENTER_HZ, DRUM_KINDS, ONSET_BANDS } from 'beatsense'
 import { sourceNow, useHud, type AnalysisSource } from './HudContext'
+import { trackCanvasResolution } from './canvasResolution'
 import { bandColor } from './bandColors'
 import { beatFlashes } from './beatFlashes'
 import { RISER_LEVELS, RiserLevel } from './riserLevel'
@@ -136,8 +137,10 @@ export const FrequencyHud = ({ enabledBands, onEnabledBandsChange }: FrequencyHu
     const ctx = canvas.getContext('2d')
     if (!ctx) return
     const riserMeter = new RiserLevel()
+    const resolution = trackCanvasResolution(canvas, W, H)
 
     const draw = (): void => {
+      resolution.apply(ctx)
       ctx.clearRect(0, 0, W, H)
 
       // The bars show the same bands the beat detector listens to: level, the level a hit had to pass, and a flash
@@ -226,7 +229,11 @@ export const FrequencyHud = ({ enabledBands, onEnabledBandsChange }: FrequencyHu
       drawRiserMeter(ctx, source, riserMeter, now)
     }
 
-    return ticker(draw, canvas)
+    const unsubscribe = ticker(draw, canvas)
+    return (): void => {
+      resolution.stop()
+      unsubscribe()
+    }
   }, [source, ticker])
 
   // The band under the pointer, or null between bands' ends or on the instrument row below the labels (which toggles nothing).

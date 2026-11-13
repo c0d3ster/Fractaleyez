@@ -208,17 +208,17 @@ export class WaveformTrack {
     for (let b = 0; b < BANDS; b++) {
       const scale = full * BAND_SCALE[b]!
       ctx.fillStyle = view.enabled[b] ? ENABLED_FILLS[b]! : DISABLED_FILLS[b]!
-      ctx.beginPath()
+      // One fillRect per column, not one path of hundreds of rects filled at once: the browser rasterizes such a path as a single complex
+      // shape, which in the large lab view stalled the page to a few frames a second. The bars sit side by side, so the picture is the same.
       for (let g = first; g <= this.newestColumn; g += step) {
         let peak = 0
         for (let c = g; c < g + step && c <= this.newestColumn; c++) peak = Math.max(peak, this.peaks[(c % COLUMNS) * BANDS + b]!)
         const h = peak * scale
         if (h < 0.5) continue
         const x = this.toX(g * COLUMN_MS, view)
-        if (view.mirrored) ctx.rect(x, MID - h, width, h * 2)
-        else ctx.rect(x, PLOT_BOTTOM - h, width, h)
+        if (view.mirrored) ctx.fillRect(x, MID - h, width, h * 2)
+        else ctx.fillRect(x, PLOT_BOTTOM - h, width, h)
       }
-      ctx.fill()
     }
   }
 

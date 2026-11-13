@@ -5,6 +5,7 @@ import { DEFAULT_ENABLED_BANDS, estimateTempo, type RollLevel } from 'beatsense'
 import { sourceNow, useHud } from './HudContext'
 import { DEFAULT_VIEW_MS, MIN_VIEW_MS, WAVEFORM_H, WAVEFORM_HISTORY_MS, WAVEFORM_W, WaveformTrack, WaveformView } from './waveformTrack'
 import { listenWheel, zoomView } from './wheelZoom'
+import { trackCanvasResolution } from './canvasResolution'
 
 // The tempo moves slowly, so it is re-read twice a second, and only drawn again when the number shown changes.
 const TEMPO_UPDATE_INTERVAL_MS = 500
@@ -87,7 +88,10 @@ export const BeatHud = (): React.ReactElement => {
 
     const track = new WaveformTrack()
     const view: WaveformView = { now: 0, viewMs: DEFAULT_VIEW_MS, enabled: DEFAULT_ENABLED_BANDS, ignoreMs: 0, mirrored: mirroredRef.current }
+    // Redraws right away when the canvas is resized, since a resize clears it.
+    const resolution = trackCanvasResolution(canvas, WAVEFORM_W, WAVEFORM_H, () => redrawRef.current?.())
     const draw = (): void => {
+      resolution.apply(ctx)
       updateTempo()
       setRoll(source.getSnareRoll?.() ?? null)
       const timeline = source.getBeatTimeline?.()
@@ -110,6 +114,7 @@ export const BeatHud = (): React.ReactElement => {
     const unsubscribe = ticker(draw, canvas)
     return (): void => {
       stopWheel()
+      resolution.stop()
       unsubscribe()
       if (clickTimerRef.current !== null) clearTimeout(clickTimerRef.current)
     }

@@ -28,13 +28,24 @@ export const StatusLine = ({ session, phase }: StatusLineProps): React.ReactElem
     return (): void => window.clearInterval(timer)
   }, [session, phase])
 
-  const { sampleRate, framesPerSecond, mic, error } = status
+  const { sampleRate, framesPerSecond, mic, error, perf } = status
   return (
     <p className='lab-status' role='status'>
       {phase === 'idle' && <span>Press Start and allow the microphone.</span>}
       {sampleRate !== null && <span>Sample rate <b>{sampleRate} Hz</b></span>}
       {phase === 'running' && <span>Frames <b>{Math.round(framesPerSecond)}/s</b></span>}
       <span>Mic <b>{MIC_TEXT[mic]}</b></span>
+      <span title='Frames the page drew in the last second, and the longest gap between two. A stall in the browser&apos;s own drawing shows here even when the scripts are fast.'>
+        Page <b>{perf.pageFps} fps</b> worst <b>{Math.round(perf.worstFrameMs)} ms</b>
+      </span>
+      <span title='Average script time of one HUD redraw over the last second (the HUDs redraw 30 times a second).'>
+        Draw <b>{perf.drawMs.toFixed(1)} ms</b>
+      </span>
+      {phase === 'running' && (
+        <span title='Average time to analyse one audio frame (60 a second) over the last second, and the share of one CPU core that is.'>
+          Analysis <b>{perf.analysisMs.toFixed(2)} ms</b> (<b>{(perf.analysisShare * 100).toFixed(1)}%</b> CPU)
+        </span>
+      )}
       {error && <span className='lab-status-error'>{error}</span>}
     </p>
   )
