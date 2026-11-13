@@ -1,5 +1,5 @@
 import modelData from './sweep-model.json'
-import { fit, inputIndexes, scoreProbability, type MlpModel } from '../shared/mlp'
+import { checkMlpShape, fit, inputIndexes, scoreProbability, type MlpModel } from '../shared/mlp'
 import { SPECTRUM_BANDS, spectrumEdgesHz } from './tick-extras'
 import { nextSlotStart } from './riser'
 
@@ -113,7 +113,11 @@ export const sweepFeatures = (steps: ReadonlyArray<readonly number[]>): number[]
 }
 
 // Where each of the model's inputs sits in SWEEP_FEATURE_NAMES.
-const sweepInputs = (model: SweepModel): number[] => inputIndexes(model, SWEEP_FEATURE_NAMES, 'sweep-model.json')
+// Checks the model's shape, then maps its inputs by name (so a model may read any subset of the features, in any order).
+const sweepInputs = (model: SweepModel): number[] => {
+  checkMlpShape(model, 'sweep-model.json')
+  return inputIndexes(model, SWEEP_FEATURE_NAMES, 'sweep-model.json')
+}
 
 /** The model's probability that a sweep is playing, from every input (sweepFeatures). */
 export const sweepProbability = (features: readonly number[], model: SweepModel = SWEEP_MODEL): number =>

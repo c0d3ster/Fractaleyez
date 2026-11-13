@@ -1,5 +1,5 @@
 import modelData from './drum-hit-model.json'
-import { checkInputLayout, checkLength, forward, sigmoid, standardize, type Layer } from '../shared/mlp'
+import { checkInputLayout, checkLength, checkMlpShape, forward, sigmoid, standardize, type Layer } from '../shared/mlp'
 import { BandTracker, thresholdDbFor, type BandReading, type ReferenceWindow } from '../onset/onset-detector'
 
 // The kick's, the hats', the snare's and the clap's hits, for the Frequency HUD's lights and the snare roll (roll-rate.ts). A rise in
@@ -101,13 +101,10 @@ const checkedDrumModels = new WeakSet<DrumHitModel>()
 export const checkDrumModel = (model: DrumHitModel): void => {
   if (checkedDrumModels.has(model)) return
   const what = 'Drum hit model'
-  const { features, mean, scale, hidden, output, kinds, thresholds } = model
-  checkInputLayout(what, features, DRUM_HIT_MODEL.features, { mean, scale })
-  hidden.weights.forEach((row, j) => checkLength(what, `hidden row ${j}`, row, features.length))
-  checkLength(what, 'hidden bias', hidden.bias, hidden.weights.length)
-  output.weights.forEach((row, k) => checkLength(what, `output row ${k}`, row, hidden.weights.length))
+  const { features, output, kinds, thresholds } = model
+  checkInputLayout(what, features, DRUM_HIT_MODEL.features, {})
+  checkMlpShape(model, what)
   checkLength(what, 'output rows', output.weights, kinds.length)
-  checkLength(what, 'output bias', output.bias, kinds.length)
   checkLength(what, 'thresholds', thresholds, kinds.length)
   checkedDrumModels.add(model)
 }
