@@ -80,6 +80,10 @@ export const AUTO_SLOW_MIN_MS = 18
 export const AUTO_SLOW_MAX_MS = 24
 // A window is also slow when its 95th percentile frame is this many display refresh intervals long: a tier can look fine by its median and still hitch constantly.
 export const AUTO_ROUGH_FACTOR = 2.5
+// ...but never shorter than this. Chrome paces the page to the primary display, so with a 240 Hz laptop primary and the visual on a 60 Hz
+// TV, 2.5 refreshes is 10.4 ms: frames the TV could never show as a hitch counted as rough. 25 ms (40 fps) is a frame a 60 Hz screen
+// would show as a skip; on a 60 Hz display 2.5 refreshes is already 42 ms, so this changes nothing there.
+export const AUTO_ROUGH_MIN_MS = 25
 
 /**
  * Whether a tier's frame cap is slow enough that its frame times are the cap's own pace and say nothing about load (Saver's 30fps).
