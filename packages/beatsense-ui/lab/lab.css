@@ -157,3 +157,83 @@ body {
 .lab-huds .section-hud-wrapper {
   padding-top: 6px;
 }
+
+/* Recording: Record and Stop, the time, the label buttons with their hotkeys and counts, Export, and the link to the review page. */
+.lab-record {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.lab-record-button.lab-recording {
+  border-color: #e5484d;
+  background: rgba(229, 72, 77, 0.25);
+  color: #fff;
+}
+
+.lab-record-time,
+.lab-record-last {
+  font-size: 13px;
+  color: #888;
+  font-variant-numeric: tabular-nums;
+}
+
+.lab-record-time b {
+  font-weight: 600;
+  color: rgba(220, 220, 220, 0.9);
+}
+
+.lab-labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.lab-label-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px;
+  border: 1px solid #444;
+  border-left-width: 3px;
+  border-radius: 5px;
+  background: rgba(40, 40, 40, 0.9);
+  color: rgba(220, 220, 220, 0.9);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.lab-label-button:hover:not(:disabled) {
+  background: #555;
+}
+
+.lab-label-button:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.lab-label-button kbd {
+  padding: 0 4px;
+  border: 1px solid #555;
+  border-radius: 3px;
+  font: inherit;
+  font-size: 10px;
+  color: #aaa;
+}
+
+.lab-label-count {
+  min-width: 14px;
+  padding: 0 4px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.15);
+  font-size: 10px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.lab-link {
+  font-size: 13px;
+  color: #79b8ff;
+}

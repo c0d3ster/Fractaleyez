@@ -1,0 +1,55 @@
+/* The review page, on the lab's styles (lab.css). */
+
+.review-open input {
+  display: none;
+}
+
+.review-main {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.review-labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 12px;
+  color: #aaa;
+}
+
+.review-label-count {
+  padding: 2px 8px;
+  border: 1px solid #444;
+  border-left-width: 3px;
+  border-radius: 5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.review-label-count b {
+  color: rgba(220, 220, 220, 0.9);
+}
+
+.review-timeline {
+  width: 100%;
+  user-select: none;
+}
+
+.review-timeline canvas {
+  display: block;
+}
+
+.review-selected {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  min-height: 34px;
+  margin: 0;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.review-hint {
+  color: #777;
+}
