@@ -8,7 +8,7 @@ import { AudioClock } from './audioClock'
 import { FrameRate } from './frameRate'
 import { PageFrames } from './pageFrames'
 import { RollingStats, type PerfReading } from './perfStats'
-import type { Label, LabelKind } from './recording/labels'
+import { isRiserOpen, labelKindFor, type Label, type LabelAction, type LabelKind } from './recording/labels'
 import { LIVE_WINDOW_MS } from './recording/liveView'
 import type { DrumDetection, LabSessionFile } from './recording/sessionFile'
 import { SessionRecorder, type RecorderPhase } from './recording/sessionRecorder'
@@ -39,6 +39,8 @@ export type RecordingStatus = {
   durationMs: number
   frames: number
   labelCounts: Record<LabelKind, number>
+  /** Whether a riser is open (the riser button and R end it next). */
+  riserOpen: boolean
   /** The newest label added, for the bar's feedback. */
   lastLabel: Label | null
   /** The stopped session, ready to export. */
@@ -220,9 +222,9 @@ export class LabSession {
    * Adds a label at the audio clock's now: the newest audio delivered, so the label lands where the person heard the hit, plus their
    * reaction time (moved on the review page). Null when not recording.
    */
-  addLabel = (kind: LabelKind): Label | null => {
+  addLabel = (action: LabelAction): Label | null => {
     if (!this.clock) return null
-    const label = this.recorder.addLabel(kind, this.clock.now())
+    const label = this.recorder.addLabel(labelKindFor(action, this.recorder.getLabels()), this.clock.now())
     if (label) this.lastLabel = label
     return label
   }
@@ -240,6 +242,7 @@ export class LabSession {
     durationMs: this.recorder.durationMs(),
     frames: this.recorder.frameCount(),
     labelCounts: this.recorder.labelCounts(),
+    riserOpen: isRiserOpen(this.recorder.getLabels()),
     lastLabel: this.lastLabel,
     file: this.file,
   })

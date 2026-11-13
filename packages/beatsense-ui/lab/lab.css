@@ -218,6 +218,11 @@ body {
   cursor: pointer;
 }
 
+.lab-label-button.lab-label-active {
+  background: rgba(126, 87, 194, 0.35);
+  color: #fff;
+}
+
 .lab-label-button:hover:not(:disabled) {
   background: #555;
 }
