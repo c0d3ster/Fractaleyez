@@ -17,6 +17,20 @@ export const forward = ({ hidden, output }: Pick<MlpModel, 'hidden' | 'output'>,
 export const standardize = ({ mean, scale }: Pick<MlpModel, 'mean' | 'scale'>, values: readonly number[]): number[] =>
   values.map((v, i) => (v - (mean[i] ?? 0)) / (scale[i] ?? 1))
 
+/**
+ * Throws unless every vector of `model` is sized for its inputs: one mean, scale and hidden weight per feature, one hidden bias per hidden
+ * unit, one output weight per hidden unit and one output bias per output (standardize and dense would read a missing entry as a default).
+ */
+export const checkMlpShape = (model: MlpModel, what: string): void => {
+  const { features, mean, scale, hidden, output } = model
+  checkLength(what, 'mean', mean, features.length)
+  checkLength(what, 'scale', scale, features.length)
+  hidden.weights.forEach((row, j) => checkLength(what, `hidden row ${j}`, row, features.length))
+  checkLength(what, 'hidden bias', hidden.bias, hidden.weights.length)
+  output.weights.forEach((row, k) => checkLength(what, `output row ${k}`, row, hidden.weights.length))
+  checkLength(what, 'output bias', output.bias, output.weights.length)
+}
+
 /** Where each of the model's inputs sits in `names` (the detector's full feature list). Throws on a name the detector does not know. */
 export const inputIndexes = (model: Pick<MlpModel, 'features'>, names: readonly string[], what: string): number[] =>
   model.features.map((name) => {

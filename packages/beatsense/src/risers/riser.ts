@@ -1,5 +1,5 @@
 import modelData from './riser-model.json'
-import { fit, inputIndexes, scoreProbability, type MlpModel } from '../shared/mlp'
+import { checkMlpShape, fit, inputIndexes, scoreProbability, type MlpModel } from '../shared/mlp'
 
 // How much the music sounds like a riser right now (a noise sweep, a pitch riser, a high-passed whoosh): 0 to 1, for the Frequency HUD
 // and, read offline, for the section model. A riser is not a hit but a climb over bars, so instead of onsets this follows the five band
@@ -162,7 +162,11 @@ const longContext = (history: ReadonlyArray<readonly number[]>, total: (dbs: rea
 }
 
 // Where each of the model's inputs sits in RISER_FEATURE_NAMES.
-const riserInputs = (model: RiserModel): number[] => inputIndexes(model, RISER_FEATURE_NAMES, 'riser-model.json')
+// Checks the model's shape, then maps its inputs by name (so a model may read any subset of the features, in any order).
+const riserInputs = (model: RiserModel): number[] => {
+  checkMlpShape(model, 'riser-model.json')
+  return inputIndexes(model, RISER_FEATURE_NAMES, 'riser-model.json')
+}
 
 /** The model's probability that the slot is inside a riser, from every input (riserFeatures). */
 export const riserProbability = (features: readonly number[], model: RiserModel = RISER_MODEL): number =>

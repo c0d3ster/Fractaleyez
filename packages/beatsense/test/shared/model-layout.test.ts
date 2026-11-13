@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest'
 
 import { checkDrumModel, DRUM_HIT_MODEL, DrumHits, type DrumHitModel } from '../../src/drums'
 import { checkRhythmModel, readRhythm, RHYTHM_MODEL, RhythmLabeler, type RhythmModel } from '../../src/rhythm'
-import { riserProbability, sweepProbability } from '../../src'
+import { RISER_MODEL, RiserDetector, riserProbability, SWEEP_MODEL, SweepDetector, sweepProbability } from '../../src'
+import type { RiserModel, SweepModel } from '../../src'
 
 const SILENT = { bandOnsets: [[], [], [], [], []], periodMs: 500 }
 
@@ -37,6 +38,22 @@ describe('injected rhythm models', () => {
       expect(() => readRhythm(SILENT, {}, model)).toThrow(/Rhythm model/)
       expect(() => new RhythmLabeler({}, {}, model)).toThrow(/Rhythm model/)
     }
+  })
+})
+
+describe('injected riser and sweep models', () => {
+  it('accepts the bundled models', () => {
+    expect(() => new RiserDetector(undefined, RISER_MODEL)).not.toThrow()
+    expect(() => new SweepDetector(undefined, SWEEP_MODEL)).not.toThrow()
+  })
+
+  it('rejects a model with a vector sized wrong', () => {
+    const riser: RiserModel = { ...RISER_MODEL, scale: RISER_MODEL.scale.slice(1) }
+    const sweep: SweepModel = { ...SWEEP_MODEL, hidden: { ...SWEEP_MODEL.hidden, bias: SWEEP_MODEL.hidden.bias.slice(1) } }
+    expect(() => new RiserDetector(undefined, riser)).toThrow(/riser-model.json/)
+    expect(() => riserProbability([], riser)).toThrow(/riser-model.json/)
+    expect(() => new SweepDetector(undefined, sweep)).toThrow(/sweep-model.json/)
+    expect(() => sweepProbability([], sweep)).toThrow(/sweep-model.json/)
   })
 })
 
