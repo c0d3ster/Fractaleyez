@@ -1,10 +1,14 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi, type Mock } from 'vitest'
 
 import { AudioSource, MIC_CONSTRAINTS, PROCESSOR_NAME, packFrame } from '../../src'
 
 type Port = { onmessage: ((event: { data: Float64Array }) => void) | null; postMessage: ReturnType<typeof vi.fn> }
 
-const setup = () => {
+type Mute = { gain: { value: number }; connect: Mock }
+type FakeContext = { destination: object; audioWorklet: { addModule: Mock }; createGain: () => Mute; createMediaStreamSource: Mock }
+type Setup = { source: AudioSource; port: Port; nodes: { name: string }[]; context: FakeContext; getUserMedia: Mock; mute: Mute; mic: { kind: string } }
+
+const setup = (): Setup => {
   const port: Port = { onmessage: null, postMessage: vi.fn() }
   const nodes: { name: string }[] = []
   class FakeWorkletNode {
@@ -16,12 +20,12 @@ const setup = () => {
     }
   }
   vi.stubGlobal('AudioWorkletNode', FakeWorkletNode)
-  const mute = { gain: { value: 1 }, connect: vi.fn() }
+  const mute: Mute = { gain: { value: 1 }, connect: vi.fn() }
   const mic = { kind: 'mic' }
-  const context = {
+  const context: FakeContext = {
     destination: {},
     audioWorklet: { addModule: vi.fn().mockResolvedValue(undefined) },
-    createGain: () => mute,
+    createGain: (): Mute => mute,
     createMediaStreamSource: vi.fn().mockReturnValue(mic),
   }
   const getUserMedia = vi.fn().mockResolvedValue({})
