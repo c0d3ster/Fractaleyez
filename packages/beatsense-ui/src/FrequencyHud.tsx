@@ -1,11 +1,8 @@
-import React, { useRef, useEffect, useState, useCallback } from 'react'
+import React, { useRef, useEffect, useCallback } from 'react'
 import './FrequencyHud.css'
 
-import { connectConfigActions } from '../config/context/ConfigProvider'
-import { useInfo } from '../config/info/info'
-import { UserSettings } from '../../config/userSettings.config'
-import { DRUM_CENTER_HZ, DRUM_KINDS, DEFAULT_ENABLED_BANDS, ONSET_BANDS, isValidBandSelection } from 'beatsense'
-import { subscribeUiTick } from '../../utils/uiTicker'
+import { DRUM_CENTER_HZ, DRUM_KINDS, ONSET_BANDS } from 'beatsense'
+import { sourceNow, useHud, type AnalysisSource } from './HudContext'
 import { bandColor } from './bandColors'
 import { beatFlashes } from './beatFlashes'
 import { RISER_LEVELS, RiserLevel } from './riserLevel'
@@ -15,8 +12,6 @@ const LABELS = ONSET_BANDS.map(({ label }) => label)
 // A bar's top is a bit above the band's recent loudness, so a hit that is the loudest in a while nearly fills it.
 const BAR_HEADROOM = 1.1
 
-// The visualizer lives in the main window; a popped-out config window reads it through window.opener.
-const mainWindow = (): Window => window.opener ?? window
 const W = 180
 const LABEL_H = 14
 const BAR_AREA_H = 90
@@ -70,7 +65,7 @@ const drawInstrumentLabel = (ctx: CanvasRenderingContext2D, text: string, x: num
   ctx.fillText(text, x, INSTRUMENT_LABEL_Y)
 }
 
-const drawInstrumentLights = (ctx: CanvasRenderingContext2D, source: Window, now: number): void => {
+const drawInstrumentLights = (ctx: CanvasRenderingContext2D, source: AnalysisSource, now: number): void => {
   const y = INSTRUMENT_TOP + ICON_H / 2
   const last = source.getDrumHits?.()
   DRUM_KINDS.forEach((kind, i) => {
@@ -85,7 +80,7 @@ const drawInstrumentLights = (ctx: CanvasRenderingContext2D, source: Window, now
   })
 }
 
-const drawRiserMeter = (ctx: CanvasRenderingContext2D, source: Window, meter: RiserLevel, now: number): void => {
+const drawRiserMeter = (ctx: CanvasRenderingContext2D, source: AnalysisSource, meter: RiserLevel, now: number): void => {
   // Whichever reads higher: the sweep (sweep.ts, from the spectrum) catches risers the band levels (riser.ts) cannot see under the hats.
   const score = Math.min(1, Math.max(0, source.getRiser?.() ?? 0, source.getSweep?.() ?? 0))
   const level = meter.step(score, now)
@@ -116,48 +111,24 @@ const roundRect = (ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
   ctx.fill()
 }
 
-type FrequencyHudProps = {
-  userSettings: UserSettings | null
-  updateUserSettings: (patch: Partial<UserSettings>) => void
+export type FrequencyHudProps = {
+  /** Which onset bands can set off a beat, one per band in `ONSET_BANDS` order; a band that is off is drawn dimmed. */
+  enabledBands: readonly boolean[]
+  /** Called with the whole new selection when a band is clicked; the HUD shows it once it comes back as `enabledBands`. */
+  onEnabledBandsChange: (enabledBands: boolean[]) => void
 }
 
-const FrequencyHudInner = ({ userSettings, updateUserSettings }: FrequencyHudProps): React.ReactElement => {
-  const info = useInfo()
+export const FrequencyHud = ({ enabledBands, onEnabledBandsChange }: FrequencyHudProps): React.ReactElement => {
+  const { source, ticker, hint } = useHud()
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  // Persisted settings (loaded async from /api/me) take priority once they arrive; until then,
-  // fall back to whatever the live global already holds (e.g. from an earlier session tab).
-  const [enabledBands, setEnabledBands] = useState<boolean[]>(() =>
-    (userSettings?.hud?.enabledFreqBands ?? window.enabledFreqBands ?? DEFAULT_ENABLED_BANDS).slice(0, VISIBLE_BANDS)
-  )
+  // The draw loop reads the selection on each tick, and a click toggles the latest one.
   const enabledBandsRef = useRef(enabledBands)
+  enabledBandsRef.current = enabledBands
   const hoveredBandRef = useRef<number | null>(null)
-  const appliedPersistedRef = useRef(false)
 
-  // One-time sync once the persisted setting actually loads (it arrives after this component's
-  // initial mount, since /api/me is fetched async) -- doesn't refire on every settings patch,
-  // otherwise a locally-driven toggle below would get overwritten by its own stale closure.
-  useEffect(() => {
-    if (appliedPersistedRef.current) return
-    const persisted = userSettings?.hud?.enabledFreqBands
-    if (!persisted || !isValidBandSelection(persisted)) return
-    appliedPersistedRef.current = true
-    const next = persisted.slice(0, VISIBLE_BANDS)
-    enabledBandsRef.current = next
-    setEnabledBands(next)
-  }, [userSettings])
-
-  const toggleBand = useCallback((i: number) => {
-    setEnabledBands(prev => {
-      const next = prev.map((v, idx) => idx === i ? !v : v)
-      enabledBandsRef.current = next
-      // Sync to global: visible bands toggle, hidden high bands stay false
-      if (window.enabledFreqBands) {
-        next.forEach((v, idx) => { window.enabledFreqBands![idx] = v })
-      }
-      updateUserSettings({ hud: { enabledFreqBands: next } })
-      return next
-    })
-  }, [updateUserSettings])
+  const toggleBand = useCallback((i: number): void => {
+    onEnabledBandsChange(enabledBandsRef.current.map((on, idx) => (idx === i ? !on : on)))
+  }, [onEnabledBandsChange])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -171,11 +142,11 @@ const FrequencyHudInner = ({ userSettings, updateUserSettings }: FrequencyHudPro
 
       // The bars show the same bands the beat detector listens to: level, the level a hit had to pass, and a flash
       // on the band that actually set off a beat.
-      const timeline = mainWindow().getBeatTimeline?.()
+      const timeline = source.getBeatTimeline?.()
       const samples = timeline?.samples ?? []
       const latest = samples[samples.length - 1]
-      // The timeline's clock is the main window's, so flashes age against that and keep fading if sampling stops.
-      const now = mainWindow().performance.now()
+      // The timeline is stamped on the source's clock, so flashes age against that and keep fading if sampling stops.
+      const now = sourceNow(source)
       // The band that set off each recent beat, and bass too when its own onset is right by a beat another band took (beatFlashes.ts).
       const flashes = beatFlashes(samples, now, VISIBLE_BANDS)
 
@@ -251,12 +222,12 @@ const FrequencyHudInner = ({ userSettings, updateUserSettings }: FrequencyHudPro
         ctx.fillText(LABELS[i] ?? '', x + BAR_W / 2, BANDS_H - 2)
       }
 
-      drawInstrumentLights(ctx, mainWindow(), now)
-      drawRiserMeter(ctx, mainWindow(), riserMeter, now)
+      drawInstrumentLights(ctx, source, now)
+      drawRiserMeter(ctx, source, riserMeter, now)
     }
 
-    return subscribeUiTick(draw, canvas)
-  }, [])
+    return ticker(draw, canvas)
+  }, [source, ticker])
 
   // The band under the pointer, or null between bands' ends or on the instrument row below the labels (which toggles nothing).
   const bandAt = useCallback((e: React.MouseEvent<HTMLCanvasElement>): number | null => {
@@ -266,23 +237,23 @@ const FrequencyHudInner = ({ userSettings, updateUserSettings }: FrequencyHudPro
     return band >= 0 && band < VISIBLE_BANDS ? band : null
   }, [])
 
-  const handlePointerMove = useCallback((e: React.PointerEvent<HTMLCanvasElement>) => {
+  const handlePointerMove = useCallback((e: React.PointerEvent<HTMLCanvasElement>): void => {
     // Touch has no hover; tracking it would leave the band highlighted after a tap.
     if (e.pointerType !== 'mouse') return
     hoveredBandRef.current = bandAt(e)
   }, [bandAt])
 
-  const handlePointerLeave = useCallback(() => {
+  const handlePointerLeave = useCallback((): void => {
     hoveredBandRef.current = null
   }, [])
 
-  const handleClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+  const handleClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>): void => {
     const band = bandAt(e)
     if (band !== null) toggleBand(band)
   }, [bandAt, toggleBand])
 
   return (
-    <div className='frequency-hud-wrapper' {...info('Click a band to choose whether it can set off a beat. The bass band (the kick) and the hi band (snare and clap) are on by default. The lights below flash on each hit the drum classifier calls a kick, a snare, a clap or hats, each placed at the frequency its hits sit at. The signal bars under air light up once the music is clearly rising (a riser or a sweep), more bars the surer it is.')}>
+    <div className='frequency-hud-wrapper' {...hint('Click a band to choose whether it can set off a beat. The bass band (the kick) and the hi band (snare and clap) are on by default. The lights below flash on each hit the drum classifier calls a kick, a snare, a clap or hats, each placed at the frequency its hits sit at. The signal bars under air light up once the music is clearly rising (a riser or a sweep), more bars the surer it is.')}>
       <span className='frequency-hud-label'>Frequency</span>
       <div className='frequency-hud'>
         <canvas
@@ -298,5 +269,3 @@ const FrequencyHudInner = ({ userSettings, updateUserSettings }: FrequencyHudPro
     </div>
   )
 }
-
-export const FrequencyHud = connectConfigActions(FrequencyHudInner)

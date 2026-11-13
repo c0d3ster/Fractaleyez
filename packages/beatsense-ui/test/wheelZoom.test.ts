@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { zoomView } from './wheelZoom'
+import { zoomView } from '../src/wheelZoom'
 
 const RANGE = { minMs: 30000, maxMs: 120000 }
 

@@ -1,9 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
-import { useInfo } from '../config/info/info'
 import './SectionHud.css'
 
-import { SectionState, SectionSlot, SongSection } from 'beatsense'
-import { subscribeUiTick } from '../../utils/uiTicker'
+import type { SectionState, SectionSlot, SongSection } from 'beatsense'
+import { sourceNow, useHud } from './HudContext'
 import { listenWheel, zoomView } from './wheelZoom'
 
 const W = 360
@@ -26,9 +25,6 @@ const SECTION_COLORS: Record<SongSection, string> = {
 }
 
 const LINE_COLOR = 'rgba(255, 255, 255, 0.75)'
-
-// The visualizer lives in the main window; a popped-out config window reads it through window.opener.
-const mainWindow = (): Window => window.opener ?? window
 
 // Whole seconds, so the readout is not drawn again between ticks of the clock.
 const songSeconds = (state: SectionState): number | null => (state.songMs === null ? null : Math.floor(state.songMs / 1000))
@@ -77,7 +73,7 @@ const drawStrip = (ctx: CanvasRenderingContext2D, slots: readonly SectionSlot[],
 }
 
 export const SectionHud = (): React.ReactElement => {
-  const info = useInfo()
+  const { source, ticker, hint } = useHud()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [state, setState] = useState<SectionState | null>(null)
   const viewMsRef = useRef(DEFAULT_VIEW_MS)
@@ -98,8 +94,7 @@ export const SectionHud = (): React.ReactElement => {
     let lastStateAt = 0
     const draw = (): void => {
       ctx.clearRect(0, 0, W, H)
-      const source = mainWindow()
-      const now = source.performance.now()
+      const now = sourceNow(source)
       if (now - lastStateAt >= STATE_UPDATE_INTERVAL_MS) {
         lastStateAt = now
         const next = source.getSongSection?.() ?? null
@@ -114,28 +109,28 @@ export const SectionHud = (): React.ReactElement => {
       viewMsRef.current = zoomView(viewMsRef.current, deltaY, ZOOM_RANGE)
       draw()
     })
-    const unsubscribe = subscribeUiTick(draw, canvas)
-    return () => {
+    const unsubscribe = ticker(draw, canvas)
+    return (): void => {
       stopWheel()
       unsubscribe()
     }
-  }, [])
+  }, [source, ticker])
 
   return (
     <div className='section-hud-wrapper'>
       <div className='section-hud-title-row'>
-        <span className='section-hud-time' {...info('About how long the current song has been going. It shows once a song looks like it is playing, so not in silence or on stray noise, and it starts over when the next song does.')}>
+        <span className='section-hud-time' {...hint('About how long the current song has been going. It shows once a song looks like it is playing, so not in silence or on stray noise, and it starts over when the next song does.')}>
           {state?.songMs != null ? formatSongTime(state.songMs) : ''}
         </span>
         <span className='section-hud-label'>Section</span>
-        <span className='section-hud-intensity' {...info('How loud the song is now against its own recent peak.')}>
-          {state ? `${Math.round(state.intensity * 100)}%` : '�'}
+        <span className='section-hud-intensity' {...hint('How loud the song is now against its own recent peak.')}>
+          {state ? `${Math.round(state.intensity * 100)}%` : '—'}
         </span>
       </div>
-      <div className='section-hud' {...info('The last minute (scroll to zoom from 30 seconds to 2 minutes, double-click to reset). The line is the level of the song against its loudest moment, the colors are the sections: cyan intro, green groove, yellow buildup, white turnaround, blue break, red drop, purple outro, grey quiet.')}>
+      <div className='section-hud' {...hint('The last minute (scroll to zoom from 30 seconds to 2 minutes, double-click to reset). The line is the level of the song against its loudest moment, the colors are the sections: cyan intro, green groove, yellow buildup, white turnaround, blue break, red drop, purple outro, grey quiet.')}>
         <canvas ref={canvasRef} width={W} height={H} className='section-hud-canvas' onDoubleClick={handleDoubleClick} />
       </div>
-      <span className='section-hud-name' {...info('The part of the song this looks like: intro (the start, before anything has built or dropped), groove, buildup (tension rising toward a drop), turnaround (the music cutting out during a buildup; about 1 in 4 turns into a drop), break (the low end pulled back, calmer), drop (the full-energy part after the drop lands, until the next break or buildup), outro (a fade late in the song) or quiet (silence, or no steady beat). A model trained on expert-labelled tracks makes the call, so it can be wrong; the next song starts over at intro.')}>
+      <span className='section-hud-name' {...hint('The part of the song this looks like: intro (the start, before anything has built or dropped), groove, buildup (tension rising toward a drop), turnaround (the music cutting out during a buildup; about 1 in 4 turns into a drop), break (the low end pulled back, calmer), drop (the full-energy part after the drop lands, until the next break or buildup), outro (a fade late in the song) or quiet (silence, or no steady beat). A model trained on expert-labelled tracks makes the call, so it can be wrong; the next song starts over at intro.')}>
         {state?.section ?? ''}
       </span>
     </div>

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { BeatSample, GridState } from 'beatsense'
-import { WAVEFORM_H, WaveformContext, WaveformTrack, WaveformView } from './waveformTrack'
+import { WAVEFORM_H, WaveformContext, WaveformTrack, WaveformView } from '../src/waveformTrack'
 
 type Rect = { x: number; y: number; w: number; h: number; alpha: number; fill: string }
 

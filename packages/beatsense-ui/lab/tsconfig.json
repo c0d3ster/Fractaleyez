@@ -1,0 +1,9 @@
+{
+  // The lab page and the Vite config, checked on their own so only they see Vite's client types (`?worker&url` imports, import.meta.env).
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "types": ["vite/client"]
+  },
+  "include": [".", "../vite.config.ts"],
+  "exclude": ["dist"]
+}

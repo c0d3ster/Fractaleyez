@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { BeatSample } from 'beatsense'
-import { BASS_CREDIT_MS, HIT_FLASH_MS, beatFlashes } from './beatFlashes'
+import { BASS_CREDIT_MS, HIT_FLASH_MS, beatFlashes } from '../src/beatFlashes'
 
 const BANDS = 5
 const band = (rising = false): BeatSample['bands'][number] => ({ level: 0, loudness: 1, trigger: 0, rising })

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { OFF_SCORE, ON_SCORE, RISER_LEVELS, RiserLevel, levelForScore } from './riserLevel'
+import { OFF_SCORE, ON_SCORE, RISER_LEVELS, RiserLevel, levelForScore } from '../src/riserLevel'
 
 type Trace = { levels: number[]; t: number }
 
