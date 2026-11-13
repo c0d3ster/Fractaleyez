@@ -146,6 +146,7 @@ The expanded pop-out window has no tabs and no top-level accordions (the one exc
 ### Follow-ons (separate tasks, after the above)
 
 - **Blend mode UI and modes:** per-layer picker plus additional modes (normal, add, screen, multiply). The UI is the hard part: a dropdown per layer header or in the layer body, and how it reads in the compact expanded view. Every layer defaults to `mask` until this lands.
+- **3D logo zoom:** check whether the traced-wall logo (front and back image planes plus one wall mesh, `logo-walls.ts`) can carry the Zoom too, so each copy in the zoom chain is a thick 3D logo instead of the chain swapping the thick logo for flat copies as it does now. Cost to weigh: one wall mesh per visible copy (they can share one geometry), and walls on copies too small to see could be skipped.
 - **Compact style pass:** reduce margins between configs and slider height so more fits on the page. Do it after the accordion structure exists, so the new rows are what gets compacted.
 
 ## Critical files
