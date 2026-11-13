@@ -14,39 +14,33 @@ export const fillFromEdges = (data: Uint8ClampedArray, width: number, height: nu
   const queue = new Int32Array(count)
   let tail = 0
 
-  const neighbors = (i: number): number[] => {
-    const x = i % width
-    const y = (i - x) / width
-    const around: number[] = []
-    if (x > 0) around.push(i - 1)
-    if (x < width - 1) around.push(i + 1)
-    if (y > 0) around.push(i - width)
-    if (y < height - 1) around.push(i + width)
-    return around
-  }
-
-  const isEdge = (i: number): boolean => {
-    const x = i % width
-    const y = (i - x) / width
-    if (x === 0 || y === 0 || x === width - 1 || y === height - 1) return true
-    return neighbors(i).some((j) => !solid(j))
-  }
+  // Neighbors are visited inline (no array per pixel): this runs over every pixel of the logo when it loads.
+  const isEdge = (i: number, x: number, y: number): boolean =>
+    x === 0 || y === 0 || x === width - 1 || y === height - 1
+    || !solid(i - 1) || !solid(i + 1) || !solid(i - width) || !solid(i + width)
 
   for (let i = 0; i < count; i++) {
-    if (!solid(i) || !isEdge(i)) continue
+    const x = i % width
+    if (!solid(i) || !isEdge(i, x, (i - x) / width)) continue
     sourceOf[i] = i
     queue[tail++] = i
+  }
+
+  const reach = (j: number, source: number): void => {
+    if (!solid(j) || (sourceOf[j] ?? 0) >= 0) return
+    sourceOf[j] = source
+    queue[tail++] = j
   }
 
   // Spreads each edge color inward, nearest first.
   for (let head = 0; head < tail; head++) {
     const i = queue[head] ?? 0
     const source = sourceOf[i] ?? i
-    neighbors(i).forEach((j) => {
-      if (!solid(j) || (sourceOf[j] ?? 0) >= 0) return
-      sourceOf[j] = source
-      queue[tail++] = j
-    })
+    const x = i % width
+    if (x > 0) reach(i - 1, source)
+    if (x < width - 1) reach(i + 1, source)
+    if (i >= width) reach(i - width, source)
+    if (i + width < count) reach(i + width, source)
   }
 
   for (let i = 0; i < count; i++) {
