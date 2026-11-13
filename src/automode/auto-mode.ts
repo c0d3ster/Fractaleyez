@@ -64,6 +64,11 @@ export class AutoMode {
 
 export const autoMode = new AutoMode()
 
+// The effects items Auto steers: the fold's switch and its wedge count. The mirror direction (radial, horizontal, vertical) and the source
+// strip stay the user's, so changing them keeps Auto on. Auto may later move between the directions too (a drop going from radial to a
+// horizontal mirror, say), but not yet: until then they are not its items.
+const AUTOMATED_EFFECT_ITEMS: ReadonlySet<string> = new Set(['kaleidoscope', 'kaleidoscopeCount'])
+
 /** The effects items Auto steers: touching one of these is taking over. */
 export const isAutomatedEffectItem = (category: string, item: string): boolean =>
-  category === 'effects' && item.startsWith('kaleidoscope')
+  category === 'effects' && AUTOMATED_EFFECT_ITEMS.has(item)

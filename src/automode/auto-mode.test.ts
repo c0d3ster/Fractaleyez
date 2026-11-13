@@ -264,6 +264,9 @@ describe('AutoMode', () => {
   it('treats only the kaleidoscope items as automated for now', () => {
     expect(isAutomatedEffectItem('effects', 'kaleidoscope')).toBe(true)
     expect(isAutomatedEffectItem('effects', 'kaleidoscopeCount')).toBe(true)
+    // The mirror direction and the source strip stay the user's: changing them keeps Auto on.
+    expect(isAutomatedEffectItem('effects', 'kaleidoscopeMode')).toBe(false)
+    expect(isAutomatedEffectItem('effects', 'kaleidoscopeSource')).toBe(false)
     expect(isAutomatedEffectItem('effects', 'glow')).toBe(false)
     expect(isAutomatedEffectItem('user', 'kaleidoscope')).toBe(false)
   })
