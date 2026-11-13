@@ -1,5 +1,5 @@
 import { AnalysisHost, AudioSource, DEFAULT_ENABLED_BANDS, DEFAULT_FEED_SETTINGS, RhythmLabeler, RollReader } from 'beatsense'
-import type { FeedSettings, RhythmInput } from 'beatsense'
+import type { FeedSettings, FrameReading, RhythmInput } from 'beatsense'
 import { animationFrameTicker, type AnalysisSource, type Ticker } from 'beatsense-ui'
 // The worklet entry, bundled on its own and served as its own module (see vite.config.ts); this is its URL.
 import workletUrl from 'beatsense/worklet?worker&url'
@@ -9,7 +9,8 @@ import { FrameRate } from './frameRate'
 import { PageFrames } from './pageFrames'
 import { RollingStats, type PerfReading } from './perfStats'
 import type { Label, LabelKind } from './recording/labels'
-import type { LabSessionFile } from './recording/sessionFile'
+import { LIVE_WINDOW_MS } from './recording/liveView'
+import type { DrumDetection, LabSessionFile } from './recording/sessionFile'
 import { SessionRecorder, type RecorderPhase } from './recording/sessionRecorder'
 
 export type LabPhase = 'idle' | 'starting' | 'running' | 'failed'
@@ -42,6 +43,17 @@ export type RecordingStatus = {
   lastLabel: Label | null
   /** The stopped session, ready to export. */
   file: LabSessionFile | null
+}
+
+/** What the live strip draws: the session so far and the frames in its window. */
+export type LiveSnapshot = {
+  recording: boolean
+  /** The strip's right edge, audio clock ms: now while recording, the stop time after. */
+  nowMs: number
+  startMs: number
+  labels: readonly Label[]
+  drumHits: readonly DrumDetection[]
+  frames: readonly FrameReading[]
 }
 
 /** What a start was doing when it failed, for the message. */
@@ -231,6 +243,22 @@ export class LabSession {
     lastLabel: this.lastLabel,
     file: this.file,
   })
+
+  /** The session for the live strip, or null before the first Record. Reads the recorder's lists in place (no copies at 30 a second). */
+  liveSnapshot = (): LiveSnapshot | null => {
+    const phase = this.recorder.getPhase()
+    if (phase === 'idle') return null
+    const recording = phase === 'recording'
+    const nowMs = recording && this.clock ? this.clock.now() : this.recorder.getEndMs()
+    return {
+      recording,
+      nowMs,
+      startMs: this.recorder.getStartMs(),
+      labels: this.recorder.getLabels(),
+      drumHits: this.recorder.getDrumHits(),
+      frames: this.recorder.framesSince(nowMs - LIVE_WINDOW_MS),
+    }
+  }
 
   private run = (context: AudioContext, capture: AudioSource, microphone: MediaStreamAudioSourceNode): void => {
     const host = new AnalysisHost()
