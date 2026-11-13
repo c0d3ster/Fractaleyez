@@ -25,6 +25,24 @@ export const inputIndexes = (model: Pick<MlpModel, 'features'>, names: readonly 
     return at
   })
 
+/**
+ * Throws unless a model's inputs are `expected` (the same names in the same order: the detector builds its feature vector in that order and
+ * the model's weights are applied by position) and every vector in `sized` has one entry per input. For models injected through the public
+ * API, which would otherwise score the wrong inputs without an error.
+ */
+export const checkInputLayout = (what: string, features: readonly string[], expected: readonly string[], sized: Record<string, readonly number[]>): void => {
+  const same = features.length === expected.length && features.every((name, i) => name === expected[i])
+  if (!same) throw new Error(`${what} must read the bundled model's ${expected.length} features, in its order`)
+  Object.entries(sized).forEach(([name, values]) => {
+    if (values.length !== expected.length) throw new Error(`${what}: ${name} has ${values.length} entries, expected ${expected.length}`)
+  })
+}
+
+/** Throws unless `values` has `length` entries. */
+export const checkLength = (what: string, name: string, values: readonly unknown[], length: number): void => {
+  if (values.length !== length) throw new Error(`${what}: ${name} has ${values.length} entries, expected ${length}`)
+}
+
 /** The probability from a single-output model, reading `features[indexes[i]]` as its i-th input. */
 export const scoreProbability = (model: MlpModel, indexes: readonly number[], features: readonly number[]): number =>
   sigmoid(forward(model, standardize(model, indexes.map((at) => features[at] ?? 0)))[0] ?? 0)

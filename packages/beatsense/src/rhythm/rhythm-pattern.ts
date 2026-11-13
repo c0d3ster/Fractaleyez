@@ -1,4 +1,5 @@
 import modelData from './rhythm-model.json'
+import { checkInputLayout, checkLength } from '../shared/mlp'
 
 /**
  * The rhythm names the Beat HUD can show (precision on held-out tracks in tempo.md). Two-step is a breakbeat read with more confidence:
@@ -37,7 +38,7 @@ export const DEFAULT_RHYTHM_OPTIONS: RhythmOptions = {
 }
 
 export type RhythmModel = { classes: string[]; features: string[]; mean: number[]; scale: number[]; coef: number[][]; intercept: number[] }
-/** The bundled rhythm model (rhythm-model.json); `readRhythm` and `RhythmLabeler` take another as an argument. */
+/** The bundled rhythm model (rhythm-model.json); `readRhythm` and `RhythmLabeler` take another as an argument, with the same inputs (checkRhythmModel). */
 export const RHYTHM_MODEL = modelData as RhythmModel
 
 // The lags (in beats) each band's repeats are measured at: the beat and its multiples, the off-beat lags of a two-step, a third and a
@@ -99,6 +100,23 @@ export const rhythmFeatures = ({ bandOnsets, periodMs }: RhythmInput, options: P
   return [...perBand.flat(), ...hatPhases(bandOnsets[BASS] ?? [], bandOnsets[HI] ?? [], periodMs)]
 }
 
+const checkedRhythmModels = new WeakSet<RhythmModel>()
+
+/**
+ * Throws unless `model` fits the vector rhythmFeatures builds: the bundled model's inputs in its order, one mean, scale and weight per input,
+ * and one weight row and intercept per class. Checked once per model, so RhythmLabeler's reading every 500 ms costs nothing.
+ */
+export const checkRhythmModel = (model: RhythmModel): void => {
+  if (checkedRhythmModels.has(model)) return
+  const what = 'Rhythm model'
+  const { features, mean, scale, coef, intercept, classes } = model
+  checkInputLayout(what, features, RHYTHM_MODEL.features, { mean, scale })
+  coef.forEach((row, k) => checkLength(what, `coef row ${k}`, row, features.length))
+  checkLength(what, 'coef rows', coef, classes.length)
+  checkLength(what, 'intercept', intercept, classes.length)
+  checkedRhythmModels.add(model)
+}
+
 // Multinomial logistic regression over the standardized features.
 const probabilities = (features: readonly number[], model: RhythmModel): number[] => {
   const logits = model.coef.map((row, k) => row.reduce((sum, w, i) => sum + w * (((features[i] ?? 0) - (model.mean[i] ?? 0)) / (model.scale[i] ?? 1)), model.intercept[k] ?? 0))
@@ -127,6 +145,7 @@ const shownName = (likeliest: RhythmReading['likeliest'], confidence: number, o:
  * itself is not a feature, so the name says what the drums do, not what the BPM suggests.
  */
 export const readRhythm = (input: RhythmInput, options: Partial<RhythmOptions> = {}, model: RhythmModel = RHYTHM_MODEL): RhythmReading => {
+  checkRhythmModel(model)
   const o = { ...DEFAULT_RHYTHM_OPTIONS, ...options }
   const features = rhythmFeatures(input, o)
   if (features === null) return { pattern: null, likeliest: null, confidence: 0 }
@@ -177,6 +196,7 @@ export class RhythmLabeler {
   private label: RhythmLabel = EMPTY_LABEL
 
   constructor(hold: Partial<RhythmHoldOptions> = {}, options: Partial<RhythmOptions> = {}, private readonly model: RhythmModel = RHYTHM_MODEL) {
+    checkRhythmModel(model)
     this.hold = { ...DEFAULT_RHYTHM_HOLD, ...hold }
     this.options = options
   }
