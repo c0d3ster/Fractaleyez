@@ -130,10 +130,17 @@ saved.
 Once the analysis runs, Record starts a session and Stop ends it (a new Record drops the last one, so export first). While recording:
 
 - Every `FrameReading` the `AnalysisHost` gives is kept (60 a second), with each drum hit the drum model calls.
-- The label buttons, or their hotkeys, stamp a label at the audio clock's now (the newest audio delivered, so a label lands where the hit
+- The label buttons, or their hotkeys, stamp a label at the audio clock's now. The drum labels sit under the Frequency HUD's drum lights,
+  the song labels (drop, buildup, breakdown, riser start and end) under the Section HUD; Record, Stop, Undo and Export stay in the bar.
+  A label lands at the audio clock's now (the newest audio delivered, so a label lands where the hit
   was heard plus the reaction time, fixed on the review page): kick `K`, snare `S`, clap `C`, hat `H`, drop `D`, buildup `B`, breakdown
   `N`, riser start `R` and riser end `E`. Held keys, keys with Ctrl, Cmd or Alt, and typing in a field add nothing. Backspace (or Undo)
   removes the newest label.
+- The live strip under the HUDs shows the last 6 s of your labels against the model's as they happen. Per drum, your labels on top and
+  the model's hits below, a pair joined by a green line (a hit from 350 ms before the label to 100 ms after it, one to one, nearest first)
+  and anything unpaired drawn hollow; then your section labels over the model's sections, and your riser spans over its riser score.
+  Above it, a tally per drum (your labels, the model's hits, how many paired) and the median of label time minus hit time over every pair:
+  how far behind the model you label, i.e. your reaction time. After Stop it holds the last window.
 
 Export saves the stopped session as `beatsense-session-<date>-<time>.json`, version 1 of the format in `lab/recording/sessionFile.ts`:
 
@@ -155,7 +162,7 @@ it to move it, the arrow keys nudge it a frame (Shift: 100 ms) and Delete remove
 as `<name>-labelled.json`; the page asks before leaving with unsaved edits.
 
 The recording logic is plain TypeScript in `lab/recording/` (labels and hotkeys, `SessionRecorder`, the file format, the label edits, the
-plot geometry), tested in `test/lab/` with synthetic frames, including a run of the real `AnalysisHost` whose section log replays to the
+plot geometry, the label-to-hit pairing in `compareDrums.ts` and the live strip's window in `liveView.ts`), tested in `test/lab/` with synthetic frames, including a run of the real `AnalysisHost` whose section log replays to the
 same ticks.
 
 ### Build

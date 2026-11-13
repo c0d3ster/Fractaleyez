@@ -6,6 +6,14 @@ export const LABEL_KINDS = ['kick', 'snare', 'clap', 'hat', 'drop', 'buildup', '
 
 export type LabelKind = (typeof LABEL_KINDS)[number]
 
+/** The drum labels, shown under the Frequency HUD's drum lights. Each matches the drum model's kind of the same name. */
+export const DRUM_LABEL_KINDS = ['kick', 'snare', 'clap', 'hat'] as const satisfies readonly LabelKind[]
+
+export type DrumLabelKind = (typeof DRUM_LABEL_KINDS)[number]
+
+/** The song labels, shown under the Section HUD. */
+export const SECTION_LABEL_KINDS = ['drop', 'buildup', 'breakdown', 'riserStart', 'riserEnd'] as const satisfies readonly LabelKind[]
+
 export type Label = {
   /** Unique within its session, never reused after a delete. */
   id: number
