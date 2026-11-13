@@ -1,5 +1,5 @@
 import modelData from './drum-hit-model.json'
-import { forward, sigmoid, standardize, type Layer } from '../shared/mlp'
+import { checkInputLayout, checkLength, forward, sigmoid, standardize, type Layer } from '../shared/mlp'
 import { BandTracker, thresholdDbFor, type BandReading, type ReferenceWindow } from '../onset/onset-detector'
 
 // The kick's, the hats', the snare's and the clap's hits, for the Frequency HUD's lights and the snare roll (roll-rate.ts). A rise in
@@ -43,7 +43,7 @@ export type DrumKind = (typeof DRUM_KINDS)[number]
 
 /** `thresholds`: how sure the model has to be for each drum, chosen on held-out folds (drum-train.py). */
 export type DrumHitModel = { kinds: string[]; features: string[]; mean: number[]; scale: number[]; hidden: Layer; output: Layer; thresholds: number[] }
-/** The bundled drum model (drum-hit-model.json); `DrumHits` takes another as its second argument. */
+/** The bundled drum model (drum-hit-model.json); `DrumHits` takes another as its second argument, with the same inputs (checkDrumModel). */
 export const DRUM_HIT_MODEL: DrumHitModel = modelData
 
 /**
@@ -92,9 +92,31 @@ export const drumFeatures = (
   ]
 }
 
+const checkedDrumModels = new WeakSet<DrumHitModel>()
+
+/**
+ * Throws unless `model` fits the vector drumFeatures builds: the bundled model's inputs in its order, one mean, scale and hidden weight per
+ * input, one output weight per hidden unit, and one output and threshold per kind. Checked once per model.
+ */
+export const checkDrumModel = (model: DrumHitModel): void => {
+  if (checkedDrumModels.has(model)) return
+  const what = 'Drum hit model'
+  const { features, mean, scale, hidden, output, kinds, thresholds } = model
+  checkInputLayout(what, features, DRUM_HIT_MODEL.features, { mean, scale })
+  hidden.weights.forEach((row, j) => checkLength(what, `hidden row ${j}`, row, features.length))
+  checkLength(what, 'hidden bias', hidden.bias, hidden.weights.length)
+  output.weights.forEach((row, k) => checkLength(what, `output row ${k}`, row, hidden.weights.length))
+  checkLength(what, 'output rows', output.weights, kinds.length)
+  checkLength(what, 'output bias', output.bias, kinds.length)
+  checkLength(what, 'thresholds', thresholds, kinds.length)
+  checkedDrumModels.add(model)
+}
+
 /** The model's probability for each drum (kick, hat, snare, clap), each on its own: they do not add up to one. */
-export const drumProbabilities = (features: readonly number[], model: DrumHitModel = DRUM_HIT_MODEL): number[] =>
-  forward(model, standardize(model, features)).map(sigmoid)
+export const drumProbabilities = (features: readonly number[], model: DrumHitModel = DRUM_HIT_MODEL): number[] => {
+  checkDrumModel(model)
+  return forward(model, standardize(model, features)).map(sigmoid)
+}
 
 const kindsOf = (probabilities: readonly number[], model: DrumHitModel): DrumKind[] =>
   DRUM_KINDS.filter((kind) => {
@@ -120,6 +142,7 @@ export class DrumHits {
   private firstT: number | null = null
 
   constructor(private readonly onCandidate?: (candidate: DrumCandidate) => void, private readonly model: DrumHitModel = DRUM_HIT_MODEL) {
+    checkDrumModel(model)
     this.rollHits = [this.listOf('snare'), this.listOf('clap')]
   }
 

@@ -1,6 +1,6 @@
-export { RISER_MODEL, RiserDetector } from './riser'
+export { RISER_MODEL, RiserDetector, riserProbability } from './riser'
 export type { RiserModel, RiserSlot } from './riser'
 export { SPECTRUM_BANDS } from './tick-extras'
 export { SpectrumReducer } from './spectrum-reducer'
-export { SWEEP_MODEL, SweepDetector } from './sweep'
+export { SWEEP_MODEL, SweepDetector, sweepProbability } from './sweep'
 export type { SweepModel, SweepSlot } from './sweep'
