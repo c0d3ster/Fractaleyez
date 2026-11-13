@@ -130,8 +130,8 @@ saved.
 Once the analysis runs, Record starts a session and Stop ends it (a new Record drops the last one, so export first). While recording:
 
 - Every `FrameReading` the `AnalysisHost` gives is kept (60 a second), with each drum hit the drum model calls.
-- The label buttons, or their hotkeys, add labels. The drum and riser buttons sit under the Frequency HUD (its
-  drum lights and riser meter), the song labels under the Section HUD; Record, Stop, Undo and Export stay in the bar.
+- The label buttons, or their hotkeys, add labels. The drum buttons sit under the Frequency HUD's drum lights, the song labels
+  and the riser toggle under the Section HUD; Record, Stop, Undo and Export stay in the bar.
   A label is stamped at the audio clock's now (the newest audio delivered, so it lands where the hit was heard plus the reaction time,
   fixed on the review page). The keys: the drums as a block on `Q` kick, `W` snare, `A` clap, `S` hat; `R` riser, which
   starts a riser and ends it on the next press (the file keeps a riser start and a riser end label; the button says which is next); and
