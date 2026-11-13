@@ -19,7 +19,7 @@ export class AnalysisHost {
 
   constructor() {
     this.analysers = createAnalysers(() => this.now)
-    this.feed = new AudioFeed(this.analysers, { settings: () => this.settings, readsRiserAndSweep: () => this.spectrum })
+    this.feed = new AudioFeed(this.analysers, { settings: (): FeedSettings => this.settings, readsRiserAndSweep: (): boolean => this.spectrum })
   }
 
   setSettings = (settings: FeedSettings): void => {

@@ -38,7 +38,7 @@ export const createWorkerClient = (worker: WorkerLike): AnalysisClient => {
   return {
     mode: 'worker',
     host: null,
-    push: (frame) => {
+    push: (frame): void => {
       const packed = packFrame(frame)
       worker.postMessage({ type: 'frame', packed }, [packed.buffer])
     },

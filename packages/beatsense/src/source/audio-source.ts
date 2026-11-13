@@ -61,7 +61,7 @@ export class AudioSource {
 
   /** Open the microphone and return its source node, for the caller to route (through a volume, an analyser) into `input`. */
   connectMicrophone = async (): Promise<MediaStreamAudioSourceNode> => {
-    const getUserMedia = this.options.getUserMedia ?? ((constraints: MediaStreamConstraints) => navigator.mediaDevices.getUserMedia(constraints))
+    const getUserMedia = this.options.getUserMedia ?? ((constraints: MediaStreamConstraints): Promise<MediaStream> => navigator.mediaDevices.getUserMedia(constraints))
     const stream = await getUserMedia({ audio: MIC_CONSTRAINTS })
     return this.options.context.createMediaStreamSource(stream)
   }
