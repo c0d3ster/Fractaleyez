@@ -15,7 +15,7 @@ import {
   QualityTier,
 } from '../config/quality.config'
 import { loadTracker } from './load-tracker'
-import { AutoDiagnostics, QualityGovernor, Smoothness } from './quality-governor'
+import { AutoDiagnostics, FrameDiagnostics, QualityGovernor, Smoothness } from './quality-governor'
 
 // Where Auto starts next time: the tier it settled on, so a weak machine does not spend every load stepping down again.
 const AUTO_TIER_HINT_KEY = 'autoQualityTier'
@@ -29,6 +29,8 @@ export type QualityStatus = {
   profile: QualityProfile
   /** What decides Auto's next move and why it last moved; null when a tier is fixed. */
   auto: AutoDiagnostics | null
+  /** The last window's frame times and what counts as slow, whatever the setting (a fixed tier is still measured). */
+  frames: FrameDiagnostics
   /** How smooth the page has been, whatever the setting, and what is loading while it says so (see `LoadTracker`). */
   smooth: Smoothness & { reasons: string[] }
 }
@@ -102,13 +104,18 @@ export class QualityController {
 
   getProfile = (): QualityProfile => QUALITY_PROFILES[this.tier]
 
-  getStatus = (): QualityStatus => ({
-    setting: this.setting,
-    tier: this.tier,
-    profile: this.getProfile(),
-    auto: this.setting === 'auto' ? this.governor.getDiagnostics(performance.now()) : null,
-    smooth: { ...this.governor.getSmoothness(), reasons: loadTracker.reasons() },
-  })
+  getStatus = (): QualityStatus => {
+    const diagnostics = this.governor.getDiagnostics(performance.now())
+    const { frameMs, p95Ms, slowAboveMs, roughAboveMs } = diagnostics
+    return {
+      setting: this.setting,
+      tier: this.tier,
+      profile: this.getProfile(),
+      auto: this.setting === 'auto' ? diagnostics : null,
+      frames: { frameMs, p95Ms, slowAboveMs, roughAboveMs },
+      smooth: { ...this.governor.getSmoothness(), reasons: loadTracker.reasons() },
+    }
+  }
 
   /** Calls `listener` now and again whenever the tier changes. Returns the unsubscribe. */
   subscribe = (listener: TierListener): (() => void) => {

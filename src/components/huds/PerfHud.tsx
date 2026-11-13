@@ -7,7 +7,7 @@ import type { LagEstimate } from '../../audioanalysis/lag-estimate'
 import type { LagMeasurement } from '../../audioanalysis/lag-probe'
 import { AUTO_SLOW_FOR_MS, isQualitySetting, QUALITY_LABELS, QUALITY_SETTINGS, SMOOTH_GOOD_MS } from '../../config/quality.config'
 import type { QualityStatus } from '../../visualization/quality-controller'
-import type { AutoDiagnostics } from '../../visualization/quality-governor'
+import type { AutoDiagnostics, FrameDiagnostics } from '../../visualization/quality-governor'
 import { STUTTER_MS, STUTTER_WINDOW_MS, type StutterSummary } from '../../visualization/stutter-monitor'
 
 type PerfData = {
@@ -155,17 +155,23 @@ const SmoothRow = ({ quality }: SmoothRowProps): React.ReactElement => {
   )
 }
 
+type FramesRowProps = { frames: FrameDiagnostics }
+
+// The last half second's frame times, whatever the setting: a fixed tier is measured too, and Smooth is judged from these.
+const FramesRow = ({ frames: { frameMs, p95Ms, slowAboveMs, roughAboveMs } }: FramesRowProps): React.ReactElement => (
+  <HudRow text={`Median and 95th percentile of the display frame times in the last half second, the ones Smooth and Auto judge. A window is slow when the median is over ${oneDecimal(slowAboveMs)} ms or the 95th percentile is over ${oneDecimal(roughAboveMs)} ms.`}>
+    <span className='perf-hud-key'>Frames</span>
+    <span className='perf-hud-value'>{frameMs === null || p95Ms === null ? '—' : `${oneDecimal(frameMs)} / ${oneDecimal(p95Ms)} ms`}</span>
+  </HudRow>
+)
+
 type AutoRowsProps = { auto: AutoDiagnostics }
 
 // What decides Auto's next move, live, one short line each; the hover text says what each number means.
 const AutoRows = ({ auto }: AutoRowsProps): React.ReactElement => {
-  const { frameMs, p95Ms, slowAboveMs, roughAboveMs, lastChange } = auto
+  const { lastChange } = auto
   return (
     <>
-      <HudRow text={`Median and 95th percentile of the display frame times Auto judges. A window is slow when the median is over ${oneDecimal(slowAboveMs)} ms or the 95th percentile is over ${oneDecimal(roughAboveMs)} ms.`}>
-        <span className='perf-hud-key'>Frames</span>
-        <span className='perf-hud-value'>{frameMs === null || p95Ms === null ? '—' : `${oneDecimal(frameMs)} / ${oneDecimal(p95Ms)} ms`}</span>
-      </HudRow>
       <HudRow text='The last time Auto changed tier, and how long ago'>
         <span className='perf-hud-key'>Last</span>
         <span className='perf-hud-value'>{lastChange ? `${QUALITY_LABELS[lastChange.from]} → ${QUALITY_LABELS[lastChange.to]} · ${Math.round(lastChange.agoMs / 1000)} s` : '—'}</span>
@@ -239,6 +245,7 @@ export const PerfHud = (): React.ReactElement => {
           </div>
         </HudRow>
         {perf.quality ? <QualityRow status={perf.quality} /> : null}
+        {debug && perf.quality ? <FramesRow frames={perf.quality.frames} /> : null}
         {debug && perf.quality?.auto ? <AutoRows auto={perf.quality.auto} /> : null}
         {perf.stutters && !debug ? (
           <StutterRow
