@@ -1,10 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react'
+import { useConfigContext } from '../config/context/ConfigProvider'
 import { useInfo } from '../config/info/info'
 import './PerfHud.css'
 import { subscribeUiTick } from '../../utils/uiTicker'
 import type { LagEstimate } from '../../audioanalysis/lag-estimate'
 import type { LagMeasurement } from '../../audioanalysis/lag-probe'
-import { AUTO_SLOW_FOR_MS, QUALITY_LABELS, SMOOTH_GOOD_MS } from '../../config/quality.config'
+import { AUTO_SLOW_FOR_MS, isQualitySetting, QUALITY_LABELS, QUALITY_SETTINGS, SMOOTH_GOOD_MS } from '../../config/quality.config'
 import type { QualityStatus } from '../../visualization/quality-controller'
 import type { AutoDiagnostics } from '../../visualization/quality-governor'
 import { STUTTER_MS, STUTTER_WINDOW_MS, type StutterSummary } from '../../visualization/stutter-monitor'
@@ -52,6 +53,27 @@ type HudRowProps = { text: string; children: React.ReactNode }
 const HudRow = ({ text, children }: HudRowProps): React.ReactElement => {
   const info = useInfo()
   return <div className='perf-hud-row' {...info(text)}>{children}</div>
+}
+
+type QualityRowProps = { status: QualityStatus }
+
+// The tier being drawn, and a dropdown to change it (the same setting as the account page's). Signed out it is kept in this browser.
+const QualityRow = ({ status }: QualityRowProps): React.ReactElement => {
+  const { updateUserSettings } = useConfigContext()
+  const onChange = (event: React.ChangeEvent<HTMLSelectElement>): void => {
+    const { value } = event.currentTarget
+    if (isQualitySetting(value)) updateUserSettings({ quality: value })
+  }
+  return (
+    <HudRow text='The quality tier being drawn, and where to change it. Auto picks it from how smooth the frames are; the tier in brackets is the one it is on now.'>
+      <span className='perf-hud-key'>Quality</span>
+      <select className='perf-hud-select' aria-label='Quality' value={status.setting} onChange={onChange}>
+        {QUALITY_SETTINGS.map((setting) => (
+          <option key={setting} value={setting}>{setting === status.setting ? qualityLabel(status) : QUALITY_LABELS[setting]}</option>
+        ))}
+      </select>
+    </HudRow>
+  )
 }
 
 type StutterRowProps = { label: string; summary: StutterSummary; hint: string }
@@ -216,12 +238,7 @@ export const PerfHud = (): React.ReactElement => {
             ) : null}
           </div>
         </HudRow>
-        {perf.quality ? (
-          <HudRow text='The quality tier being drawn. Auto picks it from how smooth the frames are; the tier in brackets is the one it is on now.'>
-            <span className='perf-hud-key'>Quality</span>
-            <span className='perf-hud-value'>{qualityLabel(perf.quality)}</span>
-          </HudRow>
-        ) : null}
+        {perf.quality ? <QualityRow status={perf.quality} /> : null}
         {debug && perf.quality?.auto ? <AutoRows auto={perf.quality.auto} /> : null}
         {perf.stutters && !debug ? (
           <StutterRow
