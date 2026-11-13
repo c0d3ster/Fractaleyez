@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react'
 import { BeatHud, FrequencyHud, HudProvider, SectionHud, type AnalysisSource } from 'beatsense-ui'
 
 import { LabSession, type LabPhase } from './labSession'
+import { RecordBar } from './RecordBar'
 import { StatusLine } from './StatusLine'
 
 // Until the analysis starts the HUDs read nothing and draw empty.
@@ -40,11 +41,11 @@ export const LabPage = (): React.ReactElement => {
     <div className='lab'>
       <header className='lab-bar'>
         <h1 className='lab-title'>beatsense lab</h1>
-        {/* Start for now; recording (record and stop, the label buttons and their hotkeys) goes in this bar later. */}
         <div className='lab-controls'>
           <button type='button' className='lab-button' onClick={handleStart} disabled={phase === 'starting' || phase === 'running'}>
             {START_LABELS[phase]}
           </button>
+          <RecordBar session={session} phase={phase} />
         </div>
         <StatusLine session={session} phase={phase} />
       </header>

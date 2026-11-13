@@ -164,6 +164,14 @@ Phase F is code-complete (#314), with visual parity, the dataset evaluation and 
 - App: `AudioSnapshot` (`audioanalysis/audio-snapshot.ts`: `energy`, `energyAverage`, `bands`, `beat`) replaces `AudioAnalysedDataForVisualization` and is one reused object per frame. `VisualTap` (`audioanalysis/visual-tap.ts`: volume, analyser node, test click) replaces `AudioStream`; `AudioFeed(source: ByteSource, analysis, options)` and `tick(deltaTime)` (no `Date`). The slider ranges are in `config/audio.config.ts`. `window.getAudioData` is gone (nothing read it).
 - The equivalence golden now also hashes each frame's energy, average and bands (frames hash only; the analysers' output and the other hashes did not change).
 
+Phase I has started (#317): the lab records and the review page edits labels; scoring and the songs are still to do.
+
+- Recording (`packages/beatsense-ui/lab/`): Record and Stop in the lab bar; while recording, `SessionRecorder` keeps every `FrameReading` from the `AnalysisHost` and each drum hit the drum model calls, and the label buttons and hotkeys (kick K, snare S, clap C, hat H, drop D, buildup B, breakdown N, riser start R, riser end E; Backspace undoes) stamp labels on the audio clock (`AudioClock.now`, the newest audio delivered). Stop builds the file; Export downloads it.
+- The file (`lab/recording/sessionFile.ts`): `format: 'beatsense-lab-session'`, `version: 1`, the start and end on the audio clock, the sample rate, the frames, the drum hits, the labels (`{ id, kind, t }`) and beatsense's section log (version 2, the tracker's ticks inside the session) for replay. `parseSessionFile` refuses another format or version and says which entry is bad.
+- Review (`lab/review.html`): loads an export and plots the sections, band levels, beats, the drum model's hits per drum, tempo, riser and sweep on one zoomable canvas with the labels as lines; labels are dragged, nudged with the arrows or deleted, and Export saves `<name>-labelled.json` with `editedAt`.
+- Tests (`packages/beatsense-ui/test/lab/`, synthetic frames, no microphone): the recorder, the file round trip and its errors, hotkeys, label edits, the plot geometry, and a run of the real `AnalysisHost` whose recorded frames match its readings and whose section log replays through a fresh tracker to the same ticks. Checked in headless Chromium with its fake microphone: record, hotkeys, undo, export, load, drag, nudge, delete, re-export.
+- Left for phase I: a scorer that matches labels against the detectors (drum hits within a tolerance, sections and risers by overlap) over a folder of sessions, a correction for the labelling reaction time, the sessions themselves (30 to 50 songs, a few non-EDM), and the claps found reading as hats (phase J note) labelled among them.
+
 ## Open questions
 
 - **License.** Decided: MIT, code and weights (`LICENSE`, `NOTICE` with the training data credits).
