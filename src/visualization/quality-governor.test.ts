@@ -251,7 +251,15 @@ describe('QualityGovernor', () => {
     it('steps down when a tenth of the frames are long hitches, though the median is fast', () => {
       const state = start('ultra')
       run(state, 4.2, 40)
-      expect(roughWindows(state, 4, 13, windowsFor(AUTO_SLOW_FOR_MS) + 2)).toBe('quality')
+      expect(roughWindows(state, 4, 30, windowsFor(AUTO_SLOW_FOR_MS) + 2)).toBe('quality')
+    })
+
+    it('does not count hitches under the floor as rough, even at 240 Hz', () => {
+      const state = start('ultra')
+      run(state, 4.2, 40)
+      // 13 ms is three 240 Hz refreshes but less than one 60 Hz refresh late: not a skip on the TV the visual is shown on.
+      expect(roughWindows(state, 4, 13, windowsFor(AUTO_SLOW_FOR_MS) + 2)).toBe('ultra')
+      expect(state.governor.getSmoothness().ms).toBeGreaterThan(0)
     })
 
     it('ignores the odd hitch', () => {

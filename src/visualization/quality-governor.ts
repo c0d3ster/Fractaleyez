@@ -9,6 +9,7 @@ import {
   AUTO_RETRY_BASE_MS,
   AUTO_RETRY_MAX_MS,
   AUTO_ROUGH_FACTOR,
+  AUTO_ROUGH_MIN_MS,
   AUTO_SEVERE_FACTOR,
   AUTO_SEVERE_WEIGHT,
   AUTO_SLOW_FACTOR,
@@ -50,14 +51,18 @@ const VIDEO_DROP_SMOOTHING = 0.2
  */
 export type AutoChange = { from: QualityTier; to: QualityTier; reason: string; at: number }
 
-/** What decides Auto's next move, for the Performance panel. */
-export type AutoDiagnostics = {
+/** The last window's frame times and the limits they are judged against, for the Performance panel's debug rows. */
+export type FrameDiagnostics = {
   /** Median and 95th percentile of the last window of display frame times (ms); null before the first window. */
   frameMs: number | null
   p95Ms: number | null
   /** A window counts as slow when its median is above `slowAboveMs`, or its 95th percentile is above `roughAboveMs`. */
   slowAboveMs: number
   roughAboveMs: number
+}
+
+/** What decides Auto's next move, for the Performance panel. */
+export type AutoDiagnostics = FrameDiagnostics & {
   /** How long frames must stay slow before Auto steps down. */
   slowLimitMs: number
   /** Share of video frames being dropped (smoothed), against the share at which Auto will not step up. */
@@ -133,7 +138,7 @@ export class QualityGovernor {
     frameMs: this.lastWindow?.frameMs ?? null,
     p95Ms: this.lastWindow?.p95Ms ?? null,
     slowAboveMs: this.slowThresholdMs(),
-    roughAboveMs: this.refreshMs * AUTO_ROUGH_FACTOR,
+    roughAboveMs: this.roughThresholdMs(),
     slowLimitMs: AUTO_SLOW_FOR_MS,
     videoDropShare: this.videoDrop,
     videoDropLimit: AUTO_VIDEO_DROP_LIMIT,
@@ -147,6 +152,9 @@ export class QualityGovernor {
 
   // A median frame time above this is slow: 1.4 display refreshes, kept between the limits.
   private slowThresholdMs = (): number => clamp(this.refreshMs * AUTO_SLOW_FACTOR, AUTO_SLOW_MIN_MS, AUTO_SLOW_MAX_MS)
+
+  // A 95th percentile frame above this is rough: 2.5 display refreshes, never below AUTO_ROUGH_MIN_MS.
+  private roughThresholdMs = (): number => Math.max(this.refreshMs * AUTO_ROUGH_FACTOR, AUTO_ROUGH_MIN_MS)
 
   private recordChange = (now: number, from: number, reason: string): void => {
     this.lastChange = { from: AUTO_TIERS[from]!, to: this.getTier(), reason, at: now }
@@ -214,7 +222,7 @@ export class QualityGovernor {
     const p95Ms = percentile95(frames)
     this.lastWindow = { frameMs, p95Ms }
     // A tier whose cap is slow is drawn at the cap's own pace, so its frames never count as slow.
-    const slow = frameMs > this.slowThresholdMs() || p95Ms > this.refreshMs * AUTO_ROUGH_FACTOR
+    const slow = frameMs > this.slowThresholdMs() || p95Ms > this.roughThresholdMs()
     // A stall (a median frame several times the slow limit) counts double, so a machine that is really struggling steps down sooner.
     const severe = frameMs > this.slowThresholdMs() * AUTO_SEVERE_FACTOR
     this.slowMs = !capped && slow ? this.slowMs + elapsed * (severe ? AUTO_SEVERE_WEIGHT : 1) : 0
