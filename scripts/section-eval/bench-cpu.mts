@@ -30,7 +30,7 @@ import { RiserDetector, SweepDetector } from '../../packages/beatsense/src/riser
 import { FrontEnd } from '../../packages/beatsense/src/frontend/index.ts'
 import { FrameEmitter } from '../../packages/beatsense/src/worklet/frame-emitter.ts'
 import type { BeatSample } from '../../packages/beatsense/src/onset/beat.ts'
-import { DEFAULT_VIEW_MS, WaveformTrack, type WaveformContext, type WaveformView } from '../../src/components/huds/waveformTrack.ts'
+import { DEFAULT_VIEW_MS, WaveformTrack, type WaveformContext, type WaveformView } from '../../packages/beatsense-ui/src/waveformTrack.ts'
 import { BANDS, loadLevels } from './stream.mts'
 
 const ANALYSIS_BUDGET_MS_PER_SECOND = 10

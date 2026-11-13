@@ -1,0 +1,159 @@
+/* The lab page. Dark like the Fractaleyez config window (its body background and text colors). */
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  background: rgb(14, 21, 31);
+  color: rgba(220, 220, 220, 0.9);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+.lab {
+  box-sizing: border-box;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px 24px 24px;
+}
+
+/* The bar on top: the title, the controls (Start now, recording later) and the status line. It wraps on a narrow window. */
+.lab-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 24px;
+}
+
+.lab-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.lab-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.lab-button {
+  padding: 6px 18px;
+  border: 1px solid #444;
+  border-radius: 6px;
+  background: rgba(40, 40, 40, 0.9);
+  color: rgba(220, 220, 220, 0.9);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.lab-button:hover:not(:disabled) {
+  background: #555;
+  color: #fff;
+}
+
+.lab-button:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.lab-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+  margin: 0;
+  font-size: 13px;
+  color: #888;
+  font-variant-numeric: tabular-nums;
+}
+
+.lab-status b {
+  font-weight: 600;
+  color: rgba(220, 220, 220, 0.9);
+}
+
+.lab-status-error {
+  color: #ff7b72;
+}
+
+/*
+ * The HUDs: Frequency and Beat side by side, Section across the bottom. The columns split so the two canvases come out the same height
+ * (Frequency draws at 180 by 142, Beat at 360 by 120). The canvases keep their aspect ratio, so the width is capped to what fits the window's
+ * height (the HUDs come to about 0.39 of their width tall, plus their text rows and the bar) and the block centers in a wider window.
+ */
+.lab-huds {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: max(640px, calc((100vh - 260px) * 2.5));
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1.27fr) minmax(0, 3fr);
+  grid-template-areas:
+    'frequency beat'
+    'section section';
+  align-items: start;
+  gap: 24px 32px;
+}
+
+.lab-hud-frequency {
+  grid-area: frequency;
+}
+
+.lab-hud-beat {
+  grid-area: beat;
+}
+
+.lab-hud-section {
+  grid-area: section;
+}
+
+/* One column on a narrow window; the Frequency HUD (nearly square) stays at a size that leaves the others in view. */
+@media (max-width: 900px) {
+  .lab-huds {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      'frequency'
+      'beat'
+      'section';
+  }
+
+  .lab-hud-frequency {
+    justify-self: center;
+    width: 100%;
+    max-width: 480px;
+  }
+}
+
+/* The HUDs were sized for the app's narrow config column (11px text); here their text scales with the window. */
+.lab-huds .beat-hud-label,
+.lab-huds .frequency-hud-label,
+.lab-huds .section-hud-label,
+.lab-huds .beat-hud-bpm,
+.lab-huds .beat-hud-consistency,
+.lab-huds .beat-hud-feel,
+.lab-huds .beat-hud-roll,
+.lab-huds .section-hud-time,
+.lab-huds .section-hud-intensity,
+.lab-huds .section-hud-name {
+  font-size: clamp(12px, 0.9vw, 16px);
+}
+
+/* The grid spaces the HUDs, so the room each leaves around itself in the config column goes. */
+.lab-huds .frequency-hud-wrapper {
+  margin: 0;
+}
+
+.lab-huds .section-hud-wrapper {
+  padding-top: 6px;
+}

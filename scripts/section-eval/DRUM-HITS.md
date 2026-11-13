@@ -25,7 +25,7 @@ against real riser labels yet (there are none). Read this before picking it up.
   looks like the last one moved up a band or two rather than down, four regions' climb (300 Hz to 16 kHz) and the share of bands rising;
   plus the ridge and how far it stands out now and each region against its peak (30 inputs). `sweep-model.json`: 16 tanh units, smoothed
   like the riser. `window.getSweep`.
-- Frequency HUD (`src/components/huds/FrequencyHud.tsx`): a light for each drum under the bars, at the frequency its hits sit at
+- Frequency HUD (`packages/beatsense-ui/src/FrequencyHud.tsx`): a light for each drum under the bars, at the frequency its hits sit at
   (`DRUM_CENTER_HZ` in `drum-hits.ts`, on a log scale inside each band's column), and a riser meter under them that fills left to right
   with the higher of the riser and the sweep score. Fed through `window.getDrumHits`, `window.getRiser` and `window.getSweep` (`src/main.ts`), so the pop-out config window shows them too.
 - `onset-detector.ts` now exports `BandTracker` (with a configurable `ReferenceWindow`), `ReferenceWindow` and `thresholdDbFor`.
@@ -285,7 +285,7 @@ on some of these samples): kick 61.7% at 6.2 false a minute before, 62.0% at 7.4
 
 ### Riser meter (2026-11-11)
 
-The meter (`src/components/huds/riserLevel.ts`) is five signal bars: on once the score holds 0.45 for 250 ms, bars at 0.45, 0.60, 0.75,
+The meter (`packages/beatsense-ui/src/riserLevel.ts`) is five signal bars: on once the score holds 0.45 for 250 ms, bars at 0.45, 0.60, 0.75,
 0.88 and 0.96, climbing one at a time and never down, off at once under 0.35 or 0.4 under its peak. Measured on synthetic risers alone
 and 1 to 4 s after a louder sample, held-out Raveform tracks and SSME by section:
 
@@ -309,7 +309,7 @@ The sweep cannot run on Raveform (band levels only), so its numbers come from SS
 ## Work remaining
 
 0. The bass bar's flash missed about half of real drop kicks (Low kicks, above). Done: it now also flashes with a beat another band set
-   off when bass has its own onset within 60 ms of it (`src/components/huds/beatFlashes.ts`, 69.0% of drop kicks; flashing on every bass
+   off when bass has its own onset within 60 ms of it (`packages/beatsense-ui/src/beatFlashes.ts`, 69.0% of drop kicks; flashing on every bass
    onset would have been 80.4% with 16.1 off-beat bass flashes a minute). Still open: the 250 ms lockout behind off-beat hats above
    120 BPM changes the beats themselves, not only the flash.
 

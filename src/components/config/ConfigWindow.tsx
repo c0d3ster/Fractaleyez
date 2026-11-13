@@ -18,7 +18,8 @@ import { ShapePad } from './ShapePad'
 import { LogConfigButton } from './LogConfigButton'
 import { ColorConfigBody } from './ColorConfigBody'
 import { LogoConfigBody } from './LogoConfigBody'
-import { BeatHud, FrequencyHud, ParticleSpriteHud, SectionHud } from '../huds'
+import { BeatHud, SectionHud } from 'beatsense-ui'
+import { AppHudProvider, ConnectedFrequencyHud, ParticleSpriteHud } from '../huds'
 import { AutoSwitch } from './AutoSwitch'
 
 type OrbitColumnBodyProps = {
@@ -117,53 +118,55 @@ const ExternalWindowBridge = ({ context }: ExternalWindowBridgeProps): React.Rea
   return (
     <ConfigContext.Provider value={context}>
       <InfoProvider>
-        <div className='config-window-grid flow-root px-[15px]'>
-          <Presets
-            expanded
-            onSelect={setPrefill}
-            onPackSelect={(pack: string) => setPrefill(prev => prev ? { ...prev, pack } : { name: '', label: '', pack, isOwn: false })}
-            headerActions={<><SavePreset prefill={prefill} onSaved={() => setPrefill(null)} /><LogConfigButton /></>}
-          />
-          <div className='config-columns'>
-            {DISPLAY_ORDER.map((entry) => (
-              <div className='config-column' key={entry}>
-                {entry === 'video' ? <ConfigVideo isOpen={true} toggleOpen={() => null} popup /> : null}
-                {entry === 'color' ? (
-                  <ConfigCategory name='color' onChange={updateConfigItem} isOpen={true} toggleOpen={() => null} expanded popup bare>
-                    <ColorConfigBody />
-                  </ConfigCategory>
-                ) : null}
-                {entry === 'orbit' ? (
-                  <ConfigCategory name='orbit' onChange={updateConfigItem} isOpen={true} toggleOpen={() => null} expanded popup bare>
-                    <OrbitColumnBody onChange={updateConfigItem} />
-                  </ConfigCategory>
-                ) : null}
-                {entry === 'logo' ? (
-                  <ConfigCategory name='logo' onChange={updateConfigItem} isOpen={true} toggleOpen={() => null} expanded popup bare>
-                    <LogoConfigBody />
-                  </ConfigCategory>
-                ) : null}
-                {entry === 'fractal' ? (
-                  <ConfigCategory name='fractal' onChange={updateConfigItem} isOpen={true} toggleOpen={() => null} expanded popup>
-                    <ShapePad />
-                  </ConfigCategory>
-                ) : null}
-                {entry === 'user' ? (
-                  <ConfigCategory name='user' onChange={updateConfigItem} isOpen={true} toggleOpen={() => null} expanded popup bare>
-                    <UserConfigBody />
-                  </ConfigCategory>
-                ) : null}
-                {entry === 'effects' || entry === 'audio' ? (
-                  <ConfigCategory name={entry} onChange={updateConfigItem} isOpen={true} toggleOpen={() => null} expanded popup>
-                    {entry === 'audio' ? <><FrequencyHud /><BeatHud /><SectionHud /></> : null}
-                  </ConfigCategory>
-                ) : null}
-                {entry === 'effects' ? <AutoSwitch /> : null}
-              </div>
-            ))}
+        <AppHudProvider>
+          <div className='config-window-grid flow-root px-[15px]'>
+            <Presets
+              expanded
+              onSelect={setPrefill}
+              onPackSelect={(pack: string) => setPrefill(prev => prev ? { ...prev, pack } : { name: '', label: '', pack, isOwn: false })}
+              headerActions={<><SavePreset prefill={prefill} onSaved={() => setPrefill(null)} /><LogConfigButton /></>}
+            />
+            <div className='config-columns'>
+              {DISPLAY_ORDER.map((entry) => (
+                <div className='config-column' key={entry}>
+                  {entry === 'video' ? <ConfigVideo isOpen={true} toggleOpen={() => null} popup /> : null}
+                  {entry === 'color' ? (
+                    <ConfigCategory name='color' onChange={updateConfigItem} isOpen={true} toggleOpen={() => null} expanded popup bare>
+                      <ColorConfigBody />
+                    </ConfigCategory>
+                  ) : null}
+                  {entry === 'orbit' ? (
+                    <ConfigCategory name='orbit' onChange={updateConfigItem} isOpen={true} toggleOpen={() => null} expanded popup bare>
+                      <OrbitColumnBody onChange={updateConfigItem} />
+                    </ConfigCategory>
+                  ) : null}
+                  {entry === 'logo' ? (
+                    <ConfigCategory name='logo' onChange={updateConfigItem} isOpen={true} toggleOpen={() => null} expanded popup bare>
+                      <LogoConfigBody />
+                    </ConfigCategory>
+                  ) : null}
+                  {entry === 'fractal' ? (
+                    <ConfigCategory name='fractal' onChange={updateConfigItem} isOpen={true} toggleOpen={() => null} expanded popup>
+                      <ShapePad />
+                    </ConfigCategory>
+                  ) : null}
+                  {entry === 'user' ? (
+                    <ConfigCategory name='user' onChange={updateConfigItem} isOpen={true} toggleOpen={() => null} expanded popup bare>
+                      <UserConfigBody />
+                    </ConfigCategory>
+                  ) : null}
+                  {entry === 'effects' || entry === 'audio' ? (
+                    <ConfigCategory name={entry} onChange={updateConfigItem} isOpen={true} toggleOpen={() => null} expanded popup>
+                      {entry === 'audio' ? <><ConnectedFrequencyHud /><BeatHud /><SectionHud /></> : null}
+                    </ConfigCategory>
+                  ) : null}
+                  {entry === 'effects' ? <AutoSwitch /> : null}
+                </div>
+              ))}
+            </div>
+            <InfoStrip />
           </div>
-          <InfoStrip />
-        </div>
+        </AppHudProvider>
       </InfoProvider>
     </ConfigContext.Provider>
   )
