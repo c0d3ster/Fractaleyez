@@ -12,8 +12,8 @@ import { useRecording } from './useRecording'
 // Until the analysis starts the HUDs read nothing and draw empty.
 const EMPTY_SOURCE: AnalysisSource = {}
 
-// The drum buttons and the riser's under the Frequency HUD (its drum lights and riser meter), the song labels under the Section HUD.
-const FREQUENCY_ACTIONS: readonly LabelAction[] = [...DRUM_LABEL_KINDS, 'riser']
+// The drum buttons under the Frequency HUD's drum lights; the song labels and the riser toggle under the Section HUD.
+const SONG_ACTIONS: readonly LabelAction[] = [...SONG_LABEL_KINDS, 'riser']
 
 const START_LABELS: Record<LabPhase, string> = {
   idle: 'Start',
@@ -64,14 +64,14 @@ export const LabPage = (): React.ReactElement => {
           </div>
           {/* Its own row, starting under the Frequency HUD and free to run on under the Beat HUD, so it stays one line. */}
           <div className='lab-hud-drums'>
-            <LabelButtons controls={recording} actions={FREQUENCY_ACTIONS} name='Drum and riser labels' />
+            <LabelButtons controls={recording} actions={DRUM_LABEL_KINDS} name='Drum labels' />
           </div>
           <div className='lab-hud lab-hud-beat'>
             <BeatHud />
           </div>
           <div className='lab-hud lab-hud-section'>
             <SectionHud />
-            <LabelButtons controls={recording} actions={SONG_LABEL_KINDS} name='Song labels' />
+            <LabelButtons controls={recording} actions={SONG_ACTIONS} name='Song and riser labels' />
           </div>
         </HudProvider>
       </main>
