@@ -61,6 +61,9 @@ export const LabPage = (): React.ReactElement => {
         <HudProvider source={source} ticker={session.ticker}>
           <div className='lab-hud lab-hud-frequency'>
             <FrequencyHud enabledBands={enabledBands} onEnabledBandsChange={handleEnabledBandsChange} />
+          </div>
+          {/* Its own row, starting under the Frequency HUD and free to run on under the Beat HUD, so it stays one line. */}
+          <div className='lab-hud-drums'>
             <LabelButtons controls={recording} actions={FREQUENCY_ACTIONS} name='Drum and riser labels' />
           </div>
           <div className='lab-hud lab-hud-beat'>
@@ -71,10 +74,9 @@ export const LabPage = (): React.ReactElement => {
             <LabelButtons controls={recording} actions={SONG_LABEL_KINDS} name='Song labels' />
           </div>
         </HudProvider>
-        <div className='lab-hud-live'>
-          <LiveCompare session={session} active={recording.status.phase !== 'idle'} />
-        </div>
       </main>
+      {/* The full width of the page, not the HUDs' block: a timeline wants the width, and it has no aspect ratio to keep. */}
+      <LiveCompare session={session} active={recording.status.phase !== 'idle'} />
     </div>
   )
 }

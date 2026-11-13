@@ -68,6 +68,7 @@ export const LiveCompare = ({ session, active }: LiveCompareProps): React.ReactE
         <h2 className='lab-live-title' title='Per drum, your labels on top and the model&apos;s hits below. A pair is joined by a green line; a label or hit with no partner is hollow.'>
           Live: you vs the model, last {LIVE_WINDOW_MS / 1000} s
         </h2>
+        <span className='lab-live-legend'>yours on top, the model&apos;s below; hollow means no partner</span>
         {tally && (
           <p className='lab-live-tally'>
             {DRUM_LABEL_KINDS.map((kind) => {
