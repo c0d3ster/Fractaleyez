@@ -6,16 +6,17 @@ import { LABEL_INFO, SONG_LABEL_KINDS, type Label, type LabelKind } from '../rec
 import { between, drumLanes, liveView, riserSpans } from '../recording/liveView'
 import { sectionRuns, timeToX } from '../recording/timeline'
 
-// Draws the live strip: your labels against the model's, the last few seconds, newest on the right. Per drum, your labels on top and the
-// model's hits below, a pair joined by a line; then your section labels over the model's sections, and your risers over its riser score.
+// Draws the live strip: your labels against the model's, the last few seconds, newest on the right. In every lane yours are on top and the
+// model's below (the header's legend says so): per drum your labels over its hits, a pair joined by a line; your song labels over its
+// sections; your risers over its riser score.
 
-export const LIVE_GUTTER_PX = 72
+export const LIVE_GUTTER_PX = 64
 
-const DRUM_LANE_PX = 30
-const SECTION_LANE_PX = 34
-const RISER_LANE_PX = 34
-const AXIS_PX = 16
-const GAP_PX = 3
+const DRUM_LANE_PX = 22
+const SECTION_LANE_PX = 28
+const RISER_LANE_PX = 24
+const AXIS_PX = 14
+const GAP_PX = 2
 
 export const LIVE_HEIGHT = DRUM_KINDS.length * (DRUM_LANE_PX + GAP_PX) + SECTION_LANE_PX + GAP_PX + RISER_LANE_PX + GAP_PX + AXIS_PX
 
@@ -35,21 +36,17 @@ export const drawLive = (ctx: CanvasRenderingContext2D, width: number, { nowMs, 
   // Anything before the session started is not recorded: shade it, so an empty lane there does not read as a miss.
   const sessionX = Math.max(LIVE_GUTTER_PX, toX(startMs))
 
-  const lane = (y: number, height: number, name: string, sub?: string): void => {
+  const lane = (y: number, height: number, name: string): void => {
     ctx.fillStyle = LANE_COLOR
     ctx.fillRect(LIVE_GUTTER_PX, y, plotWidth, height)
     ctx.fillStyle = '#888'
     ctx.textAlign = 'left'
-    ctx.fillText(name, 4, y + (sub ? height / 2 - 6 : height / 2))
-    if (sub) {
-      ctx.fillStyle = '#555'
-      ctx.fillText(sub, 4, y + height / 2 + 7)
-    }
+    ctx.fillText(name, 4, y + height / 2)
   }
 
   let top = 0
   drumLanes(labels, drumHits, view).forEach(({ kind, labels: laneLabels, hitTimes, comparison }) => {
-    lane(top, DRUM_LANE_PX, LABEL_INFO[kind].name, 'you / model')
+    lane(top, DRUM_LANE_PX, LABEL_INFO[kind].name)
     const mid = top + DRUM_LANE_PX / 2
     const { color } = LABEL_INFO[kind]
     const missed = new Set(comparison.missedLabelIds)
@@ -63,8 +60,8 @@ export const drawLive = (ctx: CanvasRenderingContext2D, width: number, { nowMs, 
     ctx.lineWidth = 1.5
     comparison.matches.forEach(({ labelT, hitT }) => {
       ctx.beginPath()
-      ctx.moveTo(toX(labelT), top + 9)
-      ctx.lineTo(toX(hitT), top + DRUM_LANE_PX - 7)
+      ctx.moveTo(toX(labelT), mid - 1)
+      ctx.lineTo(toX(hitT), top + DRUM_LANE_PX - 5)
       ctx.stroke()
     })
     ctx.fillStyle = color
@@ -72,12 +69,12 @@ export const drawLive = (ctx: CanvasRenderingContext2D, width: number, { nowMs, 
     ctx.lineWidth = 1
     laneLabels.forEach(({ id, t }) => {
       const x = Math.round(toX(t))
-      if (missed.has(id)) ctx.strokeRect(x - 1.5, top + 2.5, 4, mid - top - 4)
-      else ctx.fillRect(x - 1, top + 2, 4, mid - top - 3)
+      if (missed.has(id)) ctx.strokeRect(x - 1.5, top + 1.5, 4, mid - top - 2)
+      else ctx.fillRect(x - 1, top + 1, 4, mid - top - 1)
     })
     hitTimes.forEach((t) => {
       ctx.beginPath()
-      ctx.arc(toX(t), top + DRUM_LANE_PX - 7, extra.has(t) ? 3 : 3.5, 0, Math.PI * 2)
+      ctx.arc(toX(t), top + DRUM_LANE_PX - 5, extra.has(t) ? 2.5 : 3, 0, Math.PI * 2)
       if (extra.has(t)) ctx.stroke()
       else ctx.fill()
     })
@@ -86,7 +83,7 @@ export const drawLive = (ctx: CanvasRenderingContext2D, width: number, { nowMs, 
   })
 
   // Sections: the model's as a strip on the lower half, your section labels as tags above.
-  lane(top, SECTION_LANE_PX, 'Section', 'you / model')
+  lane(top, SECTION_LANE_PX, 'Section')
   const stripTop = top + SECTION_LANE_PX / 2 + 1
   sectionRuns(frames, nowMs).forEach(({ section, startMs: from, endMs: to }) => {
     const x0 = Math.max(LIVE_GUTTER_PX, toX(from))
@@ -104,17 +101,17 @@ export const drawLive = (ctx: CanvasRenderingContext2D, width: number, { nowMs, 
     const x = Math.round(toX(label.t))
     const { color, short } = LABEL_INFO[label.kind]
     ctx.fillStyle = color
-    ctx.fillRect(x, y, ctx.measureText(short).width + 8, 14)
+    ctx.fillRect(x, y, ctx.measureText(short).width + 8, 12)
     ctx.fillRect(x, y, 2, SECTION_LANE_PX - 2)
     ctx.fillStyle = '#111'
     ctx.textAlign = 'left'
-    ctx.fillText(short, x + 4, y + 7)
+    ctx.fillText(short, x + 4, y + 6)
   }
   between(labels, view.startMs - 1000, view.endMs).filter(({ kind }) => SONG_LABELS.has(kind)).forEach((label) => drawTag(label, top + 1))
   top += SECTION_LANE_PX + GAP_PX
 
   // Riser: the model's score as a filled line, your spans shaded behind it with their start and end tags.
-  lane(top, RISER_LANE_PX, 'Riser', 'you / model')
+  lane(top, RISER_LANE_PX, 'Riser')
   riserSpans(labels).forEach(({ startMs: from, endMs: to }) => {
     const x0 = Math.max(LIVE_GUTTER_PX, toX(from))
     const x1 = Math.min(width, toX(to ?? nowMs))

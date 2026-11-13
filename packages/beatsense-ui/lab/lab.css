@@ -21,8 +21,8 @@ body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 16px 24px 24px;
+  gap: 10px;
+  padding: 12px 20px 16px;
 }
 
 /* The bar on top: the title, the controls (Start now, recording later) and the status line. It wraps on a narrow window. */
@@ -88,24 +88,26 @@ body {
 }
 
 /*
- * The HUDs: Frequency and Beat side by side, Section across the bottom, then the live strip. The 600px is the bar, the label rows and the
- * live strip, so the whole page fits a laptop's window. The columns split so the two canvases come out the same height
- * (Frequency draws at 180 by 142, Beat at 360 by 120). The canvases keep their aspect ratio, so the width is capped to what fits the window's
- * height (the HUDs come to about 0.39 of their width tall, plus their text rows and the bar) and the block centers in a wider window.
+ * The HUDs: Frequency and Beat side by side, the drum buttons, Section across the bottom; the live strip follows outside this block. The
+ * columns split so the two canvases come out the same height (Frequency draws at 180 by 142, Beat at 360 by 120). The canvases keep their
+ * aspect ratio, so the block's width is capped to what fits the window's height: the HUDs come to about 0.385 of their width tall, and
+ * 480px is everything that does not scale with them (the bar, the label rows, the HUDs' text rows, the live strip, the gaps). So the page
+ * fits a 1366 by 768 laptop and up without scrolling, and the block centers in a wider window. It keeps at least 480px, below which the
+ * HUDs get too small to read, and scrolls on a shorter window instead.
  */
 .lab-huds {
   box-sizing: border-box;
   width: 100%;
-  max-width: max(640px, calc((100vh - 600px) * 2.5));
+  max-width: max(480px, calc((100vh - 480px) * 2.6));
   margin: 0 auto;
   display: grid;
   grid-template-columns: minmax(0, 1.27fr) minmax(0, 3fr);
   grid-template-areas:
     'frequency beat'
-    'section section'
-    'live live';
+    'drums drums'
+    'section section';
   align-items: start;
-  gap: 24px 32px;
+  gap: 8px 32px;
 }
 
 .lab-hud-frequency {
@@ -120,14 +122,34 @@ body {
   grid-area: section;
 }
 
-.lab-hud-live {
-  grid-area: live;
+.lab-hud-drums {
+  grid-area: drums;
 }
 
-/* The label buttons under the Frequency and Section HUDs. */
-.lab-hud .lab-labels {
-  margin-top: 10px;
+/* The label buttons: the drum and riser row starts under the Frequency HUD, the song row centers under the Section HUD. */
+.lab-huds .lab-labels {
+  flex-wrap: nowrap;
+  gap: 8px;
+}
+
+.lab-huds .lab-label-button {
+  white-space: nowrap;
+}
+
+.lab-hud-section .lab-labels {
+  margin-top: 6px;
   justify-content: center;
+}
+
+/* On the narrowest block a row may run a little past it rather than wrap (the page has room either side). */
+.lab-hud-drums,
+.lab-hud-section {
+  overflow: visible;
+}
+
+.lab-live-legend {
+  font-size: 11px;
+  color: #666;
 }
 
 /* One column on a narrow window; the Frequency HUD (nearly square) stays at a size that leaves the others in view. */
@@ -136,9 +158,9 @@ body {
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas:
       'frequency'
+      'drums'
       'beat'
-      'section'
-      'live';
+      'section';
   }
 
   .lab-hud-frequency {
@@ -207,7 +229,7 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 4px 8px;
+  padding: 3px 8px;
   border: 1px solid #444;
   border-left-width: 3px;
   border-radius: 5px;
@@ -259,10 +281,11 @@ body {
 /* The live strip: your labels against the model's as the session records. */
 .lab-live-head {
   display: flex;
+  margin-top: 4px;
   flex-wrap: wrap;
   align-items: baseline;
   gap: 4px 18px;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
 .lab-live-title {
