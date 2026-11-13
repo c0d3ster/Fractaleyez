@@ -18,10 +18,10 @@ export default defineConfig({
   },
   // Off the Fractaleyez app's ports (3000 and 8080), so both can run at once.
   server: {
-    port: 5180,
+    port: 4000,
   },
   preview: {
-    port: 5180,
+    port: 4000,
   },
   build: {
     outDir: 'dist',

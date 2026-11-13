@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import { BeatHud, FrequencyHud, HudProvider, SectionHud, type AnalysisSource } from 'beatsense-ui'
 
 import { LabSession, type LabPhase } from './labSession'
@@ -20,6 +20,9 @@ export const LabPage = (): React.ReactElement => {
   const [phase, setPhase] = useState<LabPhase>('idle')
   const [source, setSource] = useState<AnalysisSource>(EMPTY_SOURCE)
   const [enabledBands, setEnabledBands] = useState<readonly boolean[]>(() => session.getEnabledBands())
+
+  // The page's frame rate shows from the start, so a slow page shows before the analysis runs too.
+  useEffect(() => session.watchFrames(), [session])
 
   const handleStart = useCallback(async (): Promise<void> => {
     setPhase('starting')
@@ -46,7 +49,7 @@ export const LabPage = (): React.ReactElement => {
         <StatusLine session={session} phase={phase} />
       </header>
       <main className='lab-huds'>
-        <HudProvider source={source}>
+        <HudProvider source={source} ticker={session.ticker}>
           <div className='lab-hud lab-hud-frequency'>
             <FrequencyHud enabledBands={enabledBands} onEnabledBandsChange={handleEnabledBandsChange} />
           </div>

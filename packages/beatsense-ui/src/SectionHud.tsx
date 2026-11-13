@@ -4,6 +4,7 @@ import './SectionHud.css'
 import type { SectionState, SectionSlot, SongSection } from 'beatsense'
 import { sourceNow, useHud } from './HudContext'
 import { listenWheel, zoomView } from './wheelZoom'
+import { trackCanvasResolution } from './canvasResolution'
 
 const W = 360
 const H = 56
@@ -92,7 +93,10 @@ export const SectionHud = (): React.ReactElement => {
     if (!ctx) return
 
     let lastStateAt = 0
+    // Redraws right away when the canvas is resized, since a resize clears it.
+    const resolution = trackCanvasResolution(canvas, W, H, () => redrawRef.current?.())
     const draw = (): void => {
+      resolution.apply(ctx)
       ctx.clearRect(0, 0, W, H)
       const now = sourceNow(source)
       if (now - lastStateAt >= STATE_UPDATE_INTERVAL_MS) {
@@ -112,6 +116,7 @@ export const SectionHud = (): React.ReactElement => {
     const unsubscribe = ticker(draw, canvas)
     return (): void => {
       stopWheel()
+      resolution.stop()
       unsubscribe()
     }
   }, [source, ticker])

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { animationFrameTicker } from '../src/ticker'
+import { createFrameTicker, type Ticker } from '../src/ticker'
 
 // A stand-in for the browser's animation frames: the test runs the pending frame by hand.
 const frames = (): { run: (now: number) => void; pending: () => number } => {
@@ -24,11 +24,14 @@ const frames = (): { run: (now: number) => void; pending: () => number } => {
   }
 }
 
-describe('animationFrameTicker', () => {
+describe('createFrameTicker', () => {
   let clock: ReturnType<typeof frames>
+  // Fast enough to tick on every one of the test's frames.
+  let ticker: Ticker
 
   beforeEach(() => {
     clock = frames()
+    ticker = createFrameTicker(1000)
   })
 
   afterEach(() => {
@@ -38,8 +41,8 @@ describe('animationFrameTicker', () => {
   it('calls every subscriber on each frame from one shared loop', () => {
     const a: number[] = []
     const b: number[] = []
-    const stopA = animationFrameTicker((now) => a.push(now))
-    const stopB = animationFrameTicker((now) => b.push(now))
+    const stopA = ticker((now) => a.push(now))
+    const stopB = ticker((now) => b.push(now))
     expect(clock.pending()).toBe(1)
     clock.run(16)
     clock.run(32)
@@ -51,8 +54,8 @@ describe('animationFrameTicker', () => {
 
   it('stops the loop once the last subscriber leaves', () => {
     const calls: number[] = []
-    const stopA = animationFrameTicker((now) => calls.push(now))
-    const stopB = animationFrameTicker(() => undefined)
+    const stopA = ticker((now) => calls.push(now))
+    const stopB = ticker(() => undefined)
     stopA()
     clock.run(16)
     expect(calls).toEqual([])
@@ -66,12 +69,22 @@ describe('animationFrameTicker', () => {
     const listener = (now: number): void => {
       calls.push(now)
     }
-    const stopFirst = animationFrameTicker(listener)
-    const stopSecond = animationFrameTicker(listener)
+    const stopFirst = ticker(listener)
+    const stopSecond = ticker(listener)
     stopFirst()
     clock.run(16)
     expect(calls).toEqual([16])
     stopSecond()
     expect(clock.pending()).toBe(0)
+  })
+
+  it('ticks at most at its rate, whatever the display does', () => {
+    const calls: number[] = []
+    const thirty = createFrameTicker(30)
+    const stop = thirty((now) => calls.push(now))
+    // A 240 Hz display: a frame every 4.2 ms for a tenth of a second.
+    for (let f = 1; f <= 24; f++) clock.run(f * (1000 / 240))
+    expect(calls.length).toBe(3)
+    stop()
   })
 })

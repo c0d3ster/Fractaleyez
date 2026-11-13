@@ -1,11 +1,13 @@
 import { AnalysisHost, AudioSource, DEFAULT_ENABLED_BANDS, DEFAULT_FEED_SETTINGS, RhythmLabeler, RollReader } from 'beatsense'
 import type { FeedSettings, RhythmInput } from 'beatsense'
-import type { AnalysisSource } from 'beatsense-ui'
+import { animationFrameTicker, type AnalysisSource, type Ticker } from 'beatsense-ui'
 // The worklet entry, bundled on its own and served as its own module (see vite.config.ts); this is its URL.
 import workletUrl from 'beatsense/worklet?worker&url'
 
 import { AudioClock } from './audioClock'
 import { FrameRate } from './frameRate'
+import { PageFrames } from './pageFrames'
+import { RollingStats, type PerfReading } from './perfStats'
 
 export type LabPhase = 'idle' | 'starting' | 'running' | 'failed'
 
@@ -21,6 +23,8 @@ export type LabStatus = {
   framesPerSecond: number
   /** Why the last start failed. */
   error: string | null
+  /** What the page, the HUDs' drawing and the analysis cost over the last second. */
+  perf: PerfReading
 }
 
 /** What a start was doing when it failed, for the message. */
@@ -82,6 +86,22 @@ export class LabSession {
   private host: AnalysisHost | null = null
   private source: AnalysisSource | null = null
   private readonly frameRate = new FrameRate()
+  private readonly pageFrames = new PageFrames()
+  private readonly drawTimes = new RollingStats()
+  private readonly analysisTimes = new RollingStats()
+
+  /** The HUDs' ticker (the package default, 30 a second), timing each redraw for the status line. */
+  readonly ticker: Ticker = (listener, element) => animationFrameTicker((now) => {
+    const started = performance.now()
+    listener(now)
+    this.drawTimes.add(performance.now() - started, started)
+  }, element)
+
+  /** Starts counting the page's frames for the status line (stopped by the returned function). */
+  watchFrames = (): (() => void) => {
+    this.pageFrames.start()
+    return this.pageFrames.stop
+  }
 
   /** Opens the audio and starts the analysis. Never rejects: a failure shows in `status().error`, and calling it again retries. */
   start = async (): Promise<void> => {
@@ -117,7 +137,21 @@ export class LabSession {
     sampleRate: this.context?.sampleRate ?? null,
     framesPerSecond: this.frameRate.perSecond(performance.now()),
     error: this.error,
+    perf: this.perf(performance.now()),
   })
+
+  private perf = (now: number): PerfReading => {
+    const page = this.pageFrames.read(now)
+    const analysis = this.analysisTimes.read(now)
+    return {
+      pageFps: page.fps,
+      worstFrameMs: page.worstMs,
+      drawMs: this.drawTimes.read(now).mean,
+      analysisMs: analysis.mean,
+      // Analysis time over the last second, as a share of that second.
+      analysisShare: analysis.total / 1000,
+    }
+  }
 
   /** What the HUDs read, once started. */
   getSource = (): AnalysisSource | null => this.source
@@ -139,7 +173,9 @@ export class LabSession {
     // Every frame the worklet measures goes to the analysis, whatever the display is doing; the riser and sweep are always shown here, so
     // the frames always carry the spectrum (the AudioSource and AnalysisHost default).
     capture.onFrame((frame) => {
+      const started = performance.now()
       const { t } = host.push(frame)
+      this.analysisTimes.add(performance.now() - started, started)
       clock.observe(t)
       this.frameRate.count(performance.now())
       // The app ticks the roll on each drawn frame; here on each analysed frame, on the analysis clock. It reads at most 20 times a second.
