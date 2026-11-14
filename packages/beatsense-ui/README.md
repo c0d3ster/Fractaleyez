@@ -12,12 +12,13 @@ Private for now, like beatsense. React 18 or 19 is a peer dependency.
   (beats, bars, 8-bar phrases) on a ruler on top. Above it the tempo and how steady the beats are; below it the rhythm name and the snare
   roll. Scroll to zoom, double-click to reset, click to flip between mirrored and growing up from the bottom (kept in localStorage). It
   takes an optional `onViewChange(viewMs)`, called on mount and whenever its zoom changes, for anything that should show the same window
-  (the lab's live strip).
+  (the lab's drum strip).
 - **`FrequencyHud`**: a bar per onset band (level, trigger level, a flash on the band that set off a beat), a light per drum the hit
   classifier names, and a riser meter. Clicking a band toggles whether it can set off a beat.
 - **`SectionHud`**: the song's level over the last minute, colored by section (intro, groove, buildup, drop and so on), with the section
   name, the song time and the intensity. The wheel zooms it from 30 s to 2 min (double-click resets), and marks along its bottom give
-  the seconds ago (`agoTicks`: every 5 s at 30 s, 10 s at a minute, 20 s at two minutes).
+  the seconds ago (`agoTicks`: every 5 s at 30 s, 10 s at a minute, 20 s at two minutes; exported with `formatAgo`). It takes the same
+  optional `onViewChange(viewMs)` as the Beat HUD.
 
 Each imports its own stylesheet. In a bundler that compiles the source (the Fractaleyez app) that is an ordinary CSS import; the built
 `dist/` has the CSS inlined and adds it to the page when the package is imported.
@@ -141,12 +142,16 @@ Once the analysis runs, Record starts a session and Stop ends it (a new Record d
   the song labels on `1` intro, `2` buildup, `3` drop, `4` breakdown, `5` outro, in song order. Intro and outro are the tracker's own
   calls too, so labelling them shows where it calls an outro mid-song. Held keys, keys with Ctrl, Cmd or Alt, and typing in a field add
   nothing. Backspace (or Undo) removes the newest label.
-- The live strip under the HUDs shows your labels against the model's as they happen, over the Beat HUD's window (6 s by default; it
-  follows the Beat HUD's zoom from 2 to 16 s through `BeatHud`'s `onViewChange`, with seconds-ago marks along the bottom). Per drum, your
-  labels on top and the model's hits below, a pair joined by a green line (a hit from 350 ms before the label to 100 ms after it, one to one, nearest first)
-  and anything unpaired drawn hollow; then your section labels over the model's sections, and your riser spans over its riser score.
-  Above it, a tally per drum (your labels, the model's hits, how many paired) and the median of label time minus hit time over every pair:
-  how far behind the model you label, i.e. your reaction time. After Stop it holds the last window.
+- Two strips compare your labels with the model's, each under the HUD whose timeline it shares and following that HUD's zoom (through
+  `onViewChange`), so the times line up:
+  - Under the Beat HUD (2 to 16 s), a lane per drum: your labels on the top half, the model's hits on the bottom, a pair joined by a green
+    line (a hit from 350 ms before the label to 100 ms after it, one to one, nearest first) and anything unpaired hollow. Below it, how many
+    of your labels paired per drum, and the median of label time minus hit time: how far behind the model you label (your reaction time).
+  - Under the Section HUD (30 s to 2 min, with the same time marks), your song labels over the model's sections and your riser spans
+    behind its riser score.
+
+  Before Record and after Stop the strips show the model alone, a lane each with no top and bottom halves: the variant for a build
+  without labels. The lab keeps the model's output of the last two minutes for them (`RecentHistory`) whether or not it records.
 
 Export saves the stopped session as `beatsense-session-<date>-<time>.json`, version 1 of the format in `lab/recording/sessionFile.ts`:
 
@@ -168,7 +173,8 @@ it to move it, the arrow keys nudge it a frame (Shift: 100 ms) and Delete remove
 as `<name>-labelled.json`; the page asks before leaving with unsaved edits.
 
 The recording logic is plain TypeScript in `lab/recording/` (labels and hotkeys, `SessionRecorder`, the file format, the label edits, the
-plot geometry, the label-to-hit pairing in `compareDrums.ts` and the live strip's window in `liveView.ts`), tested in `test/lab/` with synthetic frames, including a run of the real `AnalysisHost` whose section log replays to the
+plot geometry, the label-to-hit pairing in `compareDrums.ts`, the strips' windows and tally in `liveView.ts`, and the model's recent output in
+`recentHistory.ts`), tested in `test/lab/` with synthetic frames, including a run of the real `AnalysisHost` whose section log replays to the
 same ticks.
 
 ### Build

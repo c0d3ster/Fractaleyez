@@ -9,7 +9,8 @@ import { FrameRate } from './frameRate'
 import { PageFrames } from './pageFrames'
 import { RollingStats, type PerfReading } from './perfStats'
 import { isRiserOpen, labelKindFor, type Label, type LabelAction, type LabelKind } from './recording/labels'
-import { LIVE_WINDOW_MS } from './recording/liveView'
+import { tallySession, type SessionTally } from './recording/liveView'
+import { RecentHistory } from './recording/recentHistory'
 import type { DrumDetection, LabSessionFile } from './recording/sessionFile'
 import { SessionRecorder, type RecorderPhase } from './recording/sessionRecorder'
 
@@ -47,13 +48,13 @@ export type RecordingStatus = {
   file: LabSessionFile | null
 }
 
-/** What the live strip draws: the session so far and the frames in its window. */
-export type LiveSnapshot = {
-  recording: boolean
-  /** The strip's right edge, audio clock ms: now while recording, the stop time after. */
+/** What the strips under the Beat and Section HUDs draw. */
+export type StripSnapshot = {
+  /** The strips' right edge, audio clock ms. */
   nowMs: number
-  startMs: number
-  labels: readonly Label[]
+  /** The recording's start and your labels while a session records; null for the model alone (no session, or after Stop). */
+  session: { startMs: number; labels: readonly Label[] } | null
+  /** The model's drum hits and readings over the last couple of minutes (the whole window of either strip). */
   drumHits: readonly DrumDetection[]
   frames: readonly FrameReading[]
 }
@@ -118,6 +119,8 @@ export class LabSession {
   private source: AnalysisSource | null = null
   private clock: AudioClock | null = null
   private readonly recorder = new SessionRecorder()
+  /** The model's output over the last couple of minutes, kept with or without a recording, for the strips. */
+  private readonly history = new RecentHistory()
   private lastLabel: Label | null = null
   private file: LabSessionFile | null = null
   private readonly frameRate = new FrameRate()
@@ -248,23 +251,23 @@ export class LabSession {
   })
 
   /**
-   * The session for the live strip, with the frames of the last `windowMs`, or null before the first Record. Reads the recorder's lists in
-   * place (no copies at 30 a second).
+   * What the strips draw over the last `windowMs`: the model's output always (once the analysis runs), and your labels while recording.
+   * Null before the analysis starts. The frames are a new list of the window; the labels and hits are read in place.
    */
-  liveSnapshot = (windowMs: number = LIVE_WINDOW_MS): LiveSnapshot | null => {
-    const phase = this.recorder.getPhase()
-    if (phase === 'idle') return null
-    const recording = phase === 'recording'
-    const nowMs = recording && this.clock ? this.clock.now() : this.recorder.getEndMs()
+  stripSnapshot = (windowMs: number): StripSnapshot | null => {
+    if (!this.clock) return null
+    const nowMs = this.clock.now()
     return {
-      recording,
       nowMs,
-      startMs: this.recorder.getStartMs(),
-      labels: this.recorder.getLabels(),
-      drumHits: this.recorder.getDrumHits(),
-      frames: this.recorder.framesSince(nowMs - windowMs),
+      session: this.recorder.isRecording() ? { startMs: this.recorder.getStartMs(), labels: this.recorder.getLabels() } : null,
+      drumHits: this.history.getDrumHits(),
+      frames: this.history.framesSince(nowMs - windowMs),
     }
   }
+
+  /** The recording's labels against the drum model's hits, per drum (recording or stopped; null before the first Record). */
+  tally = (): SessionTally | null =>
+    this.recorder.getPhase() === 'idle' ? null : tallySession(this.recorder.getLabels(), this.recorder.getDrumHits())
 
   private run = (context: AudioContext, capture: AudioSource, microphone: MediaStreamAudioSourceNode): void => {
     const host = new AnalysisHost()
@@ -280,7 +283,9 @@ export class LabSession {
       const { t } = reading
       this.analysisTimes.add(performance.now() - started, started)
       clock.observe(t)
-      if (this.recorder.isRecording()) this.recorder.addFrame(reading, drumHits.getLastHits())
+      const lastHits = drumHits.getLastHits()
+      this.history.push(reading, lastHits)
+      if (this.recorder.isRecording()) this.recorder.addFrame(reading, lastHits)
       this.frameRate.count(performance.now())
       // The app ticks the roll on each drawn frame; here on each analysed frame, on the analysis clock. It reads at most 20 times a second.
       snareRoll.tick(drumHits.getRollHits, tempoTracker.getPeriodMs(), t)

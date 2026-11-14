@@ -1,4 +1,6 @@
-import { buildSectionLog, DRUM_KINDS, type DrumKind, type FrameReading, type SectionTick } from 'beatsense'
+import { buildSectionLog, type FrameReading, type SectionTick } from 'beatsense'
+
+import { DrumHitWatcher, type LastDrumHits } from './drumHitWatcher'
 
 import { countLabels, sortLabels, type Label, type LabelKind } from './labels'
 import { SESSION_FORMAT, SESSION_VERSION, type DrumDetection, type LabSessionFile } from './sessionFile'
@@ -6,8 +8,7 @@ import { frameIndexAt } from './timeline'
 
 export type RecorderPhase = 'idle' | 'recording' | 'stopped'
 
-/** The drum model's newest hit time per drum, as DrumHits.getLastHits gives it. */
-export type LastDrumHits = Readonly<Record<DrumKind, number | null>>
+export type { LastDrumHits } from './drumHitWatcher'
 
 export type FileContext = {
   /** The section tracker's recording (SectionTracker.getRecording); only the ticks inside the session are kept. */
@@ -29,8 +30,8 @@ export class SessionRecorder {
   private drumHits: DrumDetection[] = []
   private labels: Label[] = []
   private nextId = 1
-  /** The newest hit time already seen per drum, so each hit is kept once though getLastHits repeats it every frame. */
-  private seenHits: Partial<Record<DrumKind, number>> = {}
+  /** Each drum hit once, though getLastHits repeats it every frame, and none from before the start. */
+  private readonly watcher = new DrumHitWatcher()
 
   getPhase = (): RecorderPhase => this.phase
 
@@ -45,7 +46,7 @@ export class SessionRecorder {
     this.drumHits = []
     this.labels = []
     this.nextId = 1
-    this.seenHits = {}
+    this.watcher.reset(t)
   }
 
   /** Stops at `t` (or at the newest frame, if that is later). A no-op unless recording. */
@@ -63,7 +64,7 @@ export class SessionRecorder {
     if (this.phase !== 'recording' || reading.t < this.startMs) return
     this.frames.push({ ...reading, levels: [...reading.levels] })
     this.endMs = Math.max(this.endMs, reading.t)
-    if (lastHits) this.noteHits(lastHits)
+    if (lastHits) this.watcher.newHits(lastHits).forEach((hit) => this.drumHits.push(hit))
   }
 
   /** Adds a label at `t` while recording; returns it, or null when not recording. */
@@ -120,14 +121,5 @@ export class SessionRecorder {
       labels: sortLabels(this.labels),
       sectionLog: buildSectionLog(ticks, savedAt),
     }
-  }
-
-  private noteHits = (lastHits: LastDrumHits): void => {
-    DRUM_KINDS.forEach((kind) => {
-      const t = lastHits[kind]
-      if (t === null || t < this.startMs || t === this.seenHits[kind]) return
-      this.seenHits[kind] = t
-      this.drumHits.push({ kind, t })
-    })
   }
 }

@@ -28,7 +28,8 @@ const SECTION_COLORS: Record<SongSection, string> = {
 
 const LINE_COLOR = 'rgba(255, 255, 255, 0.75)'
 const TICK_COLOR = 'rgba(255, 255, 255, 0.35)'
-const TICK_PX = 4
+// CSS pixels, whatever size the strip is shown at (its drawing scales with it, so this is converted to its units when drawn).
+const TICK_CSS_PX = 4
 
 // Whole seconds, so the readout is not drawn again between ticks of the clock.
 const songSeconds = (state: SectionState): number | null => (state.songMs === null ? null : Math.floor(state.songMs / 1000))
@@ -45,10 +46,14 @@ const sameState = (a: SectionState | null, b: SectionState | null): boolean =>
       Math.round(a.intensity * 100) === Math.round(b.intensity * 100) &&
       songSeconds(a) === songSeconds(b)
 
-/** A short mark at the bottom edge for each time label (the labels are text over the canvas, so they stay sharp when it is scaled). */
+/**
+ * A short mark at the bottom edge for each time label (the labels are text over the canvas, so they stay sharp when it is scaled). The
+ * marks are one CSS pixel wide and TICK_CSS_PX tall at any size: the context's scale says how many of its units that is.
+ */
 const drawTicks = (ctx: CanvasRenderingContext2D, viewMs: number): void => {
+  const cssPx = (window.devicePixelRatio || 1) / (ctx.getTransform().a || 1)
   ctx.fillStyle = TICK_COLOR
-  agoTicks(viewMs).forEach((ago) => ctx.fillRect(Math.round(W - (ago / viewMs) * W), H - TICK_PX, 1, TICK_PX))
+  agoTicks(viewMs).forEach((ago) => ctx.fillRect(W - (ago / viewMs) * W, H - TICK_CSS_PX * cssPx, cssPx, TICK_CSS_PX * cssPx))
 }
 
 const drawStrip = (ctx: CanvasRenderingContext2D, slots: readonly SectionSlot[], now: number, viewMs: number): void => {
@@ -82,7 +87,15 @@ const drawStrip = (ctx: CanvasRenderingContext2D, slots: readonly SectionSlot[],
   ctx.stroke()
 }
 
-export const SectionHud = (): React.ReactElement => {
+export type SectionHudProps = {
+  /**
+   * Called with the length of time shown (ms, its right edge is now) once on mount and whenever the wheel or a double-click changes it,
+   * so something drawn beside the HUD can show the same window.
+   */
+  onViewChange?: (viewMs: number) => void
+}
+
+export const SectionHud = ({ onViewChange }: SectionHudProps = {}): React.ReactElement => {
   const { source, ticker, hint } = useHud()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [state, setState] = useState<SectionState | null>(null)
@@ -90,11 +103,19 @@ export const SectionHud = (): React.ReactElement => {
   // The same view as state, for the time labels; the draw reads the ref, so a zoom does not wait for a render.
   const [viewMs, setViewMs] = useState(DEFAULT_VIEW_MS)
   const redrawRef = useRef<(() => void) | null>(null)
+  // The newest callback, read when the view changes, so a new function each render does not re-subscribe the drawing.
+  const onViewChangeRef = useRef(onViewChange)
+  onViewChangeRef.current = onViewChange
+
+  useEffect(() => {
+    onViewChangeRef.current?.(viewMsRef.current)
+  }, [])
 
   // A double-click puts the zoom back to the default.
   const handleDoubleClick = useCallback((): void => {
     viewMsRef.current = DEFAULT_VIEW_MS
     setViewMs(DEFAULT_VIEW_MS)
+    onViewChangeRef.current?.(DEFAULT_VIEW_MS)
     redrawRef.current?.()
   }, [])
 
@@ -125,6 +146,7 @@ export const SectionHud = (): React.ReactElement => {
     const stopWheel = listenWheel(canvas, (deltaY) => {
       viewMsRef.current = zoomView(viewMsRef.current, deltaY, ZOOM_RANGE)
       setViewMs(viewMsRef.current)
+      onViewChangeRef.current?.(viewMsRef.current)
       draw()
     })
     const unsubscribe = ticker(draw, canvas)
