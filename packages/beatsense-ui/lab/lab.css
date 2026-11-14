@@ -21,8 +21,8 @@ body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 16px 24px 24px;
+  gap: 10px;
+  padding: 12px 20px 16px;
 }
 
 /* The bar on top: the title, the controls (Start now, recording later) and the status line. It wraps on a narrow window. */
@@ -88,14 +88,17 @@ body {
 }
 
 /*
- * The HUDs: Frequency and Beat side by side, Section across the bottom. The columns split so the two canvases come out the same height
- * (Frequency draws at 180 by 142, Beat at 360 by 120). The canvases keep their aspect ratio, so the width is capped to what fits the window's
- * height (the HUDs come to about 0.39 of their width tall, plus their text rows and the bar) and the block centers in a wider window.
+ * The HUDs: Frequency and Beat side by side, Section across the bottom; the drum buttons under Frequency, the drum strip under Beat, the
+ * song strip and buttons under Section. The columns split so the two canvases come out the same height (Frequency draws at 180 by 142,
+ * Beat at 360 by 120). The canvases keep their aspect ratio, so the block's width is capped to what fits the window's height: the HUDs come
+ * to about 0.389 of their width tall, and 476px is everything that does not scale with them (the bar with its player row, the strips, the
+ * label rows, the HUDs' text rows, the gaps). So the page fits a 1366 by 768 laptop and up without scrolling, and the block centers in a
+ * wider window. It keeps at least 480px, below which the HUDs get too small to read, and scrolls on a shorter window instead.
  */
 .lab-huds {
   box-sizing: border-box;
   width: 100%;
-  max-width: max(640px, calc((100vh - 260px) * 2.5));
+  max-width: max(480px, calc((100vh - 476px) * 2.57));
   margin: 0 auto;
   display: grid;
   grid-template-columns: minmax(0, 1.27fr) minmax(0, 3fr);
@@ -103,7 +106,7 @@ body {
     'frequency beat'
     'section section';
   align-items: start;
-  gap: 24px 32px;
+  gap: 8px 32px;
 }
 
 .lab-hud-frequency {
@@ -116,6 +119,78 @@ body {
 
 .lab-hud-section {
   grid-area: section;
+}
+
+.lab-huds .lab-labels {
+  gap: 8px;
+}
+
+.lab-huds .lab-label-button {
+  white-space: nowrap;
+}
+
+/*
+ * The drum buttons under the Frequency HUD: a 2 by 2 block like their keys (Q W over A S), each half the HUD's width; on a narrow column
+ * (a short window keeps the HUDs small) one column instead, in the room the taller Beat column leaves under it.
+ */
+.lab-hud-frequency {
+  container-type: inline-size;
+}
+
+.lab-hud-frequency .lab-labels {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.lab-hud-frequency .lab-label-button {
+  justify-content: center;
+  min-width: 0;
+  padding: 3px 4px;
+}
+
+/* After the block's own rule, so it wins on a narrow column. */
+@container (max-width: 220px) {
+  .lab-hud-frequency .lab-labels {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* The song and riser buttons under the Section HUD and its strip: one centered row, running a little past the block rather than wrapping. */
+.lab-hud-section .lab-labels {
+  flex-wrap: nowrap;
+  margin-top: 8px;
+  justify-content: center;
+}
+
+/* The strips under the Beat and Section HUDs: framed like the HUDs' canvases, the same width, so their time lines up with the HUD above. */
+.lab-strip {
+  margin-top: 6px;
+}
+
+.lab-strip-canvas {
+  box-sizing: border-box;
+  width: 100%;
+  border: 1px solid #2a2a2a;
+  border-radius: 6px;
+  background: #000;
+  overflow: hidden;
+}
+
+.lab-strip-tally {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+  margin: 4px 0 0;
+  font-size: 11px;
+  color: #777;
+  font-variant-numeric: tabular-nums;
+}
+
+.lab-strip-tally b {
+  font-weight: 600;
+  color: rgba(220, 220, 220, 0.9);
 }
 
 /* One column on a narrow window; the Frequency HUD (nearly square) stays at a size that leaves the others in view. */
@@ -149,6 +224,10 @@ body {
   font-size: clamp(12px, 0.9vw, 16px);
 }
 
+.lab-huds .section-hud-tick {
+  font-size: clamp(10px, 0.65vw, 13px);
+}
+
 /* The grid spaces the HUDs, so the room each leaves around itself in the config column goes. */
 .lab-huds .frequency-hud-wrapper {
   margin: 0;
@@ -156,4 +235,133 @@ body {
 
 .lab-huds .section-hud-wrapper {
   padding-top: 6px;
+}
+
+/* Recording: Record and Stop, the time, the label buttons with their hotkeys and counts, Export, and the link to the review page. */
+.lab-record {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.lab-record-button.lab-recording {
+  border-color: #e5484d;
+  background: rgba(229, 72, 77, 0.25);
+  color: #fff;
+}
+
+.lab-record-time,
+.lab-record-last {
+  font-size: 13px;
+  color: #888;
+  font-variant-numeric: tabular-nums;
+}
+
+.lab-record-time b {
+  font-weight: 600;
+  color: rgba(220, 220, 220, 0.9);
+}
+
+.lab-labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.lab-label-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border: 1px solid #444;
+  border-left-width: 3px;
+  border-radius: 5px;
+  background: rgba(40, 40, 40, 0.9);
+  color: rgba(220, 220, 220, 0.9);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.lab-label-button.lab-label-active {
+  background: rgba(126, 87, 194, 0.35);
+  color: #fff;
+}
+
+.lab-label-button:hover:not(:disabled) {
+  background: #555;
+}
+
+.lab-label-button:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.lab-label-button kbd {
+  padding: 0 4px;
+  border: 1px solid #555;
+  border-radius: 3px;
+  font: inherit;
+  font-size: 10px;
+  color: #aaa;
+}
+
+.lab-label-count {
+  min-width: 14px;
+  padding: 0 4px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.15);
+  font-size: 10px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.lab-link {
+  font-size: 13px;
+  color: #79b8ff;
+}
+
+
+/* The file player: a row of its own in the bar. */
+.lab-player {
+  display: flex;
+  flex-basis: 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  font-size: 13px;
+}
+
+.lab-player-open input {
+  display: none;
+}
+
+.lab-player-disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.lab-player-name {
+  max-width: 28ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: rgba(220, 220, 220, 0.9);
+}
+
+.lab-player-time {
+  color: #888;
+  font-variant-numeric: tabular-nums;
+}
+
+.lab-player-seek {
+  flex: 1 1 160px;
+  min-width: 120px;
+  max-width: 520px;
+}
+
+.lab-player-mode {
+  display: inline-flex;
+  gap: 4px;
 }

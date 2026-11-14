@@ -1,5 +1,5 @@
 import { AnalysisHost, AudioSource, DEFAULT_ENABLED_BANDS, DEFAULT_FEED_SETTINGS, RhythmLabeler, RollReader } from 'beatsense'
-import type { FeedSettings, RhythmInput } from 'beatsense'
+import type { FeedSettings, FrameReading, RhythmInput } from 'beatsense'
 import { animationFrameTicker, type AnalysisSource, type Ticker } from 'beatsense-ui'
 // The worklet entry, bundled on its own and served as its own module (see vite.config.ts); this is its URL.
 import workletUrl from 'beatsense/worklet?worker&url'
@@ -8,6 +8,12 @@ import { AudioClock } from './audioClock'
 import { FrameRate } from './frameRate'
 import { PageFrames } from './pageFrames'
 import { RollingStats, type PerfReading } from './perfStats'
+import { isRiserOpen, labelKindFor, type Label, type LabelAction, type LabelKind } from './recording/labels'
+import { tallySession, type SessionTally } from './recording/liveView'
+import { RecentHistory } from './recording/recentHistory'
+import { LocalPlayer, type PlayerMode } from './player/localPlayer'
+import type { DrumDetection, LabSessionFile, SessionPlayback } from './recording/sessionFile'
+import { SessionRecorder, type RecorderPhase } from './recording/sessionRecorder'
 
 export type LabPhase = 'idle' | 'starting' | 'running' | 'failed'
 
@@ -25,6 +31,33 @@ export type LabStatus = {
   error: string | null
   /** What the page, the HUDs' drawing and the analysis cost over the last second. */
   perf: PerfReading
+}
+
+export type RecordingStatus = {
+  phase: RecorderPhase
+  /** Audio clock, ms, when Record was pressed. */
+  startMs: number
+  /** Recorded length so far, ms. */
+  durationMs: number
+  frames: number
+  labelCounts: Record<LabelKind, number>
+  /** Whether a riser is open (the riser button and R end it next). */
+  riserOpen: boolean
+  /** The newest label added, for the bar's feedback. */
+  lastLabel: Label | null
+  /** The stopped session, ready to export. */
+  file: LabSessionFile | null
+}
+
+/** What the strips under the Beat and Section HUDs draw. */
+export type StripSnapshot = {
+  /** The strips' right edge, audio clock ms. */
+  nowMs: number
+  /** The recording's start and your labels while a session records; null for the model alone (no session, or after Stop). */
+  session: { startMs: number; labels: readonly Label[] } | null
+  /** The model's drum hits and readings over the last couple of minutes (the whole window of either strip). */
+  drumHits: readonly DrumDetection[]
+  frames: readonly FrameReading[]
 }
 
 /** What a start was doing when it failed, for the message. */
@@ -85,6 +118,19 @@ export class LabSession {
   private stream: MediaStream | null = null
   private host: AnalysisHost | null = null
   private source: AnalysisSource | null = null
+  private clock: AudioClock | null = null
+  private readonly recorder = new SessionRecorder()
+  /** The model's output over the last couple of minutes, kept with or without a recording, for the strips. */
+  private readonly history = new RecentHistory()
+  /** The lab's file player, once the analysis runs (it plays into the same audio context). */
+  private player: LocalPlayer | null = null
+  /**
+   * The audio context's time minus the analysis clock, ms: the lowest seen as frames arrive (the delivery delay can only add to it), so the
+   * player can log its changes on the frames' clock. A constant error left in it is what a pass's correction absorbs.
+   */
+  private contextLagMs = Number.POSITIVE_INFINITY
+  private lastLabel: Label | null = null
+  private file: LabSessionFile | null = null
   private readonly frameRate = new FrameRate()
   private readonly pageFrames = new PageFrames()
   private readonly drawTimes = new RollingStats()
@@ -164,6 +210,92 @@ export class LabSession {
     this.host?.setSettings(this.settings)
   }
 
+  /** Starts a recording (dropping the last one) at the audio clock's now. A no-op until the analysis runs. */
+  startRecording = (): void => {
+    if (!this.clock || this.recorder.isRecording()) return
+    this.recorder.start(this.clock.now())
+    this.lastLabel = null
+    this.file = null
+  }
+
+  /** Stops the recording and makes its file, with the section tracker's ticks from the session. */
+  stopRecording = (): LabSessionFile | null => {
+    if (!this.clock || !this.host || !this.recorder.isRecording()) return null
+    this.recorder.stop(this.clock.now())
+    this.file = this.recorder.toFile({
+      sectionTicks: this.host.analysers.sectionTracker.getRecording(),
+      sampleRate: this.context?.sampleRate ?? null,
+      playback: this.recordedPlayback(),
+    })
+    return this.file
+  }
+
+  /** Starts the player and a recording together, so the pass covers the song from where it plays. Null with no file loaded. */
+  playAndRecord = (): void => {
+    if (!this.player?.state().file || this.recorder.isRecording()) return
+    this.startRecording()
+    this.player.play()
+  }
+
+  getPlayer = (): LocalPlayer | null => this.player
+
+  /** What the player did during the stopped recording, if it played a file in it. */
+  private recordedPlayback = (): SessionPlayback | undefined => {
+    const file = this.player?.state().file
+    if (!this.player || !file) return undefined
+    const segments = this.player.log.between(this.recorder.getStartMs(), this.recorder.getEndMs())
+    if (!segments.some(({ songMs }) => songMs !== null)) return undefined
+    return { file, mode: this.player.state().mode, segments }
+  }
+
+  /**
+   * Adds a label at the audio clock's now: the newest audio delivered, so the label lands where the person heard the hit, plus their
+   * reaction time (moved on the review page). Null when not recording.
+   */
+  addLabel = (action: LabelAction): Label | null => {
+    if (!this.clock) return null
+    const label = this.recorder.addLabel(labelKindFor(action, this.recorder.getLabels()), this.clock.now())
+    if (label) this.lastLabel = label
+    return label
+  }
+
+  /** Removes the newest label (a mistaken press) while recording. */
+  undoLabel = (): Label | null => {
+    const label = this.recorder.undoLabel()
+    if (label) this.lastLabel = null
+    return label
+  }
+
+  recordingStatus = (): RecordingStatus => ({
+    phase: this.recorder.getPhase(),
+    startMs: this.recorder.getStartMs(),
+    durationMs: this.recorder.durationMs(),
+    frames: this.recorder.frameCount(),
+    labelCounts: this.recorder.labelCounts(),
+    riserOpen: isRiserOpen(this.recorder.getLabels()),
+    lastLabel: this.lastLabel,
+    file: this.file,
+  })
+
+  /**
+   * What the strips draw over the last `windowMs`: the model's output always (once the analysis runs), and your labels while recording.
+   * Null before the analysis starts. The frames are a new list of the window; the labels and hits are read in place.
+   */
+  stripSnapshot = (windowMs: number): StripSnapshot | null => {
+    if (!this.clock) return null
+    const nowMs = this.clock.now()
+    return {
+      nowMs,
+      session: this.recorder.isRecording() ? { startMs: this.recorder.getStartMs(), labels: this.recorder.getLabels() } : null,
+      drumHits: this.history.getDrumHits(),
+      frames: this.history.framesSince(nowMs - windowMs),
+    }
+  }
+
+  /** The recording's labels against the drum model's hits, per drum (recording or stopped; null before the first Record). */
+  tally = (): SessionTally | null =>
+    this.recorder.getPhase() === 'idle' ? null : tallySession(this.recorder.getLabels(), this.recorder.getDrumHits())
+
   private run = (context: AudioContext, capture: AudioSource, microphone: MediaStreamAudioSourceNode): void => {
     const host = new AnalysisHost()
     host.setSettings(this.settings)
@@ -174,9 +306,14 @@ export class LabSession {
     // the frames always carry the spectrum (the AudioSource and AnalysisHost default).
     capture.onFrame((frame) => {
       const started = performance.now()
-      const { t } = host.push(frame)
+      const reading = host.push(frame)
+      const { t } = reading
       this.analysisTimes.add(performance.now() - started, started)
       clock.observe(t)
+      this.contextLagMs = Math.min(this.contextLagMs, context.currentTime * 1000 - t)
+      const lastHits = drumHits.getLastHits()
+      this.history.push(reading, lastHits)
+      if (this.recorder.isRecording()) this.recorder.addFrame(reading, lastHits)
       this.frameRate.count(performance.now())
       // The app ticks the roll on each drawn frame; here on each analysed frame, on the analysis clock. It reads at most 20 times a second.
       snareRoll.tick(drumHits.getRollHits, tempoTracker.getPeriodMs(), t)
@@ -185,7 +322,14 @@ export class LabSession {
     const gain = context.createGain()
     microphone.connect(gain)
     gain.connect(capture.input)
+    // In direct mode the player feeds the analysis itself, so the mic is muted to it (it would add the room's copy of the same sound).
+    const muteMicFor = (mode: PlayerMode): void => {
+      gain.gain.setValueAtTime(mode === 'direct' ? 0 : 1, context.currentTime)
+    }
+    const analysisMs = (seconds: number): number => seconds * 1000 - (Number.isFinite(this.contextLagMs) ? this.contextLagMs : 0)
+    this.player = new LocalPlayer(context, { speakers: context.destination, analysis: capture.input, onMode: muteMicFor }, analysisMs)
     this.host = host
+    this.clock = clock
     this.source = createSource(host, clock, snareRoll, () => this.settings)
   }
 
@@ -202,6 +346,7 @@ export class LabSession {
     this.stream = null
     this.context = null
     this.host = null
+    this.clock = null
     this.source = null
     this.mic = 'off'
     this.phase = 'failed'

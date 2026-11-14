@@ -1,0 +1,113 @@
+/* The review page, on the lab's styles (lab.css). */
+
+.review-open input {
+  display: none;
+}
+
+.review-main {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.review-labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 12px;
+  color: #aaa;
+}
+
+.review-label-count {
+  padding: 2px 8px;
+  border: 1px solid #444;
+  border-left-width: 3px;
+  border-radius: 5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.review-label-count b {
+  color: rgba(220, 220, 220, 0.9);
+}
+
+.review-timeline {
+  width: 100%;
+  user-select: none;
+}
+
+.review-timeline canvas {
+  display: block;
+}
+
+.review-selected {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  min-height: 34px;
+  margin: 0;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.review-hint {
+  color: #777;
+}
+
+.review-disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.review-title input {
+  width: 22ch;
+  padding: 2px 6px;
+  border: 1px solid #444;
+  border-radius: 4px;
+  background: rgba(40, 40, 40, 0.9);
+  color: rgba(220, 220, 220, 0.9);
+  font: inherit;
+}
+
+/* The passes of a song: one row each, wrapping on a narrow window. */
+.review-passes {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+  color: #999;
+}
+
+.review-pass {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 14px;
+}
+
+.review-pass-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: rgba(220, 220, 220, 0.9);
+}
+
+.review-pass-span {
+  font-variant-numeric: tabular-nums;
+}
+
+.review-pass-note {
+  color: #777;
+}
+
+.review-pass-warn {
+  color: #ffb86b;
+}
+
+.review-pass-actions {
+  display: inline-flex;
+  gap: 4px;
+}

@@ -53,6 +53,7 @@
 }
 
 .section-hud {
+  position: relative;
   box-sizing: border-box;
   width: 100%;
   background: #000;
@@ -67,4 +68,24 @@
   height: auto;
   /* App.css hides the cursor on every canvas. */
   cursor: default;
+}
+
+/* The time marks' labels, over the bottom of the strip, each centered on its mark (drawn in the canvas). They follow the zoom. */
+.section-hud-ticks {
+  position: absolute;
+  /* Just above the marks, which are 4px tall at any size. */
+  inset: auto 0 6px;
+  height: 1.2em;
+  pointer-events: none;
+}
+
+.section-hud-tick {
+  position: absolute;
+  transform: translateX(-50%);
+  font-size: 9px;
+  line-height: 1.2em;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255, 255, 255, 0.45);
+  text-shadow: 0 0 3px #000, 0 0 3px #000;
+  white-space: nowrap;
 }

@@ -10,11 +10,20 @@ Private for now, like beatsense. React 18 or 19 is a peer dependency.
 
 - **`BeatHud`**: a scrolling waveform of the five onset bands with the level each had to pass, the hits along the bottom, and the beat grid
   (beats, bars, 8-bar phrases) on a ruler on top. Above it the tempo and how steady the beats are; below it the rhythm name and the snare
-  roll. Scroll to zoom, double-click to reset, click to flip between mirrored and growing up from the bottom (kept in localStorage).
+  roll. Scroll to zoom, double-click to reset, click to flip between mirrored and growing up from the bottom (kept in localStorage). It
+  takes an optional `onViewChange(viewMs)`, called on mount and whenever its zoom changes, for anything that should show the same window
+  (the lab's drum strip), and an optional `drumRow`: a row under the hit strip marking each drum the classifier calls (from the source's
+  `getDrumHits`, kept by the HUD itself), kick a red circle, snare a yellow square, clap a pink triangle, hat a teal diamond, kick and
+  snare a little lower than hat and clap so hits on the same beat do not stack (`DRUM_COLORS`, `DRUM_SHAPES` and `drawDrumMark`, filled or
+  outlined, are exported for anything that should mark drums the same way). The row
+  takes its height from the waveform. The Fractaleyez app turns it on; the lab leaves it off for its comparison strip.
 - **`FrequencyHud`**: a bar per onset band (level, trigger level, a flash on the band that set off a beat), a light per drum the hit
-  classifier names, and a riser meter. Clicking a band toggles whether it can set off a beat.
+  classifier names (in the drum's shape, grey until it flashes in the drum's color, as the Beat HUD's drum row marks it), and a riser
+  meter. Clicking a band toggles whether it can set off a beat.
 - **`SectionHud`**: the song's level over the last minute, colored by section (intro, groove, buildup, drop and so on), with the section
-  name, the song time and the intensity.
+  name, the song time and the intensity. The wheel zooms it from 30 s to 2 min (double-click resets), and marks along its bottom give
+  the seconds ago (`agoTicks`: every 5 s at 30 s, 10 s at a minute, 20 s at two minutes; exported with `formatAgo`). It takes the same
+  optional `onViewChange(viewMs)` as the Beat HUD.
 
 Each imports its own stylesheet. In a bundler that compiles the source (the Fractaleyez app) that is an ordinary CSS import; the built
 `dist/` has the CSS inlined and adds it to the page when the package is imported.
@@ -102,7 +111,7 @@ handlers). `titleHint` gives the browser's tooltip; the Fractaleyez app passes i
 ## Lab
 
 A standalone page with the three HUDs on a live microphone, for working on beatsense without the Fractaleyez app. It uses only beatsense
-and beatsense-ui, and will also be where recording (record and stop, live labels, hotkeys) goes.
+and beatsense-ui. It records labelled sessions for scoring and retraining the detectors, and has a review page for fixing the labels.
 
 ```sh
 pnpm lab         # from this folder or the repo root: Vite dev server on http://localhost:4000
@@ -125,11 +134,87 @@ same delivery-delay tracking as the app's frame clock. The snare roll is ticked 
 app does. The beat settings are beatsense's `DEFAULT_FEED_SETTINGS` (Ignore Time 250 ms); the band toggles are page state and are not
 saved.
 
+### Recording
+
+Once the analysis runs, Record starts a session and Stop ends it (a new Record drops the last one, so export first). While recording:
+
+- Every `FrameReading` the `AnalysisHost` gives is kept (60 a second), with each drum hit the drum model calls.
+- The label buttons, or their hotkeys, add labels. The drum buttons sit under the Frequency HUD's drum lights, the song labels
+  and the riser toggle under the Section HUD; Record, Stop, Undo and Export stay in the bar.
+  A label is stamped at the audio clock's now (the newest audio delivered, so it lands where the hit was heard plus the reaction time,
+  fixed on the review page). The keys: the drums as a block on `Q` kick, `W` snare, `A` clap, `S` hat; `R` riser, which
+  starts a riser and ends it on the next press (the file keeps a riser start and a riser end label; the button says which is next); and
+  the song labels on `1` intro, `2` buildup, `3` drop, `4` breakdown, `5` outro, in song order. Intro and outro are the tracker's own
+  calls too, so labelling them shows where it calls an outro mid-song. Held keys, keys with Ctrl, Cmd or Alt, and typing in a field add
+  nothing. Backspace (or Undo) removes the newest label.
+- Two strips compare your labels with the model's, each under the HUD whose timeline it shares and following that HUD's zoom (through
+  `onViewChange`), so the times line up:
+  - Under the Beat HUD (2 to 16 s), a lane per drum: your labels on the top half, the model's hits on the bottom, a pair joined by a green
+    line (a hit from 350 ms before the label to 100 ms after it, one to one, nearest first) and anything unpaired hollow. Below it, how many
+    of your labels paired per drum, and the median of label time minus hit time: how far behind the model you label (your reaction time).
+  - Under the Section HUD (30 s to 2 min, with the same time marks), your song labels over the model's sections and your riser spans
+    behind its riser score.
+
+  Before Record and after Stop the strips show the model alone, a lane each with no top and bottom halves: the variant for a build
+  without labels. The lab keeps the model's output of the last two minutes for them (`RecentHistory`) whether or not it records.
+
+### The file player
+
+The player row plays a local audio file (open it, or drop it on the page) through the lab's own audio context: Play, Pause, a seek bar,
+**Loop A** then **B** to loop a stretch (a buildup again and again), and **Play & record** to start both at once. **Mic** sends it out
+through the speakers for the microphone to hear, room and all, as the app hears music live; **Direct** feeds it straight into the
+analysis too (the microphone muted to the analysis), clean and with no delay. The track is decoded whole into memory (about 10 MB a
+minute of stereo).
+
+Every play, seek, loop and pause is logged on the analysis clock (`lab/player/playbackLog.ts`), and a recording made while it plays keeps
+the log for its span (the session's `playback`: the file's name, length and size, the mode and the segments). A pass then maps onto the
+song exactly: song time is the position in the file, slice by slice (between seeks, and per turn of a loop), so no search for where the
+pass started is needed. Two passes of the same file only need the small correction for the trip from the speakers to the mic, found by
+the onset match within 300 ms (with 3 s of overlap, enough for a search that narrow). Such a session exports as
+`<track>-<date>-<time>.json`, and a song made from it is titled after the track.
+
+Export saves the stopped session as `beatsense-session-<date>-<time>.json` (or after the track the player played), version 1 of the format in `lab/recording/sessionFile.ts`:
+
+| Field | What |
+| --- | --- |
+| `format`, `version` | `'beatsense-lab-session'`, `1`. A reader refuses other versions, and a change to the shape bumps it. |
+| `recordedAt`, `editedAt` | When it stopped, and when the labels were last edited on the review page (absent before). ISO 8601. |
+| `sampleRate` | The audio context's, Hz. |
+| `startMs`, `endMs` | When Record and Stop were pressed, on the audio clock (ms; the same clock as everything below). |
+| `frames` | Every `FrameReading`: `t`, the five band `levels`, `beat`, `beatBand`, `bpm`, `section`, `riser`, `sweep`. |
+| `drumHits` | `{ kind, t }` per hit the drum model called, sorted by time. |
+| `labels` | `{ id, kind, t }`, sorted by time; the id stays with a label through edits. |
+| `playback` | Only when the player played a file: `{ file: { name, durationMs, size }, mode: 'mic' \| 'direct', segments }`, each segment `{ atMs, songMs, loop }` (`songMs` null for a pause). |
+| `sectionLog` | beatsense's `SectionLog` (version 2) with the section tracker's 50 ms ticks inside the session, for replaying through a fresh tracker (`SectionTracker.pushTick`, or `scripts/section-eval/replay-log.mts`). |
+
+The **Review** link opens `review.html`: open or drop an exported session to see its timelines (the sections, the five band levels, the
+beats colored by band, the drum model's hits per drum, the tempo, the riser and the sweep), with the labels as lines through every lane.
+The wheel zooms around the pointer, dragging empty space pans and a double-click shows the whole session. Click a label to select it, drag
+it to move it, the arrow keys nudge it a frame (Shift: 100 ms) and Delete removes it. The page asks before leaving with unsaved edits.
+
+A song can be labelled over several passes (kicks and snares in one, hats and claps in another, sections in a third): **Add pass** (or
+drop another session) adds a session of the same song, aligned to the first pass by matching onset envelopes of their band levels
+(`lab/recording/align.ts`; volume does not matter, and a pass may start anywhere in the song). The pass list shows how sure each
+alignment is (its match against the best offset a second or more away; "check alignment" when it does not stand out), with nudges of 10
+and 100 ms, Re-align and Remove, and a checkbox to show or hide each pass's labels. All labels sit on the song's time (the first pass's
+clock), tagged with their pass number, over the first pass's model output; edits go back to the label's own pass. Labels of one kind from
+different passes within 60 ms agree (`mergeLabels.ts`): the counts show how many moments all the passes that labelled that kind agree
+on. Export saves a single session as before (`<name>-labelled.json`), and a song of several passes as `<title>.song.json`
+(`songFile.ts`, format `beatsense-lab-song` version 1: the title, and per pass its file name, its offset onto song time, its alignment
+scores and the whole session unchanged), which opens again with its passes.
+
+The recording logic is plain TypeScript in `lab/recording/` (labels and hotkeys, `SessionRecorder`, the file format, the label edits, the
+plot geometry, the label-to-hit pairing in `compareDrums.ts`, the strips' windows and tally in `liveView.ts`, the model's recent output in
+`recentHistory.ts`, and the passes in `align.ts`, `songFile.ts` and `mergeLabels.ts`), tested in `test/lab/` with synthetic frames, including a run of the real `AnalysisHost` whose section log replays to the
+same ticks.
+
+### Build
+
 The worklet is imported as `beatsense/worklet?worker&url`, so Vite bundles it on its own (one file in `lab:build`) and serves it as a
 module in dev, with nothing but Vite's `/@vite/env` defines added (no HMR client, which would throw in a worklet scope). Vite resolves the
 `@fractaleyez/source` condition (`vite.config.ts`), so the page compiles both packages from source and picks up edits on save.
 
-The lab is outside `src`, so it is never in the package build or the published files. `pnpm typecheck` checks it with its own tsconfig
+`lab:build` builds both pages (`index.html` and `review.html`). The lab is outside `src`, so it is never in the package build or the published files. `pnpm typecheck` checks it with its own tsconfig
 (`lab/tsconfig.json`, which adds Vite's client types) and `pnpm lint` covers it.
 
 ## Development

@@ -157,7 +157,7 @@ const ExternalWindowBridge = ({ context }: ExternalWindowBridgeProps): React.Rea
                   ) : null}
                   {entry === 'effects' || entry === 'audio' ? (
                     <ConfigCategory name={entry} onChange={updateConfigItem} isOpen={true} toggleOpen={() => null} expanded popup>
-                      {entry === 'audio' ? <><ConnectedFrequencyHud /><BeatHud /><SectionHud /></> : null}
+                      {entry === 'audio' ? <><ConnectedFrequencyHud /><BeatHud drumRow /><SectionHud /></> : null}
                     </ConfigCategory>
                   ) : null}
                   {entry === 'effects' ? <AutoSwitch /> : null}
