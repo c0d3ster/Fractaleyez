@@ -8,8 +8,8 @@ import { LABEL_INFO, LABEL_KINDS, type Label } from '../recording/labels'
 import { AGREE_MS, agreementByKind, groupLabels } from '../recording/mergeLabels'
 import { checkSession, editedFileName, parseJson, serializeSessionFile, type LabSessionFile } from '../recording/sessionFile'
 import {
-  addPass, fromViewId, parseLabFile, removePass, serializeSongFile, setPassLabels, setPassOffset, songBounds, songFileName, songLabels,
-  type LabSongFile,
+  addPass, fromViewId, parseLabFile, PLAYBACK_CORRECTION_MS, PLAYBACK_MIN_OVERLAP_MS, removePass, samePlayback, serializeSongFile, setPassLabels, setPassOffset,
+  passOrigin, songBounds, songFileName, songFrames, songLabels, songOrigin, type LabSongFile, type PassAlignment, type SongLabel, type SongPass,
 } from '../recording/songFile'
 import { beatMarks, formatTime, levelPeaks, sectionRuns, type View } from '../recording/timeline'
 import type { TimelineData } from './drawTimeline'
@@ -20,12 +20,13 @@ import { SessionTimeline } from './SessionTimeline'
 const NUDGE_MS = 1000 / 60
 const NUDGE_SHIFT_MS = 100
 
-/** The model's timelines from the reference pass (the first), on song time (its clock). */
-const timelineData = (file: LabSessionFile): TimelineData => {
+/** The model's timelines from the reference pass (the first), on song time. */
+const timelineData = (first: SongPass): TimelineData => {
+  const { frames, drumHits } = songFrames(first)
   // A loop, not Math.min(...list): an hour is 216000 frames, more arguments than a call takes.
   let min = Infinity
   let max = -Infinity
-  file.frames.forEach(({ bpm }) => {
+  frames.forEach(({ bpm }) => {
     if (bpm === null) return
     min = Math.min(min, bpm)
     max = Math.max(max, bpm)
@@ -35,27 +36,39 @@ const timelineData = (file: LabSessionFile): TimelineData => {
     max = 180
   }
   return {
-    originMs: file.startMs,
-    frames: file.frames,
-    runs: sectionRuns(file.frames, file.endMs),
-    beats: beatMarks(file.frames),
-    drumHits: file.drumHits,
-    levelPeaks: levelPeaks(file.frames, ONSET_BANDS.length),
+    originMs: passOrigin(first),
+    frames,
+    runs: sectionRuns(frames, frames[frames.length - 1]?.t ?? 0),
+    beats: beatMarks(frames),
+    drumHits,
+    levelPeaks: levelPeaks(frames, ONSET_BANDS.length),
     bpmRange: { min: Math.floor(min - 2), max: Math.ceil(max + 2) },
   }
 }
 
-/** A new pass on the song, aligned to the first; with no match, lined up start to start and marked as set by hand. */
-const alignedPass = (song: LabSongFile, session: LabSessionFile, name: string): LabSongFile => {
-  const reference = song.passes[0]!.session
-  const alignment = alignPasses(reference.frames, session.frames)
-  return addPass(song, {
-    name,
-    offsetMs: alignment ? alignment.offsetMs : reference.startMs - session.startMs,
-    alignment: alignment ? { score: alignment.score, runnerUp: alignment.runnerUp } : null,
-    session,
-  })
+/**
+ * Where a pass sits on the song. Two passes of the same file through the lab's player already share song time, so only the small
+ * correction (the speakers to the mic) is searched, around zero. Otherwise the whole song is searched; with no match the pass is lined up
+ * start to start and marked as set by hand.
+ */
+const placePass = (song: LabSongFile, session: LabSessionFile): { offsetMs: number; alignment: PassAlignment | null } => {
+  const first = song.passes[0]!
+  const asPass = (offsetMs: number): SongPass => ({ name: '', offsetMs, alignment: null, session })
+  if (samePlayback(first.session, session)) {
+    const correction = alignPasses(songFrames(first).frames, songFrames(asPass(0)).frames, {
+      hint: { offsetMs: 0, withinMs: PLAYBACK_CORRECTION_MS },
+      minOverlapMs: PLAYBACK_MIN_OVERLAP_MS,
+    })
+    if (!correction) return { offsetMs: 0, alignment: null }
+    return { offsetMs: correction.offsetMs, alignment: { score: correction.score, runnerUp: correction.runnerUp } }
+  }
+  const found = alignPasses(songFrames(first).frames, session.frames)
+  if (!found) return { offsetMs: first.session.startMs - session.startMs, alignment: null }
+  return { offsetMs: found.offsetMs, alignment: { score: found.score, runnerUp: found.runnerUp } }
 }
+
+const alignedPass = (song: LabSongFile, session: LabSessionFile, name: string): LabSongFile =>
+  addPass(song, { name, ...placePass(song, session), session })
 
 const allPasses = (song: LabSongFile): Set<number> => new Set(song.passes.map((_, i) => i))
 
@@ -74,7 +87,9 @@ export const ReviewPage = (): React.ReactElement => {
   const [edited, setEdited] = useState(false)
 
   const reference = song?.passes[0]?.session ?? null
-  const data = useMemo(() => (reference ? timelineData(reference) : null), [reference])
+  // The model's lanes come from the first pass alone, so they are worked out again only when it changes (not on every label edit).
+  const firstPass = song?.passes[0] ?? null
+  const data = useMemo(() => (firstPass ? timelineData(firstPass) : null), [firstPass])
   const bounds = useMemo(() => (song ? songBounds(song) : { startMs: 0, endMs: 1 }), [song])
   const labels = useMemo(() => (song ? songLabels(song, shown) : []), [song, shown])
   const groups = useMemo(() => groupLabels(labels), [labels])
@@ -133,23 +148,24 @@ export const ReviewPage = (): React.ReactElement => {
     }
   }, [open, addPassFile, song])
 
-  /** Applies an edit to the labels of the selected label's pass, on that pass's own clock. */
-  const editPass = useCallback((id: number, change: (passLabels: Label[], labelId: number, offsetMs: number, passBoundsOnOwnClock: { startMs: number; endMs: number }) => Label[]): void => {
+  /** Applies an edit to the labels of a label's pass, on that pass's own clock. */
+  const editPass = useCallback((id: number, change: (passLabels: Label[], label: SongLabel, passBoundsOnOwnClock: { startMs: number; endMs: number }) => Label[]): void => {
     if (!song) return
-    const { passIndex, labelId } = fromViewId(id)
-    const pass = song.passes[passIndex]
-    if (!pass) return
+    const label = labels.find((candidate) => candidate.id === id)
+    const pass = label ? song.passes[label.passIndex] : undefined
+    if (!label || !pass) return
     const own = { startMs: pass.session.startMs, endMs: pass.session.endMs }
-    update(setPassLabels(song, passIndex, change(pass.session.labels, labelId, pass.offsetMs, own)))
-  }, [song, update])
+    update(setPassLabels(song, label.passIndex, change(pass.session.labels, label, own)))
+  }, [song, labels, update])
 
+  // A move is by how far it went on song time, so it stays right within a slice of a pass that seeked or looped.
   const handleMove = useCallback((id: number, t: number): void => {
-    editPass(id, (passLabels, labelId, offsetMs, own) => moveLabel(passLabels, labelId, t - offsetMs, own))
+    editPass(id, (passLabels, label, own) => moveLabel(passLabels, label.labelId, label.passT + (t - label.t), own))
   }, [editPass])
 
   const handleDelete = useCallback((): void => {
     if (selectedId === null) return
-    editPass(selectedId, (passLabels, labelId) => deleteLabel(passLabels, labelId))
+    editPass(selectedId, (passLabels, label) => deleteLabel(passLabels, label.labelId))
     setSelectedId(null)
   }, [selectedId, editPass])
 
@@ -164,7 +180,7 @@ export const ReviewPage = (): React.ReactElement => {
       } else if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
         event.preventDefault()
         const step = (event.shiftKey ? NUDGE_SHIFT_MS : NUDGE_MS) * (event.key === 'ArrowLeft' ? -1 : 1)
-        editPass(selectedId, (passLabels, labelId, _offset, own) => nudgeLabel(passLabels, labelId, step, own))
+        editPass(selectedId, (passLabels, label, own) => nudgeLabel(passLabels, label.labelId, step, own))
       } else if (event.key === 'Escape') {
         setSelectedId(null)
       }
@@ -195,12 +211,9 @@ export const ReviewPage = (): React.ReactElement => {
 
   const handleRealign = (passIndex: number): void => {
     if (!song) return
-    const alignment = alignPasses(song.passes[0]!.session.frames, song.passes[passIndex]!.session.frames)
-    if (!alignment) {
-      setError(`Pass ${passIndex + 1} does not overlap the first pass enough to align it.`)
-      return
-    }
-    update(setPassOffset(song, passIndex, alignment.offsetMs, { score: alignment.score, runnerUp: alignment.runnerUp }))
+    const { offsetMs, alignment } = placePass(song, song.passes[passIndex]!.session)
+    if (!alignment) setError(`Pass ${passIndex + 1} could not be matched to the first pass; it keeps the player's or a start-to-start position.`)
+    update(setPassOffset(song, passIndex, offsetMs, alignment))
   }
 
   const handleRemovePass = (passIndex: number): void => {
@@ -220,7 +233,7 @@ export const ReviewPage = (): React.ReactElement => {
 
   const selected = labels.find(({ id }) => id === selectedId) ?? null
   const selectedGroup = selected ? groups.find(({ members }) => members.some(({ id }) => id === selected.id)) ?? null : null
-  const origin = reference?.startMs ?? 0
+  const origin = song ? songOrigin(song) : 0
   const tagSuffix = useCallback((id: number): string => (multiPass ? String(fromViewId(id).passIndex + 1) : ''), [multiPass])
 
   return (

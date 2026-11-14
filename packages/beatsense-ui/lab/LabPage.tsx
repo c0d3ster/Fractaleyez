@@ -3,6 +3,7 @@ import { BeatHud, FrequencyHud, HudProvider, SectionHud, type AnalysisSource } f
 
 import { LabSession, type LabPhase } from './labSession'
 import { LabelButtons } from './LabelButtons'
+import { PlayerBar } from './player/PlayerBar'
 import { RecordBar } from './RecordBar'
 import { DRUM_LABEL_KINDS, SONG_LABEL_KINDS, type LabelAction } from './recording/labels'
 import { LIVE_WINDOW_MS } from './recording/liveView'
@@ -64,6 +65,7 @@ export const LabPage = (): React.ReactElement => {
           </button>
           <RecordBar controls={recording} phase={phase} />
         </div>
+        <PlayerBar session={session} phase={phase} recording={recording} />
         <StatusLine session={session} phase={phase} />
       </header>
       <main className='lab-huds'>

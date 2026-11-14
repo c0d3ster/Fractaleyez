@@ -156,7 +156,22 @@ Once the analysis runs, Record starts a session and Stop ends it (a new Record d
   Before Record and after Stop the strips show the model alone, a lane each with no top and bottom halves: the variant for a build
   without labels. The lab keeps the model's output of the last two minutes for them (`RecentHistory`) whether or not it records.
 
-Export saves the stopped session as `beatsense-session-<date>-<time>.json`, version 1 of the format in `lab/recording/sessionFile.ts`:
+### The file player
+
+The player row plays a local audio file (open it, or drop it on the page) through the lab's own audio context: Play, Pause, a seek bar,
+**Loop A** then **B** to loop a stretch (a buildup again and again), and **Play & record** to start both at once. **Mic** sends it out
+through the speakers for the microphone to hear, room and all, as the app hears music live; **Direct** feeds it straight into the
+analysis too (the microphone muted to the analysis), clean and with no delay. The track is decoded whole into memory (about 10 MB a
+minute of stereo).
+
+Every play, seek, loop and pause is logged on the analysis clock (`lab/player/playbackLog.ts`), and a recording made while it plays keeps
+the log for its span (the session's `playback`: the file's name, length and size, the mode and the segments). A pass then maps onto the
+song exactly: song time is the position in the file, slice by slice (between seeks, and per turn of a loop), so no search for where the
+pass started is needed. Two passes of the same file only need the small correction for the trip from the speakers to the mic, found by
+the onset match within 300 ms (with 3 s of overlap, enough for a search that narrow). Such a session exports as
+`<track>-<date>-<time>.json`, and a song made from it is titled after the track.
+
+Export saves the stopped session as `beatsense-session-<date>-<time>.json` (or after the track the player played), version 1 of the format in `lab/recording/sessionFile.ts`:
 
 | Field | What |
 | --- | --- |
@@ -167,6 +182,7 @@ Export saves the stopped session as `beatsense-session-<date>-<time>.json`, vers
 | `frames` | Every `FrameReading`: `t`, the five band `levels`, `beat`, `beatBand`, `bpm`, `section`, `riser`, `sweep`. |
 | `drumHits` | `{ kind, t }` per hit the drum model called, sorted by time. |
 | `labels` | `{ id, kind, t }`, sorted by time; the id stays with a label through edits. |
+| `playback` | Only when the player played a file: `{ file: { name, durationMs, size }, mode: 'mic' \| 'direct', segments }`, each segment `{ atMs, songMs, loop }` (`songMs` null for a pause). |
 | `sectionLog` | beatsense's `SectionLog` (version 2) with the section tracker's 50 ms ticks inside the session, for replaying through a fresh tracker (`SectionTracker.pushTick`, or `scripts/section-eval/replay-log.mts`). |
 
 The **Review** link opens `review.html`: open or drop an exported session to see its timelines (the sections, the five band levels, the

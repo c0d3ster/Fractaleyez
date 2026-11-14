@@ -1,9 +1,14 @@
+import type { FrameReading } from 'beatsense'
+
+import { sliceLog, type PlaybackSlice } from '../player/playbackLog'
 import { sortLabels, type Label } from './labels'
 import type { TimeBounds } from './labelEdits'
-import { checkSession, parseJson, type LabSessionFile } from './sessionFile'
+import { checkSession, parseJson, trackTitle, type DrumDetection, type LabSessionFile } from './sessionFile'
 
 // A song labelled over several passes: each pass is a session as the lab exported it (its frames, the model's output and its labels, on
-// its own audio clock) plus the offset that puts it on the song's time, the first pass's clock. Labels stay in their pass, so a pass's
+// its own audio clock) plus what puts it on the song's time. A pass the lab's player played maps through its playback log: song time is
+// the position in the file, slice by slice (between seeks, per turn of a loop), with the pass's offset as a small correction (the trip
+// from the speakers to the mic). A pass without one maps by its offset alone onto the first pass's clock. Labels stay in their pass, so a pass's
 // frames and labels can still train together; the review page shows every pass's labels on the one song timeline.
 
 export const SONG_FORMAT = 'beatsense-lab-song'
@@ -18,7 +23,10 @@ export type PassAlignment = {
 export type SongPass = {
   /** The session's file name, to tell passes apart. */
   name: string
-  /** Song time = the pass's audio clock + offsetMs. 0 for the first pass. */
+  /**
+   * Without a playback log, song time = the pass's audio clock + offsetMs (0 for the first pass). With one, it is added to the log's
+   * mapping as a correction: the delay from the player's position to what the mic heard, as measured.
+   */
   offsetMs: number
   /** How it was aligned: the match found, or null when the offset was set by hand (or it is the first pass). */
   alignment: PassAlignment | null
@@ -33,8 +41,11 @@ export type LabSongFile = {
   passes: SongPass[]
 }
 
-/** A label shown on the song timeline: its pass, and an id unique across passes (passIndex * PASS_ID_STRIDE + the label's id). */
-export type SongLabel = Label & { passIndex: number; labelId: number }
+/**
+ * A label shown on the song timeline (t is song time): its pass, its own time on the pass's clock, and an id unique across passes
+ * (passIndex * PASS_ID_STRIDE + the label's id).
+ */
+export type SongLabel = Label & { passIndex: number; labelId: number; passT: number }
 
 /** Spacing of the view ids: a pass holds fewer labels than this. */
 export const PASS_ID_STRIDE = 1_000_000
@@ -84,11 +95,11 @@ export const parseLabFile = (text: string, name: string): LabSongFile => {
   return songFromSession(checkSession(data), name)
 }
 
-/** A song of one pass. The title is the file name without its extension. */
+/** A song of one pass. The title is the track the player played, or else the session's file name without its extension. */
 export const songFromSession = (session: LabSessionFile, name: string, savedAt: Date = new Date()): LabSongFile => ({
   format: SONG_FORMAT,
   version: SONG_VERSION,
-  title: name.replace(/\.json$/i, '').replace(/-labelled$/, ''),
+  title: session.playback ? trackTitle(session.playback.file.name) : name.replace(/\.json$/i, '').replace(/-labelled$/, ''),
   savedAt: savedAt.toISOString(),
   passes: [{ name, offsetMs: 0, alignment: null, session }],
 })
@@ -112,14 +123,86 @@ export const setPassLabels = (song: LabSongFile, passIndex: number, labels: read
     : pass)),
 })
 
-/** Every label of the passes shown, on song time, sorted. */
+/** A pass's slices: its playback log's (with the correction added), or the whole pass at its offset. */
+export const passSlices = ({ offsetMs, session }: SongPass): PlaybackSlice[] => {
+  const { startMs, endMs, playback } = session
+  // The end is included: a slice covers [fromMs, toMs), and the last frame sits on endMs.
+  if (!playback) return [{ fromMs: startMs, toMs: endMs + 1, offsetMs }]
+  return sliceLog(playback.segments, startMs, endMs + 1).map((slice) => ({ ...slice, offsetMs: slice.offsetMs + offsetMs }))
+}
+
+/** A time on the pass's clock in song time, or null when the song was not playing then (paused, stopped). */
+export const toSongTime = (slices: readonly PlaybackSlice[], t: number): number | null => {
+  const slice = slices.find(({ fromMs, toMs }) => t >= fromMs && t < toMs)
+  return slice ? t + slice.offsetMs : null
+}
+
+/** Every label of the passes shown, on song time, sorted. A label made while the song was paused is left out. */
 export const songLabels = (song: LabSongFile, shown: ReadonlySet<number> | null = null): SongLabel[] =>
-  sortLabels(song.passes.flatMap(({ offsetMs, session }, passIndex) => (shown && !shown.has(passIndex)
-    ? []
-    : session.labels.map((label): SongLabel => ({ ...label, id: viewId(passIndex, label.id), t: label.t + offsetMs, passIndex, labelId: label.id })))))
+  sortLabels(song.passes.flatMap((pass, passIndex) => {
+    if (shown && !shown.has(passIndex)) return []
+    const slices = passSlices(pass)
+    return pass.session.labels.flatMap((label): SongLabel[] => {
+      const t = toSongTime(slices, label.t)
+      return t === null ? [] : [{ ...label, id: viewId(passIndex, label.id), t, passIndex, labelId: label.id, passT: label.t }]
+    })
+  }))
 
 /** A pass's span on song time. */
-export const passBounds = ({ offsetMs, session }: SongPass): TimeBounds => ({ startMs: session.startMs + offsetMs, endMs: session.endMs + offsetMs })
+export const passBounds = (pass: SongPass): TimeBounds => {
+  const slices = passSlices(pass)
+  if (slices.length === 0) return { startMs: 0, endMs: 0 }
+  return {
+    startMs: Math.min(...slices.map(({ fromMs, offsetMs }) => fromMs + offsetMs)),
+    endMs: Math.max(...slices.map(({ toMs, offsetMs }) => toMs - 1 + offsetMs)),
+  }
+}
+
+/**
+ * A pass's frames and drum hits on song time, sorted, for drawing and aligning. Where a pass covered the same stretch twice (a loop, a
+ * seek back), the first time is kept, so the frames stay one per moment.
+ */
+export const songFrames = (pass: SongPass): { frames: FrameReading[]; drumHits: DrumDetection[] } => {
+  const slices = passSlices(pass)
+  const covered: Array<[number, number]> = []
+  const frames: FrameReading[] = []
+  slices.forEach(({ fromMs, toMs, offsetMs }) => {
+    const from = fromMs + offsetMs
+    const to = toMs + offsetMs
+    const seen = covered.filter(([a, b]) => a < to && b > from)
+    pass.session.frames.forEach((frame) => {
+      if (frame.t < fromMs || frame.t >= toMs) return
+      const t = frame.t + offsetMs
+      if (seen.some(([a, b]) => t >= a && t < b)) return
+      frames.push({ ...frame, t })
+    })
+    covered.push([from, to])
+  })
+  frames.sort((a, b) => a.t - b.t)
+  const drumHits = pass.session.drumHits
+    .flatMap((hit) => {
+      const t = toSongTime(slices, hit.t)
+      return t === null ? [] : [{ ...hit, t }]
+    })
+    .sort((a, b) => a.t - b.t)
+  return { frames, drumHits }
+}
+
+/** Where the song's time starts on screen: the file's start when the first pass played through the lab's player, else the first pass's start. */
+export const songOrigin = (song: LabSongFile): number => passOrigin(song.passes[0]!)
+
+/** The same for a song whose first pass is `first`. */
+export const passOrigin = (first: SongPass): number => (first.session.playback ? 0 : passBounds(first).startMs)
+
+/** How far to look around the player's mapping for the trip from the speakers to the mic (and any difference in it between passes). */
+export const PLAYBACK_CORRECTION_MS = 300
+
+/** The overlap that correction needs: a few seconds, since a search that narrow cannot land on the wrong bar. */
+export const PLAYBACK_MIN_OVERLAP_MS = 3000
+
+/** Whether two passes played the same file through the lab's player (so their logs share song time and need only a small correction). */
+export const samePlayback = (a: LabSessionFile, b: LabSessionFile): boolean =>
+  Boolean(a.playback && b.playback && a.playback.file.name === b.playback.file.name && Math.abs(a.playback.file.durationMs - b.playback.file.durationMs) < 50)
 
 /** Song time covered by any pass. */
 export const songBounds = (song: LabSongFile): TimeBounds => {

@@ -1,7 +1,7 @@
 import React from 'react'
 
 import { isSureAlignment } from '../recording/align'
-import { passBounds, type LabSongFile } from '../recording/songFile'
+import { passBounds, songOrigin, type LabSongFile } from '../recording/songFile'
 import { formatTime } from '../recording/timeline'
 
 // The nudges for a pass's offset: a frame-ish step, and a bigger one for a pass that landed a beat off.
@@ -17,9 +17,10 @@ type PassListProps = {
 }
 
 const alignmentText = (song: LabSongFile, passIndex: number): React.ReactNode => {
-  const { alignment } = song.passes[passIndex]!
-  if (passIndex === 0) return <span className='review-pass-note'>reference</span>
-  if (!alignment) return <span className='review-pass-note'>set by hand</span>
+  const { alignment, session } = song.passes[passIndex]!
+  const played = session.playback ? ` (played ${session.playback.file.name}${session.playback.mode === 'direct' ? ', direct' : ''})` : ''
+  if (passIndex === 0) return <span className='review-pass-note'>reference{played}</span>
+  if (!alignment) return <span className='review-pass-note'>{session.playback ? `from the player${played}` : 'set by hand'}</span>
   const sure = isSureAlignment(alignment)
   return (
     <span
@@ -33,7 +34,7 @@ const alignmentText = (song: LabSongFile, passIndex: number): React.ReactNode =>
 
 /** The song's passes: show or hide each one's labels, where it sits in the song, how sure its alignment is, and nudge or re-align it. */
 export const PassList = ({ song, shown, onToggle, onNudge, onRealign, onRemove }: PassListProps): React.ReactElement => {
-  const origin = song.passes[0]!.session.startMs
+  const origin = songOrigin(song)
   return (
     <ol className='review-passes'>
       {song.passes.map((pass, i) => {
