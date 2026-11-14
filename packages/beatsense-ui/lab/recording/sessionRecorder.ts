@@ -3,7 +3,7 @@ import { buildSectionLog, type FrameReading, type SectionTick } from 'beatsense'
 import { DrumHitWatcher, type LastDrumHits } from './drumHitWatcher'
 
 import { countLabels, sortLabels, type Label, type LabelKind } from './labels'
-import { SESSION_FORMAT, SESSION_VERSION, type DrumDetection, type LabSessionFile } from './sessionFile'
+import { SESSION_FORMAT, SESSION_VERSION, type DrumDetection, type LabSessionFile, type SessionPlayback } from './sessionFile'
 import { frameIndexAt } from './timeline'
 
 export type RecorderPhase = 'idle' | 'recording' | 'stopped'
@@ -16,6 +16,8 @@ export type FileContext = {
   sampleRate: number | null
   /** When the file is made; the recording's stop time, normally. */
   savedAt?: Date
+  /** What the lab's player played during the recording, if it played. */
+  playback?: SessionPlayback
 }
 
 /**
@@ -105,7 +107,7 @@ export class SessionRecorder {
   durationMs = (): number => this.endMs - this.startMs
 
   /** The session as a file, once stopped (null before). */
-  toFile = ({ sectionTicks, sampleRate, savedAt = new Date() }: FileContext): LabSessionFile | null => {
+  toFile = ({ sectionTicks, sampleRate, savedAt = new Date(), playback }: FileContext): LabSessionFile | null => {
     if (this.phase !== 'stopped') return null
     const ticks = sectionTicks.filter(({ t }) => t >= this.startMs && t <= this.endMs)
     return {
@@ -120,6 +122,7 @@ export class SessionRecorder {
       drumHits: [...this.drumHits].sort((a, b) => a.t - b.t),
       labels: sortLabels(this.labels),
       sectionLog: buildSectionLog(ticks, savedAt),
+      ...(playback ? { playback } : {}),
     }
   }
 }

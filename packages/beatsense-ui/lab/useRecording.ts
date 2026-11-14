@@ -4,7 +4,7 @@ import { downloadJson } from './download'
 import type { LabSession, RecordingStatus } from './labSession'
 import { actionForKey } from './recording/hotkeys'
 import type { LabelAction } from './recording/labels'
-import { serializeSessionFile, sessionFileName } from './recording/sessionFile'
+import { serializeSessionFile, sessionFileNameFor } from './recording/sessionFile'
 
 // Often enough for the recorded time to tick visibly.
 const REFRESH_MS = 200
@@ -18,6 +18,8 @@ export type RecordingControls = {
   undo: () => void
   /** Downloads the stopped session. */
   exportFile: () => void
+  /** Reads the status again now (after something outside these controls started or stopped a recording). */
+  refresh: () => void
 }
 
 /**
@@ -73,8 +75,8 @@ export const useRecording = (session: LabSession): RecordingControls => {
 
   const exportFile = useCallback((): void => {
     if (!status.file) return
-    downloadJson(serializeSessionFile(status.file), sessionFileName(new Date(status.file.recordedAt)))
+    downloadJson(serializeSessionFile(status.file), sessionFileNameFor(status.file))
   }, [status])
 
-  return { status, recording, toggle, addLabel, undo, exportFile }
+  return { status, recording, toggle, addLabel, undo, exportFile, refresh }
 }

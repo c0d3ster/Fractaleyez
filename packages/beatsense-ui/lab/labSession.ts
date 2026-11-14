@@ -11,7 +11,8 @@ import { RollingStats, type PerfReading } from './perfStats'
 import { isRiserOpen, labelKindFor, type Label, type LabelAction, type LabelKind } from './recording/labels'
 import { tallySession, type SessionTally } from './recording/liveView'
 import { RecentHistory } from './recording/recentHistory'
-import type { DrumDetection, LabSessionFile } from './recording/sessionFile'
+import { LocalPlayer, type PlayerMode } from './player/localPlayer'
+import type { DrumDetection, LabSessionFile, SessionPlayback } from './recording/sessionFile'
 import { SessionRecorder, type RecorderPhase } from './recording/sessionRecorder'
 
 export type LabPhase = 'idle' | 'starting' | 'running' | 'failed'
@@ -121,6 +122,13 @@ export class LabSession {
   private readonly recorder = new SessionRecorder()
   /** The model's output over the last couple of minutes, kept with or without a recording, for the strips. */
   private readonly history = new RecentHistory()
+  /** The lab's file player, once the analysis runs (it plays into the same audio context). */
+  private player: LocalPlayer | null = null
+  /**
+   * The audio context's time minus the analysis clock, ms: the lowest seen as frames arrive (the delivery delay can only add to it), so the
+   * player can log its changes on the frames' clock. A constant error left in it is what a pass's correction absorbs.
+   */
+  private contextLagMs = Number.POSITIVE_INFINITY
   private lastLabel: Label | null = null
   private file: LabSessionFile | null = null
   private readonly frameRate = new FrameRate()
@@ -217,8 +225,27 @@ export class LabSession {
     this.file = this.recorder.toFile({
       sectionTicks: this.host.analysers.sectionTracker.getRecording(),
       sampleRate: this.context?.sampleRate ?? null,
+      playback: this.recordedPlayback(),
     })
     return this.file
+  }
+
+  /** Starts the player and a recording together, so the pass covers the song from where it plays. Null with no file loaded. */
+  playAndRecord = (): void => {
+    if (!this.player?.state().file || this.recorder.isRecording()) return
+    this.startRecording()
+    this.player.play()
+  }
+
+  getPlayer = (): LocalPlayer | null => this.player
+
+  /** What the player did during the stopped recording, if it played a file in it. */
+  private recordedPlayback = (): SessionPlayback | undefined => {
+    const file = this.player?.state().file
+    if (!this.player || !file) return undefined
+    const segments = this.player.log.between(this.recorder.getStartMs(), this.recorder.getEndMs())
+    if (!segments.some(({ songMs }) => songMs !== null)) return undefined
+    return { file, mode: this.player.state().mode, segments }
   }
 
   /**
@@ -283,6 +310,7 @@ export class LabSession {
       const { t } = reading
       this.analysisTimes.add(performance.now() - started, started)
       clock.observe(t)
+      this.contextLagMs = Math.min(this.contextLagMs, context.currentTime * 1000 - t)
       const lastHits = drumHits.getLastHits()
       this.history.push(reading, lastHits)
       if (this.recorder.isRecording()) this.recorder.addFrame(reading, lastHits)
@@ -294,6 +322,12 @@ export class LabSession {
     const gain = context.createGain()
     microphone.connect(gain)
     gain.connect(capture.input)
+    // In direct mode the player feeds the analysis itself, so the mic is muted to it (it would add the room's copy of the same sound).
+    const muteMicFor = (mode: PlayerMode): void => {
+      gain.gain.setValueAtTime(mode === 'direct' ? 0 : 1, context.currentTime)
+    }
+    const analysisMs = (seconds: number): number => seconds * 1000 - (Number.isFinite(this.contextLagMs) ? this.contextLagMs : 0)
+    this.player = new LocalPlayer(context, { speakers: context.destination, analysis: capture.input, onMode: muteMicFor }, analysisMs)
     this.host = host
     this.clock = clock
     this.source = createSource(host, clock, snareRoll, () => this.settings)

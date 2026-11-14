@@ -91,14 +91,14 @@ body {
  * The HUDs: Frequency and Beat side by side, Section across the bottom; the drum buttons under Frequency, the drum strip under Beat, the
  * song strip and buttons under Section. The columns split so the two canvases come out the same height (Frequency draws at 180 by 142,
  * Beat at 360 by 120). The canvases keep their aspect ratio, so the block's width is capped to what fits the window's height: the HUDs come
- * to about 0.389 of their width tall, and 420px is everything that does not scale with them (the bar, the strips, the label rows, the HUDs'
- * text rows, the gaps). So the page fits a 1366 by 768 laptop and up without scrolling, and the block centers in a wider window. It keeps
- * at least 480px, below which the HUDs get too small to read, and scrolls on a shorter window instead.
+ * to about 0.389 of their width tall, and 476px is everything that does not scale with them (the bar with its player row, the strips, the
+ * label rows, the HUDs' text rows, the gaps). So the page fits a 1366 by 768 laptop and up without scrolling, and the block centers in a
+ * wider window. It keeps at least 480px, below which the HUDs get too small to read, and scrolls on a shorter window instead.
  */
 .lab-huds {
   box-sizing: border-box;
   width: 100%;
-  max-width: max(480px, calc((100vh - 420px) * 2.57));
+  max-width: max(480px, calc((100vh - 476px) * 2.57));
   margin: 0 auto;
   display: grid;
   grid-template-columns: minmax(0, 1.27fr) minmax(0, 3fr);
@@ -129,7 +129,14 @@ body {
   white-space: nowrap;
 }
 
-/* The drum buttons under the Frequency HUD: a 2 by 2 block like their keys (Q W over A S), each half the HUD's width. */
+/*
+ * The drum buttons under the Frequency HUD: a 2 by 2 block like their keys (Q W over A S), each half the HUD's width; on a narrow column
+ * (a short window keeps the HUDs small) one column instead, in the room the taller Beat column leaves under it.
+ */
+.lab-hud-frequency {
+  container-type: inline-size;
+}
+
 .lab-hud-frequency .lab-labels {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -141,6 +148,13 @@ body {
   justify-content: center;
   min-width: 0;
   padding: 3px 4px;
+}
+
+/* After the block's own rule, so it wins on a narrow column. */
+@container (max-width: 220px) {
+  .lab-hud-frequency .lab-labels {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* The song and riser buttons under the Section HUD and its strip: one centered row, running a little past the block rather than wrapping. */
@@ -308,3 +322,46 @@ body {
   color: #79b8ff;
 }
 
+
+/* The file player: a row of its own in the bar. */
+.lab-player {
+  display: flex;
+  flex-basis: 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  font-size: 13px;
+}
+
+.lab-player-open input {
+  display: none;
+}
+
+.lab-player-disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.lab-player-name {
+  max-width: 28ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: rgba(220, 220, 220, 0.9);
+}
+
+.lab-player-time {
+  color: #888;
+  font-variant-numeric: tabular-nums;
+}
+
+.lab-player-seek {
+  flex: 1 1 160px;
+  min-width: 120px;
+  max-width: 520px;
+}
+
+.lab-player-mode {
+  display: inline-flex;
+  gap: 4px;
+}
