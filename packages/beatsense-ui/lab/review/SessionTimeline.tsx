@@ -21,13 +21,15 @@ type SessionTimelineProps = {
   selectedId: number | null
   onSelect: (id: number | null) => void
   onMove: (id: number, t: number) => void
+  /** Text after a label's tag (its pass number, on a song of several passes). */
+  tagSuffix?: (id: number) => string
 }
 
 /**
  * The review page's plot. Wheel zooms around the pointer, dragging empty space pans, dragging a label moves it, a click selects one (or
  * clears the selection) and a double-click shows the whole session.
  */
-export const SessionTimeline = ({ data, bounds, view, onViewChange, labels, selectedId, onSelect, onMove }: SessionTimelineProps): React.ReactElement => {
+export const SessionTimeline = ({ data, bounds, view, onViewChange, labels, selectedId, onSelect, onMove, tagSuffix }: SessionTimelineProps): React.ReactElement => {
   const wrapperRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const dragRef = useRef<Drag | null>(null)
@@ -79,10 +81,10 @@ export const SessionTimeline = ({ data, bounds, view, onViewChange, labels, sele
       if (canvas.width !== w) canvas.width = w
       if (canvas.height !== h) canvas.height = h
       ctx.setTransform(ratio, 0, 0, ratio, 0, 0)
-      drawTimeline(ctx, width, data, { view, labels, selectedId, cursorMs })
+      drawTimeline(ctx, width, data, { view, labels, selectedId, cursorMs, tagSuffix })
     })
     return (): void => cancelAnimationFrame(frame)
-  }, [width, data, view, labels, selectedId, cursorMs])
+  }, [width, data, view, labels, selectedId, cursorMs, tagSuffix])
 
   const handlePointerDown = (event: React.PointerEvent<HTMLCanvasElement>): void => {
     if (event.button !== 0) return
