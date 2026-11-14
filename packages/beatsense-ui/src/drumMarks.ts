@@ -23,26 +23,31 @@ export const DRUM_SHAPES: Record<DrumKind, DrumShape> = {
 export const drumMarkY = (kind: DrumKind, top: number, height: number): number =>
   top + height * (kind === 'kick' || kind === 'snare' ? 0.64 : 0.36)
 
-/** The canvas calls a mark needs (no arc, so a fake context for the bench and tests needs nothing more than the track already uses). */
-export type MarkContext = Pick<CanvasRenderingContext2D, 'beginPath' | 'moveTo' | 'lineTo' | 'closePath' | 'fill' | 'fillRect' | 'fillStyle'>
+/** The canvas calls a mark needs (paths only, so a fake context for the bench and tests needs nothing more than the track already uses). */
+export type MarkContext = Pick<CanvasRenderingContext2D, 'beginPath' | 'moveTo' | 'lineTo' | 'closePath' | 'fill' | 'stroke' | 'fillStyle' | 'strokeStyle' | 'lineWidth'>
 
 // The circle is an octagon: round at this size, and drawn with the same calls as the other shapes.
 const OCTAGON = Array.from({ length: 8 }, (_, i) => [Math.cos(((i + 0.5) * Math.PI) / 4), Math.sin(((i + 0.5) * Math.PI) / 4)] as const)
 
-/** One mark, `size` across, centered at (x, y), in the drum's color. */
-export const drawDrumMark = (ctx: MarkContext, kind: DrumKind, x: number, y: number, size: number): void => {
+/** How a mark is drawn: filled, or as an outline (the lab's comparison strip draws a hit with no matching label that way). */
+export type MarkStyle = 'fill' | 'outline'
+
+/** One mark, `size` across, centered at (x, y), in the drum's color (or `color`, e.g. the Frequency HUD's unlit grey). */
+export const drawDrumMark = (
+  ctx: MarkContext, kind: DrumKind, x: number, y: number, size: number, color: string = DRUM_COLORS[kind], style: MarkStyle = 'fill',
+): void => {
   const r = size / 2
-  ctx.fillStyle = DRUM_COLORS[kind]
-  const shape = DRUM_SHAPES[kind]
-  if (shape === 'square') {
-    // A little smaller than the others, which only fill part of their box.
-    const side = size * 0.82
-    ctx.fillRect(x - side / 2, y - side / 2, side, side)
-    return
-  }
   ctx.beginPath()
+  const shape = DRUM_SHAPES[kind]
   if (shape === 'circle') {
     OCTAGON.forEach(([cx, cy], i) => (i === 0 ? ctx.moveTo(x + cx * r, y + cy * r) : ctx.lineTo(x + cx * r, y + cy * r)))
+  } else if (shape === 'square') {
+    // A little smaller than the others, which only fill part of their box.
+    const half = r * 0.82
+    ctx.moveTo(x - half, y - half)
+    ctx.lineTo(x + half, y - half)
+    ctx.lineTo(x + half, y + half)
+    ctx.lineTo(x - half, y + half)
   } else if (shape === 'triangle') {
     ctx.moveTo(x, y - r)
     ctx.lineTo(x + r, y + r * 0.8)
@@ -54,5 +59,12 @@ export const drawDrumMark = (ctx: MarkContext, kind: DrumKind, x: number, y: num
     ctx.lineTo(x - r, y)
   }
   ctx.closePath()
-  ctx.fill()
+  if (style === 'outline') {
+    ctx.strokeStyle = color
+    ctx.lineWidth = 1
+    ctx.stroke()
+  } else {
+    ctx.fillStyle = color
+    ctx.fill()
+  }
 }

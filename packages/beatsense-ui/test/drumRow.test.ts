@@ -89,6 +89,20 @@ describe('the drum row', () => {
     drawDrumMark(ctx as MarkContext, 'snare', 0, 0, 6)
     drawDrumMark(ctx as MarkContext, 'clap', 0, 0, 6)
     drawDrumMark(ctx as MarkContext, 'hat', 0, 0, 6)
-    expect(marks.map(({ kind, points }) => (kind === 'rect' ? 'square' : points.length))).toEqual([8, 'square', 3, 4])
+    expect(marks.map(({ points }) => points.length)).toEqual([8, 4, 3, 4])
+    // The square has its corners at the sides (x and y both off center), the diamond its points on the axes.
+    expect(marks[1]!.points.every(([x, y]) => x !== 0 && y !== 0)).toBe(true)
+    expect(marks[3]!.points.every(([x, y]) => x === 0 || y === 0)).toBe(true)
+  })
+
+  it('draws a mark as an outline in a given color', () => {
+    let stroked = ''
+    const { ctx, marks } = recorder()
+    ctx.stroke = (): void => {
+      stroked = String(ctx.strokeStyle)
+    }
+    drawDrumMark(ctx as MarkContext, 'hat', 0, 0, 6, '#333', 'outline')
+    expect(stroked).toBe('#333')
+    expect(marks).toHaveLength(0)
   })
 })

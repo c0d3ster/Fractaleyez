@@ -1,3 +1,5 @@
+import { DRUM_COLORS, drawDrumMark } from 'beatsense-ui'
+
 import type { StripSnapshot } from '../labSession'
 import { DRUM_LABEL_KINDS, LABEL_INFO } from '../recording/labels'
 import { axisStepMs, drumLanes, formatSecondsAgo, liveView } from '../recording/liveView'
@@ -25,12 +27,9 @@ export const drawDrumStrip = (ctx: CanvasRenderingContext2D, width: number, { no
     ctx.fillStyle = color
     ctx.strokeStyle = color
     ctx.lineWidth = 1
+    // The model's hits in their drum's shape, as the HUDs draw them.
     if (!session) {
-      hitTimes.forEach((t) => {
-        ctx.beginPath()
-        ctx.arc(toX(t), top + LANE_PX / 2, 3, 0, Math.PI * 2)
-        ctx.fill()
-      })
+      hitTimes.forEach((t) => drawDrumMark(ctx, kind, toX(t), top + LANE_PX / 2, 7))
       top += LANE_PX + LANE_GAP_PX
       return
     }
@@ -53,12 +52,7 @@ export const drawDrumStrip = (ctx: CanvasRenderingContext2D, width: number, { no
       if (missed.has(id)) ctx.strokeRect(x - 1.5, top + 1.5, 4, mid - top - 2)
       else ctx.fillRect(x - 1, top + 1, 4, mid - top - 1)
     })
-    hitTimes.forEach((t) => {
-      ctx.beginPath()
-      ctx.arc(toX(t), hitY, extra.has(t) ? 2.5 : 3, 0, Math.PI * 2)
-      if (extra.has(t)) ctx.stroke()
-      else ctx.fill()
-    })
+    hitTimes.forEach((t) => drawDrumMark(ctx, kind, toX(t), hitY, 6, DRUM_COLORS[kind], extra.has(t) ? 'outline' : 'fill'))
     top += LANE_PX + LANE_GAP_PX
   })
   if (session) shadeBefore(ctx, toX(session.startMs), top)
