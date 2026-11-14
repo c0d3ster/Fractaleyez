@@ -14,10 +14,12 @@ Private for now, like beatsense. React 18 or 19 is a peer dependency.
   takes an optional `onViewChange(viewMs)`, called on mount and whenever its zoom changes, for anything that should show the same window
   (the lab's drum strip), and an optional `drumRow`: a row under the hit strip marking each drum the classifier calls (from the source's
   `getDrumHits`, kept by the HUD itself), kick a red circle, snare a yellow square, clap a pink triangle, hat a teal diamond, kick and
-  snare a little lower than hat and clap so hits on the same beat do not stack (`DRUM_COLORS` and `DRUM_SHAPES` are exported). The row
+  snare a little lower than hat and clap so hits on the same beat do not stack (`DRUM_COLORS`, `DRUM_SHAPES` and `drawDrumMark`, filled or
+  outlined, are exported for anything that should mark drums the same way). The row
   takes its height from the waveform. The Fractaleyez app turns it on; the lab leaves it off for its comparison strip.
 - **`FrequencyHud`**: a bar per onset band (level, trigger level, a flash on the band that set off a beat), a light per drum the hit
-  classifier names, and a riser meter. Clicking a band toggles whether it can set off a beat.
+  classifier names (in the drum's shape, grey until it flashes in the drum's color, as the Beat HUD's drum row marks it), and a riser
+  meter. Clicking a band toggles whether it can set off a beat.
 - **`SectionHud`**: the song's level over the last minute, colored by section (intro, groove, buildup, drop and so on), with the section
   name, the song time and the intensity. The wheel zooms it from 30 s to 2 min (double-click resets), and marks along its bottom give
   the seconds ago (`agoTicks`: every 5 s at 30 s, 10 s at a minute, 20 s at two minutes; exported with `formatAgo`). It takes the same
