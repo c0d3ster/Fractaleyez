@@ -13,6 +13,8 @@ Private for now, like beatsense. React 18 or 19 is a peer dependency.
   roll. Scroll to zoom, double-click to reset, click to flip between mirrored and growing up from the bottom (kept in localStorage).
 - **`FrequencyHud`**: a bar per onset band (level, trigger level, a flash on the band that set off a beat), a light per drum the hit
   classifier names, and a riser meter. Clicking a band toggles whether it can set off a beat.
+  `BeatHud` takes an optional `onViewChange(viewMs)`, called on mount and whenever its zoom changes, for anything that should show the
+  same window (the lab's live strip).
 - **`SectionHud`**: the song's level over the last minute, colored by section (intro, groove, buildup, drop and so on), with the section
   name, the song time and the intensity. The wheel zooms it from 30 s to 2 min (double-click resets), and marks along its bottom give
   the seconds ago (`agoTicks`: every 5 s at 30 s, 10 s at a minute, 20 s at two minutes).
@@ -139,7 +141,8 @@ Once the analysis runs, Record starts a session and Stop ends it (a new Record d
   the song labels on `1` intro, `2` buildup, `3` drop, `4` breakdown, `5` outro, in song order. Intro and outro are the tracker's own
   calls too, so labelling them shows where it calls an outro mid-song. Held keys, keys with Ctrl, Cmd or Alt, and typing in a field add
   nothing. Backspace (or Undo) removes the newest label.
-- The live strip under the HUDs shows the last 6 s of your labels (the Beat HUD's default view, on the same audio clock; it does not zoom) against the model's as they happen. Per drum, your labels on top and
+- The live strip under the HUDs shows the Beat HUD's window of your labels (6 s by default; it follows the Beat HUD's zoom from 2 to 16 s,
+  through `BeatHud`'s `onViewChange`, with seconds-ago marks along the bottom) against the model's as they happen. Per drum, your labels on top and
   the model's hits below, a pair joined by a green line (a hit from 350 ms before the label to 100 ms after it, one to one, nearest first)
   and anything unpaired drawn hollow; then your section labels over the model's sections, and your riser spans over its riser score.
   Above it, a tally per drum (your labels, the model's hits, how many paired) and the median of label time minus hit time over every pair:

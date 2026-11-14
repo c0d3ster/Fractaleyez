@@ -247,8 +247,11 @@ export class LabSession {
     file: this.file,
   })
 
-  /** The session for the live strip, or null before the first Record. Reads the recorder's lists in place (no copies at 30 a second). */
-  liveSnapshot = (): LiveSnapshot | null => {
+  /**
+   * The session for the live strip, with the frames of the last `windowMs`, or null before the first Record. Reads the recorder's lists in
+   * place (no copies at 30 a second).
+   */
+  liveSnapshot = (windowMs: number = LIVE_WINDOW_MS): LiveSnapshot | null => {
     const phase = this.recorder.getPhase()
     if (phase === 'idle') return null
     const recording = phase === 'recording'
@@ -259,7 +262,7 @@ export class LabSession {
       startMs: this.recorder.getStartMs(),
       labels: this.recorder.getLabels(),
       drumHits: this.recorder.getDrumHits(),
-      frames: this.recorder.framesSince(nowMs - LIVE_WINDOW_MS),
+      frames: this.recorder.framesSince(nowMs - windowMs),
     }
   }
 
