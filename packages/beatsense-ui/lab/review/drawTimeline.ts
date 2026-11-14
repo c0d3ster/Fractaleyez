@@ -50,6 +50,8 @@ export type TimelineData = {
 }
 
 export type DrawState = {
+  /** Text after a label's tag, e.g. its pass number on a song of several passes. */
+  tagSuffix?: (id: number) => string
   view: View
   labels: readonly Label[]
   selectedId: number | null
@@ -94,7 +96,7 @@ const drawSeries = (
 const unit = (v: number): number => Math.min(1, Math.max(0, v))
 
 /** Draws everything at `width` by TIMELINE_HEIGHT CSS px; the context is already scaled for the device pixel ratio. */
-export const drawTimeline = (ctx: CanvasRenderingContext2D, width: number, data: TimelineData, { view, labels, selectedId, cursorMs }: DrawState): void => {
+export const drawTimeline = (ctx: CanvasRenderingContext2D, width: number, data: TimelineData, { view, labels, selectedId, cursorMs, tagSuffix }: DrawState): void => {
   const plotWidth = Math.max(1, width - GUTTER_PX)
   const toX = (t: number): number => GUTTER_PX + timeToX(t, view, plotWidth)
   const visible = (t: number): boolean => t >= view.startMs && t <= view.endMs
@@ -176,7 +178,8 @@ export const drawTimeline = (ctx: CanvasRenderingContext2D, width: number, data:
   labels.forEach(({ id, kind, t }) => {
     if (!visible(t)) return
     const x = Math.round(toX(t))
-    const { color, short } = LABEL_INFO[kind]
+    const { color } = LABEL_INFO[kind]
+    const short = LABEL_INFO[kind].short + (tagSuffix?.(id) ?? '')
     const selected = id === selectedId
     ctx.globalAlpha = selected ? 1 : 0.7
     ctx.fillStyle = color

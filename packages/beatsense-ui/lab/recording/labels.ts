@@ -91,7 +91,7 @@ export const labelKindFor = (action: LabelAction, labels: readonly Label[]): Lab
 export const isLabelKind = (value: unknown): value is LabelKind => typeof value === 'string' && (LABEL_KINDS as readonly string[]).includes(value)
 
 /** The labels sorted by time (ties by id, so the order is stable), as a new list. */
-export const sortLabels = (labels: readonly Label[]): Label[] => [...labels].sort((a, b) => a.t - b.t || a.id - b.id)
+export const sortLabels = <T extends Label>(labels: readonly T[]): T[] => [...labels].sort((a, b) => a.t - b.t || a.id - b.id)
 
 /** How many labels of each kind. */
 export const countLabels = (labels: readonly Label[]): Record<LabelKind, number> => {
