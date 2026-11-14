@@ -172,12 +172,22 @@ Export saves the stopped session as `beatsense-session-<date>-<time>.json`, vers
 The **Review** link opens `review.html`: open or drop an exported session to see its timelines (the sections, the five band levels, the
 beats colored by band, the drum model's hits per drum, the tempo, the riser and the sweep), with the labels as lines through every lane.
 The wheel zooms around the pointer, dragging empty space pans and a double-click shows the whole session. Click a label to select it, drag
-it to move it, the arrow keys nudge it a frame (Shift: 100 ms) and Delete removes it. Export saves the session with the edited labels
-as `<name>-labelled.json`; the page asks before leaving with unsaved edits.
+it to move it, the arrow keys nudge it a frame (Shift: 100 ms) and Delete removes it. The page asks before leaving with unsaved edits.
+
+A song can be labelled over several passes (kicks and snares in one, hats and claps in another, sections in a third): **Add pass** (or
+drop another session) adds a session of the same song, aligned to the first pass by matching onset envelopes of their band levels
+(`lab/recording/align.ts`; volume does not matter, and a pass may start anywhere in the song). The pass list shows how sure each
+alignment is (its match against the best offset a second or more away; "check alignment" when it does not stand out), with nudges of 10
+and 100 ms, Re-align and Remove, and a checkbox to show or hide each pass's labels. All labels sit on the song's time (the first pass's
+clock), tagged with their pass number, over the first pass's model output; edits go back to the label's own pass. Labels of one kind from
+different passes within 60 ms agree (`mergeLabels.ts`): the counts show how many moments all the passes that labelled that kind agree
+on. Export saves a single session as before (`<name>-labelled.json`), and a song of several passes as `<title>.song.json`
+(`songFile.ts`, format `beatsense-lab-song` version 1: the title, and per pass its file name, its offset onto song time, its alignment
+scores and the whole session unchanged), which opens again with its passes.
 
 The recording logic is plain TypeScript in `lab/recording/` (labels and hotkeys, `SessionRecorder`, the file format, the label edits, the
-plot geometry, the label-to-hit pairing in `compareDrums.ts`, the strips' windows and tally in `liveView.ts`, and the model's recent output in
-`recentHistory.ts`), tested in `test/lab/` with synthetic frames, including a run of the real `AnalysisHost` whose section log replays to the
+plot geometry, the label-to-hit pairing in `compareDrums.ts`, the strips' windows and tally in `liveView.ts`, the model's recent output in
+`recentHistory.ts`, and the passes in `align.ts`, `songFile.ts` and `mergeLabels.ts`), tested in `test/lab/` with synthetic frames, including a run of the real `AnalysisHost` whose section log replays to the
 same ticks.
 
 ### Build

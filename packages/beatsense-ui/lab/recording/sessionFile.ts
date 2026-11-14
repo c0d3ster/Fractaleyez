@@ -83,13 +83,19 @@ const checkList = <T>(data: Record<string, unknown>, key: string, check: (value:
  * Reads a session file's text. Throws an Error that says what is wrong (not JSON, another file, a version this page does not know, a bad
  * entry), for the review page to show. Labels come back sorted by time.
  */
-export const parseSessionFile = (text: string): LabSessionFile => {
-  let data: unknown
+export const parseSessionFile = (text: string): LabSessionFile => checkSession(parseJson(text))
+
+/** JSON.parse, with the review page's message for text that is not JSON. */
+export const parseJson = (text: string): unknown => {
   try {
-    data = JSON.parse(text)
+    return JSON.parse(text)
   } catch {
     throw new Error('The file is not JSON.')
   }
+}
+
+/** A parsed session (a file's JSON, or a pass inside a song file), checked as parseSessionFile does. */
+export const checkSession = (data: unknown): LabSessionFile => {
   if (!isRecord(data) || data.format !== SESSION_FORMAT) throw new Error('The file is not a beatsense lab session.')
   if (data.version !== SESSION_VERSION) {
     throw new Error(`The session is version ${String(data.version)}; this page reads version ${SESSION_VERSION}.`)
