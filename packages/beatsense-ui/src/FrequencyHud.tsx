@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useCallback } from 'react'
 import './FrequencyHud.css'
 
 import { DRUM_CENTER_HZ, DRUM_KINDS, ONSET_BANDS } from 'beatsense'
+import { drawDrumMark } from './drumMarks'
 import { sourceNow, useHud, type AnalysisSource } from './HudContext'
 import { trackCanvasResolution } from './canvasResolution'
 import { bandColor } from './bandColors'
@@ -16,7 +17,8 @@ const BAR_HEADROOM = 1.1
 const W = 180
 const LABEL_H = 14
 const BAR_AREA_H = 90
-// Below the labels, a light for each drum the hit classifier names (drum-hits.ts), at the frequency its hits sit at, with its name under
+// Below the labels, a light for each drum the hit classifier names (drum-hits.ts), in its shape and color (drumMarks.ts, as the Beat HUD's
+// drum row draws it), at the frequency its hits sit at, with its name under
 // it, and under the air column (which has no drum) the riser meter: signal bars that light as a riser plays (riserLevel.ts).
 const BANDS_H = BAR_AREA_H + LABEL_H
 const INSTRUMENT_GAP = 8
@@ -73,10 +75,13 @@ const drawInstrumentLights = (ctx: CanvasRenderingContext2D, source: AnalysisSou
     const hit = last?.[kind] ?? null
     const flash = hit === null ? 0 : Math.max(0, 1 - (now - hit) / INSTRUMENT_FLASH_MS)
     const x = LIGHT_X[i] ?? 0
-    ctx.beginPath()
-    ctx.arc(x, y, INSTRUMENT_DOT_R, 0, Math.PI * 2)
-    ctx.fillStyle = flash > 0 ? `rgba(242, 242, 242, ${0.25 + flash * 0.75})` : UNLIT
-    ctx.fill()
+    // The drum's shape (as in the Beat HUD's drum row), grey while unlit, flashing in its color on a hit.
+    drawDrumMark(ctx, kind, x, y, INSTRUMENT_DOT_R * 2, UNLIT)
+    if (flash > 0) {
+      ctx.globalAlpha = 0.3 + flash * 0.7
+      drawDrumMark(ctx, kind, x, y, INSTRUMENT_DOT_R * 2)
+      ctx.globalAlpha = 1
+    }
     drawInstrumentLabel(ctx, kind, x, flash)
   })
 }
