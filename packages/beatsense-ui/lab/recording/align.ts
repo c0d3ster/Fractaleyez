@@ -108,13 +108,20 @@ export const isSureAlignment = ({ score, runnerUp }: Pick<Alignment, 'score' | '
 export type AlignOptions = {
   /** A guess at the offset (from a player's song position, say) and how far from it to look, ms. Without it, every offset is tried. */
   hint?: { offsetMs: number; withinMs: number }
+  /**
+   * The overlap an offset needs, ms (MIN_OVERLAP_MS by default, enough song to tell its bars apart). Searching only a few hundred ms around
+   * a sure hint cannot land on the wrong bar, so a short pass can be matched with less.
+   */
+  minOverlapMs?: number
 }
 
 /**
  * The offset that lines `pass` up with `reference`, or null when they never overlap enough or nothing correlates (silence). Both are a
  * session's frames, each on its own audio clock.
  */
-export const alignPasses = (reference: readonly FrameReading[], pass: readonly FrameReading[], { hint }: AlignOptions = {}): Alignment | null => {
+export const alignPasses = (
+  reference: readonly FrameReading[], pass: readonly FrameReading[], { hint, minOverlapMs = MIN_OVERLAP_MS }: AlignOptions = {},
+): Alignment | null => {
   const ref = onsetEnvelope(reference)
   const other = onsetEnvelope(pass)
   if (ref.values.length === 0 || other.values.length === 0) return null
@@ -124,7 +131,7 @@ export const alignPasses = (reference: readonly FrameReading[], pass: readonly F
 
   const refCoarse = downsample(ref.values, COARSE)
   const otherCoarse = downsample(other.values, COARSE)
-  const minCoarse = Math.ceil(MIN_OVERLAP_MS / FRAME_MS / COARSE)
+  const minCoarse = Math.ceil(minOverlapMs / FRAME_MS / COARSE)
   let lo = -otherCoarse.length
   let hi = refCoarse.length
   if (hint) {
@@ -140,7 +147,7 @@ export const alignPasses = (reference: readonly FrameReading[], pass: readonly F
   const best = scores.reduce((a, b) => (b.score > a.score ? b : a))
 
   // Refine at the frame rate around the coarse winner, then between frames with a parabola through the peak and its neighbours.
-  const minFine = Math.ceil(MIN_OVERLAP_MS / FRAME_MS)
+  const minFine = Math.ceil(minOverlapMs / FRAME_MS)
   let fineLag = best.lag * COARSE
   let fineScore = -Infinity
   const fineAt = new Map<number, number>()

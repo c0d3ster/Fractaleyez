@@ -69,3 +69,13 @@ describe('alignPasses', () => {
     expect(alignPasses(passOf(SONG, 0, 300), passOf(SONG, 0, 300))).toBeNull()
   })
 })
+
+describe('alignPasses with a short pass and a sure hint', () => {
+  it('matches 4 s of song when told to search only a few hundred ms', () => {
+    const reference = passOf(SONG, 0, 60 * 60)
+    const pass = passOf(SONG, 600, 840, { clockMs: 36000, noise: 0.1, seed: 9 })
+    expect(alignPasses(reference, pass, { hint: { offsetMs: -26000, withinMs: 300 } })).toBeNull()
+    const found = alignPasses(reference, pass, { hint: { offsetMs: -26000 + 120, withinMs: 300 }, minOverlapMs: 3000 })!
+    expect(Math.abs(found.offsetMs - (600 * FRAME_MS - 36000))).toBeLessThan(5)
+  })
+})

@@ -1,5 +1,6 @@
 import { DRUM_KINDS, type DrumKind, type FrameReading, type SectionLog, type SongSection } from 'beatsense'
 
+import type { PlaybackSegment } from '../player/playbackLog'
 import { isLabelKind, sortLabels, type Label } from './labels'
 
 // The file a recorded lab session is saved to and the review page loads. Versioned: a reader takes only versions it knows and says so
@@ -10,6 +11,15 @@ export const SESSION_VERSION = 1
 
 /** A drum hit the drum model called while recording, to score against the drum labels. */
 export type DrumDetection = { kind: DrumKind; t: number }
+
+/** What the lab's player played during a session: the file, how its sound reached the analysis, and every play, seek, loop and pause. */
+export type SessionPlayback = {
+  file: { name: string; durationMs: number; size: number }
+  /** Out through the speakers and back in through the mic, or straight into the analysis. */
+  mode: 'mic' | 'direct'
+  /** On the session's clock, from the one in effect at the start to the last before the end. */
+  segments: PlaybackSegment[]
+}
 
 export type LabSessionFile = {
   format: typeof SESSION_FORMAT
@@ -31,6 +41,8 @@ export type LabSessionFile = {
   labels: Label[]
   /** The section tracker's ticks while recording, replayable through a fresh tracker (beatsense's section log, version 2). */
   sectionLog: SectionLog
+  /** With the lab's player playing a file, what it played: labels and frames then map onto the song by it. Absent otherwise. */
+  playback?: SessionPlayback
 }
 
 const SECTIONS: readonly SongSection[] = ['intro', 'quiet', 'groove', 'buildup', 'turnaround', 'break', 'drop', 'outro']
@@ -59,6 +71,26 @@ const isDrumDetection = (value: unknown): value is DrumDetection =>
 
 const isLabel = (value: unknown): value is Label =>
   isRecord(value) && Number.isInteger(value.id) && isFiniteNumber(value.t) && isLabelKind(value.kind)
+
+const isSegment = (value: unknown): value is PlaybackSegment =>
+  isRecord(value)
+  && isFiniteNumber(value.atMs)
+  && isNumberOrNull(value.songMs)
+  && (value.loop === null || (isRecord(value.loop) && isFiniteNumber(value.loop.startMs) && isFiniteNumber(value.loop.endMs)))
+
+const checkPlayback = (value: unknown): SessionPlayback | undefined => {
+  if (value === undefined) return undefined
+  const valid = isRecord(value)
+    && isRecord(value.file)
+    && typeof value.file.name === 'string'
+    && isFiniteNumber(value.file.durationMs)
+    && isFiniteNumber(value.file.size)
+    && (value.mode === 'mic' || value.mode === 'direct')
+    && Array.isArray(value.segments)
+    && value.segments.every(isSegment)
+  if (!valid) throw new Error('The session\'s playback is not valid.')
+  return value as SessionPlayback
+}
 
 const isSectionLog = (value: unknown): value is SectionLog =>
   isRecord(value)
@@ -110,6 +142,7 @@ export const checkSession = (data: unknown): LabSessionFile => {
   const labels = checkList(data, 'labels', isLabel)
   if (new Set(labels.map(({ id }) => id)).size !== labels.length) throw new Error('Two of the session\'s labels share an id.')
   if (!isSectionLog(sectionLog)) throw new Error('The session\'s section log is not valid.')
+  const playback = checkPlayback(data.playback)
   return {
     format: SESSION_FORMAT,
     version: SESSION_VERSION,
@@ -122,6 +155,7 @@ export const checkSession = (data: unknown): LabSessionFile => {
     drumHits,
     labels: sortLabels(labels),
     sectionLog,
+    ...(playback ? { playback } : {}),
   }
 }
 
@@ -136,12 +170,21 @@ export const serializeSessionFile = (file: LabSessionFile): string => JSON.strin
 
 const pad = (n: number): string => String(n).padStart(2, '0')
 
+const stampOf = (date: Date): string => [date.getFullYear(), date.getMonth() + 1, date.getDate(), date.getHours(), date.getMinutes(), date.getSeconds()]
+  .map((part, i) => (i === 0 ? String(part) : pad(part)))
+  .join('-')
+
 /** A file name from the recording's local date and time, e.g. beatsense-session-2026-11-13-21-05-09.json. */
-export const sessionFileName = (date: Date, suffix: string = ''): string => {
-  const stamp = [date.getFullYear(), date.getMonth() + 1, date.getDate(), date.getHours(), date.getMinutes(), date.getSeconds()]
-    .map((part, i) => (i === 0 ? String(part) : pad(part)))
-    .join('-')
-  return `beatsense-session-${stamp}${suffix}.json`
+export const sessionFileName = (date: Date, suffix: string = ''): string => `beatsense-session-${stampOf(date)}${suffix}.json`
+
+/** A track's file name without its extension, safe for a file system: the title of its songs and the start of its passes' names. */
+export const trackTitle = (fileName: string): string =>
+  fileName.replace(/\.[a-z0-9]{2,5}$/i, '').replace(/[^\w.-]+/g, '-').replace(/-{2,}/g, '-').replace(/^[-.]+|[-.]+$/g, '') || 'track'
+
+/** A session's file name: after the track the player played, e.g. Artist-Song-2026-11-13-21-05-09.json, or sessionFileName without one. */
+export const sessionFileNameFor = ({ playback, recordedAt }: LabSessionFile): string => {
+  const date = new Date(recordedAt)
+  return playback ? `${trackTitle(playback.file.name)}-${stampOf(date)}.json` : sessionFileName(date)
 }
 
 /** The name a re-export is saved under: the loaded file's, marked as labelled once (a second edit keeps the same name). */
