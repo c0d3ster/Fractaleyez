@@ -3,6 +3,7 @@
 
 export { BeatHud, type BeatHudProps } from './BeatHud'
 export { FrequencyHud, type FrequencyHudProps } from './FrequencyHud'
-export { SectionHud } from './SectionHud'
+export { SectionHud, type SectionHudProps } from './SectionHud'
+export { agoTicks, formatAgo } from './agoTicks'
 export { HudProvider, useHud, titleHint, type AnalysisSource, type Hint, type HintProps, type HudContextValue } from './HudContext'
 export { animationFrameTicker, createFrameTicker, type Ticker, type TickListener } from './ticker'
