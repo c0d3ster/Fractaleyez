@@ -6,6 +6,7 @@ import { LabelButtons } from './LabelButtons'
 import { LiveCompare } from './live/LiveCompare'
 import { RecordBar } from './RecordBar'
 import { DRUM_LABEL_KINDS, SONG_LABEL_KINDS, type LabelAction } from './recording/labels'
+import { LIVE_WINDOW_MS } from './recording/liveView'
 import { StatusLine } from './StatusLine'
 import { useRecording } from './useRecording'
 
@@ -29,6 +30,8 @@ export const LabPage = (): React.ReactElement => {
   const [source, setSource] = useState<AnalysisSource>(EMPTY_SOURCE)
   const [enabledBands, setEnabledBands] = useState<readonly boolean[]>(() => session.getEnabledBands())
   const recording = useRecording(session)
+  // The Beat HUD's view, which the live strip follows (set by the HUD on mount and as it zooms).
+  const [liveWindowMs, setLiveWindowMs] = useState(LIVE_WINDOW_MS)
 
   // The page's frame rate shows from the start, so a slow page shows before the analysis runs too.
   useEffect(() => session.watchFrames(), [session])
@@ -67,7 +70,7 @@ export const LabPage = (): React.ReactElement => {
             <LabelButtons controls={recording} actions={DRUM_LABEL_KINDS} name='Drum labels' />
           </div>
           <div className='lab-hud lab-hud-beat'>
-            <BeatHud />
+            <BeatHud onViewChange={setLiveWindowMs} />
           </div>
           <div className='lab-hud lab-hud-section'>
             <SectionHud />
@@ -76,7 +79,7 @@ export const LabPage = (): React.ReactElement => {
         </HudProvider>
       </main>
       {/* The full width of the page, not the HUDs' block: a timeline wants the width, and it has no aspect ratio to keep. */}
-      <LiveCompare session={session} active={recording.status.phase !== 'idle'} />
+      <LiveCompare session={session} active={recording.status.phase !== 'idle'} windowMs={liveWindowMs} />
     </div>
   )
 }

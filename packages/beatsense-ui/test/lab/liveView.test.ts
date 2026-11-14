@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { Label, LabelKind } from '../../lab/recording/labels'
-import { between, drumLanes, liveView, riserSpans, tallySession } from '../../lab/recording/liveView'
+import { axisStepMs, between, drumLanes, formatSecondsAgo, liveView, riserSpans, tallySession } from '../../lab/recording/liveView'
 import type { DrumDetection } from '../../lab/recording/sessionFile'
 
 let nextId = 1
@@ -44,5 +44,20 @@ describe('live view', () => {
   it('pairs riser starts with the next end', () => {
     const labels = [label('riserEnd', 50), label('riserStart', 100), label('riserStart', 150), label('riserEnd', 400), label('riserEnd', 450), label('riserStart', 900)]
     expect(riserSpans(labels)).toEqual([{ startMs: 100, endMs: 400 }, { startMs: 900, endMs: null }])
+  })
+})
+
+describe('the live axis', () => {
+  it('steps with the Beat HUD\'s zoom', () => {
+    expect(axisStepMs(2000)).toBe(250)
+    expect(axisStepMs(6000)).toBe(1000)
+    expect(axisStepMs(16000)).toBe(2000)
+  })
+
+  it('writes seconds before now', () => {
+    expect(formatSecondsAgo(0)).toBe('now')
+    expect(formatSecondsAgo(3000)).toBe('-3s')
+    expect(formatSecondsAgo(1500)).toBe('-1.5s')
+    expect(formatSecondsAgo(250)).toBe('-0.25s')
   })
 })

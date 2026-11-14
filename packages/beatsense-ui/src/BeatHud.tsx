@@ -38,7 +38,15 @@ const saveMirrored = (mirrored: boolean): void => {
   }
 }
 
-export const BeatHud = (): React.ReactElement => {
+export type BeatHudProps = {
+  /**
+   * Called with the length of time shown (ms, its right edge is now) once on mount and whenever the wheel or a double-click changes it,
+   * so something drawn beside the HUD can show the same window.
+   */
+  onViewChange?: (viewMs: number) => void
+}
+
+export const BeatHud = ({ onViewChange }: BeatHudProps = {}): React.ReactElement => {
   const { source, ticker, hint } = useHud()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [tempo, setTempo] = useState<TempoShown>({ bpm: null, consistency: null })
@@ -49,6 +57,13 @@ export const BeatHud = (): React.ReactElement => {
   const viewMsRef = useRef(DEFAULT_VIEW_MS)
   const redrawRef = useRef<(() => void) | null>(null)
   const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // The newest callback, read when the view changes, so a new function each render does not re-subscribe the drawing.
+  const onViewChangeRef = useRef(onViewChange)
+  onViewChangeRef.current = onViewChange
+
+  useEffect(() => {
+    onViewChangeRef.current?.(viewMsRef.current)
+  }, [])
 
   // A click switches between the mirrored view and the one growing up from the bottom, and draws it right away.
   const handleClick = useCallback((): void => {
@@ -66,6 +81,7 @@ export const BeatHud = (): React.ReactElement => {
     if (clickTimerRef.current !== null) clearTimeout(clickTimerRef.current)
     clickTimerRef.current = null
     viewMsRef.current = DEFAULT_VIEW_MS
+    onViewChangeRef.current?.(DEFAULT_VIEW_MS)
     redrawRef.current?.()
   }, [])
 
@@ -109,6 +125,7 @@ export const BeatHud = (): React.ReactElement => {
 
     const stopWheel = listenWheel(canvas, (deltaY) => {
       viewMsRef.current = zoomView(viewMsRef.current, deltaY, ZOOM_RANGE)
+      onViewChangeRef.current?.(viewMsRef.current)
       draw()
     })
     const unsubscribe = ticker(draw, canvas)
