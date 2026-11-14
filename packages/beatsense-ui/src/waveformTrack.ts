@@ -1,5 +1,6 @@
-import { type BeatSample, type GridState, ONSET_BANDS } from 'beatsense'
+import { type BeatSample, DRUM_KINDS, type DrumKind, type GridState, ONSET_BANDS } from 'beatsense'
 import { bandColor } from './bandColors'
+import { drawDrumMark, drumMarkY } from './drumMarks'
 
 // The Beat HUD's plot: a scrolling waveform of the five onset bands, with what each band had to pass to count as a hit, the hits
 // themselves, and the beat grid along a ruler on top. Kept apart from the React component so the bench can time it on its own
@@ -22,10 +23,41 @@ const HOLD_MS = 250
 const RULER_H = 20
 // Hits are marked on a strip along the bottom, so nothing cuts through the waveform but the grid's bar and phrase lines.
 const HIT_STRIP_H = 8
-const PLOT_TOP = RULER_H + 2
-const PLOT_BOTTOM = WAVEFORM_H - HIT_STRIP_H - 2
-const PLOT_H = PLOT_BOTTOM - PLOT_TOP
-const MID = PLOT_TOP + PLOT_H / 2
+// The drum row, when on, under the hit strip: a mark per drum the classifier calls (drumMarks.ts), taken from the waveform's height.
+const DRUM_ROW_H = 14
+const DRUM_MARK_SIZE = 6.5
+const DRUM_CAPACITY = 256
+
+/** Where each part of the plot sits, in the HUD's units, with the drum row or without it. */
+export type WaveformLayout = {
+  plotTop: number
+  plotBottom: number
+  plotH: number
+  mid: number
+  hitTop: number
+  /** The drum row's top, or null when it is off. */
+  drumTop: number | null
+}
+
+export const waveformLayout = (drumRow: boolean): WaveformLayout => {
+  const drumH = drumRow ? DRUM_ROW_H : 0
+  const plotTop = RULER_H + 2
+  const hitTop = WAVEFORM_H - drumH - HIT_STRIP_H
+  const plotBottom = hitTop - 2
+  return {
+    plotTop,
+    plotBottom,
+    plotH: plotBottom - plotTop,
+    mid: plotTop + (plotBottom - plotTop) / 2,
+    hitTop,
+    drumTop: drumRow ? WAVEFORM_H - DRUM_ROW_H : null,
+  }
+}
+
+export type WaveformOptions = {
+  /** A row under the hit strip marking each drum the hit classifier calls (feed it with recordDrums). Off by default. */
+  drumRow?: boolean
+}
 // A column is the band's level against its own recent loudness (as the Frequency HUD's bars are), so every band uses the full height.
 const HEADROOM = 1.1
 // The higher bands are drawn smaller and on top of the lower ones, so each band's color shows as its own layer rather than one hiding another.
@@ -78,6 +110,7 @@ export type WaveformView = {
 }
 
 export class WaveformTrack {
+  private readonly layout: WaveformLayout
   // Per column and band (a ring indexed by the column's absolute number, time / COLUMN_MS): the level's peak and the threshold, both 0 to 1
   // of the band's loudness. A threshold of -1 is a column with no sample.
   private readonly peaks = new Float32Array(COLUMNS * BANDS)
@@ -99,6 +132,16 @@ export class WaveformTrack {
   private beatCount = 0
   private lastBeatMs = -Infinity
   private gridLocked = false
+  // The drum classifier's hits: when, and which drum (its index in DRUM_KINDS); and the newest seen per drum, so each is kept once.
+  private readonly drumTimes = new Float64Array(DRUM_CAPACITY)
+  private readonly drumKinds = new Uint8Array(DRUM_CAPACITY)
+  private readonly lastDrum = new Float64Array(DRUM_KINDS.length).fill(Number.NaN)
+  private drumHead = 0
+  private drumCount = 0
+
+  constructor({ drumRow = false }: WaveformOptions = {}) {
+    this.layout = waveformLayout(drumRow)
+  }
 
   /** Folds in the timeline's samples newer than the last call. The samples are the monitor's own history, oldest first. */
   ingest = (samples: readonly BeatSample[]): void => {
@@ -136,12 +179,30 @@ export class WaveformTrack {
     this.beatCount = Math.min(BEAT_CAPACITY, this.beatCount + 1)
   }
 
+  /**
+   * Records the drum classifier's newest hit per drum (DrumHits.getLastHits), each hit once however many ticks see it. Only drawn with the
+   * drum row on.
+   */
+  recordDrums = (lastHits: Readonly<Record<DrumKind, number | null>> | null): void => {
+    if (!lastHits) return
+    DRUM_KINDS.forEach((kind, k) => {
+      const t = lastHits[kind]
+      if (t === null || t === this.lastDrum[k]) return
+      this.lastDrum[k] = t
+      this.drumTimes[this.drumHead] = t
+      this.drumKinds[this.drumHead] = k
+      this.drumHead = (this.drumHead + 1) % DRUM_CAPACITY
+      this.drumCount = Math.min(DRUM_CAPACITY, this.drumCount + 1)
+    })
+  }
+
   draw = (ctx: WaveformContext, view: WaveformView): void => {
     ctx.clearRect(0, 0, WAVEFORM_W, WAVEFORM_H)
     this.drawIgnore(ctx, view)
     this.drawBands(ctx, view)
     this.drawTriggers(ctx, view)
     this.drawHits(ctx, view)
+    this.drawDrums(ctx, view)
     this.drawGrid(ctx, view)
     this.drawPlace(ctx)
   }
@@ -195,7 +256,7 @@ export class WaveformTrack {
     ctx.fillStyle = IGNORE_FILL
     for (let k = 0, at = this.hitSlot(0, view.now, view.viewMs); at >= 0; at = this.hitSlot(++k, view.now, view.viewMs)) {
       const x = this.toX(this.hitTimes[at]!, view)
-      ctx.fillRect(x, PLOT_TOP, Math.min(WAVEFORM_W - x, width), PLOT_H)
+      ctx.fillRect(x, this.layout.plotTop, Math.min(WAVEFORM_W - x, width), this.layout.plotH)
     }
   }
 
@@ -204,7 +265,7 @@ export class WaveformTrack {
     const step = this.step(view)
     const first = this.firstGroup(view, step)
     const width = ((step * COLUMN_MS) / view.viewMs) * WAVEFORM_W
-    const full = view.mirrored ? PLOT_H / 2 : PLOT_H
+    const full = view.mirrored ? this.layout.plotH / 2 : this.layout.plotH
     for (let b = 0; b < BANDS; b++) {
       const scale = full * BAND_SCALE[b]!
       ctx.fillStyle = view.enabled[b] ? ENABLED_FILLS[b]! : DISABLED_FILLS[b]!
@@ -216,8 +277,8 @@ export class WaveformTrack {
         const h = peak * scale
         if (h < 0.5) continue
         const x = this.toX(g * COLUMN_MS, view)
-        if (view.mirrored) ctx.fillRect(x, MID - h, width, h * 2)
-        else ctx.fillRect(x, PLOT_BOTTOM - h, width, h)
+        if (view.mirrored) ctx.fillRect(x, this.layout.mid - h, width, h * 2)
+        else ctx.fillRect(x, this.layout.plotBottom - h, width, h)
       }
     }
   }
@@ -227,7 +288,7 @@ export class WaveformTrack {
     if (this.newestColumn < 0) return
     const step = this.step(view)
     const first = this.firstGroup(view, step)
-    const full = view.mirrored ? PLOT_H / 2 : PLOT_H
+    const full = view.mirrored ? this.layout.plotH / 2 : this.layout.plotH
     const halfStep = ((step * COLUMN_MS) / view.viewMs) * WAVEFORM_W * 0.5
     for (let b = 0; b < BANDS; b++) {
       if (!view.enabled[b]) continue
@@ -242,7 +303,7 @@ export class WaveformTrack {
             continue
           }
           const h = trigger * scale
-          const y = view.mirrored ? (side === 0 ? MID - h : MID + h) : PLOT_BOTTOM - h
+          const y = view.mirrored ? (side === 0 ? this.layout.mid - h : this.layout.mid + h) : this.layout.plotBottom - h
           const x = this.toX(g * COLUMN_MS, view) + halfStep
           if (drawing) ctx.lineTo(x, y)
           else ctx.moveTo(x, y)
@@ -260,10 +321,28 @@ export class WaveformTrack {
   // A hit is a mark on the bottom strip in the color of the band that set it off.
   private drawHits = (ctx: WaveformContext, view: WaveformView): void => {
     ctx.fillStyle = RULER_FILL
-    ctx.fillRect(0, WAVEFORM_H - HIT_STRIP_H, WAVEFORM_W, HIT_STRIP_H)
+    const { hitTop } = this.layout
+    ctx.fillRect(0, hitTop, WAVEFORM_W, HIT_STRIP_H)
     for (let k = 0, at = this.hitSlot(0, view.now, view.viewMs); at >= 0; at = this.hitSlot(++k, view.now, view.viewMs)) {
       ctx.fillStyle = HIT_COLORS[this.hitBands[at]!]!
-      ctx.fillRect(Math.round(this.toX(this.hitTimes[at]!, view)) - 1, WAVEFORM_H - HIT_STRIP_H, 3, HIT_STRIP_H)
+      ctx.fillRect(Math.round(this.toX(this.hitTimes[at]!, view)) - 1, hitTop, 3, HIT_STRIP_H)
+    }
+  }
+
+  // The drum row: each drum hit in the view as its mark (drumMarks.ts), newest drawn last so it sits on top.
+  private drawDrums = (ctx: WaveformContext, view: WaveformView): void => {
+    const { drumTop } = this.layout
+    if (drumTop === null) return
+    let visible = 0
+    while (visible < this.drumCount) {
+      const at = (this.drumHead - 1 - visible + DRUM_CAPACITY) % DRUM_CAPACITY
+      if (view.now - this.drumTimes[at]! > view.viewMs) break
+      visible++
+    }
+    for (let k = visible - 1; k >= 0; k--) {
+      const at = (this.drumHead - 1 - k + DRUM_CAPACITY) % DRUM_CAPACITY
+      const kind = DRUM_KINDS[this.drumKinds[at]!]!
+      drawDrumMark(ctx, kind, this.toX(this.drumTimes[at]!, view), drumMarkY(kind, drumTop, DRUM_ROW_H), DRUM_MARK_SIZE)
     }
   }
 
@@ -293,12 +372,12 @@ export class WaveformTrack {
         ctx.closePath()
         ctx.fill()
         ctx.globalAlpha = 0.6 * phrase
-        ctx.fillRect(x - 1, RULER_H, 2, PLOT_BOTTOM - RULER_H)
+        ctx.fillRect(x - 1, RULER_H, 2, this.layout.plotBottom - RULER_H)
       } else if (bar > 0) {
         ctx.globalAlpha = 0.85 * bar
         ctx.fillRect(x, 0, 1, RULER_H)
         ctx.globalAlpha = 0.22 * bar
-        ctx.fillRect(x, RULER_H, 1, PLOT_BOTTOM - RULER_H)
+        ctx.fillRect(x, RULER_H, 1, this.layout.plotBottom - RULER_H)
       }
     }
     ctx.globalAlpha = 1
@@ -311,7 +390,7 @@ export class WaveformTrack {
     ctx.fillStyle = LABEL_COLOR
     ctx.font = LABEL_FONT
     ctx.textBaseline = 'middle'
-    ctx.fillText(label, 5, PLOT_TOP + 8)
+    ctx.fillText(label, 5, this.layout.plotTop + 8)
   }
 
   private placeLabel = (): string | null => {

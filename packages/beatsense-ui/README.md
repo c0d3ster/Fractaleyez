@@ -12,7 +12,10 @@ Private for now, like beatsense. React 18 or 19 is a peer dependency.
   (beats, bars, 8-bar phrases) on a ruler on top. Above it the tempo and how steady the beats are; below it the rhythm name and the snare
   roll. Scroll to zoom, double-click to reset, click to flip between mirrored and growing up from the bottom (kept in localStorage). It
   takes an optional `onViewChange(viewMs)`, called on mount and whenever its zoom changes, for anything that should show the same window
-  (the lab's drum strip).
+  (the lab's drum strip), and an optional `drumRow`: a row under the hit strip marking each drum the classifier calls (from the source's
+  `getDrumHits`, kept by the HUD itself), kick a red circle, snare a yellow square, clap a pink triangle, hat a teal diamond, kick and
+  snare a little lower than hat and clap so hits on the same beat do not stack (`DRUM_COLORS` and `DRUM_SHAPES` are exported). The row
+  takes its height from the waveform. The Fractaleyez app turns it on; the lab leaves it off for its comparison strip.
 - **`FrequencyHud`**: a bar per onset band (level, trigger level, a flash on the band that set off a beat), a light per drum the hit
   classifier names, and a riser meter. Clicking a band toggles whether it can set off a beat.
 - **`SectionHud`**: the song's level over the last minute, colored by section (intro, groove, buildup, drop and so on), with the section

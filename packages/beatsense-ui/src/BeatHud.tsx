@@ -40,13 +40,18 @@ const saveMirrored = (mirrored: boolean): void => {
 
 export type BeatHudProps = {
   /**
+   * A row under the hit strip marking each drum the hit classifier calls (from the source's getDrumHits): kick a red circle, snare a yellow
+   * square, clap a pink triangle, hat a teal diamond. It takes its height from the waveform. Off by default.
+   */
+  drumRow?: boolean
+  /**
    * Called with the length of time shown (ms, its right edge is now) once on mount and whenever the wheel or a double-click changes it,
    * so something drawn beside the HUD can show the same window.
    */
   onViewChange?: (viewMs: number) => void
 }
 
-export const BeatHud = ({ onViewChange }: BeatHudProps = {}): React.ReactElement => {
+export const BeatHud = ({ drumRow = false, onViewChange }: BeatHudProps = {}): React.ReactElement => {
   const { source, ticker, hint } = useHud()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [tempo, setTempo] = useState<TempoShown>({ bpm: null, consistency: null })
@@ -102,7 +107,7 @@ export const BeatHud = ({ onViewChange }: BeatHudProps = {}): React.ReactElement
       setRhythm(source.getRhythmLabel?.()?.text ?? '')
     }
 
-    const track = new WaveformTrack()
+    const track = new WaveformTrack({ drumRow })
     const view: WaveformView = { now: 0, viewMs: DEFAULT_VIEW_MS, enabled: DEFAULT_ENABLED_BANDS, ignoreMs: 0, mirrored: mirroredRef.current }
     // Redraws right away when the canvas is resized, since a resize clears it.
     const resolution = trackCanvasResolution(canvas, WAVEFORM_W, WAVEFORM_H, () => redrawRef.current?.())
@@ -113,6 +118,7 @@ export const BeatHud = ({ onViewChange }: BeatHudProps = {}): React.ReactElement
       const timeline = source.getBeatTimeline?.()
       if (timeline) track.ingest(timeline.samples)
       track.recordGrid(source.getBeatGrid?.() ?? null)
+      if (drumRow) track.recordDrums(source.getDrumHits?.() ?? null)
       // The timeline is stamped on the source's clock, so "now" is read there too (a popped-out window has its own).
       view.now = sourceNow(source)
       view.enabled = source.getEnabledBands?.() ?? DEFAULT_ENABLED_BANDS
@@ -135,7 +141,7 @@ export const BeatHud = ({ onViewChange }: BeatHudProps = {}): React.ReactElement
       unsubscribe()
       if (clickTimerRef.current !== null) clearTimeout(clickTimerRef.current)
     }
-  }, [source, ticker])
+  }, [source, ticker, drumRow])
 
   return (
     <div className='beat-hud-wrapper'>
@@ -148,7 +154,7 @@ export const BeatHud = ({ onViewChange }: BeatHudProps = {}): React.ReactElement
           {tempo.consistency !== null ? `${Math.round(tempo.consistency * 100)}% cons` : '—'}
         </span>
       </div>
-      <div className='beat-hud' {...hint('Each band over time, dimmed if it cannot trigger a beat. Dashed: the level a hit must pass. Bottom marks: hits, in the band\'s color. Top ruler: beats, bars and 8-bar phrases. Scroll to zoom, double-click to reset, click to flip mirrored.')}>
+      <div className='beat-hud' {...hint('Each band over time, dimmed if it cannot trigger a beat. Dashed: the level a hit must pass. Bottom marks: hits, in the band\'s color. Top ruler: beats, bars and 8-bar phrases. Scroll to zoom, double-click to reset, click to flip mirrored.' + (drumRow ? ' Bottom row: the drum classifier\'s calls, kick a red circle, snare a yellow square, clap a pink triangle, hat a teal diamond.' : ''))}>
         <canvas ref={canvasRef} width={WAVEFORM_W} height={WAVEFORM_H} className='beat-hud-canvas' onClick={handleClick} onDoubleClick={handleDoubleClick} />
       </div>
       <div className='beat-hud-bottom-row'>
