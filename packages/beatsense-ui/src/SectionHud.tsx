@@ -5,6 +5,7 @@ import type { SectionState, SectionSlot, SongSection } from 'beatsense'
 import { sourceNow, useHud } from './HudContext'
 import { listenWheel, zoomView } from './wheelZoom'
 import { trackCanvasResolution } from './canvasResolution'
+import { agoTicks, formatAgo } from './agoTicks'
 
 const W = 360
 const H = 56
@@ -26,6 +27,8 @@ const SECTION_COLORS: Record<SongSection, string> = {
 }
 
 const LINE_COLOR = 'rgba(255, 255, 255, 0.75)'
+const TICK_COLOR = 'rgba(255, 255, 255, 0.35)'
+const TICK_PX = 4
 
 // Whole seconds, so the readout is not drawn again between ticks of the clock.
 const songSeconds = (state: SectionState): number | null => (state.songMs === null ? null : Math.floor(state.songMs / 1000))
@@ -41,6 +44,12 @@ const sameState = (a: SectionState | null, b: SectionState | null): boolean =>
     : a.section === b.section &&
       Math.round(a.intensity * 100) === Math.round(b.intensity * 100) &&
       songSeconds(a) === songSeconds(b)
+
+/** A short mark at the bottom edge for each time label (the labels are text over the canvas, so they stay sharp when it is scaled). */
+const drawTicks = (ctx: CanvasRenderingContext2D, viewMs: number): void => {
+  ctx.fillStyle = TICK_COLOR
+  agoTicks(viewMs).forEach((ago) => ctx.fillRect(Math.round(W - (ago / viewMs) * W), H - TICK_PX, 1, TICK_PX))
+}
 
 const drawStrip = (ctx: CanvasRenderingContext2D, slots: readonly SectionSlot[], now: number, viewMs: number): void => {
   const toX = (t: number): number => W - ((now - t) / viewMs) * W
@@ -78,11 +87,14 @@ export const SectionHud = (): React.ReactElement => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [state, setState] = useState<SectionState | null>(null)
   const viewMsRef = useRef(DEFAULT_VIEW_MS)
+  // The same view as state, for the time labels; the draw reads the ref, so a zoom does not wait for a render.
+  const [viewMs, setViewMs] = useState(DEFAULT_VIEW_MS)
   const redrawRef = useRef<(() => void) | null>(null)
 
   // A double-click puts the zoom back to the default.
   const handleDoubleClick = useCallback((): void => {
     viewMsRef.current = DEFAULT_VIEW_MS
+    setViewMs(DEFAULT_VIEW_MS)
     redrawRef.current?.()
   }, [])
 
@@ -106,11 +118,13 @@ export const SectionHud = (): React.ReactElement => {
       }
       const slots = source.getSectionHistory?.()
       if (slots && slots.length > 0) drawStrip(ctx, slots, now, viewMsRef.current)
+      drawTicks(ctx, viewMsRef.current)
     }
     redrawRef.current = draw
 
     const stopWheel = listenWheel(canvas, (deltaY) => {
       viewMsRef.current = zoomView(viewMsRef.current, deltaY, ZOOM_RANGE)
+      setViewMs(viewMsRef.current)
       draw()
     })
     const unsubscribe = ticker(draw, canvas)
@@ -132,8 +146,13 @@ export const SectionHud = (): React.ReactElement => {
           {state ? `${Math.round(state.intensity * 100)}%` : '—'}
         </span>
       </div>
-      <div className='section-hud' {...hint('The last minute (scroll to zoom from 30 seconds to 2 minutes, double-click to reset). The line is the level of the song against its loudest moment, the colors are the sections: cyan intro, green groove, yellow buildup, white turnaround, blue break, red drop, purple outro, grey quiet.')}>
+      <div className='section-hud' {...hint('The last minute (scroll to zoom from 30 seconds to 2 minutes, double-click to reset; the marks along the bottom are seconds ago). The line is the level of the song against its loudest moment, the colors are the sections: cyan intro, green groove, yellow buildup, white turnaround, blue break, red drop, purple outro, grey quiet.')}>
         <canvas ref={canvasRef} width={W} height={H} className='section-hud-canvas' onDoubleClick={handleDoubleClick} />
+        <div className='section-hud-ticks' aria-hidden='true'>
+          {agoTicks(viewMs).map((ago) => (
+            <span key={ago} className='section-hud-tick' style={{ left: `${(1 - ago / viewMs) * 100}%` }}>{formatAgo(ago)}</span>
+          ))}
+        </div>
       </div>
       <span className='section-hud-name' {...hint('The part of the song this looks like: intro (the start, before anything has built or dropped), groove, buildup (tension rising toward a drop), turnaround (the music cutting out during a buildup; about 1 in 4 turns into a drop), break (the low end pulled back, calmer), drop (the full-energy part after the drop lands, until the next break or buildup), outro (a fade late in the song) or quiet (silence, or no steady beat). A model trained on expert-labelled tracks makes the call, so it can be wrong; the next song starts over at intro.')}>
         {state?.section ?? ''}

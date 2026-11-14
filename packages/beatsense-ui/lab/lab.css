@@ -184,6 +184,10 @@ body {
   font-size: clamp(12px, 0.9vw, 16px);
 }
 
+.lab-huds .section-hud-tick {
+  font-size: clamp(10px, 0.65vw, 13px);
+}
+
 /* The grid spaces the HUDs, so the room each leaves around itself in the config column goes. */
 .lab-huds .frequency-hud-wrapper {
   margin: 0;
