@@ -73,7 +73,8 @@
 /* The time marks' labels, over the bottom of the strip, each centered on its mark (drawn in the canvas). They follow the zoom. */
 .section-hud-ticks {
   position: absolute;
-  inset: auto 0 5px;
+  /* Just above the marks, which are 4px tall at any size. */
+  inset: auto 0 6px;
   height: 1.2em;
   pointer-events: none;
 }

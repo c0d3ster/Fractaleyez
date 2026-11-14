@@ -88,23 +88,22 @@ body {
 }
 
 /*
- * The HUDs: Frequency and Beat side by side, the drum buttons, Section across the bottom; the live strip follows outside this block. The
- * columns split so the two canvases come out the same height (Frequency draws at 180 by 142, Beat at 360 by 120). The canvases keep their
- * aspect ratio, so the block's width is capped to what fits the window's height: the HUDs come to about 0.385 of their width tall, and
- * 480px is everything that does not scale with them (the bar, the label rows, the HUDs' text rows, the live strip, the gaps). So the page
- * fits a 1366 by 768 laptop and up without scrolling, and the block centers in a wider window. It keeps at least 480px, below which the
- * HUDs get too small to read, and scrolls on a shorter window instead.
+ * The HUDs: Frequency and Beat side by side, Section across the bottom; the drum buttons under Frequency, the drum strip under Beat, the
+ * song strip and buttons under Section. The columns split so the two canvases come out the same height (Frequency draws at 180 by 142,
+ * Beat at 360 by 120). The canvases keep their aspect ratio, so the block's width is capped to what fits the window's height: the HUDs come
+ * to about 0.389 of their width tall, and 420px is everything that does not scale with them (the bar, the strips, the label rows, the HUDs'
+ * text rows, the gaps). So the page fits a 1366 by 768 laptop and up without scrolling, and the block centers in a wider window. It keeps
+ * at least 480px, below which the HUDs get too small to read, and scrolls on a shorter window instead.
  */
 .lab-huds {
   box-sizing: border-box;
   width: 100%;
-  max-width: max(480px, calc((100vh - 480px) * 2.6));
+  max-width: max(480px, calc((100vh - 420px) * 2.57));
   margin: 0 auto;
   display: grid;
   grid-template-columns: minmax(0, 1.27fr) minmax(0, 3fr);
   grid-template-areas:
     'frequency beat'
-    'drums drums'
     'section section';
   align-items: start;
   gap: 8px 32px;
@@ -122,13 +121,7 @@ body {
   grid-area: section;
 }
 
-.lab-hud-drums {
-  grid-area: drums;
-}
-
-/* The label buttons: the drum row starts under the Frequency HUD, the song and riser row centers under the Section HUD. */
 .lab-huds .lab-labels {
-  flex-wrap: nowrap;
   gap: 8px;
 }
 
@@ -136,20 +129,54 @@ body {
   white-space: nowrap;
 }
 
+/* The drum buttons under the Frequency HUD: a 2 by 2 block like their keys (Q W over A S), each half the HUD's width. */
+.lab-hud-frequency .lab-labels {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.lab-hud-frequency .lab-label-button {
+  justify-content: center;
+  min-width: 0;
+  padding: 3px 4px;
+}
+
+/* The song and riser buttons under the Section HUD and its strip: one centered row, running a little past the block rather than wrapping. */
 .lab-hud-section .lab-labels {
-  margin-top: 6px;
+  flex-wrap: nowrap;
+  margin-top: 8px;
   justify-content: center;
 }
 
-/* On the narrowest block a row may run a little past it rather than wrap (the page has room either side). */
-.lab-hud-drums,
-.lab-hud-section {
-  overflow: visible;
+/* The strips under the Beat and Section HUDs: framed like the HUDs' canvases, the same width, so their time lines up with the HUD above. */
+.lab-strip {
+  margin-top: 6px;
 }
 
-.lab-live-legend {
+.lab-strip-canvas {
+  box-sizing: border-box;
+  width: 100%;
+  border: 1px solid #2a2a2a;
+  border-radius: 6px;
+  background: #000;
+  overflow: hidden;
+}
+
+.lab-strip-tally {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+  margin: 4px 0 0;
   font-size: 11px;
-  color: #666;
+  color: #777;
+  font-variant-numeric: tabular-nums;
+}
+
+.lab-strip-tally b {
+  font-weight: 600;
+  color: rgba(220, 220, 220, 0.9);
 }
 
 /* One column on a narrow window; the Frequency HUD (nearly square) stays at a size that leaves the others in view. */
@@ -158,7 +185,6 @@ body {
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas:
       'frequency'
-      'drums'
       'beat'
       'section';
   }
@@ -282,46 +308,3 @@ body {
   color: #79b8ff;
 }
 
-/* The live strip: your labels against the model's as the session records. */
-.lab-live-head {
-  display: flex;
-  margin-top: 4px;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 4px 18px;
-  margin-bottom: 4px;
-}
-
-.lab-live-title {
-  margin: 0;
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: #777;
-}
-
-.lab-live-tally {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 14px;
-  margin: 0;
-  font-size: 12px;
-  color: #888;
-  font-variant-numeric: tabular-nums;
-}
-
-.lab-live-tally b {
-  font-weight: 600;
-  color: rgba(220, 220, 220, 0.9);
-}
-
-.lab-live-empty {
-  margin: 0;
-  padding: 18px 0;
-  border: 1px dashed #333;
-  border-radius: 6px;
-  font-size: 13px;
-  color: #666;
-  text-align: center;
-}
