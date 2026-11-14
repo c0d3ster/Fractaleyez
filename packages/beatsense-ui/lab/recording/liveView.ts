@@ -7,8 +7,23 @@ import type { View } from './timeline'
 
 // The lab's live comparison strip: the last few seconds of your labels against the model's, scrolling as the session records.
 
-/** How much the strip shows: a couple of bars at 120 BPM, enough to see a label land against its hit. */
+/**
+ * How much the strip shows until the Beat HUD says otherwise: its default view (a couple of bars at 120 BPM). The strip follows the Beat
+ * HUD's zoom, so the two show the same window.
+ */
 export const LIVE_WINDOW_MS = 6000
+
+const AXIS_STEPS_MS = [250, 500, 1000, 2000, 5000]
+
+/** The axis step for a window: the smallest round step that gives at most `maxTicks` marks (1 s at 6 s, 2 s at 16 s, 250 ms at 2 s). */
+export const axisStepMs = (windowMs: number, maxTicks: number = 10): number =>
+  AXIS_STEPS_MS.find((step) => windowMs / step <= maxTicks) ?? AXIS_STEPS_MS[AXIS_STEPS_MS.length - 1]!
+
+/** A mark's text, seconds before now: -3s, -1.5s, -0.25s, or now. */
+export const formatSecondsAgo = (agoMs: number): string => {
+  const seconds = Math.round(agoMs / 10) / 100
+  return seconds <= 0 ? 'now' : `-${seconds}s`
+}
 
 /** The window ending at `nowMs`. */
 export const liveView = (nowMs: number, windowMs: number = LIVE_WINDOW_MS): View => ({ startMs: nowMs - windowMs, endMs: nowMs })

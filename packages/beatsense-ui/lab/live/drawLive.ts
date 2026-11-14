@@ -3,7 +3,7 @@ import { DRUM_KINDS } from 'beatsense'
 import { RISER_COLOR, SECTION_COLORS } from '../colors'
 import type { LiveSnapshot } from '../labSession'
 import { LABEL_INFO, SONG_LABEL_KINDS, type Label, type LabelKind } from '../recording/labels'
-import { between, drumLanes, liveView, riserSpans } from '../recording/liveView'
+import { axisStepMs, between, drumLanes, formatSecondsAgo, liveView, riserSpans } from '../recording/liveView'
 import { sectionRuns, timeToX } from '../recording/timeline'
 
 // Draws the live strip: your labels against the model's, the last few seconds, newest on the right. In every lane yours are on top and the
@@ -26,8 +26,9 @@ const LANE_COLOR = 'rgba(255, 255, 255, 0.03)'
 
 const SONG_LABELS: ReadonlySet<LabelKind> = new Set(SONG_LABEL_KINDS)
 
-export const drawLive = (ctx: CanvasRenderingContext2D, width: number, { nowMs, startMs, labels, drumHits, frames }: LiveSnapshot): void => {
-  const view = liveView(nowMs)
+/** Draws `snapshot` over the last `windowMs` (the Beat HUD's view). */
+export const drawLive = (ctx: CanvasRenderingContext2D, width: number, { nowMs, startMs, labels, drumHits, frames }: LiveSnapshot, windowMs: number): void => {
+  const view = liveView(nowMs, windowMs)
   const plotWidth = Math.max(1, width - LIVE_GUTTER_PX)
   const toX = (t: number): number => LIVE_GUTTER_PX + timeToX(t, view, plotWidth)
   ctx.clearRect(0, 0, width, LIVE_HEIGHT)
@@ -138,13 +139,13 @@ export const drawLive = (ctx: CanvasRenderingContext2D, width: number, { nowMs, 
     ctx.fillRect(LIVE_GUTTER_PX, 0, sessionX - LIVE_GUTTER_PX, top)
   }
 
-  // Seconds ago, on whole seconds of the audio clock so the ticks scroll with the marks.
+  // Seconds ago at round steps from now, fixed while the marks and hits scroll past (as on the Section HUD); the step follows the zoom.
   ctx.fillStyle = '#777'
   ctx.textAlign = 'center'
-  for (let t = Math.ceil(view.startMs / 1000) * 1000; t <= view.endMs; t += 1000) {
-    const x = toX(t)
-    ctx.fillRect(x, top, 1, 3)
-    const ago = Math.round((nowMs - t) / 1000)
-    if (x > LIVE_GUTTER_PX + 12 && x < width - 12) ctx.fillText(ago === 0 ? 'now' : `-${ago}s`, x, top + 10)
+  const step = axisStepMs(windowMs)
+  for (let ago = step; ago < windowMs; ago += step) {
+    const x = toX(nowMs - ago)
+    ctx.fillRect(Math.round(x), top, 1, 3)
+    if (x > LIVE_GUTTER_PX + 14) ctx.fillText(formatSecondsAgo(ago), x, top + 10)
   }
 }
