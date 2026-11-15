@@ -13,7 +13,7 @@ Research and plan only. No billing is implemented. Decisions marked **Decided** 
 
 Two independent concepts:
 
-1. **Plan** (subscription): `guest | free | plus | premium`. Sets quotas and which pack groups are included.
+1. **Plan** (subscription): `guest | free | tier1 | tier2`, shown as Dream (free), Lucid and Third Eye. Sets quotas and which pack groups are included.
 2. **Pack ownership** (one-time purchase): a user can load a preset if any pack they are entitled to contains it. Entitled means included by plan, or purchased. This is the rule already written in `#6`.
 
 A single server function, `getEntitlements(userId)`, derives everything from stored plan and purchases. Gates ask it questions (`canSavePreset`, `canUploadSprite`, `canCreatePack`, `canLoadPack`). `/api/me` returns a read-only copy for UI. The client never decides access.
@@ -33,7 +33,9 @@ Setting `origin: 'builtIn'` or marking a pack premium is admin-only, enforced in
 
 ## Tiers
 
-| | Guest | Free | Plus (~$5/mo) | Premium (~$20/mo) |
+**Decided:** the tiers are named Dream (free), Lucid and Third Eye. The stored ids stay neutral (`free`, `tier1`, `tier2`, with Stripe price lookup keys `tier1_monthly` and `tier2_monthly`) and the display names live in one client-side map, so a rename never touches the database, Stripe or the webhook.
+
+| | Guest | Dream (free) | Lucid (~$5/mo) | Third Eye (~$20/mo) |
 |---|---|---|---|---|
 | Saved presets | 0 (local only) | 3 | 10 | unlimited |
 | Particle uploads | 0 | 3 | 10 | unlimited |
@@ -42,9 +44,9 @@ Setting `origin: 'builtIn'` or marking a pack premium is admin-only, enforced in
 | Built-in packs (admin + `@user`) | free ones | free ones | all included | all included |
 | Creator packs | n/a | purchase | purchase | see below |
 
-**Decided:** Plus includes the built-in premium packs (the `@user` builds and admin-made packs). Premium includes all packs.
+**Decided:** Lucid includes the built-in premium packs (the `@user` builds and admin-made packs). Third Eye includes all packs.
 
-**Open, later:** once a creator market exists, "Premium includes all" would undercut creator sales. Plan for it now: tier inclusion is driven by `origin`, not by `isPremium` alone. Today Premium = all packs. When creators launch, change the rule to Premium = all `builtIn` packs, and creator packs are purchase-only (or a Premium discount). No data migration needed if `origin` exists from the start.
+**Open, later:** once a creator market exists, "Third Eye includes all" would undercut creator sales. Plan for it now: tier inclusion is driven by `origin`, not by `isPremium` alone. Today Third Eye = all packs. When creators launch, change the rule to Third Eye = all `builtIn` packs, and creator packs are purchase-only (or a Third Eye discount). No data migration needed if `origin` exists from the start.
 
 Numbers are placeholders from the task. Tune them after seeing real usage.
 
@@ -54,7 +56,7 @@ The numbers above are quotas. This section is the other half: features that are 
 
 Legend: yes = available, locked = visible but disabled with an upgrade prompt, n/a = does not apply.
 
-| Feature | Guest | Free | Plus | Premium | Status |
+| Feature | Guest | Dream | Lucid | Third Eye | Status |
 |---|---|---|---|---|---|
 | Load existing presets | yes | yes | yes | yes | proposed |
 | Edit from the default configuration | yes | yes | yes | yes | **Decided** |
@@ -71,11 +73,11 @@ Legend: yes = available, locked = visible but disabled with an upgrade prompt, n
 
 Notes:
 
-- **Premium presets in the preview.** **Decided:** no modification at all for Guest and Free during the 15s preview. The controls are locked (visible, disabled, rainbow outline), so there is nothing to save. This also removes the need for a derived-from marker for premium content: the server only has to refuse saves from a session that is in preview.
-- **Free built-in presets.** **Decided:** everyone can edit them, and Free users can save a modified copy within their quota. Premium content is fully protected by the preview lock, so the extra save restriction would add little. Guests can edit but never save.
-- **Custom fractal path.** Read as locked for Guest and Free, open for Plus and up. The boundary between Plus and Premium is not decided.
+- **Premium presets in the preview.** **Decided:** no modification at all for Guest and Dream during the 15s preview. The controls are locked (visible, disabled, rainbow outline), so there is nothing to save. This also removes the need for a derived-from marker for premium content: the server only has to refuse saves from a session that is in preview.
+- **Free built-in presets.** **Decided:** everyone can edit them, and Dream users can save a modified copy within their quota. Premium content is fully protected by the preview lock, so the extra save restriction would add little. Guests can edit but never save.
+- **Custom fractal path.** Read as locked for Guest and Dream, open for Lucid and up. The boundary between Lucid and Third Eye is not decided.
 - **Locked means visible.** Controls stay on screen, disabled, with the existing rainbow premium outline and an upgrade message. Hiding them would hide what the paid tiers offer.
-- **Enforcement.** Locked controls are a client display. The server must also refuse the matching writes (for example, a saved preset whose settings differ from the original for a Free user), or the lock is cosmetic. `getEntitlements` should expose a feature set (`features: { editLoadedPreset, customFractalPath, ... }`) next to the quotas, so a new gated feature is one config entry.
+- **Enforcement.** Locked controls are a client display. The server must also refuse the matching writes (for example, a saved preset whose settings differ from the original for a Dream user), or the lock is cosmetic. `getEntitlements` should expose a feature set (`features: { editLoadedPreset, customFractalPath, ... }`) next to the quotas, so a new gated feature is one config entry.
 - **Open inventory.** Other candidates to place: external config window, video layer, logo layer, camera macros, extra layer slots beyond a cap, high-resolution or recording features. These need a tier each.
 
 ## Purchases
@@ -94,7 +96,7 @@ Notes:
 - Existing presets, uploads, and packs stay and still load.
 - Creating new ones is blocked until the user is under the limit again.
 - Over-limit content is never deleted or locked.
-- Edge: a lapsed Plus user's private packs beyond the Free limit stay visible to them, but publishing or creating more is blocked.
+- Edge: a lapsed Lucid user's private packs beyond the Dream limit stay visible to them, but publishing or creating more is blocked.
 - Purchased packs are unaffected by plan changes.
 
 ## Enforcement points
@@ -110,7 +112,7 @@ Client-side (UI only): `ParticleSpriteHud` (`#20`), preset list and pack tabs (e
 
 ## Data model changes
 
-- `User`: add `plan: 'free' | 'plus' | 'premium'` (default `free`), `stripeCustomerId?`, `planRenewsAt?`. Top-level and server-written only, like `isAdmin` (never inside user-writable `settings`).
+- `User`: add `plan: 'free' | 'tier1' | 'tier2'` (default `free`), `stripeCustomerId?`, `planRenewsAt?`. Top-level and server-written only, like `isAdmin` (never inside user-writable `settings`).
 - `Pack`: add `origin`. `isPremium` stays. Revisit `price` once purchases exist.
 - New `PackPurchase` collection (see Purchases).
 - Guests are unauthenticated, so they have no record. Their limits are enforced by simply not allowing server writes.
@@ -139,7 +141,7 @@ This is a rough sketch. The real ordering, file-level detail, and task split bel
 4. **Pack ownership.** `PackPurchase` model and the many-to-many entitlement lookup (depends on `#6`).
 5. **Stripe, test mode.** Checkout, portal, webhooks, idempotency, refunds.
 6. **Go live.** Live keys, tax settings, DBA, terms and privacy pages, receipt emails.
-7. **Creator market (later).** Seller records, Connect payouts, revisit what Premium includes, moderation (ties to `#19`).
+7. **Creator market (later).** Seller records, Connect payouts, revisit what Third Eye includes, moderation (ties to `#19`).
 
 ## Open questions
 
@@ -148,5 +150,5 @@ This is a rough sketch. The real ordering, file-level detail, and task split bel
 - Final tier prices and limits (the table is a starting point).
 - Premium preview. **Decided:** the preview stays but becomes one-shot per preset. Today it is a fixed 30s that restarts on every click, so re-clicking gives unlimited viewing. Shorten to 15s and record each previewed preset in localStorage (soft nudge, not security; server entitlements protect real content). A previewed preset opens the upgrade modal directly, and the record resets each local day so every locked preset can be previewed once per day.
 - Annual pricing and any launch discount.
-- Pack updates and new releases. **Decided:** inclusion is dynamic, so Plus keeps access to built-in packs released after they subscribe.
+- Pack updates and new releases. **Decided:** inclusion is dynamic, so Lucid keeps access to built-in packs released after they subscribe.
 - Whether guests get any server-side presence (analytics, rate limits) beyond local-only use.
