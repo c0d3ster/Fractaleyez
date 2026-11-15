@@ -22,8 +22,7 @@ import { BeatHud, SectionHud } from 'beatsense-ui'
 import { AppHudProvider, ConnectedFrequencyHud, ParticleSpriteHud } from '../huds'
 import { AutoSwitch } from './AutoSwitch'
 
-// The Audio column is narrow and the HUDs stack in it: shorter frequency bars (the HUD's default is 90 units), and the Beat HUD at the
-// Frequency HUD's scale so its waveform is not a thin strip under them.
+// The Audio column is narrow and the HUDs stack in it: shorter frequency bars than the HUD's default 90 units.
 const AUDIO_HUD_BAR_HEIGHT = 64
 
 type OrbitColumnBodyProps = {
@@ -161,7 +160,7 @@ const ExternalWindowBridge = ({ context }: ExternalWindowBridgeProps): React.Rea
                   ) : null}
                   {entry === 'effects' || entry === 'audio' ? (
                     <ConfigCategory name={entry} onChange={updateConfigItem} isOpen={true} toggleOpen={() => null} expanded popup>
-                      {entry === 'audio' ? <><ConnectedFrequencyHud barHeight={AUDIO_HUD_BAR_HEIGHT} /><BeatHud drumRow stacked /><SectionHud /></> : null}
+                      {entry === 'audio' ? <><ConnectedFrequencyHud barHeight={AUDIO_HUD_BAR_HEIGHT} /><BeatHud drumRow /><SectionHud /></> : null}
                     </ConfigCategory>
                   ) : null}
                   {entry === 'effects' ? <AutoSwitch /> : null}
