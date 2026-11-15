@@ -24,12 +24,14 @@ const RULER_H = 20
 // Hits are marked on a strip along the bottom, so nothing cuts through the waveform but the grid's bar and phrase lines.
 const HIT_STRIP_H = 8
 // The drum row, when on, under the hit strip and added to the HUD's height (the waveform keeps its own): a mark per drum the classifier
-// calls (drumMarks.ts), each drum on its own level. The marks are as big on screen as the Frequency HUD's drum lights when the two HUDs are
-// as wide (as in the app's config column): its canvas is half as wide in units, so its 10 units are 20 here. The levels overlap by half a
-// mark, so four drums on one beat still show as four.
+// calls (drumMarks.ts), each drum in a row of its own, kick at the bottom to hat on top, so drums on one beat never cover each other. The
+// marks are as big on screen as the Frequency HUD's drum lights when the two HUDs are as wide (as in the app's config column): its canvas
+// is half as wide in units, so its 10 units are 20 here.
 const DRUM_MARK_SIZE = 20
-const DRUM_ROW_H = DRUM_MARK_SIZE * 2.5 + 2
+const DRUM_LANE_GAP = 2
+const DRUM_ROW_H = 4 * DRUM_MARK_SIZE + 3 * DRUM_LANE_GAP + 2
 const DRUM_ROW_GAP = 2
+const DRUM_LANE_FILL = 'rgba(255, 255, 255, 0.04)'
 const DRUM_CAPACITY = 256
 
 /** Where each part of the plot sits, in the HUD's units, with the drum row or without it. */
@@ -350,6 +352,13 @@ export class WaveformTrack {
       if (view.now - this.drumTimes[at]! > view.viewMs) break
       visible++
     }
+    // A faint band behind every other drum's row, so the four read as lanes.
+    ctx.fillStyle = DRUM_LANE_FILL
+    DRUM_KINDS.forEach((kind) => {
+      if (kind !== 'snare' && kind !== 'hat') return
+      const y = drumMarkY(kind, drumTop, DRUM_ROW_H, DRUM_MARK_SIZE)
+      ctx.fillRect(0, y - DRUM_MARK_SIZE / 2 - DRUM_LANE_GAP / 2, WAVEFORM_W, DRUM_MARK_SIZE + DRUM_LANE_GAP)
+    })
     for (let k = visible - 1; k >= 0; k--) {
       const at = (this.drumHead - 1 - k + DRUM_CAPACITY) % DRUM_CAPACITY
       const kind = DRUM_KINDS[this.drumKinds[at]!]!
