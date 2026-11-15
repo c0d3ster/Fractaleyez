@@ -54,8 +54,6 @@
 
 .section-hud {
   position: relative;
-  /* For the time labels: fewer of them on a narrow strip (see below). */
-  container-type: inline-size;
   box-sizing: border-box;
   width: 100%;
   background: #000;
@@ -75,27 +73,21 @@
 /* The time marks' labels, over the bottom of the strip, each centered on its mark (drawn in the canvas). They follow the zoom. */
 .section-hud-ticks {
   position: absolute;
-  /* Just above the marks, which are 4px tall at any size. */
-  inset: auto 0 6px;
-  height: 1.2em;
+  /* Low, just above the marks, which are 2px tall at any size. No height of its own: each label sits on its bottom edge. */
+  inset: auto 0 3px;
+  height: 0;
   pointer-events: none;
 }
 
 .section-hud-tick {
   position: absolute;
+  bottom: 0;
   transform: translateX(-50%);
   /* Small: the strip is short in a narrow column (about 25px in the app's), and the labels sit over it. */
-  font-size: 7px;
-  line-height: 1.2em;
+  font-size: 6px;
+  line-height: 1;
   font-variant-numeric: tabular-nums;
   color: rgba(255, 255, 255, 0.45);
   text-shadow: 0 0 3px #000, 0 0 3px #000;
   white-space: nowrap;
-}
-
-/* On a narrow strip every other label, so they do not run together (the marks themselves all stay). */
-@container (max-width: 240px) {
-  .section-hud-tick:nth-child(even) {
-    display: none;
-  }
 }
