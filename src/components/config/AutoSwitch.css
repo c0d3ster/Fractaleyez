@@ -4,8 +4,9 @@
   margin: 1rem 0 1.5rem;
 }
 
-/* A pill like the other switches, but when on it wears only the ghost green outline (what shows Auto's doing in the config), with
-   no fill, instead of the app's solid green: no background is what says Auto, so it reads as a different kind of switch. */
+/* A pill that is only ever an outline, with no fill, which sets it apart from the app's solid switches: grey outline and lettering
+   while off, the lime green of Auto's ghost outlines in the config while on. The outline is drawn twice as thick (border plus inset
+   shadow) so it reads at a glance on the dark page. */
 .auto-switch-button {
   font: inherit;
   font-size: 15px;
@@ -13,32 +14,33 @@
   letter-spacing: .06em;
   text-transform: uppercase;
   padding: .4em 1.6em;
-  border: 1px solid transparent;
+  border: 1px solid #777;
+  box-shadow: inset 0 0 0 1px #777;
   border-radius: 999px;
-  background: #EEE;
-  color: #555;
+  background: transparent;
+  color: #888;
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, color 0.15s ease;
 }
 
 .auto-switch-button--on {
-  background: transparent;
   border-color: #3ddc84;
   box-shadow: inset 0 0 0 1px #3ddc84;
-  color: #0b5a2e;
+  color: #3ddc84;
 }
 
+/* Hover only brightens the outline and lettering; it never fills. */
 @media (hover: hover) {
   :where(html:not([data-input='touch'])) .auto-switch-button:hover {
-    background: #004400;
-    border-color: #004400;
-    color: #ccc;
+    border-color: #aaa;
+    box-shadow: inset 0 0 0 1px #aaa;
+    color: #bbb;
   }
 
   :where(html:not([data-input='touch'])) .auto-switch-button--on:hover {
-    background: transparent;
-    border-color: #3ddc84;
-    color: #0b5a2e;
+    border-color: #6cf0a6;
+    box-shadow: inset 0 0 0 1px #6cf0a6;
+    color: #6cf0a6;
   }
 }
 
