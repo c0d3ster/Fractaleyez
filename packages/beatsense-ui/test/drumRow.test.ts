@@ -45,8 +45,25 @@ describe('the drum row layout', () => {
     expect(on.plotH).toBe(off.plotH)
     expect(on.hitTop).toBe(off.hitTop)
     expect(on.drumTop).toBeGreaterThanOrEqual(WAVEFORM_H)
-    expect(on.height).toBe(194)
-    expect(new WaveformTrack({ drumRow: true }).height).toBe(194)
+    expect(on.height).toBe(162)
+    expect(new WaveformTrack({ drumRow: true }).height).toBe(162)
+  })
+})
+
+describe('the stacked width', () => {
+  it('draws the same time across half the units, so each thing is twice as big for the same width on screen', () => {
+    expect(new WaveformTrack().width).toBe(360)
+    const kickX = (width: number): number => {
+      const track = new WaveformTrack({ drumRow: true, width })
+      track.recordDrums({ ...noHits, kick: 7000 })
+      const { ctx, marks } = recorder()
+      track.draw(ctx, view(10000))
+      const xs = marks.find(({ color }) => color === DRUM_COLORS.kick)!.points.map(([x]) => x)
+      return (Math.max(...xs) + Math.min(...xs)) / 2
+    }
+    // A hit 3 s back in a 6 s view sits half way across either width.
+    expect(kickX(360) / 360).toBeCloseTo(0.5, 2)
+    expect(kickX(180) / 180).toBeCloseTo(0.5, 2)
   })
 })
 

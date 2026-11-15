@@ -16,23 +16,20 @@ const BAR_HEADROOM = 1.1
 
 const W = 180
 const LABEL_H = 14
-const BAR_AREA_H = 90
+/** The bars' height in units, by default; FrequencyHud's `barHeight` changes it (the rest of the layout follows). */
+export const DEFAULT_BAR_HEIGHT = 90
 // Below the labels, a light for each drum the hit classifier names (drum-hits.ts), in its shape and color (drumMarks.ts, as the Beat HUD's
 // drum row draws it), at the frequency its hits sit at, with its name under
 // it, and under the air column (which has no drum) the riser meter: signal bars that light as a riser plays (riserLevel.ts).
-const BANDS_H = BAR_AREA_H + LABEL_H
 const INSTRUMENT_GAP = 8
 const ICON_H = 16
 const INSTRUMENT_LABEL_H = 10
-const INSTRUMENT_TOP = BANDS_H + INSTRUMENT_GAP
-const H = INSTRUMENT_TOP + ICON_H + INSTRUMENT_LABEL_H + 4
 const GAP = 4
 const BAR_W = Math.floor((W - (VISIBLE_BANDS - 1) * GAP) / VISIBLE_BANDS)  // 32px
 const RADIUS = 3
 const INSTRUMENT_DOT_R = 5
 // How long an instrument's light takes to fade after a hit.
 const INSTRUMENT_FLASH_MS = 180
-const INSTRUMENT_LABEL_Y = INSTRUMENT_TOP + ICON_H + 8
 // The riser's signal bars: RISER_LEVELS of them, rising left to right, in the air column.
 const RISER_BAR_W = 3
 const RISER_BAR_GAP = 2
@@ -41,6 +38,23 @@ const RISER_X = (VISIBLE_BANDS - 1) * (BAR_W + GAP) + (BAR_W - (RISER_LEVELS * R
 const LIT = 'rgba(242, 242, 242, 0.9)'
 const UNLIT = '#333'
 const LABEL_FONT = '8px monospace'
+
+/** Where the parts sit, in units, for bars `barAreaH` tall: the labels under the bars, then the drum lights and the riser meter. */
+export type FrequencyLayout = {
+  barAreaH: number
+  /** The bars and their labels. */
+  bandsH: number
+  instrumentTop: number
+  instrumentLabelY: number
+  /** The canvas's height. */
+  height: number
+}
+
+export const frequencyLayout = (barAreaH: number = DEFAULT_BAR_HEIGHT): FrequencyLayout => {
+  const bandsH = barAreaH + LABEL_H
+  const instrumentTop = bandsH + INSTRUMENT_GAP
+  return { barAreaH, bandsH, instrumentTop, instrumentLabelY: instrumentTop + ICON_H + 8, height: instrumentTop + ICON_H + INSTRUMENT_LABEL_H + 4 }
+}
 
 // Where a frequency falls across the bars: in its band's column, at its place between the band's edges on a log scale (each band spans a
 // few times its low edge, so the chart reads roughly as a log frequency axis).
@@ -61,15 +75,15 @@ const insideColumn = (x: number): number => {
 }
 const LIGHT_X = DRUM_KINDS.map((kind) => insideColumn(frequencyX(DRUM_CENTER_HZ[kind])))
 
-const drawInstrumentLabel = (ctx: CanvasRenderingContext2D, text: string, x: number, lit: number): void => {
+const drawInstrumentLabel = (ctx: CanvasRenderingContext2D, layout: FrequencyLayout, text: string, x: number, lit: number): void => {
   ctx.font = LABEL_FONT
   ctx.textAlign = 'center'
   ctx.fillStyle = lit > 0 ? `rgba(242, 242, 242, ${0.45 + lit * 0.55})` : '#555'
-  ctx.fillText(text, x, INSTRUMENT_LABEL_Y)
+  ctx.fillText(text, x, layout.instrumentLabelY)
 }
 
-const drawInstrumentLights = (ctx: CanvasRenderingContext2D, source: AnalysisSource, now: number): void => {
-  const y = INSTRUMENT_TOP + ICON_H / 2
+const drawInstrumentLights = (ctx: CanvasRenderingContext2D, layout: FrequencyLayout, source: AnalysisSource, now: number): void => {
+  const y = layout.instrumentTop + ICON_H / 2
   const last = source.getDrumHits?.()
   DRUM_KINDS.forEach((kind, i) => {
     const hit = last?.[kind] ?? null
@@ -82,22 +96,22 @@ const drawInstrumentLights = (ctx: CanvasRenderingContext2D, source: AnalysisSou
       drawDrumMark(ctx, kind, x, y, INSTRUMENT_DOT_R * 2)
       ctx.globalAlpha = 1
     }
-    drawInstrumentLabel(ctx, kind, x, flash)
+    drawInstrumentLabel(ctx, layout, kind, x, flash)
   })
 }
 
-const drawRiserMeter = (ctx: CanvasRenderingContext2D, source: AnalysisSource, meter: RiserLevel, now: number): void => {
+const drawRiserMeter = (ctx: CanvasRenderingContext2D, layout: FrequencyLayout, source: AnalysisSource, meter: RiserLevel, now: number): void => {
   // Whichever reads higher: the sweep (sweep.ts, from the spectrum) catches risers the band levels (riser.ts) cannot see under the hats.
   const score = Math.min(1, Math.max(0, source.getRiser?.() ?? 0, source.getSweep?.() ?? 0))
   const level = meter.step(score, now)
-  const bottom = INSTRUMENT_TOP + ICON_H
+  const bottom = layout.instrumentTop + ICON_H
   const growth = (ICON_H - RISER_MIN_BAR_H) / (RISER_LEVELS - 1)
   for (let i = 0; i < RISER_LEVELS; i++) {
     const h = RISER_MIN_BAR_H + i * growth
     ctx.fillStyle = i < level ? LIT : UNLIT
     roundRect(ctx, RISER_X + i * (RISER_BAR_W + RISER_BAR_GAP), bottom - h, RISER_BAR_W, h, 1)
   }
-  drawInstrumentLabel(ctx, 'riser', (VISIBLE_BANDS - 1) * (BAR_W + GAP) + BAR_W / 2, level > 0 ? 1 : 0)
+  drawInstrumentLabel(ctx, layout, 'riser', (VISIBLE_BANDS - 1) * (BAR_W + GAP) + BAR_W / 2, level > 0 ? 1 : 0)
 }
 
 const roundRect = (ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void => {
@@ -122,10 +136,14 @@ export type FrequencyHudProps = {
   enabledBands: readonly boolean[]
   /** Called with the whole new selection when a band is clicked; the HUD shows it once it comes back as `enabledBands`. */
   onEnabledBandsChange: (enabledBands: boolean[]) => void
+  /** The bars' height in units (90 by default, against the HUD's 180 wide); lower for a shorter HUD in a tight column. */
+  barHeight?: number
 }
 
-export const FrequencyHud = ({ enabledBands, onEnabledBandsChange }: FrequencyHudProps): React.ReactElement => {
+export const FrequencyHud = ({ enabledBands, onEnabledBandsChange, barHeight = DEFAULT_BAR_HEIGHT }: FrequencyHudProps): React.ReactElement => {
   const { source, ticker, hint } = useHud()
+  const layout = frequencyLayout(barHeight)
+  const { barAreaH, bandsH, height } = layout
   const canvasRef = useRef<HTMLCanvasElement>(null)
   // The draw loop reads the selection on each tick, and a click toggles the latest one.
   const enabledBandsRef = useRef(enabledBands)
@@ -142,11 +160,11 @@ export const FrequencyHud = ({ enabledBands, onEnabledBandsChange }: FrequencyHu
     const ctx = canvas.getContext('2d')
     if (!ctx) return
     const riserMeter = new RiserLevel()
-    const resolution = trackCanvasResolution(canvas, W, H)
+    const resolution = trackCanvasResolution(canvas, W, height)
 
     const draw = (): void => {
       resolution.apply(ctx)
-      ctx.clearRect(0, 0, W, H)
+      ctx.clearRect(0, 0, W, height)
 
       // The bars show the same bands the beat detector listens to: level, the level a hit had to pass, and a flash
       // on the band that actually set off a beat.
@@ -170,12 +188,12 @@ export const FrequencyHud = ({ enabledBands, onEnabledBandsChange }: FrequencyHu
 
         // Bar background
         ctx.fillStyle = hovered ? (enabled ? '#181818' : '#0d1626') : enabled ? '#111' : '#0a0a0a'
-        roundRect(ctx, x, 0, BAR_W, BAR_AREA_H, RADIUS)
+        roundRect(ctx, x, 0, BAR_W, barAreaH, RADIUS)
 
         // Energy fill — gradient bottom to top
-        const fillH = Math.round(energy * BAR_AREA_H)
+        const fillH = Math.round(energy * barAreaH)
         if (fillH > 0) {
-          const grad = ctx.createLinearGradient(0, BAR_AREA_H - fillH, 0, BAR_AREA_H)
+          const grad = ctx.createLinearGradient(0, barAreaH - fillH, 0, barAreaH)
           if (hovered && enabled) {
             // Hovering an active band previews turning it off: wash it toward gray.
             grad.addColorStop(0, '#9a9a9a')
@@ -196,12 +214,12 @@ export const FrequencyHud = ({ enabledBands, onEnabledBandsChange }: FrequencyHu
             grad.addColorStop(1, bandColor(i, 18))
           }
           ctx.fillStyle = grad
-          roundRect(ctx, x, BAR_AREA_H - fillH, BAR_W, fillH, RADIUS)
+          roundRect(ctx, x, barAreaH - fillH, BAR_W, fillH, RADIUS)
         }
 
         // Trigger notch: the level the band has to pass to count as a hit (only when enabled)
         if (enabled && avg > 0) {
-          const avgY = BAR_AREA_H - Math.round(avg * BAR_AREA_H)
+          const avgY = barAreaH - Math.round(avg * barAreaH)
           ctx.fillStyle = 'rgba(255,255,255,0.25)'
           ctx.fillRect(x, avgY, BAR_W, 1)
         }
@@ -209,7 +227,7 @@ export const FrequencyHud = ({ enabledBands, onEnabledBandsChange }: FrequencyHu
         // Hit flash
         if (enabled && peakVal > 0.01 && fillH > 0) {
           const flashH = Math.max(3, Math.round(peakVal * 10))
-          const flashY = BAR_AREA_H - fillH
+          const flashY = barAreaH - fillH
           const flashGrad = ctx.createLinearGradient(0, flashY, 0, flashY + flashH)
           flashGrad.addColorStop(0, `rgba(255, 255, 255, ${peakVal * 0.9})`)
           flashGrad.addColorStop(1, 'rgba(255, 255, 255, 0)')
@@ -227,11 +245,11 @@ export const FrequencyHud = ({ enabledBands, onEnabledBandsChange }: FrequencyHu
         }
         ctx.font = '9px monospace'
         ctx.textAlign = 'center'
-        ctx.fillText(LABELS[i] ?? '', x + BAR_W / 2, BANDS_H - 2)
+        ctx.fillText(LABELS[i] ?? '', x + BAR_W / 2, bandsH - 2)
       }
 
-      drawInstrumentLights(ctx, source, now)
-      drawRiserMeter(ctx, source, riserMeter, now)
+      drawInstrumentLights(ctx, layout, source, now)
+      drawRiserMeter(ctx, layout, source, riserMeter, now)
     }
 
     const unsubscribe = ticker(draw, canvas)
@@ -239,15 +257,15 @@ export const FrequencyHud = ({ enabledBands, onEnabledBandsChange }: FrequencyHu
       resolution.stop()
       unsubscribe()
     }
-  }, [source, ticker])
+  }, [source, ticker, barHeight])
 
   // The band under the pointer, or null between bands' ends or on the instrument row below the labels (which toggles nothing).
   const bandAt = useCallback((e: React.MouseEvent<HTMLCanvasElement>): number | null => {
     const rect = e.currentTarget.getBoundingClientRect()
-    if (((e.clientY - rect.top) / rect.height) * H > BANDS_H) return null
+    if (((e.clientY - rect.top) / rect.height) * height > bandsH) return null
     const band = Math.floor((((e.clientX - rect.left) / rect.width) * W) / (BAR_W + GAP))
     return band >= 0 && band < VISIBLE_BANDS ? band : null
-  }, [])
+  }, [height, bandsH])
 
   const handlePointerMove = useCallback((e: React.PointerEvent<HTMLCanvasElement>): void => {
     // Touch has no hover; tracking it would leave the band highlighted after a tap.
@@ -271,7 +289,7 @@ export const FrequencyHud = ({ enabledBands, onEnabledBandsChange }: FrequencyHu
         <canvas
           ref={canvasRef}
           width={W}
-          height={H}
+          height={height}
           className='frequency-hud-canvas'
           onClick={handleClick}
           onPointerMove={handlePointerMove}
