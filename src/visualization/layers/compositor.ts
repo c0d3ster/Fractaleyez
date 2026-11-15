@@ -148,8 +148,9 @@ export class LayerCompositor {
     if (existing) return existing
     const { x, y } = this.renderer.getDrawingBufferSize(new THREE.Vector2())
     const [w, h] = this.targetSize(key, x, y)
-    // No depth buffer: every layer draws with depth testing off (additive points, full-screen quads, sorted sprites), so one would only cost memory bandwidth to clear.
-    const target = new THREE.WebGLRenderTarget(w, h, { depthBuffer: false })
+    // Only the logo needs a depth buffer: its opaque caps and walls hide the far face and the inside of the 3D solid. The other
+    // layers draw with depth testing off (additive points, full-screen quads), so one would only cost memory bandwidth to clear.
+    const target = new THREE.WebGLRenderTarget(w, h, { depthBuffer: key === 'logo' })
     this.targets.set(key, target)
     return target
   }

@@ -13,6 +13,7 @@ import { getMusicSpeedMultiplier } from '../music-speed'
 import { createBicubicUniforms, enableBicubicMap } from './bicubic-map'
 import { fillFromEdges } from './edge-fill'
 import { Layer } from './layer'
+import { LogoSolid } from './logo-solid'
 import { traceWalls, type WallMesh } from './logo-walls'
 
 // Local distance in front of the camera. The logo fills `logoConfig.baseHeightFraction` of the viewport height at Size 1.
@@ -24,6 +25,7 @@ const SHAKE_VIEWPORT_FRACTION = 0.05
 // edge it stands on. Just inside each face is a cap: the shape cut out at the same cutoff and drawn solid with depth, from a copy of
 // the image with every solid pixel recolored to the nearest edge (edge-fill.ts). Caps and walls close the solid, so where a face is
 // faded out (below) or see-through, a turned logo shows a solid in its edge colors instead of its hollow inside and the far face.
+// The plain logo and every zoom copy are each one such solid (logo-solid.ts).
 const DEPTH_FRACTION = 0.1
 const SIDE_ALPHA_CUTOFF = 0.5
 // How far each cap sits inside its face, as a fraction of the thickness, so a face never fights its own cap for depth.
@@ -43,7 +45,7 @@ const FACE_FADE_END = 0.05
 // fifth as far as 500); lower lifts the small Sways, so at 0.5 Sway 100 leans about 45% as far and Sway 20 about 20%.
 const SWAY_LEAN_EXPONENT = 0.5
 
-// Endless zoom: flying into a point of the image. The image is drawn as a chain of copies, each `ZOOM_RATIO` times
+// Endless zoom: flying into a point of the image. The logo is drawn as a chain of flat copies, each `ZOOM_RATIO` times
 // smaller than the one before and placed so the focus point of every copy lands on the focus point of the one it sits
 // in (a Droste). Zooming scales the whole chain up around the focus. A copy fades out around the logo's own size (what
 // Size sets, the same as with Zoom off): it is fully opaque until `ZOOM_FADE_START` levels (the logo's own size) and
@@ -106,21 +108,6 @@ const toGeometry = ({ positions, colors, indices }: WallMesh): THREE.BufferGeome
   return geometry
 }
 
-/** A plane of the logo at depth `z` (unit space) drawn with `material`, which is returned. */
-const addPlane = (parent: THREE.Group, geometry: THREE.PlaneGeometry, material: THREE.MeshBasicMaterial, z: number): THREE.MeshBasicMaterial => {
-  const mesh = new THREE.Mesh(geometry, material)
-  mesh.position.z = z
-  parent.add(mesh)
-  return material
-}
-
-const assignMap = (materials: THREE.MeshBasicMaterial[], map: THREE.Texture | null): void => {
-  materials.forEach((material) => {
-    material.map = map
-    material.needsUpdate = true
-  })
-}
-
 const hasSize = (image: unknown): image is { width: number; height: number } =>
   typeof image === 'object' && image !== null && 'width' in image && 'height' in image
   && typeof image.width === 'number' && typeof image.height === 'number' && image.width > 0 && image.height > 0
@@ -134,35 +121,22 @@ export class LogoLayer implements Layer {
   private readonly scene = new THREE.Scene()
   private readonly cameraManager = new CameraManager()
   // Planes, not a Sprite (which always faces the camera), so the logo can turn on its vertical axis. Both faces draw,
-  // so the back shows the image mirrored. The group's scale sets the logo size and, on z, the thickness; the faces
-  // sit at unit z -0.5 and 0.5, and the walls run between them.
+  // so the back shows the image mirrored. The group's scale sets the logo size and, on z, the thickness.
   private readonly geometry = new THREE.PlaneGeometry(1, 1)
+  // The traced walls, one geometry every solid shares.
+  private wallGeometry = new THREE.BufferGeometry()
+  private hasWalls = false
   // The lean toward the camera position turns this pivot, and the spin turns `logo` inside it, so the two compose
   // (the spin stays about the logo's own axis, whichever way it leans).
   private readonly pivot = new THREE.Group()
   private readonly logo = new THREE.Group()
   private readonly faceNormal = new THREE.Vector3()
-  // Back then front: transparent without depth writes, so their soft edges blend over what is behind.
-  private readonly faces: THREE.MeshBasicMaterial[] = [-0.5, 0.5].map((z) =>
-    addPlane(this.logo, this.geometry, new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide }), z))
-  // Opaque cutouts that write depth, just inside the faces, so nothing behind a face shows through the shape.
-  private readonly caps: THREE.MeshBasicMaterial[] = [-0.5 + CAP_INSET, 0.5 - CAP_INSET].map((z) =>
-    addPlane(this.logo, this.geometry, new THREE.MeshBasicMaterial({ alphaTest: SIDE_ALPHA_CUTOFF, side: THREE.DoubleSide }), z))
-  // Unlit and opaque, in the vertex colors the trace gives each wall. Only the outside draws: every wall faces out of the solid.
-  private readonly wallMaterial = new THREE.MeshBasicMaterial({ vertexColors: true })
-  private readonly walls = new THREE.Mesh(new THREE.BufferGeometry(), this.wallMaterial)
-  private hasWalls = false
-  // The chain of copies for the endless zoom, biggest first so each draws over the one it sits in.
-  private readonly zoomCopies: THREE.Mesh[] = []
-  private readonly zoomMaterials: THREE.MeshBasicMaterial[] = Array.from({ length: ZOOM_COPIES }, (_, i): THREE.MeshBasicMaterial => {
-    const material = new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide })
-    const mesh = new THREE.Mesh(this.geometry, material)
-    mesh.renderOrder = i
-    mesh.visible = false
-    this.logo.add(mesh)
-    this.zoomCopies.push(mesh)
-    return material
-  })
+  private readonly plain = new LogoSolid(this.geometry, this.wallGeometry, { capInset: CAP_INSET, alphaCutoff: SIDE_ALPHA_CUTOFF })
+  // The chain of copies for the endless zoom, biggest first.
+  private readonly zoomCopies: LogoSolid[] = Array.from({ length: ZOOM_COPIES }, (): LogoSolid =>
+    new LogoSolid(this.geometry, this.wallGeometry, { capInset: CAP_INSET, alphaCutoff: SIDE_ALPHA_CUTOFF }))
+  // In drawing order, each in its own pass: the plain logo, then the chain biggest first, so each copy draws over the one it sits in.
+  private readonly solids: LogoSolid[] = [this.plain, ...this.zoomCopies]
   private zoomPhase = 0
   // 0 is the plain logo, 1 is the zoom chain; it follows the Zoom switch over the Crossfade Duration so toggling it fades.
   private zoomMix = 0
@@ -172,7 +146,7 @@ export class LogoLayer implements Layer {
   private bearing = 0
   private readonly headingFollower = new HeadingFollower(logoHeading)
   // Every material the glow brightens.
-  private readonly glowing: THREE.MeshBasicMaterial[] = [...this.faces, ...this.caps, this.wallMaterial, ...this.zoomMaterials]
+  private readonly glowing: THREE.MeshBasicMaterial[] = this.solids.flatMap((solid) => solid.tinted)
   private spriteUrl = ''
   private texture: THREE.Texture | null = null
   // The caps' own copy of the image without mipmaps. Seen nearly edge-on, a mipmapped lookup averages the whole image
@@ -184,11 +158,12 @@ export class LogoLayer implements Layer {
 
   constructor(private readonly renderer: THREE.WebGLRenderer) {
     // The bicubic lookup needs fragment derivatives, which only WebGL2 has without an extension.
-    if (renderer.capabilities.isWebGL2) [...this.faces, ...this.zoomMaterials].forEach((material) => enableBicubicMap(material, this.bicubic))
+    if (renderer.capabilities.isWebGL2) {
+      this.solids.flatMap((solid) => solid.faces).forEach((material) => enableBicubicMap(material, this.bicubic))
+    }
     this.cameraManager.init()
     const camera = this.cameraManager.getCamera()
-    this.walls.visible = false
-    this.logo.add(this.walls)
+    this.solids.forEach((solid) => this.logo.add(solid.group))
     this.pivot.add(this.logo)
     camera.add(this.pivot)
     this.pivot.position.z = -LOGO_DISTANCE
@@ -204,7 +179,15 @@ export class LogoLayer implements Layer {
     // Transparent, not black: the compositor covers what is behind the logo by its alpha (the `over` blend).
     this.renderer.setClearColor(0x000000, 0)
     this.renderer.clear()
-    this.renderer.render(this.scene, camera)
+    // One pass per shown solid, with only that solid visible and the depth cleared first, so solids never hide each other.
+    const { autoClear } = this.renderer
+    this.renderer.autoClear = false
+    this.solids.filter((solid) => solid.isShown).forEach((shown) => {
+      this.solids.forEach((solid) => { solid.group.visible = solid === shown })
+      this.renderer.clearDepth()
+      this.renderer.render(this.scene, camera)
+    })
+    this.renderer.autoClear = autoClear
     this.renderer.setClearColor(0x000000, 1)
     this.renderer.setRenderTarget(null)
   }
@@ -220,8 +203,8 @@ export class LogoLayer implements Layer {
 
   dispose = (): void => {
     this.releaseTexture()
-    this.glowing.forEach((material) => material.dispose())
-    this.walls.geometry.dispose()
+    this.solids.forEach((solid) => solid.dispose())
+    this.wallGeometry.dispose()
     this.geometry.dispose()
   }
 
@@ -233,7 +216,7 @@ export class LogoLayer implements Layer {
     this.spriteUrl = url
     if (!url) return
     this.texture = acquireSpriteTexture(getResolvedSpriteUrl(url))
-    this.setMap(this.texture)
+    this.applyMaps()
   }
 
   private releaseTexture = (): void => {
@@ -241,37 +224,40 @@ export class LogoLayer implements Layer {
     this.texture = null
     this.capTexture?.dispose()
     this.capTexture = null
-    assignMap(this.caps, null)
     this.setWalls(null)
-    this.setMap(null)
+    this.applyMaps()
     this.logo.visible = false
   }
 
-  private setMap = (map: THREE.Texture | null): void => {
-    assignMap(this.faces, map)
-    assignMap(this.zoomMaterials, map)
+  private applyMaps = (): void => {
+    this.solids.forEach((solid) => solid.setMaps(this.texture, this.capTexture))
   }
 
   /** Swaps in the walls of a newly traced image, or none. */
   private setWalls = (walls: WallMesh | null): void => {
-    this.walls.geometry.dispose()
-    this.walls.geometry = walls ? toGeometry(walls) : new THREE.BufferGeometry()
+    this.wallGeometry.dispose()
+    this.wallGeometry = walls ? toGeometry(walls) : new THREE.BufferGeometry()
+    this.solids.forEach((solid) => solid.setWalls(this.wallGeometry))
     this.hasWalls = walls !== null && walls.indices.length > 0
   }
 
-  /** Lays out the chain of copies at the current zoom phase; the unit plane spans [-0.5, 0.5], so the focus is an offset from the middle. */
-  private updateZoom = (focus: FocusPoint, opacity: number): void => {
+  /**
+   * Lays out the chain of copies at the current zoom phase; the unit plane spans [-0.5, 0.5], so the focus is an offset from the middle.
+   * The copies are flat (no extrusion) while zooming: the plain thick logo crossfades to them. A thick chain was tried and parked on the
+   * branch `experiment/logo-3d-zoom`, since its origin could not match 3D off without a visible hop while the logo spins (see the 3D
+   * logo zoom note in docs/implementation-plans/visualizer-layers.md).
+   */
+  private updateZoom = (focus: FocusPoint, opacity: number, faceOpacity: number): void => {
     const px = focus.x - 0.5
     const py = 0.5 - focus.y // image y runs down, the plane's runs up
-    this.zoomCopies.forEach((mesh, i) => {
+    this.zoomCopies.forEach((copy, i) => {
       const level = this.zoomPhase - (i + ZOOM_FIRST_COPY)
       const scale = Math.pow(ZOOM_RATIO, level)
-      mesh.scale.set(scale, scale, 1)
-      mesh.position.set(px * (1 - scale), py * (1 - scale), 0)
+      copy.group.scale.set(scale, scale, 1)
+      copy.group.position.set(px * (1 - scale), py * (1 - scale), 0)
       const fadeOut = 1 - THREE.MathUtils.smoothstep(level, ZOOM_FADE_START, ZOOM_FADE_END)
       const fadeIn = THREE.MathUtils.smoothstep(level, ZOOM_FADE_IN_START, ZOOM_FADE_IN_END)
-      const material = this.zoomMaterials[i]
-      if (material) material.opacity = fadeOut * fadeIn * opacity
+      copy.update({ is3D: false, hasWalls: this.hasWalls, opacity: fadeOut * fadeIn * opacity, faceOpacity })
     })
   }
 
@@ -285,8 +271,15 @@ export class LogoLayer implements Layer {
     const read = isDrawable(image) && hasSize(image) ? readBack(image, image.width, image.height) : null
     if (read) {
       const { context, pixels: { data, width, height } } = read
-      this.setWalls(traceWalls(data, width, height, SIDE_ALPHA_CUTOFF * 255))
-      data.set(fillFromEdges(data, width, height, SIDE_ALPHA_CUTOFF * 255))
+      const cutoff = SIDE_ALPHA_CUTOFF * 255
+      this.setWalls(traceWalls(data, width, height, cutoff))
+      const filled = fillFromEdges(data, width, height, cutoff)
+      // The caps draw blended (so a fading zoom copy fades them too), so their solid part is made fully opaque; the alpha test
+      // still cuts them at the cutoff.
+      for (let i = 3; i < filled.length; i += 4) {
+        if ((filled[i] ?? 0) >= cutoff) filled[i] = 255
+      }
+      data.set(filled)
       context.putImageData(read.pixels, 0, 0)
     }
     const texture = read ? new THREE.CanvasTexture(read.context.canvas) : source.clone()
@@ -298,7 +291,7 @@ export class LogoLayer implements Layer {
     texture.minFilter = THREE.LinearFilter
     texture.needsUpdate = true
     this.capTexture = texture
-    assignMap(this.caps, texture)
+    this.applyMaps()
   }
 
   private animate = (deltaTime: number, audio: AudioSnapshot): void => {
@@ -331,8 +324,9 @@ export class LogoLayer implements Layer {
     const is3D = logo.threeD.value
     // Flat: only the near face draws and the image rolls in the screen plane (positive is clockwise, like Rotation).
     // 3D: turns around the vertical axis through the logo's center, like a planet on its axis.
-    // Zoom swaps the thick logo for the chain of flat copies (they spin and lean with the rest), crossfading over the
-    // Crossfade Duration. The chain starts at the logo's own size, so it takes over from the plain logo without a jump.
+    // Zoom swaps the plain logo for the chain of copies, each as thick as the plain logo at its size (they spin and lean
+    // with the rest), crossfading over the Crossfade Duration. The chain starts at the logo's own size, so it takes over
+    // from the plain logo without a jump.
     const crossfadeMs = getParticleCrossfadeDurationMs()
     const zoomTarget = logo.zoom.value ? 1 : 0
     if (!this.zoomMixPlaced) {
@@ -342,12 +336,6 @@ export class LogoLayer implements Layer {
     this.zoomMix = crossfadeMs > 0 ? moveToward(this.zoomMix, zoomTarget, deltaTime / crossfadeMs) : zoomTarget
     const isZooming = this.zoomMix > 0
     if (!isZooming) this.zoomPhase = 0
-    // The caps and walls cannot fade (they are opaque, not blended), so they give way as soon as the chain starts.
-    const showSides = is3D && !isZooming
-    this.caps.forEach((material) => { material.visible = showSides })
-    this.walls.visible = showSides && this.hasWalls
-    this.faces.forEach((material, i) => { material.visible = this.zoomMix < 1 && (is3D || i === this.faces.length - 1) })
-    this.zoomCopies.forEach((mesh) => { mesh.visible = isZooming })
     // A drag on the Spin dial turns the logo by the difference at once; the speed carries on from there.
     this.bearing = wrapAngle(this.bearing + this.headingFollower.takeTurn(this.bearing) + spin)
     logoHeading.report(this.bearing)
@@ -373,13 +361,14 @@ export class LogoLayer implements Layer {
     const faceOpacity = is3D
       ? THREE.MathUtils.smoothstep(Math.abs(this.faceNormal.z), FACE_FADE_END, FACE_FADE_START)
       : 1
-    this.faces.forEach((material) => { material.opacity = faceOpacity * (1 - this.zoomMix) })
+    this.plain.update({ is3D, hasWalls: this.hasWalls, opacity: 1 - this.zoomMix, faceOpacity })
     if (isZooming) {
       // The user Speed sets the zoom rate, and the music speeds it up like it does Orbit.
       const levelsPerSecond = window.config.user.speed.value * ZOOM_DOUBLINGS_PER_SPEED / Math.log2(ZOOM_RATIO) * getMusicSpeedMultiplier(audio)
       this.zoomPhase = wrap01(this.zoomPhase + levelsPerSecond * (deltaTime / 1000))
-      this.updateZoom({ x: logo.focusX.value, y: logo.focusY.value }, faceOpacity * this.zoomMix)
     }
+    // Run at zoomMix 0 too, which hides the chain.
+    this.updateZoom({ x: logo.focusX.value, y: logo.focusY.value }, this.zoomMix, faceOpacity)
     // The Effects glow switch drives the logo too, with the same formula as the global bloom.
     const glow = window.config.effects.glow.value ? Math.min(1, beat.value * beat.energy) : 0
     this.glowing.forEach((material) => material.color.setScalar(1 + glow))
