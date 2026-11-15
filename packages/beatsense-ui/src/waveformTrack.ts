@@ -6,7 +6,10 @@ import { drawDrumMark, drumMarkY } from './drumMarks'
 // themselves, and the beat grid along a ruler on top. Kept apart from the React component so the bench can time it on its own
 // (scripts/section-eval/bench-cpu.mts). Everything is allocated once: a tick only writes into typed arrays and issues draw calls.
 
+/** The canvas's width in units, by default (wide, beside the Frequency HUD). */
 export const WAVEFORM_W = 360
+/** The width when stacked under the Frequency HUD in a narrow column: its own width, so a unit is as big on screen as one of its. */
+export const STACKED_WAVEFORM_W = 180
 export const WAVEFORM_H = 120
 // How much is kept, and how much is shown: 6 s (three bars at dance tempos) unless zoomed, between MIN_VIEW_MS and the whole history.
 export const WAVEFORM_HISTORY_MS = 16000
@@ -25,9 +28,9 @@ const RULER_H = 20
 const HIT_STRIP_H = 8
 // The drum row, when on, under the hit strip and added to the HUD's height (the waveform keeps its own): a mark per drum the classifier
 // calls (drumMarks.ts), each drum in a row of its own, hat on top to kick at the bottom, so drums on one beat never cover each other. The
-// marks are a little smaller than the Frequency HUD's drum lights (16 units here against their 20 at the same width, about 2 px less in the
-// app's config column), so the waveform stays what the eye goes to.
-const DRUM_MARK_SIZE = 16
+// marks are 8 units, smaller than the Frequency HUD's 10-unit drum lights at the same scale (the stacked width), so the waveform stays
+// what the eye goes to.
+const DRUM_MARK_SIZE = 8
 const DRUM_LANE_GAP = 2
 const DRUM_ROW_H = 4 * DRUM_MARK_SIZE + 3 * DRUM_LANE_GAP + 2
 const DRUM_ROW_GAP = 2
@@ -63,6 +66,8 @@ export const waveformLayout = (drumRow: boolean): WaveformLayout => {
 }
 
 export type WaveformOptions = {
+  /** The canvas's width in units (WAVEFORM_W by default). Narrower draws everything larger for the same width on screen. */
+  width?: number
   /** A row under the hit strip marking each drum the hit classifier calls (feed it with recordDrums). Off by default. */
   drumRow?: boolean
 }
@@ -147,8 +152,12 @@ export class WaveformTrack {
   private drumHead = 0
   private drumCount = 0
 
-  constructor({ drumRow = false }: WaveformOptions = {}) {
+  /** The canvas's width in units. */
+  readonly width: number
+
+  constructor({ drumRow = false, width = WAVEFORM_W }: WaveformOptions = {}) {
     this.layout = waveformLayout(drumRow)
+    this.width = width
   }
 
   /** The canvas's height in units (taller with the drum row). */
@@ -210,7 +219,7 @@ export class WaveformTrack {
   }
 
   draw = (ctx: WaveformContext, view: WaveformView): void => {
-    ctx.clearRect(0, 0, WAVEFORM_W, this.layout.height)
+    ctx.clearRect(0, 0, this.width, this.layout.height)
     this.drawIgnore(ctx, view)
     this.drawBands(ctx, view)
     this.drawTriggers(ctx, view)
@@ -252,10 +261,10 @@ export class WaveformTrack {
     return now - this.hitTimes[at]! > viewMs ? -1 : at
   }
 
-  private toX = (t: number, { now, viewMs }: WaveformView): number => WAVEFORM_W - ((now - t) / viewMs) * WAVEFORM_W
+  private toX = (t: number, { now, viewMs }: WaveformView): number => this.width - ((now - t) / viewMs) * this.width
 
   // How many columns are merged into one drawn bar, so a wide view never draws more bars than there are pixels.
-  private step = ({ viewMs }: WaveformView): number => Math.max(1, Math.ceil(viewMs / WAVEFORM_W / COLUMN_MS))
+  private step = ({ viewMs }: WaveformView): number => Math.max(1, Math.ceil(viewMs / this.width / COLUMN_MS))
 
   // The first drawn group, aligned to a multiple of the step so the groups do not shimmer as the strip scrolls.
   private firstGroup = (view: WaveformView, step: number): number => {
@@ -265,11 +274,11 @@ export class WaveformTrack {
 
   // Ignore Time after each hit: the detector is blind in this stretch, so a hit that lands in it is dropped.
   private drawIgnore = (ctx: WaveformContext, view: WaveformView): void => {
-    const width = (view.ignoreMs / view.viewMs) * WAVEFORM_W
+    const width = (view.ignoreMs / view.viewMs) * this.width
     ctx.fillStyle = IGNORE_FILL
     for (let k = 0, at = this.hitSlot(0, view.now, view.viewMs); at >= 0; at = this.hitSlot(++k, view.now, view.viewMs)) {
       const x = this.toX(this.hitTimes[at]!, view)
-      ctx.fillRect(x, this.layout.plotTop, Math.min(WAVEFORM_W - x, width), this.layout.plotH)
+      ctx.fillRect(x, this.layout.plotTop, Math.min(this.width - x, width), this.layout.plotH)
     }
   }
 
@@ -277,7 +286,7 @@ export class WaveformTrack {
     if (this.newestColumn < 0) return
     const step = this.step(view)
     const first = this.firstGroup(view, step)
-    const width = ((step * COLUMN_MS) / view.viewMs) * WAVEFORM_W
+    const width = ((step * COLUMN_MS) / view.viewMs) * this.width
     const full = view.mirrored ? this.layout.plotH / 2 : this.layout.plotH
     for (let b = 0; b < BANDS; b++) {
       const scale = full * BAND_SCALE[b]!
@@ -302,7 +311,7 @@ export class WaveformTrack {
     const step = this.step(view)
     const first = this.firstGroup(view, step)
     const full = view.mirrored ? this.layout.plotH / 2 : this.layout.plotH
-    const halfStep = ((step * COLUMN_MS) / view.viewMs) * WAVEFORM_W * 0.5
+    const halfStep = ((step * COLUMN_MS) / view.viewMs) * this.width * 0.5
     for (let b = 0; b < BANDS; b++) {
       if (!view.enabled[b]) continue
       const scale = full * BAND_SCALE[b]!
@@ -335,7 +344,7 @@ export class WaveformTrack {
   private drawHits = (ctx: WaveformContext, view: WaveformView): void => {
     ctx.fillStyle = RULER_FILL
     const { hitTop } = this.layout
-    ctx.fillRect(0, hitTop, WAVEFORM_W, HIT_STRIP_H)
+    ctx.fillRect(0, hitTop, this.width, HIT_STRIP_H)
     for (let k = 0, at = this.hitSlot(0, view.now, view.viewMs); at >= 0; at = this.hitSlot(++k, view.now, view.viewMs)) {
       ctx.fillStyle = HIT_COLORS[this.hitBands[at]!]!
       ctx.fillRect(Math.round(this.toX(this.hitTimes[at]!, view)) - 1, hitTop, 3, HIT_STRIP_H)
@@ -357,7 +366,7 @@ export class WaveformTrack {
     DRUM_KINDS.forEach((kind) => {
       if (kind !== 'snare' && kind !== 'hat') return
       const y = drumMarkY(kind, drumTop, DRUM_ROW_H, DRUM_MARK_SIZE)
-      ctx.fillRect(0, y - DRUM_MARK_SIZE / 2 - DRUM_LANE_GAP / 2, WAVEFORM_W, DRUM_MARK_SIZE + DRUM_LANE_GAP)
+      ctx.fillRect(0, y - DRUM_MARK_SIZE / 2 - DRUM_LANE_GAP / 2, this.width, DRUM_MARK_SIZE + DRUM_LANE_GAP)
     })
     for (let k = visible - 1; k >= 0; k--) {
       const at = (this.drumHead - 1 - k + DRUM_CAPACITY) % DRUM_CAPACITY
@@ -371,7 +380,7 @@ export class WaveformTrack {
   // confidence in it when it fired; below CONFIDENCE_LOW it is drawn as a plain beat, so an unsure grid only shows where the beats fall.
   private drawGrid = (ctx: WaveformContext, view: WaveformView): void => {
     ctx.fillStyle = RULER_FILL
-    ctx.fillRect(0, 0, WAVEFORM_W, RULER_H)
+    ctx.fillRect(0, 0, this.width, RULER_H)
     ctx.fillStyle = LINE_COLOR
     for (let k = 0; k < this.beatCount; k++) {
       const at = (this.beatHead - 1 - k + BEAT_CAPACITY) % BEAT_CAPACITY

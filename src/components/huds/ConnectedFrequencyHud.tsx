@@ -6,8 +6,13 @@ import { useConfigContext } from '../config/context/ConfigProvider'
 
 const VISIBLE_BANDS = ONSET_BANDS.length
 
+type ConnectedFrequencyHudProps = {
+  /** The bars' height in the HUD's units (FrequencyHud's `barHeight`). */
+  barHeight?: number
+}
+
 /** The Frequency HUD with its band toggles wired to the user's saved settings and to window.enabledFreqBands, which the beat detector reads. */
-export const ConnectedFrequencyHud = (): React.ReactElement => {
+export const ConnectedFrequencyHud = ({ barHeight }: ConnectedFrequencyHudProps): React.ReactElement => {
   const { userSettings, updateUserSettings } = useConfigContext()
   // Persisted settings (loaded async from /api/me) take priority once they arrive; until then,
   // fall back to whatever the live global already holds (e.g. from an earlier session tab).
@@ -35,5 +40,5 @@ export const ConnectedFrequencyHud = (): React.ReactElement => {
     updateUserSettings({ hud: { enabledFreqBands: next } })
   }, [updateUserSettings])
 
-  return <FrequencyHud enabledBands={enabledBands} onEnabledBandsChange={handleEnabledBandsChange} />
+  return <FrequencyHud enabledBands={enabledBands} onEnabledBandsChange={handleEnabledBandsChange} barHeight={barHeight} />
 }
