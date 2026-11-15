@@ -40,8 +40,8 @@ const saveMirrored = (mirrored: boolean): void => {
 
 export type BeatHudProps = {
   /**
-   * A row under the hit strip marking each drum the hit classifier calls (from the source's getDrumHits), each on its own level from kick
-   * at the bottom to hat on top: kick a red circle, snare a yellow square, clap a pink triangle, hat a teal diamond, as big as the
+   * A row under the hit strip marking each drum the hit classifier calls (from the source's getDrumHits), each drum in a row of its own
+   * from kick at the bottom to hat on top: kick a red circle, snare a yellow square, clap a pink triangle, hat a teal diamond, as big as the
    * Frequency HUD's drum lights when both HUDs are as wide. It adds to the HUD's height; the waveform keeps its own. Off by default.
    */
   drumRow?: boolean

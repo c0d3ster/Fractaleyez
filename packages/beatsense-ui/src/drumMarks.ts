@@ -25,7 +25,10 @@ export const DRUM_SHAPES: Record<DrumKind, DrumShape> = {
 /** Each drum's level in the drum row, from the bottom. */
 export const DRUM_LEVELS: Record<DrumKind, number> = { kick: 0, snare: 1, clap: 2, hat: 3 }
 
-/** Where a drum's mark is centered in a row `height` tall from `top`, for marks `size` across: the four levels evenly from bottom to top. */
+/**
+ * Where a drum's mark is centered in a row `height` tall from `top`, for marks `size` across: the four levels evenly from bottom to top
+ * (apart by more than a mark, so not overlapping, when the row has room for four marks).
+ */
 export const drumMarkY = (kind: DrumKind, top: number, height: number, size: number): number => {
   const step = (height - size - 2) / 3
   return top + height - 1 - size / 2 - DRUM_LEVELS[kind] * step

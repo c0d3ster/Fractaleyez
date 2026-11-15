@@ -45,8 +45,8 @@ describe('the drum row layout', () => {
     expect(on.plotH).toBe(off.plotH)
     expect(on.hitTop).toBe(off.hitTop)
     expect(on.drumTop).toBeGreaterThanOrEqual(WAVEFORM_H)
-    expect(on.height).toBe(174)
-    expect(new WaveformTrack({ drumRow: true }).height).toBe(174)
+    expect(on.height).toBe(210)
+    expect(new WaveformTrack({ drumRow: true }).height).toBe(210)
   })
 })
 
@@ -78,14 +78,13 @@ describe('the drum row', () => {
     expect(hidden.marks.filter(({ color }) => color === DRUM_COLORS.kick)).toHaveLength(0)
   })
 
-  it('gives each drum its own level, kick at the bottom to hat on top, all inside the row', () => {
-    const levels = (['kick', 'snare', 'clap', 'hat'] as const).map((kind) => drumMarkY(kind, 100, 52, 20))
+  it('gives each drum a row of its own, kick at the bottom to hat on top, all inside the drum row', () => {
+    const levels = (['kick', 'snare', 'clap', 'hat'] as const).map((kind) => drumMarkY(kind, 100, 88, 20))
     expect(levels).toEqual([...levels].sort((a, b) => b - a))
-    expect(new Set(levels).size).toBe(4)
-    expect(levels[0]! + 10).toBeLessThanOrEqual(152)
+    expect(levels[0]! + 10).toBeLessThanOrEqual(188)
     expect(levels[3]! - 10).toBeGreaterThanOrEqual(100)
-    // Neighbouring levels overlap by no more than half a mark, so each shape still shows.
-    for (let i = 1; i < 4; i++) expect(levels[i - 1]! - levels[i]!).toBeGreaterThanOrEqual(10)
+    // A mark apart and then some: drums on one beat never cover each other.
+    for (let i = 1; i < 4; i++) expect(levels[i - 1]! - levels[i]!).toBeGreaterThanOrEqual(20)
   })
 
   it('gives each drum its own shape', () => {
