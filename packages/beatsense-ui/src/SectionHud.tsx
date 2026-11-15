@@ -6,6 +6,7 @@ import { sourceNow, useHud } from './HudContext'
 import { listenWheel, zoomView } from './wheelZoom'
 import { trackCanvasResolution } from './canvasResolution'
 import { agoTicks, formatAgo } from './agoTicks'
+import { slotRuns } from './sectionRuns'
 
 const W = 360
 const H = 56
@@ -58,7 +59,6 @@ const drawTicks = (ctx: CanvasRenderingContext2D, viewMs: number): void => {
 
 const drawStrip = (ctx: CanvasRenderingContext2D, slots: readonly SectionSlot[], now: number, viewMs: number): void => {
   const toX = (t: number): number => W - ((now - t) / viewMs) * W
-  const slotWidth = (250 / viewMs) * W + 1
   // Slots come in time order, so the visible stretch starts where walking back from the newest leaves the view.
   let from = slots.length
   while (from > 0 && now - slots[from - 1]!.t <= viewMs) from--
@@ -67,11 +67,13 @@ const drawStrip = (ctx: CanvasRenderingContext2D, slots: readonly SectionSlot[],
   for (let i = from; i < slots.length; i++) peak = Math.max(peak, slots[i]!.total)
   if (peak <= 0) return
 
-  for (let i = from; i < slots.length; i++) {
-    const slot = slots[i]!
-    ctx.fillStyle = SECTION_COLORS[slot.section]
-    ctx.fillRect(toX(slot.t) - slotWidth, 0, slotWidth, H)
-  }
+  // One rectangle per run of a section: the colors are translucent, so rectangles that overlapped (one per slot, as they used to be)
+  // stacked into stripes.
+  slotRuns(slots, from).forEach(({ section, startMs, endMs }) => {
+    const x = toX(startMs)
+    ctx.fillStyle = SECTION_COLORS[section]
+    ctx.fillRect(x, 0, toX(endMs) - x, H)
+  })
 
   // The energy trace is in dB against the loudest slot shown, so a quiet mic and a loud one read the same.
   ctx.beginPath()
