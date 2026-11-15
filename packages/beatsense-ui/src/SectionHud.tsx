@@ -30,7 +30,7 @@ const SECTION_COLORS: Record<SongSection, string> = {
 const LINE_COLOR = 'rgba(255, 255, 255, 0.75)'
 const TICK_COLOR = 'rgba(255, 255, 255, 0.35)'
 // CSS pixels, whatever size the strip is shown at (its drawing scales with it, so this is converted to its units when drawn).
-const TICK_CSS_PX = 2
+const TICK_CSS_PX = 4
 
 // Whole seconds, so the readout is not drawn again between ticks of the clock.
 const songSeconds = (state: SectionState): number | null => (state.songMs === null ? null : Math.floor(state.songMs / 1000))

@@ -73,8 +73,9 @@
 /* The time marks' labels, over the bottom of the strip, each centered on its mark (drawn in the canvas). They follow the zoom. */
 .section-hud-ticks {
   position: absolute;
-  /* Low, just above the marks, which are 2px tall at any size. No height of its own: each label sits on its bottom edge. */
-  inset: auto 0 3px;
+  /* Low, just above the marks (4px tall at any size): in the app's short strip the labels sit about a third of the way up. No height of
+     its own: each label sits on its bottom edge. */
+  inset: auto 0 5px;
   height: 0;
   pointer-events: none;
 }
