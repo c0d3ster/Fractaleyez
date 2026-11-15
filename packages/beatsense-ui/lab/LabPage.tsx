@@ -66,25 +66,30 @@ export const LabPage = (): React.ReactElement => {
           <RecordBar controls={recording} phase={phase} />
         </div>
         <PlayerBar session={session} phase={phase} recording={recording} />
-        <StatusLine session={session} phase={phase} />
       </header>
-      <main className='lab-huds'>
-        <HudProvider source={source} ticker={session.ticker}>
-          <div className='lab-hud lab-hud-frequency'>
-            <FrequencyHud enabledBands={enabledBands} onEnabledBandsChange={handleEnabledBandsChange} />
-            <LabelButtons controls={recording} actions={DRUM_LABEL_KINDS} name='Drum labels' />
-          </div>
-          <div className='lab-hud lab-hud-beat'>
-            <BeatHud onViewChange={setBeatViewMs} />
-            <DrumStrip session={session} windowMs={beatViewMs} />
-          </div>
-          <div className='lab-hud lab-hud-section'>
-            <SectionHud onViewChange={setSectionViewMs} />
-            <SongStrip session={session} windowMs={sectionViewMs} />
-            <LabelButtons controls={recording} actions={SONG_ACTIONS} name='Song and riser labels' />
-          </div>
-        </HudProvider>
-      </main>
+      <div className='lab-body'>
+        {/* The stats in a column beside the HUDs, in the room the centered HUDs leave, rather than a row of their own. */}
+        <aside className='lab-side'>
+          <StatusLine session={session} phase={phase} />
+        </aside>
+        <main className='lab-huds'>
+          <HudProvider source={source} ticker={session.ticker}>
+            <div className='lab-hud lab-hud-frequency'>
+              <FrequencyHud enabledBands={enabledBands} onEnabledBandsChange={handleEnabledBandsChange} />
+              <LabelButtons controls={recording} actions={DRUM_LABEL_KINDS} name='Drum labels' />
+            </div>
+            <div className='lab-hud lab-hud-beat'>
+              <BeatHud onViewChange={setBeatViewMs} />
+              <DrumStrip session={session} windowMs={beatViewMs} />
+            </div>
+            <div className='lab-hud lab-hud-section'>
+              <SectionHud onViewChange={setSectionViewMs} />
+              <SongStrip session={session} windowMs={sectionViewMs} />
+              <LabelButtons controls={recording} actions={SONG_ACTIONS} name='Song and riser labels' />
+            </div>
+          </HudProvider>
+        </main>
+      </div>
     </div>
   )
 }

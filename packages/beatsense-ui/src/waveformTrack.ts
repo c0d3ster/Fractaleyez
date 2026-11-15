@@ -24,10 +24,10 @@ const RULER_H = 20
 // Hits are marked on a strip along the bottom, so nothing cuts through the waveform but the grid's bar and phrase lines.
 const HIT_STRIP_H = 8
 // The drum row, when on, under the hit strip and added to the HUD's height (the waveform keeps its own): a mark per drum the classifier
-// calls (drumMarks.ts), each drum in a row of its own, kick at the bottom to hat on top, so drums on one beat never cover each other. The
-// marks are as big on screen as the Frequency HUD's drum lights when the two HUDs are as wide (as in the app's config column): its canvas
-// is half as wide in units, so its 10 units are 20 here.
-const DRUM_MARK_SIZE = 20
+// calls (drumMarks.ts), each drum in a row of its own, hat on top to kick at the bottom, so drums on one beat never cover each other. The
+// marks are a little smaller than the Frequency HUD's drum lights (16 units here against their 20 at the same width, about 2 px less in the
+// app's config column), so the waveform stays what the eye goes to.
+const DRUM_MARK_SIZE = 16
 const DRUM_LANE_GAP = 2
 const DRUM_ROW_H = 4 * DRUM_MARK_SIZE + 3 * DRUM_LANE_GAP + 2
 const DRUM_ROW_GAP = 2

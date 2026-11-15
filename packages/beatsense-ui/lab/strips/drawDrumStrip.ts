@@ -6,7 +6,7 @@ import { axisStepMs, drumLanes, formatSecondsAgo, liveView } from '../recording/
 import { timeToX } from '../recording/timeline'
 import { AXIS_PX, drawLane, drawMarks, LANE_GAP_PX, shadeBefore } from './stripParts'
 
-// The strip under the Beat HUD, over the same window: a lane per drum. With a session recording, your labels on the top half and the
+// The strip under the Beat HUD, over the same window: a lane per drum, hat on top to kick at the bottom. With a session recording, your labels on the top half and the
 // model's hits on the bottom half, a pair joined by a line and anything unpaired hollow; with none, the model's hits alone (the variant
 // without labels).
 
@@ -19,7 +19,8 @@ const PAIR_COLOR = 'rgba(120, 220, 140, 0.9)'
 export const drawDrumStrip = (ctx: CanvasRenderingContext2D, width: number, { nowMs, session, drumHits }: StripSnapshot, windowMs: number): void => {
   const view = liveView(nowMs, windowMs)
   const toX = (t: number): number => timeToX(t, view, width)
-  const lanes = drumLanes(session?.labels ?? [], drumHits, view)
+  // Hat on top down to kick at the bottom, as the Beat HUD's drum row stacks them (and drum notation does).
+  const lanes = drumLanes(session?.labels ?? [], drumHits, view).reverse()
   let top = 0
   lanes.forEach(({ kind, labels, hitTimes, comparison }) => {
     drawLane(ctx, width, top, LANE_PX, LABEL_INFO[kind].name)

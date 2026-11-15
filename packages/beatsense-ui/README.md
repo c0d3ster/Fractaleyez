@@ -14,8 +14,8 @@ Private for now, like beatsense. React 18 or 19 is a peer dependency.
   takes an optional `onViewChange(viewMs)`, called on mount and whenever its zoom changes, for anything that should show the same window
   (the lab's drum strip), and an optional `drumRow`: a row under the hit strip marking each drum the classifier calls (from the source's
   `getDrumHits`, kept by the HUD itself), kick a red circle, snare a yellow square, clap a pink triangle, hat a teal diamond, each drum in
-  a row of its own from kick at the bottom to hat on top (almost any two drums can land on one beat), as big as the Frequency HUD's drum
-  lights when both HUDs are as wide. The rows add to the HUD's height (120 to 210 units); the waveform keeps its own. `DRUM_COLORS`,
+  a row of its own from kick at the bottom to hat on top (almost any two drums can land on one beat), a little smaller than the Frequency
+  HUD's drum lights, so the waveform stays the focus. The rows add to the HUD's height (120 to 194 units); the waveform keeps its own. `DRUM_COLORS`,
   `DRUM_SHAPES` and `drawDrumMark` (filled or outlined) are exported for anything that should mark drums the same way. The Fractaleyez app turns it on; the lab leaves it off for its comparison strip.
 - **`FrequencyHud`**: a bar per onset band (level, trigger level, a flash on the band that set off a beat), a light per drum the hit
   classifier names (in the drum's shape, grey until it flashes in the drum's color, as the Beat HUD's drum row marks it), and a riser
@@ -120,7 +120,7 @@ pnpm lab:build   # a static build in lab/dist
 
 Press Start (an audio context needs a click) and allow the microphone. The page then shows:
 
-- A bar on top with the Start button and a status line: the sample rate, the frames a second actually arriving from the capture worklet
+- A bar on top with the Start button, the recording controls and the player; beside the HUDs, a column of stats: the sample rate, the frames a second actually arriving from the capture worklet
   (60 while the microphone feeds it), the microphone's state, and why a start failed (microphone denied or missing, the worklet failing to
   load).
 - The Frequency and Beat HUDs side by side and the Section HUD across the bottom, as large as the window allows (their canvases keep

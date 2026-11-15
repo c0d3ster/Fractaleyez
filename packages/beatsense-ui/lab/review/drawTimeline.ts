@@ -1,4 +1,4 @@
-import { DRUM_KINDS, ONSET_BANDS, type DrumKind, type FrameReading } from 'beatsense'
+import { ONSET_BANDS, type DrumKind, type FrameReading } from 'beatsense'
 
 import { bandColor, RISER_COLOR, SECTION_COLORS, SWEEP_COLOR } from '../colors'
 import { LABEL_INFO, type Label } from '../recording/labels'
@@ -20,7 +20,8 @@ const LANES: Lane[] = [
   { kind: 'section', name: 'Section', height: 16 },
   ...ONSET_BANDS.map((band, b): Lane => ({ kind: 'level', name: band.label, height: 34, band: b })),
   { kind: 'beats', name: 'Beats', height: 18 },
-  ...DRUM_KINDS.map((drum): Lane => ({ kind: 'drum', name: drum, height: 14, drum })),
+  // Hat on top down to kick at the bottom, as the Beat HUD's drum row stacks them.
+  ...(['hat', 'clap', 'snare', 'kick'] as const).map((drum): Lane => ({ kind: 'drum', name: drum, height: 14, drum })),
   { kind: 'bpm', name: 'BPM', height: 40 },
   { kind: 'riser', name: 'Riser', height: 34 },
   { kind: 'sweep', name: 'Sweep', height: 34 },
