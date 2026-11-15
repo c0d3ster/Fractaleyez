@@ -164,8 +164,8 @@ Once the analysis runs, Record starts a session and Stop ends it (a new Record d
 The player row plays a local audio file (open it, or drop it on the page) through the lab's own audio context: Play, Pause, a seek bar,
 **Loop A** then **B** to loop a stretch (a buildup again and again), and **Play & record** to start both at once. **Mic** sends it out
 through the speakers for the microphone to hear, room and all, as the app hears music live; **Direct** feeds it straight into the
-analysis too (the microphone muted to the analysis), clean and with no delay. The track is decoded whole into memory (about 10 MB a
-minute of stereo).
+analysis too (the microphone muted to the analysis), clean and with no delay. The track is decoded whole into memory as 32-bit samples (about 23 MB a minute of stereo at 48 kHz,
+so about 120 MB for a five-minute song).
 
 Every play, seek, loop and pause is logged on the analysis clock (`lab/player/playbackLog.ts`), and a recording made while it plays keeps
 the log for its span (the session's `playback`: the file's name, length and size, the mode and the segments). A pass then maps onto the
