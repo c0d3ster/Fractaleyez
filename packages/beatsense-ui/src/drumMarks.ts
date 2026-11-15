@@ -1,7 +1,10 @@
 import type { DrumKind } from 'beatsense'
 
-// How the Beat HUD's drum row marks each drum the hit classifier calls: a color and a shape per drum (shape too, so the row reads without
-// telling the colors apart), and kick and snare a little lower than hat and clap, so a kick and a hat on the same beat do not stack.
+// How the drums are marked, in the Beat HUD's drum row, the Frequency HUD's lights and the lab's comparison strip: a color and a shape per
+// drum (shape too, so the marks read without telling the colors apart). In the drum row each drum has its own level, ordered as in drum
+// notation and as the Frequency HUD's lights run from low to high: kick at the bottom, then snare, clap, and hat on top. Almost any two
+// drums can land together (the snare or clap on 2 and 4 is on top of a kick, a snare and a clap are often layered, closed hats on 16ths land
+// on everything), so each needs a level of its own.
 
 export const DRUM_COLORS: Record<DrumKind, string> = {
   kick: '#ff6b6b',
@@ -19,9 +22,14 @@ export const DRUM_SHAPES: Record<DrumKind, DrumShape> = {
   hat: 'diamond',
 }
 
-/** Where a drum's mark is centered in a row `height` tall from `top`: kick and snare in the lower part, hat and clap in the upper. */
-export const drumMarkY = (kind: DrumKind, top: number, height: number): number =>
-  top + height * (kind === 'kick' || kind === 'snare' ? 0.64 : 0.36)
+/** Each drum's level in the drum row, from the bottom. */
+export const DRUM_LEVELS: Record<DrumKind, number> = { kick: 0, snare: 1, clap: 2, hat: 3 }
+
+/** Where a drum's mark is centered in a row `height` tall from `top`, for marks `size` across: the four levels evenly from bottom to top. */
+export const drumMarkY = (kind: DrumKind, top: number, height: number, size: number): number => {
+  const step = (height - size - 2) / 3
+  return top + height - 1 - size / 2 - DRUM_LEVELS[kind] * step
+}
 
 /** The canvas calls a mark needs (paths only, so a fake context for the bench and tests needs nothing more than the track already uses). */
 export type MarkContext = Pick<CanvasRenderingContext2D, 'beginPath' | 'moveTo' | 'lineTo' | 'closePath' | 'fill' | 'stroke' | 'fillStyle' | 'strokeStyle' | 'lineWidth'>

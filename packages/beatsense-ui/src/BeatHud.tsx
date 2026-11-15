@@ -3,7 +3,7 @@ import './BeatHud.css'
 
 import { DEFAULT_ENABLED_BANDS, estimateTempo, type RollLevel } from 'beatsense'
 import { sourceNow, useHud } from './HudContext'
-import { DEFAULT_VIEW_MS, MIN_VIEW_MS, WAVEFORM_H, WAVEFORM_HISTORY_MS, WAVEFORM_W, WaveformTrack, WaveformView } from './waveformTrack'
+import { DEFAULT_VIEW_MS, MIN_VIEW_MS, WAVEFORM_HISTORY_MS, WAVEFORM_W, WaveformTrack, waveformLayout, type WaveformView } from './waveformTrack'
 import { listenWheel, zoomView } from './wheelZoom'
 import { trackCanvasResolution } from './canvasResolution'
 
@@ -40,8 +40,9 @@ const saveMirrored = (mirrored: boolean): void => {
 
 export type BeatHudProps = {
   /**
-   * A row under the hit strip marking each drum the hit classifier calls (from the source's getDrumHits): kick a red circle, snare a yellow
-   * square, clap a pink triangle, hat a teal diamond. It takes its height from the waveform. Off by default.
+   * A row under the hit strip marking each drum the hit classifier calls (from the source's getDrumHits), each on its own level from kick
+   * at the bottom to hat on top: kick a red circle, snare a yellow square, clap a pink triangle, hat a teal diamond, as big as the
+   * Frequency HUD's drum lights when both HUDs are as wide. It adds to the HUD's height; the waveform keeps its own. Off by default.
    */
   drumRow?: boolean
   /**
@@ -53,6 +54,8 @@ export type BeatHudProps = {
 
 export const BeatHud = ({ drumRow = false, onViewChange }: BeatHudProps = {}): React.ReactElement => {
   const { source, ticker, hint } = useHud()
+  // Taller with the drum row, which is added below the waveform rather than taken from it.
+  const height = waveformLayout(drumRow).height
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [tempo, setTempo] = useState<TempoShown>({ bpm: null, consistency: null })
   const [rhythm, setRhythm] = useState('')
@@ -110,7 +113,7 @@ export const BeatHud = ({ drumRow = false, onViewChange }: BeatHudProps = {}): R
     const track = new WaveformTrack({ drumRow })
     const view: WaveformView = { now: 0, viewMs: DEFAULT_VIEW_MS, enabled: DEFAULT_ENABLED_BANDS, ignoreMs: 0, mirrored: mirroredRef.current }
     // Redraws right away when the canvas is resized, since a resize clears it.
-    const resolution = trackCanvasResolution(canvas, WAVEFORM_W, WAVEFORM_H, () => redrawRef.current?.())
+    const resolution = trackCanvasResolution(canvas, WAVEFORM_W, track.height, () => redrawRef.current?.())
     const draw = (): void => {
       resolution.apply(ctx)
       updateTempo()
@@ -155,7 +158,7 @@ export const BeatHud = ({ drumRow = false, onViewChange }: BeatHudProps = {}): R
         </span>
       </div>
       <div className='beat-hud' {...hint('Each band over time, dimmed if it cannot trigger a beat. Dashed: the level a hit must pass. Bottom marks: hits, in the band\'s color. Top ruler: beats, bars and 8-bar phrases. Scroll to zoom, double-click to reset, click to flip mirrored.' + (drumRow ? ' Bottom row: the drum classifier\'s calls, kick a red circle, snare a yellow square, clap a pink triangle, hat a teal diamond.' : ''))}>
-        <canvas ref={canvasRef} width={WAVEFORM_W} height={WAVEFORM_H} className='beat-hud-canvas' onClick={handleClick} onDoubleClick={handleDoubleClick} />
+        <canvas ref={canvasRef} width={WAVEFORM_W} height={height} className='beat-hud-canvas' onClick={handleClick} onDoubleClick={handleDoubleClick} />
       </div>
       <div className='beat-hud-bottom-row'>
         <span className='beat-hud-feel' {...hint('The rhythm the drums play, read from the kick, snare and hat bands: a kick on every beat (four on the floor) or a broken kick (breakbeat), or, when it is sure, the drum and bass kick on 1 and the "and" of 3 (two-step). It only names a rhythm it is sure of, so it is often blank: in a breakdown, without a clear beat, or for rhythms it cannot tell apart. A name shows after 2 seconds and clears after 3.')}>
