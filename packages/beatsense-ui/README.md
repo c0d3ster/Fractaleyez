@@ -13,10 +13,10 @@ Private for now, like beatsense. React 18 or 19 is a peer dependency.
   roll. Scroll to zoom, double-click to reset, click to flip between mirrored and growing up from the bottom (kept in localStorage). It
   takes an optional `onViewChange(viewMs)`, called on mount and whenever its zoom changes, for anything that should show the same window
   (the lab's drum strip), and an optional `drumRow`: a row under the hit strip marking each drum the classifier calls (from the source's
-  `getDrumHits`, kept by the HUD itself), kick a red circle, snare a yellow square, clap a pink triangle, hat a teal diamond, kick and
-  snare a little lower than hat and clap so hits on the same beat do not stack (`DRUM_COLORS`, `DRUM_SHAPES` and `drawDrumMark`, filled or
-  outlined, are exported for anything that should mark drums the same way). The row
-  takes its height from the waveform. The Fractaleyez app turns it on; the lab leaves it off for its comparison strip.
+  `getDrumHits`, kept by the HUD itself), kick a red circle, snare a yellow square, clap a pink triangle, hat a teal diamond, each drum on
+  its own level from kick at the bottom to hat on top (almost any two drums can land on one beat), as big as the Frequency HUD's drum
+  lights when both HUDs are as wide. The row adds to the HUD's height (120 to 174 units); the waveform keeps its own. `DRUM_COLORS`,
+  `DRUM_SHAPES` and `drawDrumMark` (filled or outlined) are exported for anything that should mark drums the same way. The Fractaleyez app turns it on; the lab leaves it off for its comparison strip.
 - **`FrequencyHud`**: a bar per onset band (level, trigger level, a flash on the band that set off a beat), a light per drum the hit
   classifier names (in the drum's shape, grey until it flashes in the drum's color, as the Beat HUD's drum row marks it), and a riser
   meter. Clicking a band toggles whether it can set off a beat.

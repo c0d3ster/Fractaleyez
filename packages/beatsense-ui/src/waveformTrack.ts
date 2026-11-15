@@ -23,13 +23,19 @@ const HOLD_MS = 250
 const RULER_H = 20
 // Hits are marked on a strip along the bottom, so nothing cuts through the waveform but the grid's bar and phrase lines.
 const HIT_STRIP_H = 8
-// The drum row, when on, under the hit strip: a mark per drum the classifier calls (drumMarks.ts), taken from the waveform's height.
-const DRUM_ROW_H = 14
-const DRUM_MARK_SIZE = 6.5
+// The drum row, when on, under the hit strip and added to the HUD's height (the waveform keeps its own): a mark per drum the classifier
+// calls (drumMarks.ts), each drum on its own level. The marks are as big on screen as the Frequency HUD's drum lights when the two HUDs are
+// as wide (as in the app's config column): its canvas is half as wide in units, so its 10 units are 20 here. The levels overlap by half a
+// mark, so four drums on one beat still show as four.
+const DRUM_MARK_SIZE = 20
+const DRUM_ROW_H = DRUM_MARK_SIZE * 2.5 + 2
+const DRUM_ROW_GAP = 2
 const DRUM_CAPACITY = 256
 
 /** Where each part of the plot sits, in the HUD's units, with the drum row or without it. */
 export type WaveformLayout = {
+  /** The canvas's height: WAVEFORM_H, plus the drum row when it is on. */
+  height: number
   plotTop: number
   plotBottom: number
   plotH: number
@@ -40,17 +46,17 @@ export type WaveformLayout = {
 }
 
 export const waveformLayout = (drumRow: boolean): WaveformLayout => {
-  const drumH = drumRow ? DRUM_ROW_H : 0
   const plotTop = RULER_H + 2
-  const hitTop = WAVEFORM_H - drumH - HIT_STRIP_H
+  const hitTop = WAVEFORM_H - HIT_STRIP_H
   const plotBottom = hitTop - 2
   return {
+    height: drumRow ? WAVEFORM_H + DRUM_ROW_GAP + DRUM_ROW_H : WAVEFORM_H,
     plotTop,
     plotBottom,
     plotH: plotBottom - plotTop,
     mid: plotTop + (plotBottom - plotTop) / 2,
     hitTop,
-    drumTop: drumRow ? WAVEFORM_H - DRUM_ROW_H : null,
+    drumTop: drumRow ? WAVEFORM_H + DRUM_ROW_GAP : null,
   }
 }
 
@@ -143,6 +149,11 @@ export class WaveformTrack {
     this.layout = waveformLayout(drumRow)
   }
 
+  /** The canvas's height in units (taller with the drum row). */
+  get height(): number {
+    return this.layout.height
+  }
+
   /** Folds in the timeline's samples newer than the last call. The samples are the monitor's own history, oldest first. */
   ingest = (samples: readonly BeatSample[]): void => {
     let from = samples.length
@@ -197,7 +208,7 @@ export class WaveformTrack {
   }
 
   draw = (ctx: WaveformContext, view: WaveformView): void => {
-    ctx.clearRect(0, 0, WAVEFORM_W, WAVEFORM_H)
+    ctx.clearRect(0, 0, WAVEFORM_W, this.layout.height)
     this.drawIgnore(ctx, view)
     this.drawBands(ctx, view)
     this.drawTriggers(ctx, view)
@@ -342,7 +353,7 @@ export class WaveformTrack {
     for (let k = visible - 1; k >= 0; k--) {
       const at = (this.drumHead - 1 - k + DRUM_CAPACITY) % DRUM_CAPACITY
       const kind = DRUM_KINDS[this.drumKinds[at]!]!
-      drawDrumMark(ctx, kind, this.toX(this.drumTimes[at]!, view), drumMarkY(kind, drumTop, DRUM_ROW_H), DRUM_MARK_SIZE)
+      drawDrumMark(ctx, kind, this.toX(this.drumTimes[at]!, view), drumMarkY(kind, drumTop, DRUM_ROW_H, DRUM_MARK_SIZE), DRUM_MARK_SIZE)
     }
   }
 

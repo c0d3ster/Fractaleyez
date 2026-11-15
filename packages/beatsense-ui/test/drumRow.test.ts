@@ -36,16 +36,17 @@ const view = (now: number): WaveformView => ({ now, viewMs: 6000, enabled: [true
 const noHits = { kick: null, hat: null, snare: null, clap: null }
 
 describe('the drum row layout', () => {
-  it('takes its height from the waveform and sits under the hit strip', () => {
+  it('adds its height below the hit strip and leaves the waveform as it was', () => {
     const off = waveformLayout(false)
     const on = waveformLayout(true)
     expect(off.drumTop).toBeNull()
-    expect(off.hitTop).toBe(WAVEFORM_H - 8)
-    expect(on.hitTop).toBe(WAVEFORM_H - 14 - 8)
-    expect(on.drumTop).toBe(WAVEFORM_H - 14)
-    expect(on.plotBottom).toBeLessThan(on.hitTop)
-    expect(on.plotH).toBe(off.plotH - 14)
-    expect(on.mid).toBe(on.plotTop + on.plotH / 2)
+    expect(off.height).toBe(WAVEFORM_H)
+    expect(on.plotTop).toBe(off.plotTop)
+    expect(on.plotH).toBe(off.plotH)
+    expect(on.hitTop).toBe(off.hitTop)
+    expect(on.drumTop).toBeGreaterThanOrEqual(WAVEFORM_H)
+    expect(on.height).toBe(174)
+    expect(new WaveformTrack({ drumRow: true }).height).toBe(174)
   })
 })
 
@@ -77,10 +78,14 @@ describe('the drum row', () => {
     expect(hidden.marks.filter(({ color }) => color === DRUM_COLORS.kick)).toHaveLength(0)
   })
 
-  it('puts kick and snare lower than hat and clap, so hits on the same beat do not stack', () => {
-    expect(drumMarkY('kick', 100, 14)).toBe(drumMarkY('snare', 100, 14))
-    expect(drumMarkY('hat', 100, 14)).toBe(drumMarkY('clap', 100, 14))
-    expect(drumMarkY('kick', 100, 14)).toBeGreaterThan(drumMarkY('hat', 100, 14))
+  it('gives each drum its own level, kick at the bottom to hat on top, all inside the row', () => {
+    const levels = (['kick', 'snare', 'clap', 'hat'] as const).map((kind) => drumMarkY(kind, 100, 52, 20))
+    expect(levels).toEqual([...levels].sort((a, b) => b - a))
+    expect(new Set(levels).size).toBe(4)
+    expect(levels[0]! + 10).toBeLessThanOrEqual(152)
+    expect(levels[3]! - 10).toBeGreaterThanOrEqual(100)
+    // Neighbouring levels overlap by no more than half a mark, so each shape still shows.
+    for (let i = 1; i < 4; i++) expect(levels[i - 1]! - levels[i]!).toBeGreaterThanOrEqual(10)
   })
 
   it('gives each drum its own shape', () => {
