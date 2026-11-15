@@ -3,9 +3,7 @@ import './BeatHud.css'
 
 import { DEFAULT_ENABLED_BANDS, estimateTempo, type RollLevel } from 'beatsense'
 import { sourceNow, useHud } from './HudContext'
-import {
-  DEFAULT_VIEW_MS, MIN_VIEW_MS, STACKED_WAVEFORM_W, WAVEFORM_HISTORY_MS, WAVEFORM_W, WaveformTrack, waveformLayout, type WaveformView,
-} from './waveformTrack'
+import { DEFAULT_VIEW_MS, MIN_VIEW_MS, WAVEFORM_HISTORY_MS, WAVEFORM_W, WaveformTrack, waveformLayout, type WaveformView } from './waveformTrack'
 import { listenWheel, zoomView } from './wheelZoom'
 import { trackCanvasResolution } from './canvasResolution'
 
@@ -42,15 +40,9 @@ const saveMirrored = (mirrored: boolean): void => {
 
 export type BeatHudProps = {
   /**
-   * For a narrow column with the Frequency HUD stacked above it (the Fractaleyez config column): the canvas is half as wide in units, the
-   * Frequency HUD's width, so the waveform is drawn at the same scale as its bars (twice what it would be) rather than as a thin strip.
-   * The time shown is the same. Off by default, for a wide Beat HUD beside the Frequency HUD (as in the lab).
-   */
-  stacked?: boolean
-  /**
    * A row under the hit strip marking each drum the hit classifier calls (from the source's getDrumHits), each drum in a row of its own
-   * from kick at the bottom to hat on top: kick a red circle, snare a yellow square, clap a pink triangle, hat a teal diamond, smaller
-   * than the Frequency HUD's drum lights (with `stacked`, at its scale). It adds to the HUD's height; the waveform keeps its own. Off by default.
+   * from kick at the bottom to hat on top: kick a red circle, snare a yellow square, clap a pink triangle, hat a teal diamond, small
+   * next to the waveform. It adds to the HUD's height; the waveform keeps its own. Off by default.
    */
   drumRow?: boolean
   /**
@@ -60,11 +52,10 @@ export type BeatHudProps = {
   onViewChange?: (viewMs: number) => void
 }
 
-export const BeatHud = ({ drumRow = false, stacked = false, onViewChange }: BeatHudProps = {}): React.ReactElement => {
+export const BeatHud = ({ drumRow = false, onViewChange }: BeatHudProps = {}): React.ReactElement => {
   const { source, ticker, hint } = useHud()
   // Taller with the drum row, which is added below the waveform rather than taken from it.
   const height = waveformLayout(drumRow).height
-  const width = stacked ? STACKED_WAVEFORM_W : WAVEFORM_W
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [tempo, setTempo] = useState<TempoShown>({ bpm: null, consistency: null })
   const [rhythm, setRhythm] = useState('')
@@ -119,10 +110,10 @@ export const BeatHud = ({ drumRow = false, stacked = false, onViewChange }: Beat
       setRhythm(source.getRhythmLabel?.()?.text ?? '')
     }
 
-    const track = new WaveformTrack({ drumRow, width })
+    const track = new WaveformTrack({ drumRow })
     const view: WaveformView = { now: 0, viewMs: DEFAULT_VIEW_MS, enabled: DEFAULT_ENABLED_BANDS, ignoreMs: 0, mirrored: mirroredRef.current }
     // Redraws right away when the canvas is resized, since a resize clears it.
-    const resolution = trackCanvasResolution(canvas, track.width, track.height, () => redrawRef.current?.())
+    const resolution = trackCanvasResolution(canvas, WAVEFORM_W, track.height, () => redrawRef.current?.())
     const draw = (): void => {
       resolution.apply(ctx)
       updateTempo()
@@ -153,7 +144,7 @@ export const BeatHud = ({ drumRow = false, stacked = false, onViewChange }: Beat
       unsubscribe()
       if (clickTimerRef.current !== null) clearTimeout(clickTimerRef.current)
     }
-  }, [source, ticker, drumRow, width])
+  }, [source, ticker, drumRow])
 
   return (
     <div className='beat-hud-wrapper'>
@@ -167,7 +158,7 @@ export const BeatHud = ({ drumRow = false, stacked = false, onViewChange }: Beat
         </span>
       </div>
       <div className='beat-hud' {...hint('Each band over time, dimmed if it cannot trigger a beat. Dashed: the level a hit must pass. Bottom marks: hits, in the band\'s color. Top ruler: beats, bars and 8-bar phrases. Scroll to zoom, double-click to reset, click to flip mirrored.' + (drumRow ? ' Bottom row: the drum classifier\'s calls, kick a red circle, snare a yellow square, clap a pink triangle, hat a teal diamond.' : ''))}>
-        <canvas ref={canvasRef} width={width} height={height} className='beat-hud-canvas' onClick={handleClick} onDoubleClick={handleDoubleClick} />
+        <canvas ref={canvasRef} width={WAVEFORM_W} height={height} className='beat-hud-canvas' onClick={handleClick} onDoubleClick={handleDoubleClick} />
       </div>
       <div className='beat-hud-bottom-row'>
         <span className='beat-hud-feel' {...hint('The rhythm the drums play, read from the kick, snare and hat bands: a kick on every beat (four on the floor) or a broken kick (breakbeat), or, when it is sure, the drum and bass kick on 1 and the "and" of 3 (two-step). It only names a rhythm it is sure of, so it is often blank: in a breakdown, without a clear beat, or for rhythms it cannot tell apart. A name shows after 2 seconds and clears after 3.')}>
