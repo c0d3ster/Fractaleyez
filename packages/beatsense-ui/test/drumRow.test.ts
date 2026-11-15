@@ -45,8 +45,8 @@ describe('the drum row layout', () => {
     expect(on.plotH).toBe(off.plotH)
     expect(on.hitTop).toBe(off.hitTop)
     expect(on.drumTop).toBeGreaterThanOrEqual(WAVEFORM_H)
-    expect(on.height).toBe(210)
-    expect(new WaveformTrack({ drumRow: true }).height).toBe(210)
+    expect(on.height).toBe(194)
+    expect(new WaveformTrack({ drumRow: true }).height).toBe(194)
   })
 })
 
