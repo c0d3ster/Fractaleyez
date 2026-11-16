@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { DRUM_KINDS, DrumHits, drumProbabilities, type DrumCandidate, type DrumKind } from '../../src/drums/drum-hits'
+import { DRUM_HIT_MODEL, DRUM_KINDS, DrumHits, defaultDrumThresholds, drumProbabilities, type DrumCandidate, type DrumKind } from '../../src/drums/drum-hits'
 import fixture from './drum-hits.fixture.json'
 
 // The first 3.2 s of band levels (60 fps, levels.py's filters, clean feed) of three generated test clips (scripts/section-eval/drum-gen.py),
@@ -21,9 +21,10 @@ const framesAt = (clip: Clip, fps: 60 | 240): Array<{ t: number; levels: number[
   })
 }
 
-const run = (clip: Clip, fps: 60 | 240 = 60): { drums: DrumHits; candidates: DrumCandidate[] } => {
+const run = (clip: Clip, fps: 60 | 240 = 60, thresholds: Partial<Record<DrumKind, number>> = {}): { drums: DrumHits; candidates: DrumCandidate[] } => {
   const candidates: DrumCandidate[] = []
   const drums = new DrumHits((candidate) => candidates.push(candidate))
+  drums.setThresholds(thresholds)
   framesAt(clip, fps).forEach(({ t, levels }) => drums.push(t, levels, 1000 / fps, 2))
   return { drums, candidates }
 }
@@ -78,6 +79,29 @@ describe('DrumHits', () => {
   it('reads a roll from the snare and the clap only', () => {
     const { drums } = run(CLIPS.kit)
     expect(drums.getRollHits()).toEqual([callsOf(drums, 'snare'), callsOf(drums, 'clap')])
+  })
+
+  it('starts at the thresholds the model was trained with', () => {
+    const thresholds = new DrumHits().getThresholds()
+    DRUM_KINDS.forEach((kind) => expect(thresholds[kind]).toBe(DRUM_HIT_MODEL.thresholds[DRUM_HIT_MODEL.kinds.indexOf(kind)]))
+    expect(defaultDrumThresholds()).toEqual(thresholds)
+  })
+
+  it('calls a drum only above its threshold, and changes only the drums given', () => {
+    const { drums, candidates } = run(CLIPS.kit, 60, { hat: 1 })
+    expect(callsOf(drums, 'hat')).toEqual([])
+    expect(caught(CLIPS.kit.hits.kick, callsOf(drums, 'kick'))).toBe(CLIPS.kit.hits.kick.length)
+    expect(drums.getThresholds().kick).toBe(defaultDrumThresholds().kick)
+    // The probabilities are the model's whatever the threshold: only the calls change.
+    const loose = run(CLIPS.kit, 60, { hat: 0 }).candidates
+    expect(loose.map(({ probabilities }) => probabilities)).toEqual(candidates.map(({ probabilities }) => probabilities))
+    expect(loose.every(({ kinds }) => kinds.includes('hat'))).toBe(true)
+  })
+
+  it('clamps a threshold to 0 to 1 and ignores one that is not a number', () => {
+    const drums = new DrumHits()
+    drums.setThresholds({ kick: 2, snare: -1, clap: Number.NaN })
+    expect(drums.getThresholds()).toMatchObject({ kick: 1, snare: 0, clap: defaultDrumThresholds().clap })
   })
 
   it('keeps only the last few seconds, and knows when each drum last hit', () => {

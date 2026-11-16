@@ -5,6 +5,7 @@ import { DrumHitWatcher, type LastDrumHits } from './drumHitWatcher'
 import { countLabels, sortLabels, type Label, type LabelKind } from './labels'
 import { SESSION_FORMAT, SESSION_VERSION, type DrumDetection, type LabSessionFile, type SessionPlayback } from './sessionFile'
 import { frameIndexAt } from './timeline'
+import type { ThresholdChange } from './thresholdLog'
 
 export type RecorderPhase = 'idle' | 'recording' | 'stopped'
 
@@ -28,6 +29,8 @@ export type FileContext = {
   savedAt?: Date
   /** What the lab's player played during the recording, if it played. */
   playback?: SessionPlayback
+  /** The drum thresholds in effect through the recording (ThresholdLog.between). */
+  drumThresholds?: ThresholdChange[]
 }
 
 /**
@@ -120,7 +123,7 @@ export class SessionRecorder {
   durationMs = (): number => this.endMs - this.startMs
 
   /** The session as a file, once stopped (null before). */
-  toFile = ({ sectionTicks, sampleRate, savedAt = new Date(), playback }: FileContext): LabSessionFile | null => {
+  toFile = ({ sectionTicks, sampleRate, savedAt = new Date(), playback, drumThresholds }: FileContext): LabSessionFile | null => {
     if (this.phase !== 'stopped') return null
     // Up to the end, from as far back as the tracker keeps: the ticks before startMs are the replay's pre-roll.
     const ticks = sectionTicks.filter(({ t }) => t <= this.endMs)
@@ -137,6 +140,7 @@ export class SessionRecorder {
       labels: sortLabels(this.labels),
       sectionLog: buildSectionLog(ticks, savedAt),
       ...(playback ? { playback } : {}),
+      ...(drumThresholds && drumThresholds.length > 0 ? { drumThresholds } : {}),
     }
   }
 }

@@ -115,10 +115,16 @@ export const drumProbabilities = (features: readonly number[], model: DrumHitMod
   return forward(model, standardize(model, features)).map(sigmoid)
 }
 
-const kindsOf = (probabilities: readonly number[], model: DrumHitModel): DrumKind[] =>
+/** How sure a model has to be for each drum (0 to 1), by drum: its trained thresholds, what `DrumHits` starts with. */
+export const defaultDrumThresholds = (model: DrumHitModel = DRUM_HIT_MODEL): Record<DrumKind, number> => {
+  const of = (kind: DrumKind): number => model.thresholds[model.kinds.indexOf(kind)] ?? 1
+  return { kick: of('kick'), hat: of('hat'), snare: of('snare'), clap: of('clap') }
+}
+
+const kindsOf = (probabilities: readonly number[], model: DrumHitModel, thresholds: Readonly<Record<DrumKind, number>>): DrumKind[] =>
   DRUM_KINDS.filter((kind) => {
     const k = model.kinds.indexOf(kind)
-    return k >= 0 && (probabilities[k] ?? 0) > (model.thresholds[k] ?? 1)
+    return k >= 0 && (probabilities[k] ?? 0) > thresholds[kind]
   })
 
 /**
@@ -137,10 +143,28 @@ export class DrumHits {
   private count = 0
   private readonly pending: Pending[] = []
   private firstT: number | null = null
+  private thresholds: Record<DrumKind, number>
 
   constructor(private readonly onCandidate?: (candidate: DrumCandidate) => void, private readonly model: DrumHitModel = DRUM_HIT_MODEL) {
     checkDrumModel(model)
     this.rollHits = [this.listOf('snare'), this.listOf('clap')]
+    this.thresholds = defaultDrumThresholds(model)
+  }
+
+  /** How sure the model has to be for each drum (0 to 1): the model's own until setThresholds changes them. */
+  getThresholds = (): Readonly<Record<DrumKind, number>> => this.thresholds
+
+  /**
+   * Changes how sure the model has to be for the drums given (0 to 1, a value outside clamped to it), from the next candidate called; for
+   * tuning by ear. The model is not changed: a candidate's probabilities are the same, only which drums they call.
+   */
+  setThresholds = (thresholds: Partial<Record<DrumKind, number>>): void => {
+    const next = { ...this.thresholds }
+    DRUM_KINDS.forEach((kind) => {
+      const value = thresholds[kind]
+      if (value !== undefined && Number.isFinite(value)) next[kind] = Math.min(1, Math.max(0, value))
+    })
+    this.thresholds = next
   }
 
   push = (t: number, levels: readonly number[], dtMs: number, sensitivity: number): void => {
@@ -176,7 +200,7 @@ export class DrumHits {
   private classify = (candidate: Pending, steps: ReadonlyArray<{ reading: BandReading }>, levels: readonly number[]): void => {
     const features = drumFeatures(this.trackers, steps.map(({ reading }) => reading), levels, candidate)
     const probabilities = drumProbabilities(features, this.model)
-    const kinds = kindsOf(probabilities, this.model)
+    const kinds = kindsOf(probabilities, this.model, this.thresholds)
     kinds.forEach((kind) => {
       const k = DRUM_KINDS.indexOf(kind)
       const last = this.last[k]

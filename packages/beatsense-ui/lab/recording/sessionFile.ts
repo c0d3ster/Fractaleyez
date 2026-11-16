@@ -2,6 +2,7 @@ import { DRUM_KINDS, type DrumKind, type FrameReading, type SectionLog, type Son
 
 import type { PlaybackSegment } from '../player/playbackLog'
 import { isLabelKind, sortLabels, type Label } from './labels'
+import { isThresholdChange, type ThresholdChange } from './thresholdLog'
 
 // The file a recorded lab session is saved to and the review page loads. Versioned: a reader takes only versions it knows and says so
 // otherwise, and a change to the shape bumps `version` (with a reader for the old one, if old files are worth keeping).
@@ -46,6 +47,11 @@ export type LabSessionFile = {
   sectionLog: SectionLog
   /** With the lab's player playing a file, what it played: labels and frames then map onto the song by it. Absent otherwise. */
   playback?: SessionPlayback
+  /**
+   * The drum thresholds the lab's sliders set through the recording (the one in effect at the start, then each change), which decided the
+   * drum hits in `drumHits`. Absent in sessions recorded before the sliders, which ran on the model's own.
+   */
+  drumThresholds?: ThresholdChange[]
 }
 
 const SECTIONS: readonly SongSection[] = ['intro', 'quiet', 'groove', 'buildup', 'turnaround', 'break', 'drop', 'outro']
@@ -154,6 +160,7 @@ export const checkSession = (data: unknown): LabSessionFile => {
   if (new Set(labels.map(({ id }) => id)).size !== labels.length) throw new Error('Two of the session\'s labels share an id.')
   if (!isSectionLog(sectionLog)) throw new Error('The session\'s section log is not valid.')
   const playback = checkPlayback(data.playback)
+  const drumThresholds = data.drumThresholds === undefined ? undefined : checkList(data, 'drumThresholds', isThresholdChange)
   return {
     format: SESSION_FORMAT,
     version: SESSION_VERSION,
@@ -167,6 +174,7 @@ export const checkSession = (data: unknown): LabSessionFile => {
     labels: sortLabels(labels),
     sectionLog,
     ...(playback ? { playback } : {}),
+    ...(drumThresholds ? { drumThresholds } : {}),
   }
 }
 

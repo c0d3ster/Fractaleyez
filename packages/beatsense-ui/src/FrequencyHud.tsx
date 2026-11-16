@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useCallback } from 'react'
 import './FrequencyHud.css'
 
-import { DRUM_CENTER_HZ, DRUM_KINDS, ONSET_BANDS } from 'beatsense'
+import { DRUM_CENTER_HZ, DRUM_KINDS, ONSET_BANDS, defaultDrumThresholds, type DrumKind } from 'beatsense'
 import { drawDrumMark } from './drumMarks'
 import { sourceNow, useHud, type AnalysisSource } from './HudContext'
 import { trackCanvasResolution } from './canvasResolution'
@@ -131,6 +131,50 @@ const roundRect = (ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
   ctx.fill()
 }
 
+/** How sure the drum model has to be for each drum, 0 to 1 (beatsense's DrumHits.setThresholds). */
+export type DrumThresholds = Readonly<Record<DrumKind, number>>
+
+// A threshold on its slider, 0 to 100 in half steps (the trained ones are at halves: kick 87.5).
+const toSlider = (threshold: number): number => Math.round(threshold * 200) / 2
+const SLIDER_STEP = 0.5
+
+type DrumThresholdSlidersProps = { thresholds: DrumThresholds; onChange: (thresholds: DrumThresholds) => void }
+
+/** A slider under each drum light, in the light's column: higher is stricter (fewer calls); a double-click puts it back at the model's. */
+const DrumThresholdSliders = ({ thresholds, onChange }: DrumThresholdSlidersProps): React.ReactElement => {
+  const { hint } = useHud()
+  const defaults = defaultDrumThresholds()
+  const set = (kind: DrumKind, sliderValue: number): void => onChange({ ...thresholds, [kind]: sliderValue / 100 })
+  return (
+    <div className='frequency-hud-thresholds'>
+      {DRUM_KINDS.map((kind, i) => {
+        const value = toSlider(thresholds[kind])
+        const changed = value !== toSlider(defaults[kind])
+        return (
+          <label
+            key={kind}
+            className='frequency-hud-threshold'
+            style={{ left: `${((LIGHT_X[i] ?? 0) / W) * 100}%`, width: `${(BAR_W / W) * 100}%` }}
+            {...hint(`How sure the drum model has to be to call a ${kind}: higher calls fewer. The model's own is ${toSlider(defaults[kind])}; double-click to put it back.`)}
+          >
+            <input
+              type='range'
+              min={0}
+              max={100}
+              step={SLIDER_STEP}
+              value={value}
+              aria-label={`${kind} threshold`}
+              onChange={(e): void => set(kind, Number(e.currentTarget.value))}
+              onDoubleClick={(): void => set(kind, toSlider(defaults[kind]))}
+            />
+            <span className={changed ? 'frequency-hud-threshold-value is-changed' : 'frequency-hud-threshold-value'}>{value}</span>
+          </label>
+        )
+      })}
+    </div>
+  )
+}
+
 export type FrequencyHudProps = {
   /** Which onset bands can set off a beat, one per band in `ONSET_BANDS` order; a band that is off is drawn dimmed. */
   enabledBands: readonly boolean[]
@@ -138,9 +182,18 @@ export type FrequencyHudProps = {
   onEnabledBandsChange: (enabledBands: boolean[]) => void
   /** The bars' height in units (90 by default, against the HUD's 180 wide); lower for a shorter HUD in a tight column. */
   barHeight?: number
+  /**
+   * With `onDrumThresholdsChange`, a slider under each drum light for how sure the drum model has to be to call it (0 to 100 on the slider,
+   * 0 to 1 here). Without them, no sliders.
+   */
+  drumThresholds?: DrumThresholds
+  /** Called with all four thresholds when a slider moves; the slider shows it once it comes back as `drumThresholds`. */
+  onDrumThresholdsChange?: (thresholds: DrumThresholds) => void
 }
 
-export const FrequencyHud = ({ enabledBands, onEnabledBandsChange, barHeight = DEFAULT_BAR_HEIGHT }: FrequencyHudProps): React.ReactElement => {
+export const FrequencyHud = ({
+  enabledBands, onEnabledBandsChange, barHeight = DEFAULT_BAR_HEIGHT, drumThresholds, onDrumThresholdsChange,
+}: FrequencyHudProps): React.ReactElement => {
   const { source, ticker, hint } = useHud()
   const layout = frequencyLayout(barHeight)
   const { barAreaH, bandsH, height } = layout
@@ -295,6 +348,7 @@ export const FrequencyHud = ({ enabledBands, onEnabledBandsChange, barHeight = D
           onPointerMove={handlePointerMove}
           onPointerLeave={handlePointerLeave}
         />
+        {drumThresholds && onDrumThresholdsChange && <DrumThresholdSliders thresholds={drumThresholds} onChange={onDrumThresholdsChange} />}
       </div>
     </div>
   )

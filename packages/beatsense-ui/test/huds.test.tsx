@@ -40,6 +40,24 @@ describe('the HUDs', () => {
     expect(described).toHaveLength(10)
   })
 
+  it('draw a threshold slider per drum only when given the thresholds and a change handler', () => {
+    const bands = [true, false, false, true, false]
+    expect(renderToStaticMarkup(<FrequencyHud enabledBands={bands} onEnabledBandsChange={ignoreChange} />)).not.toContain('type="range"')
+    const markup = renderToStaticMarkup(
+      <FrequencyHud
+        enabledBands={bands}
+        onEnabledBandsChange={ignoreChange}
+        drumThresholds={{ kick: 0.875, hat: 0.6, snare: 0.8, clap: 0.85 }}
+        onDrumThresholdsChange={ignoreChange}
+      />
+    )
+    expect(markup.match(/type="range"/g)).toHaveLength(4)
+    expect(markup).toContain('aria-label="hat threshold" value="60"')
+    // The hat is off the model's 75, so its value is marked; the kick is at the model's.
+    expect(markup).toContain('is-changed">60<')
+    expect(markup).toContain('frequency-hud-threshold-value">87.5<')
+  })
+
   it('show nothing measured before the source has anything', () => {
     const markup = renderToStaticMarkup(<HudProvider source={{}}><BeatHud /></HudProvider>)
     expect(markup).toContain('— BPM')
