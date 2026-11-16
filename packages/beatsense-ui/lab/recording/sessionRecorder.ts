@@ -8,10 +8,20 @@ import { frameIndexAt } from './timeline'
 
 export type RecorderPhase = 'idle' | 'recording' | 'stopped'
 
+/**
+ * The longest recording whose section log is whole: beatsense's SectionTracker keeps only its last 48000 ticks of 50 ms (40 minutes, its
+ * RECORDING_TICKS), so a longer session's log starts after the session does and replays without its beginning.
+ */
+export const SECTION_LOG_MAX_MS = 48000 * 50
+
 export type { LastDrumHits } from './drumHitWatcher'
 
 export type FileContext = {
-  /** The section tracker's recording (SectionTracker.getRecording); only the ticks inside the session are kept. */
+  /**
+   * The section tracker's recording (SectionTracker.getRecording). Every tick up to the session's end is kept, the ones before it too (a
+   * pre-roll): the tracker's state hangs on everything it heard (whether a song is confirmed, the drop timers, the smoothing), so a fresh
+   * tracker replaying the log reaches the recorded sections only if it hears what the live one heard before Record.
+   */
   sectionTicks: readonly SectionTick[]
   sampleRate: number | null
   /** When the file is made; the recording's stop time, normally. */
@@ -39,7 +49,10 @@ export class SessionRecorder {
 
   isRecording = (): boolean => this.phase === 'recording'
 
-  /** Starts a new recording at `t` (audio clock, ms), dropping the previous one. */
+  /**
+   * Starts a new recording at `t` (audio clock, ms), dropping the previous one. The section tracker keeps running as it was, so Record in
+   * the middle of a buildup still reads it as one; the file's section log carries its earlier ticks for the replay (see FileContext).
+   */
   start = (t: number): void => {
     this.phase = 'recording'
     this.startMs = t
@@ -109,7 +122,8 @@ export class SessionRecorder {
   /** The session as a file, once stopped (null before). */
   toFile = ({ sectionTicks, sampleRate, savedAt = new Date(), playback }: FileContext): LabSessionFile | null => {
     if (this.phase !== 'stopped') return null
-    const ticks = sectionTicks.filter(({ t }) => t >= this.startMs && t <= this.endMs)
+    // Up to the end, from as far back as the tracker keeps: the ticks before startMs are the replay's pre-roll.
+    const ticks = sectionTicks.filter(({ t }) => t <= this.endMs)
     return {
       format: SESSION_FORMAT,
       version: SESSION_VERSION,

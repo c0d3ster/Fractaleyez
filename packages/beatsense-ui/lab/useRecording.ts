@@ -2,18 +2,22 @@ import { useCallback, useEffect, useState } from 'react'
 
 import { downloadJson } from './download'
 import type { LabSession, RecordingStatus } from './labSession'
-import { actionForKey } from './recording/hotkeys'
+import { actionForKey, isUndoKey, type KeyPress } from './recording/hotkeys'
 import type { LabelAction } from './recording/labels'
 import { serializeSessionFile, sessionFileNameFor } from './recording/sessionFile'
 
 // Often enough for the recorded time to tick visibly.
 const REFRESH_MS = 200
 
+const DROP_SESSION_TEXT = 'The stopped session has not been exported. A new recording drops it. Record anyway?'
+
 export type RecordingControls = {
   status: RecordingStatus
   recording: boolean
-  /** Record, or Stop while recording. */
+  /** Record (asking first if that would drop a stopped session that was never exported), or Stop while recording. */
   toggle: () => void
+  /** The player and a recording together, asking first as Record does. */
+  playAndRecord: () => void
   addLabel: (action: LabelAction) => void
   undo: () => void
   /** Downloads the stopped session. */
@@ -50,15 +54,20 @@ export const useRecording = (session: LabSession): RecordingControls => {
   useEffect(() => {
     if (!recording) return undefined
     const handleKey = (event: KeyboardEvent): void => {
-      const target = event.target instanceof HTMLElement ? event.target.tagName : undefined
-      if (event.key === 'Backspace' && !event.repeat && target !== 'INPUT') {
+      // The event's fields are getters on its prototype, so they are read one by one (a spread would copy none).
+      const { key, ctrlKey, metaKey, altKey, repeat, target } = event
+      const press: KeyPress = {
+        key, ctrlKey, metaKey, altKey, repeat,
+        targetTag: target instanceof HTMLElement ? target.tagName : undefined,
+        targetType: target instanceof HTMLInputElement ? target.type : undefined,
+        targetEditable: target instanceof HTMLElement && target.isContentEditable,
+      }
+      if (isUndoKey(press)) {
         event.preventDefault()
         undo()
         return
       }
-      // The event's fields are getters on its prototype, so they are read one by one (a spread would copy none).
-      const { key, ctrlKey, metaKey, altKey, repeat } = event
-      const action = actionForKey({ key, ctrlKey, metaKey, altKey, repeat, targetTag: target })
+      const action = actionForKey(press)
       if (!action) return
       event.preventDefault()
       addLabel(action)
@@ -67,16 +76,26 @@ export const useRecording = (session: LabSession): RecordingControls => {
     return (): void => window.removeEventListener('keydown', handleKey)
   }, [recording, undo, addLabel])
 
+  /** Whether a new recording may start: yes unless it would drop a stopped session that was never exported and the person says no. */
+  const mayDropSession = useCallback((): boolean => !session.hasUnexportedSession() || window.confirm(DROP_SESSION_TEXT), [session])
+
   const toggle = useCallback((): void => {
     if (recording) session.stopRecording()
-    else session.startRecording()
+    else if (mayDropSession()) session.startRecording()
     refresh()
-  }, [recording, session, refresh])
+  }, [recording, session, refresh, mayDropSession])
+
+  const playAndRecord = useCallback((): void => {
+    if (recording || !mayDropSession()) return
+    session.playAndRecord()
+    refresh()
+  }, [recording, session, refresh, mayDropSession])
 
   const exportFile = useCallback((): void => {
     if (!status.file) return
     downloadJson(serializeSessionFile(status.file), sessionFileNameFor(status.file))
-  }, [status])
+    session.markExported()
+  }, [status, session])
 
-  return { status, recording, toggle, addLabel, undo, exportFile, refresh }
+  return { status, recording, toggle, playAndRecord, addLabel, undo, exportFile, refresh }
 }

@@ -16,10 +16,18 @@ export type PlaybackSegment = {
 /** A stretch of a pass with one mapping: song time = t + offsetMs, for t in [fromMs, toMs). */
 export type PlaybackSlice = { fromMs: number; toMs: number; offsetMs: number }
 
+/**
+ * Where playback from `songMs` really starts under `loop`: at or past the loop's end, at the loop's start. The player starts there itself,
+ * and Chromium's AudioBufferSourceNode jumps there too when handed an offset past loopEnd, so a log from before the player did reads the same.
+ * Before the loop's start it plays from `songMs` into the loop.
+ */
+export const loopEntry = (songMs: number, loop: PlaybackLoop | null): number =>
+  loop && loop.endMs > loop.startMs && songMs >= loop.endMs ? loop.startMs : songMs
+
 /** The song position at `t` under one segment (it must have started by then and be playing). */
 const positionIn = ({ atMs, songMs, loop }: PlaybackSegment, t: number): number | null => {
   if (songMs === null) return null
-  const position = songMs + (t - atMs)
+  const position = loopEntry(songMs, loop) + (t - atMs)
   if (!loop || position < loop.endMs) return position
   const length = loop.endMs - loop.startMs
   return length > 0 ? loop.startMs + ((position - loop.startMs) % length) : loop.startMs
@@ -59,9 +67,10 @@ export const sliceLog = (segments: readonly PlaybackSegment[], fromMs: number, t
       push(from, segmentEnd, songMs - atMs)
       return
     }
-    // Before the first wrap: from the segment's start position up to loop end; then one slice per turn.
+    // Before the first wrap: from the segment's start position (taken into the loop, as positionIn does) up to loop end; then one slice per
+    // turn. A start at or past the loop's end would otherwise give a first turn of no length and no slices at all.
     let turnStart = atMs
-    let turnSong = songMs
+    let turnSong = loopEntry(songMs, loop)
     while (turnStart < segmentEnd) {
       const turnEnd = turnStart + Math.max(0, loop.endMs - turnSong)
       push(Math.max(from, turnStart), Math.min(segmentEnd, turnEnd), turnSong - turnStart)

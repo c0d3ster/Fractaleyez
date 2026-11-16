@@ -12,6 +12,11 @@ const COARSE = 6
 export const MIN_OVERLAP_MS = 12000
 /** The peaks of a looping song repeat every bar; the runner-up is the best offset at least this far from the winner. */
 const RUNNER_UP_MS = 1000
+/**
+ * Around a hint the search covers only a few hundred ms, so no offset a second away is in it: the runner-up there is the best offset at
+ * least two coarse steps from the winner (past its own peak), which still shows a match an eighth note or a beat off.
+ */
+export const HINTED_RUNNER_UP_MS = 200
 
 /**
  * The onset envelope on a uniform grid at the frame rate, from the first frame's time: per frame, the sum over bands of how much the log
@@ -94,7 +99,10 @@ export type Alignment = {
    * different synthetic songs at 120 BPM score 0.79). What tells is how far it stands above the runner-up (see isSureAlignment).
    */
   score: number
-  /** The best correlation at an offset at least a second away (a bar of a looping song), for how clearly the winner stands out. */
+  /**
+   * The best correlation at an offset at least a second away (a bar of a looping song), or 200 ms away in a search around a hint, for how
+   * clearly the winner stands out. -1 when no offset that far was searched.
+   */
   runnerUp: number
   overlapMs: number
 }
@@ -102,7 +110,7 @@ export type Alignment = {
 /** How far the winner must stand above the runner-up: the same song wins by 0.2 or more, another song at its tempo by a few hundredths. */
 export const SURE_MARGIN = 0.1
 
-/** Whether an alignment clearly beats every other offset a second or more away, so it can be trusted without a look. */
+/** Whether an alignment clearly beats every other offset a second or more away (200 ms around a hint), so it can be trusted without a look. */
 export const isSureAlignment = ({ score, runnerUp }: Pick<Alignment, 'score' | 'runnerUp'>): boolean => score - runnerUp >= SURE_MARGIN
 
 export type AlignOptions = {
@@ -168,8 +176,9 @@ export const alignPasses = (
     const curve = left - 2 * fineScore + right
     if (curve < 0) subFrame = Math.max(-0.5, Math.min(0.5, (0.5 * (left - right)) / curve))
   }
+  const runnerUpMs = hint ? HINTED_RUNNER_UP_MS : RUNNER_UP_MS
   const runnerUp = scores
-    .filter(({ lag }) => Math.abs(lag - best.lag) * COARSE * FRAME_MS >= RUNNER_UP_MS)
+    .filter(({ lag }) => Math.abs(lag - best.lag) * COARSE * FRAME_MS >= runnerUpMs)
     .reduce((top, { score }) => Math.max(top, score), -1)
   const overlapFrames = Math.min(ref.values.length, other.values.length + fineLag) - Math.max(0, fineLag)
   return {

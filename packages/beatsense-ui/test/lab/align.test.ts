@@ -78,4 +78,18 @@ describe('alignPasses with a short pass and a sure hint', () => {
     const found = alignPasses(reference, pass, { hint: { offsetMs: -26000 + 120, withinMs: 300 }, minOverlapMs: 3000 })!
     expect(Math.abs(found.offsetMs - (600 * FRAME_MS - 36000))).toBeLessThan(5)
   })
+
+  it('weighs the winner against the rest of the narrow search, so it can still be unsure', () => {
+    const reference = passOf(SONG, 0, 60 * 60)
+    const truth = 600 * FRAME_MS - 36000
+    const hint = { offsetMs: truth + 120, withinMs: 300 }
+    const same = alignPasses(reference, passOf(SONG, 600, 840, { clockMs: 36000, noise: 0.1, seed: 9 }), { hint, minOverlapMs: 3000 })!
+    // Offsets a second away are not searched, so the runner-up is from the window itself (it was -1, and every such pass read as sure).
+    expect(same.runnerUp).toBeGreaterThan(-1)
+    expect(isSureAlignment(same)).toBe(true)
+    // Another song at the same tempo: nothing in the window stands out.
+    const other = alignPasses(reference, passOf(syntheticSongLevels(60, 99), 600, 840, { clockMs: 36000, noise: 0.1, seed: 9 }), { hint, minOverlapMs: 3000 })!
+    expect(other.runnerUp).toBeGreaterThan(-1)
+    expect(isSureAlignment(other)).toBe(false)
+  })
 })

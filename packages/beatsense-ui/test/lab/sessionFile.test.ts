@@ -1,4 +1,4 @@
-import { AnalysisHost, SectionTracker, loadSectionModel } from 'beatsense'
+import { AnalysisHost, SectionTracker, loadSectionModel, type FrameReading } from 'beatsense'
 import { describe, expect, it } from 'vitest'
 
 import { editedFileName, parseSessionFile, serializeSessionFile, sessionFileName, withLabels, type LabSessionFile } from '../../lab/recording/sessionFile'
@@ -37,6 +37,16 @@ describe('session file', () => {
     expect(() => parseSessionFile(withField(file, { startMs: 10, endMs: 5 }))).toThrow('start and end')
   })
 
+  it('takes a section tick\'s BPM as a number, null or absent, and nothing else', () => {
+    const file = smallFile()
+    const withTick = (bpm: unknown): string => withField(file, { sectionLog: { ...file.sectionLog, ticks: [{ t: 50, power: [1, 2, 3, 4, 5], beats: 1, bpm }] } })
+    expect(parseSessionFile(withTick(128)).sectionLog.ticks[0]!.bpm).toBe(128)
+    expect(parseSessionFile(withTick(null)).sectionLog.ticks[0]!.bpm).toBeNull()
+    expect(parseSessionFile(withTick(undefined)).sectionLog.ticks[0]!.bpm).toBeUndefined()
+    expect(() => parseSessionFile(withTick({}))).toThrow('section log')
+    expect(() => parseSessionFile(withTick('120'))).toThrow('section log')
+  })
+
   it('sorts labels on read', () => {
     const file = smallFile()
     const text = withField(file, { labels: [{ id: 2, kind: 'kick', t: 900 }, { id: 1, kind: 'hat', t: 300 }] })
@@ -59,33 +69,59 @@ describe('session file', () => {
 })
 
 describe('recording the real analysis', () => {
-  it('keeps every reading the AnalysisHost gives, and the section log replays through a fresh tracker', async () => {
+  it('keeps every reading the AnalysisHost gives, and the section log, pre-roll included, replays through a fresh tracker to the sections recorded', async () => {
     const host = new AnalysisHost()
     await host.analysers.sectionModelReady
     const recorder = new SessionRecorder()
-    const frames = syntheticCaptureFrames(60 * 40)
-    const startAt = 60 * 10
-    const stopAt = 60 * 35
-    const readings = frames.map((frame, i) => {
+    // The analysis runs for 30 s before Record (long enough for the tracker to confirm the song and leave quiet), then records 25 s. The
+    // tracker keeps running through Record, so the recording starts mid-song, not from quiet.
+    const frames = syntheticCaptureFrames(60 * 60)
+    const startAt = 60 * 30
+    const stopAt = 60 * 55
+    const readings: FrameReading[] = []
+    frames.forEach((frame, i) => {
+      // Record is pressed between frames, at the audio clock's now (a little after the newest frame), as LabSession.startRecording does.
+      if (i === startAt) recorder.start(readings[i - 1]!.t + 1)
       const reading = host.push(frame)
-      if (i === startAt) recorder.start(reading.t)
+      readings.push(reading)
       recorder.addFrame(reading, host.analysers.drumHits.getLastHits())
       if (i === stopAt) recorder.stop(reading.t)
-      return reading
     })
     const file = recorder.toFile({ sectionTicks: host.analysers.sectionTracker.getRecording(), sampleRate: 48000 })!
     const parsed = parseSessionFile(serializeSessionFile(file))
 
+    expect(readings[startAt - 1]!.section).not.toBe('quiet')
+    // Recording does not restart the tracker: the first recorded frame is still in the section it was in.
+    expect(readings[startAt]!.section).toBe(readings[startAt - 1]!.section)
     expect(parsed.frames).toEqual(readings.slice(startAt, stopAt + 1))
     expect(parsed.frames.some(({ beat }) => beat)).toBe(true)
     const { ticks, tickMs } = parsed.sectionLog
-    expect(ticks.length).toBeGreaterThan((25000 / tickMs) * 0.9)
-    expect(ticks.every(({ t }) => t >= parsed.startMs && t <= parsed.endMs)).toBe(true)
+    // The whole run: the 30 s pre-roll before Record and the 25 s recorded.
+    expect(ticks.length).toBeGreaterThan((55000 / tickMs) * 0.9)
+    expect(ticks[0]!.t).toBeLessThan(parsed.startMs)
+    expect(ticks.every(({ t }) => t <= parsed.endMs)).toBe(true)
 
     const tracker = new SectionTracker()
     tracker.setModel(await loadSectionModel())
-    ticks.forEach(tracker.pushTick)
+    // The replay's section at each recorded frame: after every tick that closed by then (the pre-roll first), as the live tracker had.
+    let next = 0
+    const replayed = parsed.frames.map(({ t }) => {
+      while (next < ticks.length && ticks[next]!.t <= t) tracker.pushTick(ticks[next++]!)
+      return tracker.getState().section
+    })
     expect(tracker.getRecording()).toEqual(ticks)
+    expect(replayed).toEqual(parsed.frames.map(({ section }) => section))
+
+    // Without the pre-roll a fresh tracker starts from quiet and does not give the recorded sections: the pre-roll is what makes it match.
+    const bare = new SectionTracker()
+    bare.setModel(await loadSectionModel())
+    const inside = ticks.filter(({ t }) => t >= parsed.startMs)
+    let at = 0
+    const bareReplay = parsed.frames.map(({ t }) => {
+      while (at < inside.length && inside[at]!.t <= t) bare.pushTick(inside[at++]!)
+      return bare.getState().section
+    })
+    expect(bareReplay).not.toEqual(replayed)
   })
 })
 

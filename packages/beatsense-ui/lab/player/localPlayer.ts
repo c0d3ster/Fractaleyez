@@ -1,4 +1,4 @@
-import { PlaybackLog, songTimeAt, type PlaybackLoop } from './playbackLog'
+import { loopEntry, PlaybackLog, songTimeAt, type PlaybackLoop } from './playbackLog'
 
 // The lab's player: an audio file decoded into the lab's own audio context and played through an AudioBufferSourceNode, so every start
 // lands on the context's sample clock, the same clock the capture worklet counts frames on. Each play, seek, loop change and pause is
@@ -126,8 +126,14 @@ export class LocalPlayer {
   private start = (fromMs: number): number | null => {
     const { buffer, file } = this
     if (!buffer || !file) return null
-    this.stopSource()
-    const from = Math.max(0, Math.min(fromMs, file.durationMs))
+    // A restart (a seek, a loop change) stops the old sound now and the new one starts a moment ahead: that gap is logged as a pause, not
+    // as the old position playing on.
+    if (this.source) {
+      this.stopSource()
+      this.log.record({ atMs: this.analysisMs(this.context.currentTime), songMs: null, loop: null })
+    }
+    // At or past the loop's end (B set while paused past it, a seek past it), playback starts at the loop's start, as setLoop does.
+    const from = loopEntry(Math.max(0, Math.min(fromMs, file.durationMs)), this.loop)
     const source = this.context.createBufferSource()
     source.buffer = buffer
     if (this.loop) {
@@ -140,6 +146,8 @@ export class LocalPlayer {
     source.start(when, from / 1000)
     const atMs = this.analysisMs(when)
     this.log.record({ atMs, songMs: from, loop: this.loop })
+    // Until the new sound starts the log reads as paused, so the position reads as where it is about to play from.
+    this.pausedAtMs = from
     // The end of the file (not looping): logged as a pause at the moment it ends, and the position back to the start.
     source.onended = (): void => {
       if (this.source !== source) return

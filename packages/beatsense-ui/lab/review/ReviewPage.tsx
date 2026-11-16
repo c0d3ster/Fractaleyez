@@ -1,15 +1,14 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ONSET_BANDS } from 'beatsense'
 
 import { downloadJson } from '../download'
-import { alignPasses } from '../recording/align'
-import { deleteLabel, moveLabel, nudgeLabel } from '../recording/labelEdits'
+import { deleteLabel, moveLabel, nudgeLabel, type TimeBounds } from '../recording/labelEdits'
 import { LABEL_INFO, LABEL_KINDS, type Label } from '../recording/labels'
 import { AGREE_MS, agreementByKind, groupLabels } from '../recording/mergeLabels'
 import { checkSession, editedFileName, parseJson, serializeSessionFile, type LabSessionFile } from '../recording/sessionFile'
 import {
-  addPass, fromViewId, parseLabFile, PLAYBACK_CORRECTION_MS, PLAYBACK_MIN_OVERLAP_MS, removePass, samePlayback, serializeSongFile, setPassLabels, setPassOffset,
-  passOrigin, songBounds, songFileName, songFrames, songLabels, songOrigin, type LabSongFile, type PassAlignment, type SongLabel, type SongPass,
+  addPass, fromViewId, labelBounds, parseLabFile, passOrigin, placePass, removePass, serializeSongFile, setPassLabels, setPassOffset,
+  songBounds, songFileName, songFrames, songLabels, songOrigin, type LabSongFile, type SongLabel, type SongPass,
 } from '../recording/songFile'
 import { beatMarks, formatTime, levelPeaks, sectionRuns, type View } from '../recording/timeline'
 import type { TimelineData } from './drawTimeline'
@@ -19,6 +18,8 @@ import { SessionTimeline } from './SessionTimeline'
 // One frame at the capture hop (60 a second): the arrow keys' nudge. With Shift, 100 ms.
 const NUDGE_MS = 1000 / 60
 const NUDGE_SHIFT_MS = 100
+
+const DISCARD_EDITS_TEXT = 'The labels have edits that are not exported. Opening another file drops them. Open it anyway?'
 
 /** The model's timelines from the reference pass (the first), on song time. */
 const timelineData = (first: SongPass): TimelineData => {
@@ -46,29 +47,8 @@ const timelineData = (first: SongPass): TimelineData => {
   }
 }
 
-/**
- * Where a pass sits on the song. Two passes of the same file through the lab's player already share song time, so only the small
- * correction (the speakers to the mic) is searched, around zero. Otherwise the whole song is searched; with no match the pass is lined up
- * start to start and marked as set by hand.
- */
-const placePass = (song: LabSongFile, session: LabSessionFile): { offsetMs: number; alignment: PassAlignment | null } => {
-  const first = song.passes[0]!
-  const asPass = (offsetMs: number): SongPass => ({ name: '', offsetMs, alignment: null, session })
-  if (samePlayback(first.session, session)) {
-    const correction = alignPasses(songFrames(first).frames, songFrames(asPass(0)).frames, {
-      hint: { offsetMs: 0, withinMs: PLAYBACK_CORRECTION_MS },
-      minOverlapMs: PLAYBACK_MIN_OVERLAP_MS,
-    })
-    if (!correction) return { offsetMs: 0, alignment: null }
-    return { offsetMs: correction.offsetMs, alignment: { score: correction.score, runnerUp: correction.runnerUp } }
-  }
-  const found = alignPasses(songFrames(first).frames, session.frames)
-  if (!found) return { offsetMs: first.session.startMs - session.startMs, alignment: null }
-  return { offsetMs: found.offsetMs, alignment: { score: found.score, runnerUp: found.runnerUp } }
-}
-
 const alignedPass = (song: LabSongFile, session: LabSessionFile, name: string): LabSongFile =>
-  addPass(song, { name, ...placePass(song, session), session })
+  addPass(song, { name, ...placePass(song.passes[0]!, session), session })
 
 const allPasses = (song: LabSongFile): Set<number> => new Set(song.passes.map((_, i) => i))
 
@@ -96,16 +76,27 @@ export const ReviewPage = (): React.ReactElement => {
   const agreement = useMemo(() => agreementByKind(groups, labels), [groups, labels])
   const multiPass = (song?.passes.length ?? 0) > 1
 
+  // The song as last set, for a file read that finishes later: a pass is added to the newest song, not to the one when its read began.
+  const songRef = useRef<LabSongFile | null>(null)
+  // Counts opens: a read that finishes after a newer open began is dropped, so an older file never replaces a newer one (nor is a pass
+  // added to the song that replaced the one it was dropped on).
+  const openCount = useRef(0)
+
   const update = useCallback((next: LabSongFile): void => {
+    songRef.current = next
     setSong(next)
     setEdited(true)
   }, [])
 
   const open = useCallback(async (picked: File): Promise<void> => {
+    if (edited && !window.confirm(DISCARD_EDITS_TEXT)) return
+    const request = ++openCount.current
     try {
       const text = await picked.text()
+      if (request !== openCount.current) return
       const next = parseLabFile(text, picked.name)
       const { startMs, endMs } = songBounds(next)
+      songRef.current = next
       setSong(next)
       setSource({ name: picked.name, session: next.passes.length === 1 && !/\.song\.json$/i.test(picked.name) })
       setShown(allPasses(next))
@@ -114,21 +105,27 @@ export const ReviewPage = (): React.ReactElement => {
       setEdited(false)
       setError(null)
     } catch (err) {
+      if (request !== openCount.current) return
       setError(`${picked.name}: ${err instanceof Error ? err.message : String(err)}`)
     }
-  }, [])
+  }, [edited])
 
   const addPassFile = useCallback(async (picked: File): Promise<void> => {
-    if (!song) return
+    if (!songRef.current) return
+    const request = openCount.current
     try {
-      const next = alignedPass(song, checkSession(parseJson(await picked.text())), picked.name)
+      const session = checkSession(parseJson(await picked.text()))
+      const current = songRef.current
+      if (request !== openCount.current || !current) return
+      const next = alignedPass(current, session, picked.name)
       update(next)
       setShown(allPasses(next))
       setError(null)
     } catch (err) {
+      if (request !== openCount.current) return
       setError(`${picked.name}: ${err instanceof Error ? err.message : String(err)}`)
     }
-  }, [song, update])
+  }, [update])
 
   // A file dropped anywhere opens, or with a song open, is added as a pass.
   useEffect(() => {
@@ -148,19 +145,21 @@ export const ReviewPage = (): React.ReactElement => {
     }
   }, [open, addPassFile, song])
 
-  /** Applies an edit to the labels of a label's pass, on that pass's own clock. */
-  const editPass = useCallback((id: number, change: (passLabels: Label[], label: SongLabel, passBoundsOnOwnClock: { startMs: number; endMs: number }) => Label[]): void => {
+  /**
+   * Applies an edit to the labels of a label's pass, on that pass's own clock, with where the label may go: its slice of the pass (one
+   * stretch between seeks, one turn of a loop), so a move or nudge cannot carry it across a seek or a wrap.
+   */
+  const editPass = useCallback((id: number, change: (passLabels: Label[], label: SongLabel, reach: TimeBounds) => Label[]): void => {
     if (!song) return
     const label = labels.find((candidate) => candidate.id === id)
     const pass = label ? song.passes[label.passIndex] : undefined
     if (!label || !pass) return
-    const own = { startMs: pass.session.startMs, endMs: pass.session.endMs }
-    update(setPassLabels(song, label.passIndex, change(pass.session.labels, label, own)))
+    update(setPassLabels(song, label.passIndex, change(pass.session.labels, label, labelBounds(pass, label.passT))))
   }, [song, labels, update])
 
-  // A move is by how far it went on song time, so it stays right within a slice of a pass that seeked or looped.
+  // A move is by how far it went on song time, which within one slice is the same distance on the pass's clock.
   const handleMove = useCallback((id: number, t: number): void => {
-    editPass(id, (passLabels, label, own) => moveLabel(passLabels, label.labelId, label.passT + (t - label.t), own))
+    editPass(id, (passLabels, label, reach) => moveLabel(passLabels, label.labelId, label.passT + (t - label.t), reach))
   }, [editPass])
 
   const handleDelete = useCallback((): void => {
@@ -180,7 +179,7 @@ export const ReviewPage = (): React.ReactElement => {
       } else if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
         event.preventDefault()
         const step = (event.shiftKey ? NUDGE_SHIFT_MS : NUDGE_MS) * (event.key === 'ArrowLeft' ? -1 : 1)
-        editPass(selectedId, (passLabels, label, own) => nudgeLabel(passLabels, label.labelId, step, own))
+        editPass(selectedId, (passLabels, label, reach) => nudgeLabel(passLabels, label.labelId, step, reach))
       } else if (event.key === 'Escape') {
         setSelectedId(null)
       }
@@ -211,7 +210,7 @@ export const ReviewPage = (): React.ReactElement => {
 
   const handleRealign = (passIndex: number): void => {
     if (!song) return
-    const { offsetMs, alignment } = placePass(song, song.passes[passIndex]!.session)
+    const { offsetMs, alignment } = placePass(song.passes[0]!, song.passes[passIndex]!.session)
     if (!alignment) setError(`Pass ${passIndex + 1} could not be matched to the first pass; it keeps the player's or a start-to-start position.`)
     update(setPassOffset(song, passIndex, offsetMs, alignment))
   }
@@ -335,15 +334,23 @@ export const ReviewPage = (): React.ReactElement => {
                   )}
                 </span>
                 <button type='button' className='lab-button' onClick={handleDelete}>Delete</button>
-                <span className='review-hint'>Drag to move, arrows nudge a frame (Shift: 100 ms), Delete removes, Escape deselects.</span>
+                <span className='review-hint'>
+                  Drag to move, arrows nudge a frame (Shift: 100 ms), Delete removes (a riser's start and end together), Escape deselects.
+                  Click again for the next label on the same spot; [ and ] step through the labels.
+                </span>
               </>
             ) : (
               <span className='review-hint'>
-                Click a label to select it. Wheel zooms, drag pans, double-click shows the whole song.
+                Click a label to select it, or focus the timeline and press [ or ]. Wheel zooms, drag pans, double-click shows the whole song.
                 {multiPass && ' The model\'s lanes are the first pass\'s; tags carry their pass number.'}
               </span>
             )}
           </p>
+          <span className='review-visually-hidden' aria-live='polite'>
+            {selected
+              ? `${LABEL_INFO[selected.kind].name}${multiPass ? ` of pass ${fromViewId(selected.id).passIndex + 1}` : ''} at ${formatTime(selected.t - origin, true)} selected`
+              : ''}
+          </span>
         </main>
       )}
     </div>
