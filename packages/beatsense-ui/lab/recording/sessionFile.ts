@@ -39,7 +39,10 @@ export type LabSessionFile = {
   drumHits: DrumDetection[]
   /** The labels, sorted by time. */
   labels: Label[]
-  /** The section tracker's ticks while recording, replayable through a fresh tracker (beatsense's section log, version 2). */
+  /**
+   * The section tracker's ticks up to the end of the recording, from as far back as it keeps them (beatsense's section log, version 2):
+   * the ticks before `startMs` are a pre-roll, so a fresh tracker replaying the log reaches the state the live one had at Record.
+   */
   sectionLog: SectionLog
   /** With the lab's player playing a file, what it played: labels and frames then map onto the song by it. Absent otherwise. */
   playback?: SessionPlayback
@@ -92,13 +95,21 @@ const checkPlayback = (value: unknown): SessionPlayback | undefined => {
   return value as SessionPlayback
 }
 
+/** A section tick: its time, band powers and beats, and the BPM shown (absent in older logs, null before a tempo). */
+const isSectionTick = (tick: unknown): boolean =>
+  isRecord(tick)
+  && isFiniteNumber(tick.t)
+  && isNumberArray(tick.power)
+  && isFiniteNumber(tick.beats)
+  && (tick.bpm === undefined || isNumberOrNull(tick.bpm))
+
 const isSectionLog = (value: unknown): value is SectionLog =>
   isRecord(value)
   && value.version === 2
   && isFiniteNumber(value.tickMs)
   && typeof value.savedAt === 'string'
   && Array.isArray(value.ticks)
-  && value.ticks.every((tick) => isRecord(tick) && isFiniteNumber(tick.t) && isNumberArray(tick.power) && isFiniteNumber(tick.beats))
+  && value.ticks.every(isSectionTick)
 
 /** Where in a list the first bad entry is, for the message. */
 const firstBad = (list: readonly unknown[], check: (value: unknown) => boolean): number => list.findIndex((value) => !check(value))

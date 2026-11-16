@@ -1,7 +1,7 @@
 import type { DrumKind } from 'beatsense'
 
 import { compareDrum, MATCH_AFTER_MS, MATCH_BEFORE_MS, median, type DrumComparison } from './compareDrums'
-import { DRUM_LABEL_KINDS, type DrumLabelKind, type Label } from './labels'
+import { DRUM_LABEL_KINDS, riserPairs, type DrumLabelKind, type Label } from './labels'
 import type { DrumDetection } from './sessionFile'
 import type { View } from './timeline'
 
@@ -78,16 +78,5 @@ export const tallySession = (labels: readonly Label[], hits: readonly DrumDetect
 export type RiserSpan = { startMs: number; endMs: number | null }
 
 /** Your risers: each start up to the next end (an end with no start before it is dropped; a start not yet ended is open, null). */
-export const riserSpans = (labels: readonly Label[]): RiserSpan[] => {
-  const spans: RiserSpan[] = []
-  labels.forEach(({ kind, t }) => {
-    const open = spans[spans.length - 1]
-    if (kind === 'riserStart') {
-      if (open && open.endMs === null) return
-      spans.push({ startMs: t, endMs: null })
-    } else if (kind === 'riserEnd' && open && open.endMs === null) {
-      open.endMs = t
-    }
-  })
-  return spans
-}
+export const riserSpans = (labels: readonly Label[]): RiserSpan[] =>
+  riserPairs(labels).map(({ start, end }) => ({ startMs: start.t, endMs: end?.t ?? null }))

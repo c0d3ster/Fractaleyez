@@ -82,6 +82,27 @@ export const isRiserOpen = (labels: readonly Label[]): boolean => {
   return false
 }
 
+/** One riser: its start label and the end that closes it (null while it is open). */
+export type RiserPair<T extends Label> = { start: T; end: T | null }
+
+/**
+ * The risers among `labels` (oldest first): each start with the next end. A start while one is open and an end with none open belong to
+ * no riser (the riser toggle never makes them; a file edited by hand might have them).
+ */
+export const riserPairs = <T extends Label>(labels: readonly T[]): RiserPair<T>[] => {
+  const pairs: RiserPair<T>[] = []
+  labels.forEach((label) => {
+    const open = pairs[pairs.length - 1]
+    if (label.kind === 'riserStart') {
+      if (open && open.end === null) return
+      pairs.push({ start: label, end: null })
+    } else if (label.kind === 'riserEnd' && open && open.end === null) {
+      open.end = label
+    }
+  })
+  return pairs
+}
+
 /** The label an action adds after `labels` (oldest first): the riser toggles between a start and an end. */
 export const labelKindFor = (action: LabelAction, labels: readonly Label[]): LabelKind => {
   if (action !== 'riser') return action

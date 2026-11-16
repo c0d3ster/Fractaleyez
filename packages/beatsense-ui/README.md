@@ -137,7 +137,9 @@ saved.
 
 ### Recording
 
-Once the analysis runs, Record starts a session and Stop ends it (a new Record drops the last one, so export first). While recording:
+Once the analysis runs, Record starts a session and Stop ends it (a new Record drops the last one, so export first: Record, or Play &
+record, asks before dropping a stopped session that was never exported). The section tracker keeps running through Record (start in the middle of a buildup and it is
+still a buildup), and the exported section log carries its ticks from before Record as a pre-roll, so replaying it gives the recorded sections. While recording:
 
 - Every `FrameReading` the `AnalysisHost` gives is kept (60 a second), with each drum hit the drum model calls.
 - The label buttons, or their hotkeys, add labels. The drum buttons sit under the Frequency HUD's drum lights, the song labels
@@ -146,8 +148,11 @@ Once the analysis runs, Record starts a session and Stop ends it (a new Record d
   fixed on the review page). The keys: the drums as a block on `Q` kick, `W` snare, `A` clap, `S` hat; `R` riser, which
   starts a riser and ends it on the next press (the file keeps a riser start and a riser end label; the button says which is next); and
   the song labels on `1` intro, `2` buildup, `3` drop, `4` breakdown, `5` outro, in song order. Intro and outro are the tracker's own
-  calls too, so labelling them shows where it calls an outro mid-song. Held keys, keys with Ctrl, Cmd or Alt, and typing in a field add
-  nothing. Backspace (or Undo) removes the newest label.
+  calls too, so labelling them shows where it calls an outro mid-song. Held keys, keys with Ctrl, Cmd or Alt, and typing in a field (a
+  text box, a select) add nothing; a focused seek bar, file picker or button leaves them on. Backspace (or Undo) removes the newest label,
+  under the same rules (Ctrl, Cmd or Alt with Backspace does not).
+- The bar warns once a recording passes 40 minutes: the section tracker keeps its last 40 minutes of ticks, so a longer session's section
+  log misses its start (its first tick then comes well after `startMs`).
 - Two strips compare your labels with the model's, each under the HUD whose timeline it shares and following that HUD's zoom (through
   `onViewChange`), so the times line up:
   - Under the Beat HUD (2 to 16 s), a lane per drum: your labels on the top half, the model's hits on the bottom, a pair joined by a green
@@ -165,13 +170,17 @@ The player row plays a local audio file (open it, or drop it on the page) throug
 **Loop A** then **B** to loop a stretch (a buildup again and again), and **Play & record** to start both at once. **Mic** sends it out
 through the speakers for the microphone to hear, room and all, as the app hears music live; **Direct** feeds it straight into the
 analysis too (the microphone muted to the analysis), clean and with no delay. The track is decoded whole into memory as 32-bit samples (about 23 MB a minute of stereo at 48 kHz,
-so about 120 MB for a five-minute song).
+so about 120 MB for a five-minute song). While a recording runs, Open track (and a dropped track) and Mic / Direct are off: a pass keeps one
+track and one mode. Playing from at or past a loop's B (B set while paused past it, or a seek past it) starts at its A.
 
 Every play, seek, loop and pause is logged on the analysis clock (`lab/player/playbackLog.ts`), and a recording made while it plays keeps
-the log for its span (the session's `playback`: the file's name, length and size, the mode and the segments). A pass then maps onto the
+the log for its span (the session's `playback`: the file's name, length and size, the mode and the segments). A seek or loop change while
+playing is logged as a pause from the moment the old sound stops to the moment the new one starts (about 30 ms). A pass then maps onto the
 song exactly: song time is the position in the file, slice by slice (between seeks, and per turn of a loop), so no search for where the
 pass started is needed. Two passes of the same file only need the small correction for the trip from the speakers to the mic, found by
-the onset match within 300 ms (with 3 s of overlap, enough for a search that narrow). Such a session exports as
+the onset match within 300 ms (with 3 s of overlap, enough for a search that narrow; its runner-up is the best offset 200 ms or more
+away inside that window). A pass of another track, or one without the player, is matched on its own song time (the file position, or its
+clock without the player), so the offset is only ever added once to the log's mapping. Such a session exports as
 `<track>-<date>-<time>.json`, and a song made from it is titled after the track.
 
 Export saves the stopped session as `beatsense-session-<date>-<time>.json` (or after the track the player played), version 1 of the format in `lab/recording/sessionFile.ts`:
@@ -186,17 +195,22 @@ Export saves the stopped session as `beatsense-session-<date>-<time>.json` (or a
 | `drumHits` | `{ kind, t }` per hit the drum model called, sorted by time. |
 | `labels` | `{ id, kind, t }`, sorted by time; the id stays with a label through edits. |
 | `playback` | Only when the player played a file: `{ file: { name, durationMs, size }, mode: 'mic' \| 'direct', segments }`, each segment `{ atMs, songMs, loop }` (`songMs` null for a pause). |
-| `sectionLog` | beatsense's `SectionLog` (version 2) with the section tracker's 50 ms ticks inside the session, for replaying through a fresh tracker (`SectionTracker.pushTick`, or `scripts/section-eval/replay-log.mts`). |
+| `sectionLog` | beatsense's `SectionLog` (version 2) with the section tracker's 50 ms ticks up to the session's end, for replaying through a fresh tracker (`SectionTracker.pushTick`, or `scripts/section-eval/replay-log.mts`). The ticks before `startMs` are a pre-roll: the tracker keeps running through Record, so the replay needs what it heard before to give the recorded `section`s. It holds the last 40 minutes at most, so the pre-roll is complete only if the analysis had run less than 40 minutes by the end of the session. |
 
 The **Review** link opens `review.html`: open or drop an exported session to see its timelines (the sections, the five band levels, the
 beats colored by band, the drum model's hits per drum, the tempo, the riser and the sweep), with the labels as lines through every lane.
-The wheel zooms around the pointer, dragging empty space pans and a double-click shows the whole session. Click a label to select it, drag
-it to move it, the arrow keys nudge it a frame (Shift: 100 ms) and Delete removes it. The page asks before leaving with unsaved edits.
+The wheel zooms around the pointer, dragging empty space pans and a double-click shows the whole session. Click a label to select it
+(again, for the next label on the same spot, such as a kick and a clap on one hit), drag it to move it, the arrow keys nudge it a frame
+(Shift: 100 ms) and Delete removes it. The timeline takes the keyboard focus (Tab), and `[` and `]` then select the label before or
+after. A move or nudge stays inside the label's stretch of the pass (between seeks, one turn of a loop), a riser's end stays after its
+start (and its start before its end), and deleting a riser's start or end deletes both. The page asks before leaving, or opening another
+file, with unsaved edits.
 
 A song can be labelled over several passes (kicks and snares in one, hats and claps in another, sections in a third): **Add pass** (or
 drop another session) adds a session of the same song, aligned to the first pass by matching onset envelopes of their band levels
 (`lab/recording/align.ts`; volume does not matter, and a pass may start anywhere in the song). The pass list shows how sure each
-alignment is (its match against the best offset a second or more away; "check alignment" when it does not stand out), with nudges of 10
+alignment is (its match against the best offset a second or more away, or 200 ms for two passes of one file through the player; "check
+alignment" when it does not stand out), with nudges of 10
 and 100 ms, Re-align and Remove, and a checkbox to show or hide each pass's labels. All labels sit on the song's time (the first pass's
 clock), tagged with their pass number, over the first pass's model output; edits go back to the label's own pass. Labels of one kind from
 different passes within 60 ms agree (`mergeLabels.ts`): the counts show how many moments all the passes that labelled that kind agree
@@ -207,7 +221,7 @@ scores and the whole session unchanged), which opens again with its passes.
 The recording logic is plain TypeScript in `lab/recording/` (labels and hotkeys, `SessionRecorder`, the file format, the label edits, the
 plot geometry, the label-to-hit pairing in `compareDrums.ts`, the strips' windows and tally in `liveView.ts`, the model's recent output in
 `recentHistory.ts`, and the passes in `align.ts`, `songFile.ts` and `mergeLabels.ts`), tested in `test/lab/` with synthetic frames, including a run of the real `AnalysisHost` whose section log replays to the
-same ticks.
+same ticks and the recorded sections, with the analysis running before Record.
 
 ### Build
 

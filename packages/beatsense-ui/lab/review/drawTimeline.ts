@@ -173,10 +173,12 @@ export const drawTimeline = (ctx: CanvasRenderingContext2D, width: number, data:
     top += height + LANE_GAP_PX
   })
 
-  // The labels on top of every lane: a line, its tag in the label lane, the selected one brighter and wider.
+  // The labels on top of every lane: a line, its tag in the label lane, the selected one brighter and wider, and drawn last, so it shows
+  // on top of any label on the same spot.
   const plotBottom = TIMELINE_HEIGHT - LANES[LANES.length - 1]!.height - LANE_GAP_PX
   ctx.textAlign = 'left'
-  labels.forEach(({ id, kind, t }) => {
+  const ordered = selectedId === null ? labels : [...labels.filter(({ id }) => id !== selectedId), ...labels.filter(({ id }) => id === selectedId)]
+  ordered.forEach(({ id, kind, t }) => {
     if (!visible(t)) return
     const x = Math.round(toX(t))
     const { color } = LABEL_INFO[kind]

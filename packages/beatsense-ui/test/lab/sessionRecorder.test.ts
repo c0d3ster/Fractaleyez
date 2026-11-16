@@ -92,7 +92,8 @@ describe('SessionRecorder', () => {
     expect(file.frames).toHaveLength(120)
     expect(file.labels.map(({ kind }) => kind)).toEqual(['kick', 'drop'])
     expect(file.sectionLog.version).toBe(2)
-    expect(file.sectionLog.ticks[0]!.t).toBe(1000)
+    // The ticks before Record stay as the replay's pre-roll; none after Stop.
+    expect(file.sectionLog.ticks[0]!.t).toBe(0)
     expect(file.sectionLog.ticks[file.sectionLog.ticks.length - 1]!.t).toBeLessThanOrEqual(file.endMs)
   })
 

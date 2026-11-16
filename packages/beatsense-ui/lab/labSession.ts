@@ -131,6 +131,8 @@ export class LabSession {
   private contextLagMs = Number.POSITIVE_INFINITY
   private lastLabel: Label | null = null
   private file: LabSessionFile | null = null
+  /** Whether the stopped session has been exported (so a new Record can drop it without asking). */
+  private exported = false
   private readonly frameRate = new FrameRate()
   private readonly pageFrames = new PageFrames()
   private readonly drawTimes = new RollingStats()
@@ -210,12 +212,16 @@ export class LabSession {
     this.host?.setSettings(this.settings)
   }
 
-  /** Starts a recording (dropping the last one) at the audio clock's now. A no-op until the analysis runs. */
+  /**
+   * Starts a recording (dropping the last one) at the audio clock's now, with the section tracker reset so the session's section log
+   * replays to the sections recorded (the Section HUD starts over with it). A no-op until the analysis runs.
+   */
   startRecording = (): void => {
-    if (!this.clock || this.recorder.isRecording()) return
+    if (!this.clock || !this.host || this.recorder.isRecording()) return
     this.recorder.start(this.clock.now())
     this.lastLabel = null
     this.file = null
+    this.exported = false
   }
 
   /** Stops the recording and makes its file, with the section tracker's ticks from the session. */
@@ -227,10 +233,19 @@ export class LabSession {
       sampleRate: this.context?.sampleRate ?? null,
       playback: this.recordedPlayback(),
     })
+    this.exported = false
     return this.file
   }
 
-  /** Starts the player and a recording together, so the pass covers the song from where it plays. Null with no file loaded. */
+  /** Notes that the stopped session was exported. */
+  markExported = (): void => {
+    this.exported = true
+  }
+
+  /** Whether a new Record would drop a stopped session that was never exported. */
+  hasUnexportedSession = (): boolean => this.file !== null && !this.exported
+
+  /** Starts the player and a recording together, so the pass covers the song from where it plays. A no-op with no file loaded. */
   playAndRecord = (): void => {
     if (!this.player?.state().file || this.recorder.isRecording()) return
     this.startRecording()
@@ -239,7 +254,10 @@ export class LabSession {
 
   getPlayer = (): LocalPlayer | null => this.player
 
-  /** What the player did during the stopped recording, if it played a file in it. */
+  /**
+   * What the player did during the stopped recording, if it played a file in it. The file and the mode are read at Stop: the player bar
+   * keeps both from changing while a recording runs, so they held for the whole pass.
+   */
   private recordedPlayback = (): SessionPlayback | undefined => {
     const file = this.player?.state().file
     if (!this.player || !file) return undefined

@@ -2,6 +2,7 @@ import React from 'react'
 
 import type { LabPhase } from './labSession'
 import { LABEL_INFO } from './recording/labels'
+import { SECTION_LOG_MAX_MS } from './recording/sessionRecorder'
 import { formatTime } from './recording/timeline'
 import type { RecordingControls } from './useRecording'
 
@@ -28,6 +29,11 @@ export const RecordBar = ({ controls, phase }: RecordBarProps): React.ReactEleme
       {status.phase !== 'idle' && (
         <span className='lab-record-time'>
           <b>{formatTime(durationMs)}</b> {frames} frames
+        </span>
+      )}
+      {status.phase !== 'idle' && durationMs > SECTION_LOG_MAX_MS && (
+        <span className='lab-status-error' title='The section tracker keeps its last 40 minutes of ticks, so the exported section log misses the start of this session.'>
+          Over 40 min: the section log keeps only the last 40
         </span>
       )}
       <button type='button' className='lab-label-button' onClick={undo} disabled={!recording} title='Remove the newest label (Backspace)'>

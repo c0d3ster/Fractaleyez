@@ -40,14 +40,17 @@ export const PlayerBar = ({ session, phase, recording }: PlayerBarProps): React.
     return (): void => window.clearInterval(timer)
   }, [player, refresh])
 
+  // A pass keeps one track and one mode (its file is named in the session, its correction is for one route to the analysis), so neither
+  // changes while a recording runs: the controls are disabled and a dropped track is ignored.
+  const locked = recording.recording
   const open = useCallback(async (picked: File): Promise<void> => {
-    if (!player) return
+    if (!player || locked) return
     setLoopStartMs(null)
     const decoding = player.load(picked)
     refresh()
     await decoding
     refresh()
-  }, [player, refresh])
+  }, [player, locked, refresh])
 
   // An audio file dropped anywhere on the page loads (other files are left to the page).
   useEffect(() => {
@@ -86,12 +89,15 @@ export const PlayerBar = ({ session, phase, recording }: PlayerBarProps): React.
 
   return (
     <div className='lab-player'>
-      <label className={`lab-button lab-player-open${player ? '' : ' lab-player-disabled'}`} title={player ? 'Open an audio file, or drop one on the page' : 'Start the analysis first.'}>
+      <label
+        className={`lab-button lab-player-open${player && !locked ? '' : ' lab-player-disabled'}`}
+        title={!player ? 'Start the analysis first.' : locked ? 'Stop the recording first: a pass keeps one track.' : 'Open an audio file, or drop one on the page'}
+      >
         {loading ? 'Loading...' : 'Open track'}
         <input
           type='file'
           accept='audio/*'
-          disabled={!player}
+          disabled={!player || locked}
           onChange={(event): void => {
             const picked = event.target.files?.[0]
             event.target.value = ''
@@ -107,9 +113,8 @@ export const PlayerBar = ({ session, phase, recording }: PlayerBarProps): React.
         className='lab-button lab-record-button'
         disabled={!ready || recording.recording}
         onClick={(): void => {
-          session.playAndRecord()
+          recording.playAndRecord()
           refresh()
-          recording.refresh()
         }}
         title='Start playing and a recording together'
       >
@@ -150,9 +155,9 @@ export const PlayerBar = ({ session, phase, recording }: PlayerBarProps): React.
             role='radio'
             aria-checked={mode === option}
             className={`lab-label-button${mode === option ? ' lab-label-active' : ''}`}
-            disabled={!player}
+            disabled={!player || locked}
             onClick={(): void => act(() => player!.setMode(option))}
-            title={MODE_TEXT[option].title}
+            title={locked ? 'Stop the recording first: a pass keeps one mode.' : MODE_TEXT[option].title}
           >
             {MODE_TEXT[option].name}
           </button>

@@ -1,6 +1,7 @@
 import type { FrameReading } from 'beatsense'
 
 import { sliceLog, type PlaybackSlice } from '../player/playbackLog'
+import { alignPasses } from './align'
 import { sortLabels, type Label } from './labels'
 import type { TimeBounds } from './labelEdits'
 import { checkSession, parseJson, trackTitle, type DrumDetection, type LabSessionFile } from './sessionFile'
@@ -15,7 +16,10 @@ export const SONG_FORMAT = 'beatsense-lab-song'
 export const SONG_VERSION = 1
 
 export type PassAlignment = {
-  /** How well the pass's onsets matched the first pass's at its offset (-1 to 1), and at the best other offset a second or more away. */
+  /**
+   * How well the pass's onsets matched the first pass's at its offset (-1 to 1), and at the best other offset a second or more away (200 ms
+   * for two passes of one file through the player, whose search covers only a few hundred ms).
+   */
   score: number
   runnerUp: number
 }
@@ -131,6 +135,19 @@ export const passSlices = ({ offsetMs, session }: SongPass): PlaybackSlice[] => 
   return sliceLog(playback.segments, startMs, endMs + 1).map((slice) => ({ ...slice, offsetMs: slice.offsetMs + offsetMs }))
 }
 
+/**
+ * Where a label of `pass` at `passT` (on the pass's own clock) may be moved: within its slice (one stretch between seeks, one turn of a
+ * loop), so a move cannot carry it over a seek or a loop's wrap to another part of the song, or into a pause where it no longer shows.
+ * The whole session for a time in no slice.
+ */
+export const labelBounds = (pass: SongPass, passT: number): TimeBounds => {
+  const { startMs, endMs } = pass.session
+  const slice = passSlices(pass).find(({ fromMs, toMs }) => passT >= fromMs && passT < toMs)
+  if (!slice) return { startMs, endMs }
+  // A slice is [fromMs, toMs), so a label stops a millisecond short of the next one (the last slice ends a millisecond past endMs).
+  return { startMs: slice.fromMs, endMs: Math.max(slice.fromMs, Math.min(endMs, slice.toMs - 1)) }
+}
+
 /** A time on the pass's clock in song time, or null when the song was not playing then (paused, stopped). */
 export const toSongTime = (slices: readonly PlaybackSlice[], t: number): number | null => {
   const slice = slices.find(({ fromMs, toMs }) => t >= fromMs && t < toMs)
@@ -203,6 +220,27 @@ export const PLAYBACK_MIN_OVERLAP_MS = 3000
 /** Whether two passes played the same file through the lab's player (so their logs share song time and need only a small correction). */
 export const samePlayback = (a: LabSessionFile, b: LabSessionFile): boolean =>
   Boolean(a.playback && b.playback && a.playback.file.name === b.playback.file.name && Math.abs(a.playback.file.durationMs - b.playback.file.durationMs) < 50)
+
+/**
+ * Where a new pass sits on the song whose first pass is `first`: its offset and how it was matched. Both sides are matched on their own
+ * song time, the offset being what passSlices adds to it: the file position for a pass the lab's player played (so the offset is only the
+ * difference between the two song times), the audio clock for one it did not. Two passes of the same file through the player already
+ * share song time, so only the small correction (the speakers to the mic) is searched, around zero. Otherwise the whole song is searched;
+ * with no match the pass is lined up start to start and marked as set by hand.
+ */
+export const placePass = (first: SongPass, session: LabSessionFile): { offsetMs: number; alignment: PassAlignment | null } => {
+  const unplaced: SongPass = { name: '', offsetMs: 0, alignment: null, session }
+  const reference = songFrames(first).frames
+  const own = songFrames(unplaced).frames
+  if (samePlayback(first.session, session)) {
+    const correction = alignPasses(reference, own, { hint: { offsetMs: 0, withinMs: PLAYBACK_CORRECTION_MS }, minOverlapMs: PLAYBACK_MIN_OVERLAP_MS })
+    if (!correction) return { offsetMs: 0, alignment: null }
+    return { offsetMs: correction.offsetMs, alignment: { score: correction.score, runnerUp: correction.runnerUp } }
+  }
+  const found = alignPasses(reference, own)
+  if (!found) return { offsetMs: passBounds(first).startMs - passBounds(unplaced).startMs, alignment: null }
+  return { offsetMs: found.offsetMs, alignment: { score: found.score, runnerUp: found.runnerUp } }
+}
 
 /** Song time covered by any pass. */
 export const songBounds = (song: LabSongFile): TimeBounds => {
