@@ -11,7 +11,7 @@ How subscriptions are wired, and the steps outside the code to make them work. T
 - A customer has at most one open subscription Checkout. Starting a checkout reuses an open session for the same price and return URL (two tabs on Go Lucid both land on the same session, which can only be paid once), and expires any other open subscription session of that customer (Lucid in one tab, then Third Eye in another: the Lucid tab can no longer be paid). A session lasts an hour (`CHECKOUT_LIFETIME_S`, Stripe's default is 24), and one with under 10 minutes left is replaced rather than reused. Two clicks in the same instant can still both create one; `reconcile` then picks the plan as before.
 - Without `STRIPE_SECRET_KEY` the Plan tab shows the tiers with "Paid plans are coming soon" instead of buttons, so a deployment can ship the code before Stripe is set up there.
 - Prices are found by lookup key, `<plan>_<interval>`: `tier1_monthly`, `tier2_monthly`, and optionally `tier1_yearly` and `tier2_yearly`. No price ids live in env vars.
-- `/api/me` also returns `plan` and `entitlements` (`server/services/entitlements.ts`). They aren't enforced yet (monetization phase 2).
+- `/api/me` also returns `plan`, `entitlements` (`server/services/entitlements.ts`) and `usage`. The server enforces the quotas on every create (see the monetization doc, Enforcement points), and the client's locks and upgrade prompts read the same numbers. Back from Checkout (`?billing=`), the app calls `GET /api/billing` to reconcile, then re-reads the plan and the pack list.
 
 ## Stripe dashboard (test mode)
 

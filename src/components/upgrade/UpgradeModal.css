@@ -1,0 +1,80 @@
+.upgrade-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1001;
+  padding: 16px;
+}
+
+.upgrade-card {
+  position: relative;
+  background: #111;
+  border: 1px solid rgba(40, 40, 40, 0.9);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8);
+  padding: 2rem;
+  width: 100%;
+  max-width: 560px;
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  color: rgba(220, 220, 220, 0.9);
+}
+
+.upgrade-close {
+  position: absolute;
+  top: 10px;
+  right: 14px;
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.upgrade-close:hover {
+  color: #ddd;
+}
+
+.upgrade-title {
+  margin: 0 0 8px;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.upgrade-reason {
+  margin: 0 0 16px;
+  font-size: 14px;
+  line-height: 1.4;
+  color: #aaa;
+}
+
+.upgrade-signin {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.upgrade-signin-btn {
+  padding: 8px 18px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  background: #fff;
+  color: #0a0a0a;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* A small inline link a lock shows next to its message. */
+.upgrade-link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #c9a7ff;
+  text-decoration: underline;
+  cursor: pointer;
+  font: inherit;
+}

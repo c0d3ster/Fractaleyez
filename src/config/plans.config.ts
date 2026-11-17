@@ -34,3 +34,57 @@ export type BillingStatus = {
   /** False while Stripe isn't set up for this deployment: the tiers show without buttons. */
   available: boolean
 }
+
+/** Mirrors server/services/entitlements.ts. null means unlimited. */
+export type Quota = number | null
+export type QuotaKey = 'savedPresets' | 'particleUploads' | 'privatePacks' | 'publicPacks'
+
+/** `/api/me`'s `entitlements`: the server enforces these on every create, the client only draws the locks from them. */
+export type Entitlements = {
+  plan: PlanId
+  quotas: Record<QuotaKey, Quota>
+  features: {
+    builtInPremiumPacks: boolean
+    allPacks: boolean
+    customFractalPath: boolean
+  }
+}
+
+/** `/api/me`'s `usage`: what the user has made, counted against the quotas. */
+export type Usage = Record<QuotaKey, number>
+
+/** How the client words each quota in a lock or an upgrade prompt. */
+export const QUOTA_LABELS: Record<QuotaKey, string> = {
+  savedPresets: 'saved presets',
+  particleUploads: 'particle uploads',
+  privatePacks: 'packs',
+  publicPacks: 'public packs',
+}
+
+/**
+ * Room for one more. Unknown (not loaded yet, or signed out) counts as room: the server has the final say, and a refused
+ * create still lands on the upgrade prompt through its 403.
+ */
+export const hasRoomFor = (entitlements: Entitlements | null, usage: Usage | null, quota: QuotaKey): boolean => {
+  const limit = entitlements?.quotas[quota]
+  if (limit === undefined || limit === null || !usage) return true
+  return usage[quota] < limit
+}
+
+/** The next plan up that has room for `quota`, or null on the top plan. */
+export const nextPlanFor = (plan: PlanId): PaidPlanId | null => {
+  if (plan === 'free') return 'tier1'
+  if (plan === 'tier1') return 'tier2'
+  return null
+}
+
+/** The body of a 403 a create was refused with because of the plan (server/services/EntitlementService.ts's QuotaExceededError). */
+export type QuotaExceeded = { error: string; code: 'quota_exceeded'; quota: QuotaKey; limit: number; plan: PlanId }
+
+export const isQuotaExceeded = (value: unknown): value is QuotaExceeded =>
+  typeof value === 'object' && value !== null && (value as { code?: unknown }).code === 'quota_exceeded'
+
+export const quotaMessage = ({ quota, limit, plan }: Pick<QuotaExceeded, 'quota' | 'limit' | 'plan'>): string =>
+  limit === 0
+    ? `${PLAN_LABELS[plan]} doesn't include ${QUOTA_LABELS[quota]}.`
+    : `${PLAN_LABELS[plan]} includes ${limit} ${QUOTA_LABELS[quota]}, and you've used them all.`

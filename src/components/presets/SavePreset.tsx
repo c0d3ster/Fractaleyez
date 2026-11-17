@@ -2,6 +2,8 @@ import React, { useState, useContext, useCallback, useEffect, useMemo, useRef } 
 import { useInfo } from '../config/info/info'
 import { ConfigContext } from '../config/context/ConfigProvider'
 import { PresetSelection } from './Presets'
+import { useUpgrade } from '../upgrade/UpgradeProvider'
+import { hasRoomFor, isQuotaExceeded, quotaMessage } from '../../config/plans.config'
 
 type SavePresetProps = {
   prefill?: PresetSelection | null
@@ -11,6 +13,7 @@ type SavePresetProps = {
 export const SavePreset = ({ prefill, onSaved }: SavePresetProps): React.ReactElement | null => {
   const info = useInfo()
   const context = useContext(ConfigContext)
+  const { requestUpgrade } = useUpgrade()
   const packInputRef = useRef<HTMLInputElement>(null)
   const [name, setName] = useState('')
   const [pack, setPack] = useState('')
@@ -37,6 +40,19 @@ export const SavePreset = ({ prefill, onSaved }: SavePresetProps): React.ReactEl
   const packTrimmed = pack.trim()
   const packReserved = packTrimmed.length > 0 && systemPacks.has(packTrimmed)
 
+  // Overwriting one of the viewer's own presets is always allowed (the server agrees); only a new name needs room in the plan.
+  const nameTrimmed = name.trim()
+  const isOverwrite = useMemo(
+    () => !!nameTrimmed && (context?.presets.some(p => p.isOwn && p.name === nameTrimmed) ?? false),
+    [context?.presets, nameTrimmed],
+  )
+  const entitlements = context?.entitlements ?? null
+  const usage = context?.usage ?? null
+  const atLimit = !isOverwrite && !hasRoomFor(entitlements, usage, 'savedPresets')
+  const limitMessage = atLimit && entitlements
+    ? quotaMessage({ quota: 'savedPresets', limit: entitlements.quotas.savedPresets ?? 0, plan: entitlements.plan })
+    : ''
+
   const selectReservedPackText = useCallback((el: HTMLInputElement): void => {
     if (!packReserved) return
     requestAnimationFrame(() => {
@@ -47,6 +63,10 @@ export const SavePreset = ({ prefill, onSaved }: SavePresetProps): React.ReactEl
   const handleSave = useCallback(async (force = false) => {
     if (!name.trim() || !context) return
     if (systemPacks.has(packTrimmed)) {
+      return
+    }
+    if (atLimit) {
+      requestUpgrade(limitMessage)
       return
     }
     setStatus('saving')
@@ -62,6 +82,11 @@ export const SavePreset = ({ prefill, onSaved }: SavePresetProps): React.ReactEl
       console.error('savePreset failed', httpStatus, err)
       if (httpStatus === 409) {
         setStatus('confirm')
+      } else if (httpStatus === 403 && isQuotaExceeded(e?.response?.data)) {
+        // The plan changed elsewhere, or the count was stale: re-read it and offer the upgrade.
+        setStatus('idle')
+        context.refreshAccount()
+        requestUpgrade(quotaMessage(e.response.data))
       } else {
         const msg = e?.response?.data?.error ?? `Error (${httpStatus ?? 'network'})`
         setErrorMessage(msg)
@@ -69,7 +94,7 @@ export const SavePreset = ({ prefill, onSaved }: SavePresetProps): React.ReactEl
         setTimeout(() => setStatus('idle'), 3000)
       }
     }
-  }, [name, pack, packTrimmed, context, onSaved, systemPacks])
+  }, [name, pack, packTrimmed, context, onSaved, systemPacks, atLimit, limitMessage, requestUpgrade])
 
   if (!context?.isSignedIn) return null
 
@@ -133,19 +158,26 @@ export const SavePreset = ({ prefill, onSaved }: SavePresetProps): React.ReactEl
           )}
         </div>
         <div className='save-preset-bottom-row'>
-          <p
-            className={`save-preset-pack-hint${packReserved ? ' save-preset-pack-hint--action' : ' save-preset-pack-hint--inactive'}`}
-            role={packReserved ? 'status' : undefined}
-            aria-hidden={!packReserved}
-            onClick={packReserved ? () => {
-              const el = packInputRef.current
-              if (!el) return
-              el.focus()
-              selectReservedPackText(el)
-            } : undefined}
-          >
-            {packReserved ? 'Reserved pack. Use a new pack name.' : '\u00a0'}
-          </p>
+          {atLimit && !packReserved ? (
+            <p className='save-preset-pack-hint save-preset-pack-hint--action' role='status'>
+              {limitMessage}{' '}
+              <button type='button' className='upgrade-link' onClick={() => requestUpgrade(limitMessage)}>Upgrade</button>
+            </p>
+          ) : (
+            <p
+              className={`save-preset-pack-hint${packReserved ? ' save-preset-pack-hint--action' : ' save-preset-pack-hint--inactive'}`}
+              role={packReserved ? 'status' : undefined}
+              aria-hidden={!packReserved}
+              onClick={packReserved ? () => {
+                const el = packInputRef.current
+                if (!el) return
+                el.focus()
+                selectReservedPackText(el)
+              } : undefined}
+            >
+              {packReserved ? 'Reserved pack. Use a new pack name.' : '\u00a0'}
+            </p>
+          )}
           <span className={`save-preset-status save-preset-status--${status}`}>{statusMessage}</span>
         </div>
       </div>

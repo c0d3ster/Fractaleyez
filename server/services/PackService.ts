@@ -1,6 +1,7 @@
 import { packRepository } from '../repositories/PackRepository.js'
 import { IPack } from '../models/Pack.js'
-import { userService } from './UserService.js'
+import { entitlementService } from './EntitlementService.js'
+import { canUsePack } from './entitlements.js'
 
 type CreatePackParams = {
   name: string
@@ -39,8 +40,7 @@ export type PublicPackMeta = {
 
 export class PackService {
   async listPacks(viewerId: string | null): Promise<PublicPackMeta[]> {
-    const rows = await packRepository.findAll()
-    const isAdmin = viewerId ? await userService.isAdmin(viewerId) : false
+    const [rows, viewer] = await Promise.all([packRepository.findAll(), entitlementService.forViewer(viewerId)])
     return rows.map((p) => {
       const isOwn = !!viewerId && p.userId === viewerId
       return {
@@ -51,8 +51,8 @@ export class PackService {
         isPremium: p.isPremium,
         price: p.price,
         isOwn,
-        // Admins can use everything. When subscriptions land, an active one joins this expression and nothing else changes.
-        isEntitled: isOwn || isAdmin,
+        // Admin entitlements include every pack, so this covers the owner too.
+        isEntitled: canUsePack(p, viewerId, viewer?.entitlements ?? null),
       }
     })
   }
@@ -75,8 +75,13 @@ export class PackService {
     const slug = toSlug(name)
     if (!slug) throw serviceError('Invalid pack name', 400)
 
+    const viewer = await entitlementService.forUser(userId)
+    // Premium and priced packs are the owner's to make (monetization doc, "Pack origin") until a creator market exists.
+    if ((isPremium || price !== undefined) && !viewer.isAdmin) throw serviceError('Only admins can make premium or priced packs', 403)
+    await entitlementService.assertRoomFor(userId, 'privatePacks', viewer)
+
     try {
-      return await packRepository.create({ name, slug, userId, description, isPremium, price })
+      return await packRepository.create({ name, slug, userId, description, isPremium, price, origin: viewer.isAdmin ? 'builtIn' : 'creator' })
     } catch (e: unknown) {
       if (isDuplicateKeyError(e)) throw serviceError('A pack with that name already exists', 409)
       throw e

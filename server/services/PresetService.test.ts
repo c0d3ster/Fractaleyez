@@ -5,17 +5,26 @@ import { presetRepository } from '../repositories/PresetRepository.js'
 import { packRepository, PackMeta } from '../repositories/PackRepository.js'
 import { IPreset } from '../models/Preset.js'
 import { defaultFirst, PresetService, toUpdatedAt } from './PresetService.js'
-import { userService } from './UserService.js'
+import { userRepository } from '../repositories/UserRepository.js'
+import { IUser, PlanId } from '../models/User.js'
 
+// The real EntitlementService runs against these, so the tests cover the quota rules end to end down to the counts.
 vi.mock('../repositories/PresetRepository.js', () => ({
-  presetRepository: { create: vi.fn(), upsert: vi.fn(), findAll: vi.fn() },
+  presetRepository: { create: vi.fn(), upsert: vi.fn(), findAll: vi.fn(), countByUserId: vi.fn(), existsForUser: vi.fn() },
 }))
 vi.mock('../repositories/PackRepository.js', () => ({
-  packRepository: { findAll: vi.fn() },
+  packRepository: { findAll: vi.fn(), countByUserId: vi.fn() },
 }))
-vi.mock('./UserService.js', () => ({
-  userService: { isAdmin: vi.fn() },
+vi.mock('../repositories/UploadRepository.js', () => ({
+  uploadRepository: { countByUserId: vi.fn() },
 }))
+vi.mock('../repositories/UserRepository.js', () => ({
+  userRepository: { findByClerkId: vi.fn() },
+}))
+
+const asUser = (plan: PlanId, isAdmin = false): void => {
+  vi.mocked(userRepository.findByClerkId).mockResolvedValue({ clerkId: 'user_1', plan, isAdmin } as unknown as IUser)
+}
 
 const row = (name: string, userId?: string): PresetMeta => ({
   _id: new Types.ObjectId(),
@@ -87,7 +96,9 @@ describe('PresetService#savePreset @user gate', () => {
   beforeEach(() => {
     vi.mocked(presetRepository.create).mockReset().mockResolvedValue(saved)
     vi.mocked(presetRepository.upsert).mockReset().mockResolvedValue(saved)
-    vi.mocked(userService.isAdmin).mockReset().mockResolvedValue(false)
+    vi.mocked(presetRepository.countByUserId).mockReset().mockResolvedValue(0)
+    vi.mocked(presetRepository.existsForUser).mockReset().mockResolvedValue(false)
+    asUser('free')
   })
 
   it('rejects a non-admin saving a preset containing @user with a 403', async () => {
@@ -108,10 +119,10 @@ describe('PresetService#savePreset @user gate', () => {
   })
 
   it('lets an admin save @user, on both paths', async () => {
-    vi.mocked(userService.isAdmin).mockResolvedValue(true)
+    asUser('free', true)
     await expect(save(['@user', 'a.png'])).resolves.toBe(saved)
     await expect(save(['@user'], true)).resolves.toBe(saved)
-    expect(userService.isAdmin).toHaveBeenCalledWith('user_1')
+    expect(userRepository.findByClerkId).toHaveBeenCalledWith('user_1')
   })
 
   describe('logo.sprite', () => {
@@ -130,19 +141,71 @@ describe('PresetService#savePreset @user gate', () => {
     })
 
     it('lets an admin save @user in the logo list', async () => {
-      vi.mocked(userService.isAdmin).mockResolvedValue(true)
+      asUser('free', true)
       await expect(saveLogo(['@user'])).resolves.toBe(saved)
     })
 
-    it('leaves a plain logo sprite alone and skips the admin lookup', async () => {
+    it('leaves a plain logo sprite alone', async () => {
       await expect(saveLogo(['logo.png'])).resolves.toBe(saved)
-      expect(userService.isAdmin).not.toHaveBeenCalled()
     })
   })
 
-  it('leaves presets without @user alone and skips the admin lookup', async () => {
+  it('leaves presets without @user alone', async () => {
     await expect(save(['a.png'])).resolves.toBe(saved)
     await expect(save(['a.png'], true)).resolves.toBe(saved)
-    expect(userService.isAdmin).not.toHaveBeenCalled()
+  })
+})
+
+describe('PresetService#savePreset quota', () => {
+  const service = new PresetService()
+  const saved = { _id: 'p1', name: 'x' } as unknown as IPreset
+  const save = (force = false): Promise<IPreset> =>
+    service.savePreset({ name: 'x', pack: '', config: { particle: { sprites: ['a.png'] } }, userId: 'user_1', force })
+
+  beforeEach(() => {
+    vi.mocked(presetRepository.create).mockReset().mockResolvedValue(saved)
+    vi.mocked(presetRepository.upsert).mockReset().mockResolvedValue(saved)
+    vi.mocked(presetRepository.existsForUser).mockReset().mockResolvedValue(false)
+    vi.mocked(presetRepository.countByUserId).mockReset()
+    asUser('free')
+  })
+
+  it('lets a Dream user save up to the limit', async () => {
+    vi.mocked(presetRepository.countByUserId).mockResolvedValue(2)
+    await expect(save()).resolves.toBe(saved)
+  })
+
+  it('refuses a new preset at the limit, on both paths, with the quota details', async () => {
+    vi.mocked(presetRepository.countByUserId).mockResolvedValue(3)
+    const refused = { status: 403, quota: 'savedPresets', limit: 3, plan: 'free' }
+    await expect(save()).rejects.toMatchObject(refused)
+    await expect(save(true)).rejects.toMatchObject(refused)
+    expect(presetRepository.create).not.toHaveBeenCalled()
+    expect(presetRepository.upsert).not.toHaveBeenCalled()
+  })
+
+  it('always lets an existing preset be overwritten, even over the limit after a downgrade', async () => {
+    vi.mocked(presetRepository.countByUserId).mockResolvedValue(9)
+    vi.mocked(presetRepository.existsForUser).mockResolvedValue(true)
+    await expect(save(true)).resolves.toBe(saved)
+    expect(presetRepository.countByUserId).not.toHaveBeenCalled()
+  })
+
+  it('raises the limit for Lucid and lifts it for Third Eye and admins', async () => {
+    vi.mocked(presetRepository.countByUserId).mockResolvedValue(9)
+    asUser('tier1')
+    await expect(save()).resolves.toBe(saved)
+    vi.mocked(presetRepository.countByUserId).mockResolvedValue(10)
+    await expect(save()).rejects.toMatchObject({ quota: 'savedPresets', limit: 10, plan: 'tier1' })
+    asUser('tier2')
+    await expect(save()).resolves.toBe(saved)
+    asUser('free', true)
+    await expect(save()).resolves.toBe(saved)
+  })
+
+  it('treats a user with no document as Dream', async () => {
+    vi.mocked(userRepository.findByClerkId).mockResolvedValue(null)
+    vi.mocked(presetRepository.countByUserId).mockResolvedValue(3)
+    await expect(save()).rejects.toMatchObject({ limit: 3, plan: 'free' })
   })
 })

@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express'
 import { AuthUnauthorizedError, verifyAuth } from '../auth.js'
 import { packService } from '../services/PackService.js'
+import { isQuotaExceededError } from '../services/EntitlementService.js'
 
 export const createPackHandler = async (req: Request, res: Response): Promise<void> => {
   let userId: string
@@ -47,8 +48,10 @@ export const createPackHandler = async (req: Request, res: Response): Promise<vo
     res.status(201).json({ id: pack._id, name: pack.name, slug: pack.slug })
   } catch (err: unknown) {
     const e = err as { status?: number; message?: string }
-    if (e.status === 400) {
-      res.status(400).json({ error: e.message })
+    if (isQuotaExceededError(err)) {
+      res.status(403).json(err.toJSON())
+    } else if (e.status === 400 || e.status === 403) {
+      res.status(e.status).json({ error: e.message })
     } else if (e.status === 409) {
       res.status(409).json({ error: e.message })
     } else {

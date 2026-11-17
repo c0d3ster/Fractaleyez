@@ -30,6 +30,7 @@ import { setParticleCrossfadeDurationMs } from '../../../config/visualizer.confi
 import { UserSettings, USER_SETTINGS_SAVE_DEBOUNCE_MS } from '../../../config/userSettings.config'
 import { isValidBandSelection } from 'beatsense'
 import { QUALITY_SETTING_DEFAULT } from '../../../config/quality.config'
+import { Entitlements, Usage } from '../../../config/plans.config'
 import { qualityController } from '../../../visualization/quality-controller'
 
 export type PresetRetrieveEvent = {
@@ -62,7 +63,12 @@ type ApiMeResponse = {
   displayName: string
   settings: UserSettings
   isAdmin?: boolean
+  entitlements?: Entitlements
+  usage?: Usage
 }
+
+/** Set on the return from Stripe Checkout (BillingService's success and cancel URLs). */
+const BILLING_RETURN_PARAM = 'billing'
 
 /** Applies a loaded/patched settings value to the systems that poll it live outside React (crossfade duration, quality tier, frequency-band HUD). */
 const applyUserSettingsSideEffects = (settings: Partial<UserSettings>): void => {
@@ -288,6 +294,11 @@ export type ConfigContextValue = {
   userSettings: UserSettings | null
   /** From `/api/me`. Only hides admin-only UI; the server enforces it on save. False until the load lands or when signed out. */
   isAdmin: boolean
+  /** From `/api/me`: the plan's quotas and features, and what the viewer has used. Null signed out or until it loads. Locks only; the server enforces. */
+  entitlements: Entitlements | null
+  usage: Usage | null
+  /** Re-reads the plan, quotas and usage (after an upload, or a refused create), and the pack list when the plan changed. */
+  refreshAccount: () => void
   /** The viewer's resolved `@user` sprite (logo, else display name, else app default), for preset list thumbnails. */
   userSprite: string
   /** The viewer's display name, or null (signed out, or none set). Resolves `@user` in pack and preset names for display. */
@@ -340,6 +351,10 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
   const [userSettings, setUserSettings] = useState<UserSettings | null>(null)
   const [displayName, setDisplayName] = useState<string | null>(null)
   const [isAdmin, setIsAdmin] = useState(false)
+  const [entitlements, setEntitlements] = useState<Entitlements | null>(null)
+  const [usage, setUsage] = useState<Usage | null>(null)
+  // Bumped to re-read the account (plan, quotas, usage) and the pack list, whose entitlement follows the plan.
+  const [accountVersion, refreshAccount] = useReducer((n: number) => n + 1, 0)
   const userContext: UserReferenceContext = { logoParticle: userSettings?.logoParticle, displayName }
   // What `@user` looks like for this viewer with no preset fallback; preset list thumbnails use it.
   const userSprite = useMemo(
@@ -408,7 +423,7 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
     }
     void load()
     return () => { cancelled = true }
-  }, [getToken, isLoaded, viewerId])
+  }, [getToken, isLoaded, viewerId, accountVersion])
 
   // Signed out, the quality setting a guest picked in this browser applies (see guestQuality). Signed in, the account's setting (or Auto)
   // is applied when /api/me loads below, so it takes precedence.
@@ -434,6 +449,8 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
         setUserSettings(data.settings)
         setDisplayName(data.displayName || null)
         setIsAdmin(data.isAdmin === true)
+        setEntitlements(data.entitlements ?? null)
+        setUsage(data.usage ?? null)
         // A full load without a saved quality is Auto, so a new account does not inherit the tier the last one fixed.
         applyUserSettingsSideEffects({ ...data.settings, quality: data.settings.quality ?? QUALITY_SETTING_DEFAULT })
 
@@ -451,6 +468,55 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
     void load()
     return () => { cancelled = true }
   }, [isSignedIn, getToken, user?.id])
+
+  // Signed out there is no plan: drop the last viewer's, so a lock never shows another account's numbers.
+  useEffect(() => {
+    if (isSignedIn) return
+    setEntitlements(null)
+    setUsage(null)
+  }, [isSignedIn])
+
+  // A refresh re-reads only the account fields. The full load above also applies settings, which would undo a settings
+  // change still waiting on its debounced save.
+  useEffect(() => {
+    if (!isSignedIn || accountVersion === 0) return
+    let cancelled = false
+    const load = async (): Promise<void> => {
+      try {
+        const token = await getToken()
+        if (!token) return
+        const { data } = await axios.get<ApiMeResponse>('/api/me', { headers: { Authorization: `Bearer ${token}` } })
+        if (cancelled) return
+        setIsAdmin(data.isAdmin === true)
+        setEntitlements(data.entitlements ?? null)
+        setUsage(data.usage ?? null)
+      } catch (err) {
+        console.error('Failed to refresh /api/me', err)
+      }
+    }
+    void load()
+    return () => { cancelled = true }
+  }, [isSignedIn, getToken, accountVersion])
+
+  // Back from Stripe Checkout: the webhook may not have landed yet, so ask the billing endpoint, which reconciles with Stripe,
+  // then re-read the plan and the packs it unlocks. The success redirect itself grants nothing.
+  useEffect(() => {
+    if (!isSignedIn) return
+    const url = new URL(window.location.href)
+    if (!url.searchParams.has(BILLING_RETURN_PARAM)) return
+    url.searchParams.delete(BILLING_RETURN_PARAM)
+    window.history.replaceState(window.history.state, '', url.toString())
+    const reconcile = async (): Promise<void> => {
+      try {
+        const token = await getToken()
+        if (token) await axios.get('/api/billing', { headers: { Authorization: `Bearer ${token}` } })
+      } catch (err) {
+        console.error('Failed to reconcile billing after Checkout', err)
+      }
+      refreshAccount()
+    }
+    void reconcile()
+  }, [isSignedIn, getToken])
 
   useEffect(() => {
     return () => {
@@ -962,8 +1028,10 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
     // A global preset can share a name with the viewer's own (the model is unique on name and user), so a name only matches an own entry.
     const matches = (p: PresetMeta): boolean => p.id === data.id || (p.isOwn && p.name === data.name)
     const prev = presetListRef.current
-    const next = prev.some(matches) ? prev.map(p => (matches(p) ? newPreset : p)) : [...prev, newPreset]
+    const isNew = !prev.some(matches)
+    const next = isNew ? [...prev, newPreset] : prev.map(p => (matches(p) ? newPreset : p))
     setPresetList(next)
+    if (isNew) setUsage(current => (current ? { ...current, savedPresets: current.savedPresets + 1 } : current))
     // Keep the cached list current, so a reload with the API down still shows what was just saved.
     updatePresetListCache(viewerId, {
       presets: next.flatMap(({ id, name: presetName, pack: presetPack, packs: presetPacks, sprite: presetSprite, isOwn, updatedAt: presetUpdatedAt }) =>
@@ -999,6 +1067,9 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
     packs: packList,
     userSettings,
     isAdmin: isSignedIn === true && isAdmin,
+    entitlements,
+    usage,
+    refreshAccount,
     userSprite,
     userName: displayName,
     updateUserSettings,
@@ -1006,7 +1077,7 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
     updateConfigItem, updateVideoClips, toggleLiveVideo, updateParticleSprites, updateLogoSprite, applyUserReference, releaseUserReference, userReferenceStandIn,
     updateColorList, setLayerEnabled, setLayerOpacity, setLayerBlendMode, moveLayer, retrieveConfigPreset, revertConfig, resetConfig, resetConfigItem,
     resetConfigSection, resetVideoClips, savePreset, isSignedIn, user?.id, getToken, presetList, packList, userSettings, isAdmin, userSprite,
-    displayName, updateUserSettings,
+    displayName, updateUserSettings, entitlements, usage,
   ])
 
   return (

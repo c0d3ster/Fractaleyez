@@ -1,7 +1,7 @@
 import { packRepository } from '../repositories/PackRepository.js'
 import { presetRepository, PresetMeta } from '../repositories/PresetRepository.js'
 import { IPreset } from '../models/Preset.js'
-import { userService } from './UserService.js'
+import { entitlementService } from './EntitlementService.js'
 
 // Mirrors USER_REFERENCE in src/utils/userReference.ts.
 const USER_REFERENCE = '@user'
@@ -95,8 +95,13 @@ export class PresetService {
   }
 
   async savePreset({ name, pack, config, userId, force }: SavePresetParams): Promise<IPreset> {
-    if (usesUserReference(config) &&!(await userService.isAdmin(userId))) {
+    const viewer = await entitlementService.forUser(userId)
+    if (usesUserReference(config) && !viewer.isAdmin) {
       throw serviceError('Only admins can create presets that use @user', 403)
+    }
+    // Overwriting one of the user's own presets is always allowed, even over the limit after a downgrade; only a new one counts.
+    if (!(await presetRepository.existsForUser(name, userId))) {
+      await entitlementService.assertRoomFor(userId, 'savedPresets', viewer)
     }
 
     const payload = { name, pack, sprite: firstSprite(config), config, userId }

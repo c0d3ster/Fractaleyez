@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express'
 import { presetService, toUpdatedAt } from '../services/PresetService.js'
 import { AuthUnauthorizedError, verifyAuth } from '../auth.js'
+import { isQuotaExceededError } from '../services/EntitlementService.js'
 
 export const savePresetHandler = async (req: Request, res: Response): Promise<void> => {
   let userId: string
@@ -37,7 +38,9 @@ export const savePresetHandler = async (req: Request, res: Response): Promise<vo
   } catch (err: unknown) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const e = err as any
-    if (e.status === 403) {
+    if (isQuotaExceededError(err)) {
+      res.status(403).json(err.toJSON())
+    } else if (e.status === 403) {
       res.status(403).json({ error: e.message })
     } else if (e.status === 409) {
       res.status(409).json({ error: 'Preset already exists', name: e.presetName })
