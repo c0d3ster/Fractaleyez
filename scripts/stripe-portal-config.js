@@ -12,6 +12,8 @@ import Stripe from 'stripe'
 
 const PORTAL_METADATA_APP = 'fractaleyez'
 const LOOKUP_KEYS = ['tier1_monthly', 'tier2_monthly', 'tier1_yearly', 'tier2_yearly']
+// Same flag and parsing as server/stripe.ts's isAutomaticTaxEnabled.
+const AUTOMATIC_TAX = ['true', '1'].includes(process.env.STRIPE_AUTOMATIC_TAX?.trim().toLowerCase() ?? '')
 
 const main = async () => {
   const key = process.env.STRIPE_SECRET_KEY
@@ -39,7 +41,8 @@ const main = async () => {
     },
     ...(appUrl ? { default_return_url: new URL('/', appUrl).toString() } : {}),
     features: {
-      customer_update: { enabled: true, allowed_updates: ['email'] },
+      // With Stripe Tax on, renewals are taxed from the customer's address, so people can correct it here too.
+      customer_update: { enabled: true, allowed_updates: AUTOMATIC_TAX ? ['email', 'address'] : ['email'] },
       invoice_history: { enabled: true },
       payment_method_update: { enabled: true },
       // At period end, so a cancelled plan keeps working until what was paid for runs out.

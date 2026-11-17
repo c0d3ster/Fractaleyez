@@ -1,5 +1,5 @@
 import type Stripe from 'stripe'
-import { getStripe, isStripeConfigured } from '../stripe.js'
+import { getStripe, isAutomaticTaxEnabled, isStripeConfigured } from '../stripe.js'
 import { userRepository } from '../repositories/UserRepository.js'
 import { userService } from './UserService.js'
 import { IUser, PaidPlanId, PlanId, isPaidPlanId } from '../models/User.js'
@@ -65,6 +65,18 @@ const currentPeriodEndOf = (subscription: Stripe.Subscription): Date | undefined
   const ends = subscription.items.data.map((item) => item.current_period_end)
   return ends.length > 0 ? new Date(Math.max(...ends) * 1000) : undefined
 }
+
+type AutomaticTaxParams = Pick<Stripe.Checkout.SessionCreateParams, 'automatic_tax' | 'billing_address_collection' | 'customer_update'>
+
+/**
+ * Stripe Tax in Checkout, behind STRIPE_AUTOMATIC_TAX. Tax needs the customer's address, so Checkout asks for it, and
+ * `customer_update` saves it (and the name) to the customer we pass in: Stripe requires that with automatic tax on an existing
+ * customer, and renewals are taxed from the saved address.
+ */
+export const automaticTaxParams = (): AutomaticTaxParams =>
+  isAutomaticTaxEnabled()
+    ? { automatic_tax: { enabled: true }, billing_address_collection: 'required', customer_update: { address: 'auto', name: 'auto' } }
+    : {}
 
 /** Set on the portal configuration scripts/stripe-portal-config.js creates. */
 export const PORTAL_METADATA_APP = 'fractaleyez'
@@ -142,6 +154,7 @@ export class BillingService {
       line_items: [{ price: price.id, quantity: 1 }],
       subscription_data: { metadata: { clerkId } },
       allow_promotion_codes: true,
+      ...automaticTaxParams(),
       success_url: withBillingParam(returnUrl, 'success'),
       cancel_url: withBillingParam(returnUrl, 'cancel'),
     })

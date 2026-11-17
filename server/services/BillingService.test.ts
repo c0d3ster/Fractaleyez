@@ -1,12 +1,12 @@
 import type Stripe from 'stripe'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { getStripe, isStripeConfigured } from '../stripe.js'
+import { getStripe, isAutomaticTaxEnabled, isStripeConfigured } from '../stripe.js'
 import { userRepository } from '../repositories/UserRepository.js'
 import { userService } from './UserService.js'
 import { IUser } from '../models/User.js'
 import { BillingError, BillingService, billingService, pickSubscription, planFromLookupKey, planFromSubscription } from './BillingService.js'
 
-vi.mock('../stripe.js', () => ({ getStripe: vi.fn(), isStripeConfigured: vi.fn(() => true) }))
+vi.mock('../stripe.js', () => ({ getStripe: vi.fn(), isStripeConfigured: vi.fn(() => true), isAutomaticTaxEnabled: vi.fn(() => false) }))
 vi.mock('../repositories/UserRepository.js', () => ({
   userRepository: {
     findByStripeCustomerId: vi.fn(),
@@ -62,6 +62,7 @@ beforeEach(() => {
   stripeMock.subscriptions.list.mockResolvedValue({ data: [] })
   stripeMock.customers.retrieve.mockResolvedValue({ id: 'cus_existing', email: 'ada@example.com' })
   vi.mocked(isStripeConfigured).mockReturnValue(true)
+  vi.mocked(isAutomaticTaxEnabled).mockReturnValue(false)
   vi.mocked(userRepository.replaceStripeCustomer).mockReset()
   vi.mocked(userRepository.findByStripeCustomerId).mockReset()
   vi.mocked(userRepository.linkStripeCustomer).mockReset()
@@ -243,6 +244,25 @@ describe('createCheckoutSession', () => {
     vi.mocked(userRepository.findByStripeCustomerId).mockResolvedValue(makeUser({ plan: 'tier1', billing: { customerId: 'cus_1', subscriptionId: 'sub_1', status: 'active' } }))
     await expect(billingService.createCheckoutSession(request)).rejects.toMatchObject({ code: 'already_subscribed' })
     expect(stripeMock.checkout.sessions.create).not.toHaveBeenCalled()
+  })
+
+  it('leaves tax out while STRIPE_AUTOMATIC_TAX is off', async () => {
+    await billingService.createCheckoutSession(request)
+    const params = stripeMock.checkout.sessions.create.mock.calls[0]?.[0]
+    expect(params).not.toHaveProperty('automatic_tax')
+    expect(params).not.toHaveProperty('billing_address_collection')
+    expect(params).not.toHaveProperty('customer_update')
+  })
+
+  it('turns on automatic tax, collects the address and saves it to the customer when STRIPE_AUTOMATIC_TAX is on', async () => {
+    vi.mocked(isAutomaticTaxEnabled).mockReturnValue(true)
+    await billingService.createCheckoutSession(request)
+    expect(stripeMock.checkout.sessions.create).toHaveBeenCalledWith(expect.objectContaining({
+      customer: 'cus_new',
+      automatic_tax: { enabled: true },
+      billing_address_collection: 'required',
+      customer_update: { address: 'auto', name: 'auto' },
+    }))
   })
 
   it('reports a missing price instead of creating a session', async () => {

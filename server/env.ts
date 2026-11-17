@@ -12,6 +12,8 @@ export const env = {
   STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
   /** Base URL Stripe redirects back to after Checkout and the Portal. Optional: falls back to the request's Origin header. */
   APP_URL: process.env.APP_URL,
+  /** `true` turns on Stripe automatic tax in Checkout (address collection plus tax). Off by default: needs Stripe Tax set up first. */
+  STRIPE_AUTOMATIC_TAX: process.env.STRIPE_AUTOMATIC_TAX,
 }
 
 export const requireEnv = {

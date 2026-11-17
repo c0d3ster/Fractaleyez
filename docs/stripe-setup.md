@@ -15,7 +15,7 @@ How subscriptions are wired, and the steps outside the code to make them work. T
 ## Stripe dashboard (test mode)
 
 1. Products (done): Lucid at $5/month with lookup key `tier1_monthly`, and Third Eye at $20/month with `tier2_monthly`.
-2. Customer Portal: set up in code, not the dashboard form. `pnpm stripe-portal-config` creates or updates a configuration tagged `metadata.app = fractaleyez` (cancel at period end, switching between the plan prices with proration, card updates, invoice history, email updates). `BillingService` finds it by that tag when it opens the portal, and falls back to the dashboard's default config if there's none. Test mode is done (`bpc_1UcKJ1CaVNXxCE3wQ0w1zs2g`). Run it again after adding prices (yearly) so the portal can switch to them. With `APP_URL` set, it also sets the terms and privacy links to `<APP_URL>/terms` and `/privacy` and the return URL.
+2. Customer Portal: set up in code, not the dashboard form. `pnpm stripe-portal-config` creates or updates a configuration tagged `metadata.app = fractaleyez` (cancel at period end, switching between the plan prices with proration, card updates, invoice history, email updates). `BillingService` finds it by that tag when it opens the portal, and falls back to the dashboard's default config if there's none. Test mode is done (`bpc_1UcKJ1CaVNXxCE3wQ0w1zs2g`). Run it again after adding prices (yearly) so the portal can switch to them. With `APP_URL` set, it also sets the terms and privacy links to `<APP_URL>/terms` and `/privacy` and the return URL. With `STRIPE_AUTOMATIC_TAX=true` it also lets customers update their address, which renewals are taxed from.
 3. Branding (optional): under Settings, Branding, add the logo, icon and colors. Under Settings, Public details, set the business name to `Fractaleyez` and the statement descriptor to `FRACTALEYEZ`.
 4. API key: a restricted test key (`rk_test_...`) is enough, with Customer portal Write, Products Read, Prices Read, Checkout Sessions Write, Customers Write and Subscriptions Read. Use it as `STRIPE_SECRET_KEY`.
 
@@ -26,6 +26,7 @@ How subscriptions are wired, and the steps outside the code to make them work. T
 | `STRIPE_SECRET_KEY` | `.env`, Vercel | the restricted `rk_test_...` key (a live one on Vercel Production at launch) |
 | `STRIPE_WEBHOOK_SECRET` | `.env`, Vercel | `whsec_...`: locally from `stripe listen`, on Vercel from the dashboard endpoint |
 | `APP_URL` | optional | Where Stripe returns the user. Without it, the request's Origin is used (`http://localhost:3000` in dev). |
+| `STRIPE_AUTOMATIC_TAX` | optional | `true` turns on Stripe automatic tax in Checkout: it asks for the billing address, adds tax, and saves the address to the customer for renewals. Off when unset or anything but `true`/`1`. Set up Stripe Tax first (see Going live). |
 
 Without the Stripe vars, every other route still works. Only `/api/billing` and the webhook fail.
 
@@ -54,4 +55,5 @@ To set a plan by hand without Stripe (for gating work), run `db.users.updateOne(
 
 - The account is activated. Make a live restricted key with the same permissions, check the live prices kept their lookup keys, run `pnpm stripe-portal-config:prod` with the live key in `.env.production`, and set the live key and a live webhook endpoint on Vercel Production.
 - Test and live are separate data in Stripe: a customer id from test mode doesn't exist in live. The dev and prod databases are already separate, so this only matters if test-mode data is copied into prod.
-- Revisit tax (Stripe Tax and SaaS taxability per state), terms and privacy pages, and receipt emails (Settings, Emails).
+- Tax: Checkout adds tax only with `STRIPE_AUTOMATIC_TAX=true`. Before turning it on in an environment, set up Stripe Tax for that mode in the dashboard (Settings, Tax): the head office address, a default tax code for the products (SaaS, business or personal use), each product's tax behavior (exclusive or inclusive), and a registration for every state or country where you collect. Stripe only charges tax where you're registered, and with no registrations every Checkout shows zero tax. Check SaaS taxability per state with an accountant. Then set the flag on Vercel and run `pnpm stripe-portal-config` (or `:prod`) with it set, so the portal lets customers update their address.
+- Revisit terms and privacy pages, and receipt emails (Settings, Emails).
