@@ -1,15 +1,15 @@
-// Loads the env for a script. `require('./loadEnv')` (before anything reads process.env) replaces dotenv's own call.
+// Loads the env for a script. `import './loadEnv.js'` (before anything reads process.env) replaces dotenv's own call.
 //
-//   node scripts/seed-packs.js                  .env                       (dev)
-//   node scripts/seed-packs.js --env=production .env, then .env.production on top (prod)
+//   tsx scripts/seed-packs.js                   .env                       (dev)
+//   tsx scripts/seed-packs.js  --env=production .env, then .env.production on top (prod)
 //
 // `.env.production` overrides `.env`, so it only needs the values that differ (MONGO_URI, SEED_OWNER_ID, ...).
 // Both files are git-ignored. The flag is removed from process.argv so scripts with positional arguments are unaffected.
-const fs = require('fs')
-const path = require('path')
-const dotenv = require('dotenv')
+import fs from 'fs'
+import path from 'path'
+import dotenv from 'dotenv'
 
-const root = path.resolve(__dirname, '..')
+const root = path.resolve(import.meta.dirname, '..')
 const FLAG = '--env='
 
 const takeEnvName = () => {

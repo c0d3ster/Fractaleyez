@@ -2,22 +2,15 @@
 // or by a presets file passed as the first argument, e.g. one from `pnpm export-presets`) from public/ up to R2,
 // under the `builtins/` prefix.
 // Idempotent: skips any key that's already present in the bucket.
-require('./loadEnv')
-require('@babel/register')({
-  extensions: ['.ts'],
-  presets: [
-    ['@babel/preset-env', { targets: { node: 'current' } }],
-    '@babel/preset-typescript',
-  ],
-})
+import './loadEnv.js'
 
-const fs = require('fs')
-const path = require('path')
-const { storageService } = require('../server/services/StorageService.ts')
-const { configDefaults } = require('../src/config/configDefaults.ts')
-const { BUILTIN_PARTICLE_SPRITES } = require('../src/config/particle.config.ts')
+import fs from 'fs'
+import path from 'path'
+import { storageService } from '../server/services/StorageService.ts'
+import { configDefaults } from '../src/config/configDefaults.ts'
+import { BUILTIN_PARTICLE_SPRITES } from '../src/config/particle.config.ts'
 
-const PUBLIC_DIR = path.join(__dirname, '../public')
+const PUBLIC_DIR = path.join(import.meta.dirname, '../public')
 
 // Presets reference built-in sprites by bare filename (e.g. 'galaxySprite.png') anywhere
 // inside their config tree — walk every value to find them, rather than hardcoding a list.

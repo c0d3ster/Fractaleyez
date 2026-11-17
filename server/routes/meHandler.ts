@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express'
-import { AuthUnauthorizedError, verifyAuth } from '../auth'
-import { userService } from '../services/UserService'
-import { UserSettings } from '../models/User'
+import { AuthUnauthorizedError, verifyAuth } from '../auth.js'
+import { userService } from '../services/UserService.js'
+import { UserSettings } from '../models/User.js'
 
 // Mirrors src/config/visualizer.config.ts's PARTICLE_CROSSFADE_DURATION_MIN_MS/MAX_MS.
 const CROSSFADE_DURATION_MIN_MS = 0

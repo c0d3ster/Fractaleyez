@@ -1,16 +1,16 @@
 import type { Request, Response } from 'express'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { AuthUnauthorizedError, verifyAuth } from '../auth'
-import { storageService } from '../services/StorageService'
+import { AuthUnauthorizedError, verifyAuth } from '../auth.js'
+import { storageService } from '../services/StorageService.js'
 import { imageSize } from 'image-size'
-import { uploadParticleHandler, MAX_UPLOAD_BYTES, MAX_DECODED_DIMENSION_PX } from './uploadParticleHandler'
+import { uploadParticleHandler, MAX_UPLOAD_BYTES, MAX_DECODED_DIMENSION_PX } from './uploadParticleHandler.js'
 
 // vi.mock calls are hoisted above these imports, so the imports above already resolve to the mocks.
-vi.mock('../auth', () => ({
+vi.mock('../auth.js', () => ({
   AuthUnauthorizedError: class AuthUnauthorizedError extends Error {},
   verifyAuth: vi.fn(),
 }))
-vi.mock('../services/StorageService', () => ({
+vi.mock('../services/StorageService.js', () => ({
   storageService: {
     objectExists: vi.fn(),
     putObject: vi.fn(),

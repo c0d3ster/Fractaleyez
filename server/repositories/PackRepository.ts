@@ -1,6 +1,6 @@
 import { Types } from 'mongoose'
-import { connectDB } from '../db'
-import { Pack, IPack } from '../models/Pack'
+import { connectDB } from '../db.js'
+import { Pack, IPack } from '../models/Pack.js'
 
 export type PackMeta = {
   _id: Types.ObjectId

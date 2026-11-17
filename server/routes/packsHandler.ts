@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express'
-import { AuthUnauthorizedError, verifyAuth } from '../auth'
-import { packService } from '../services/PackService'
+import { AuthUnauthorizedError, verifyAuth } from '../auth.js'
+import { packService } from '../services/PackService.js'
 
 export const packsHandler = async (req: Request, res: Response): Promise<void> => {
   let viewerId: string | null = null

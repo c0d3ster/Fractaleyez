@@ -1,5 +1,5 @@
 import { S3Client, PutObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3'
-import { requireEnv } from '../env'
+import { requireEnv } from '../env.js'
 
 // Particles served from R2 are content-addressed / never overwritten in place, so
 // they're safe to cache forever on both R2's edge and the client.

@@ -1,6 +1,6 @@
-import { packRepository } from '../repositories/PackRepository'
-import { IPack } from '../models/Pack'
-import { userService } from './UserService'
+import { packRepository } from '../repositories/PackRepository.js'
+import { IPack } from '../models/Pack.js'
+import { userService } from './UserService.js'
 
 type CreatePackParams = {
   name: string

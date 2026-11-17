@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express'
-import { presetService, toUpdatedAt } from '../services/PresetService'
-import { AuthUnauthorizedError, verifyAuth } from '../auth'
+import { presetService, toUpdatedAt } from '../services/PresetService.js'
+import { AuthUnauthorizedError, verifyAuth } from '../auth.js'
 
 export const savePresetHandler = async (req: Request, res: Response): Promise<void> => {
   let userId: string

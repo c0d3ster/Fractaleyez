@@ -1,13 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { Types } from 'mongoose'
-import { packRepository, PackMeta } from '../repositories/PackRepository'
-import { PackService } from './PackService'
-import { userService } from './UserService'
+import { packRepository, PackMeta } from '../repositories/PackRepository.js'
+import { PackService } from './PackService.js'
+import { userService } from './UserService.js'
 
-vi.mock('../repositories/PackRepository', () => ({
+vi.mock('../repositories/PackRepository.js', () => ({
   packRepository: { findAll: vi.fn(), findByUserId: vi.fn() },
 }))
-vi.mock('./UserService', () => ({
+vi.mock('./UserService.js', () => ({
   userService: { isAdmin: vi.fn() },
 }))
 

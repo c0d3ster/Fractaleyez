@@ -1,8 +1,8 @@
 import type { UserJSON } from '@clerk/backend'
 import { createClerkClient } from '@clerk/backend'
-import { userRepository } from '../repositories/UserRepository'
-import { requireEnv } from '../env'
-import { IUser, UserSettings } from '../models/User'
+import { userRepository } from '../repositories/UserRepository.js'
+import { requireEnv } from '../env.js'
+import { IUser, UserSettings } from '../models/User.js'
 
 let clerkClient: ReturnType<typeof createClerkClient> | null = null
 const getClerkClient = (): ReturnType<typeof createClerkClient> => {

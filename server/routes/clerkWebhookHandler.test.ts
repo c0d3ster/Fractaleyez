@@ -2,20 +2,20 @@ import type { Request, Response } from 'express'
 import type { UserJSON } from '@clerk/backend'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { Webhook } from 'svix'
-import { userService } from '../services/UserService'
-import { IUser } from '../models/User'
-import { env } from '../env'
-import { clerkWebhookHandler } from './clerkWebhookHandler'
+import { userService } from '../services/UserService.js'
+import { IUser } from '../models/User.js'
+import { env } from '../env.js'
+import { clerkWebhookHandler } from './clerkWebhookHandler.js'
 
 vi.mock('svix', () => ({
   Webhook: vi.fn(),
 }))
-vi.mock('../services/UserService', () => ({
+vi.mock('../services/UserService.js', () => ({
   userService: {
     syncFromClerk: vi.fn(),
   },
 }))
-vi.mock('../env', () => ({
+vi.mock('../env.js', () => ({
   env: { CLERK_WEBHOOK_SECRET: 'whsec_test' },
 }))
 

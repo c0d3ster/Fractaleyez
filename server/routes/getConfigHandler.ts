@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express'
 import { Types } from 'mongoose'
-import { connectDB } from '../db'
-import { Preset } from '../models/Preset'
+import { connectDB } from '../db.js'
+import { Preset } from '../models/Preset.js'
 
 /** GET /api/getConfig/:name: a preset's config by id or name. Older than /api/preset, kept for anything that still calls it. */
 export const getConfigHandler = async (req: Request, res: Response): Promise<void> => {

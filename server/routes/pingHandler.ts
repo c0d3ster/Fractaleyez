@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express'
-import { connectDB } from '../db'
+import { connectDB } from '../db.js'
 
 /** GET /api/ping: a Vercel cron hits this every few days (vercel.json) so the database sees regular traffic. */
 export const pingHandler = async (_req: Request, res: Response): Promise<void> => {

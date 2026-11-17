@@ -1,8 +1,8 @@
 import type { Request, Response } from 'express'
 import crypto from 'crypto'
 import { imageSize } from 'image-size'
-import { AuthUnauthorizedError, verifyAuth } from '../auth'
-import { storageService } from '../services/StorageService'
+import { AuthUnauthorizedError, verifyAuth } from '../auth.js'
+import { storageService } from '../services/StorageService.js'
 
 // Mirrors ParticleSpriteHud's client-side MAX_DATA_URL_BYTES — client checks are
 // supplementary only, this is the real boundary.

@@ -1,5 +1,5 @@
 import { verifyToken } from '@clerk/backend'
-import { requireEnv } from './env'
+import { requireEnv } from './env.js'
 
 /** Thrown only for missing/invalid bearer credentials — callers may map this to 401. */
 export class AuthUnauthorizedError extends Error {

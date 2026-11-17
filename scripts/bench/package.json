@@ -1,0 +1,4 @@
+{
+  "//": "The benchmark scripts are standalone CommonJS tools (Playwright, no server code), kept as is when the repo moved to ES modules.",
+  "type": "commonjs"
+}

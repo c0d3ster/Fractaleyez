@@ -1,9 +1,9 @@
 import path from 'path'
 import express from 'express'
-import { connectDB } from './db'
-import { createApp } from './app'
+import { connectDB } from './db.js'
+import { createApp } from './app.js'
 
-const BUILD_DIR = path.join(__dirname, '../public/')
+const BUILD_DIR = path.join(import.meta.dirname, '../public/')
 
 // The same app api/index.ts deploys, plus the static build (served by Vercel's CDN in production).
 const app = express()

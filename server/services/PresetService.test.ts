@@ -1,19 +1,19 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { Types } from 'mongoose'
-import { PresetMeta } from '../repositories/PresetRepository'
-import { presetRepository } from '../repositories/PresetRepository'
-import { packRepository, PackMeta } from '../repositories/PackRepository'
-import { IPreset } from '../models/Preset'
-import { defaultFirst, PresetService, toUpdatedAt } from './PresetService'
-import { userService } from './UserService'
+import { PresetMeta } from '../repositories/PresetRepository.js'
+import { presetRepository } from '../repositories/PresetRepository.js'
+import { packRepository, PackMeta } from '../repositories/PackRepository.js'
+import { IPreset } from '../models/Preset.js'
+import { defaultFirst, PresetService, toUpdatedAt } from './PresetService.js'
+import { userService } from './UserService.js'
 
-vi.mock('../repositories/PresetRepository', () => ({
+vi.mock('../repositories/PresetRepository.js', () => ({
   presetRepository: { create: vi.fn(), upsert: vi.fn(), findAll: vi.fn() },
 }))
-vi.mock('../repositories/PackRepository', () => ({
+vi.mock('../repositories/PackRepository.js', () => ({
   packRepository: { findAll: vi.fn() },
 }))
-vi.mock('./UserService', () => ({
+vi.mock('./UserService.js', () => ({
   userService: { isAdmin: vi.fn() },
 }))
 

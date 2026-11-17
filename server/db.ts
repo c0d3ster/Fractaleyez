@@ -1,5 +1,5 @@
 import mongoose from 'mongoose'
-import { requireEnv } from './env'
+import { requireEnv } from './env.js'
 
 // Cache the connection across serverless function invocations
 const globalForMongoose = globalThis as unknown as {

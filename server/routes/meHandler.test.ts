@@ -1,15 +1,15 @@
 import type { Request, Response } from 'express'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { AuthUnauthorizedError, verifyAuth } from '../auth'
-import { userService } from '../services/UserService'
-import { IUser } from '../models/User'
-import { meHandler, updateMeHandler } from './meHandler'
+import { AuthUnauthorizedError, verifyAuth } from '../auth.js'
+import { userService } from '../services/UserService.js'
+import { IUser } from '../models/User.js'
+import { meHandler, updateMeHandler } from './meHandler.js'
 
-vi.mock('../auth', () => ({
+vi.mock('../auth.js', () => ({
   AuthUnauthorizedError: class AuthUnauthorizedError extends Error {},
   verifyAuth: vi.fn(),
 }))
-vi.mock('../services/UserService', () => ({
+vi.mock('../services/UserService.js', () => ({
   userService: {
     getOrCreateUser: vi.fn(),
     updateSettings: vi.fn(),
