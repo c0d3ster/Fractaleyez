@@ -4,7 +4,7 @@ import { getStripe, isStripeConfigured } from '../stripe.js'
 import { userRepository } from '../repositories/UserRepository.js'
 import { userService } from './UserService.js'
 import { IUser } from '../models/User.js'
-import { BillingError, BillingService, billingService, pickSubscription, planFromLookupKey, planFromSubscription } from './BillingService.js'
+import { BillingError, BillingService, billingService, CHECKOUT_LIFETIME_S, CHECKOUT_REUSE_MIN_LEFT_S, pickSubscription, planFromLookupKey, planFromSubscription } from './BillingService.js'
 
 vi.mock('../stripe.js', () => ({ getStripe: vi.fn(), isStripeConfigured: vi.fn(() => true) }))
 vi.mock('../repositories/UserRepository.js', () => ({
@@ -20,7 +20,7 @@ vi.mock('./UserService.js', () => ({ userService: { getOrCreateUser: vi.fn(), ge
 const stripeMock = {
   prices: { list: vi.fn() },
   customers: { create: vi.fn(), del: vi.fn(), retrieve: vi.fn(), update: vi.fn() },
-  checkout: { sessions: { create: vi.fn() } },
+  checkout: { sessions: { create: vi.fn(), list: vi.fn(), expire: vi.fn() } },
   billingPortal: { sessions: { create: vi.fn() }, configurations: { list: vi.fn() } },
   subscriptions: { retrieve: vi.fn(), list: vi.fn() },
 }
@@ -57,9 +57,12 @@ beforeEach(() => {
   vi.mocked(getStripe).mockReturnValue(stripeMock as unknown as Stripe)
   for (const fn of [
     stripeMock.prices.list, stripeMock.customers.create, stripeMock.customers.del, stripeMock.customers.retrieve, stripeMock.customers.update, stripeMock.checkout.sessions.create,
+    stripeMock.checkout.sessions.list, stripeMock.checkout.sessions.expire,
     stripeMock.billingPortal.sessions.create, stripeMock.billingPortal.configurations.list, stripeMock.subscriptions.retrieve, stripeMock.subscriptions.list,
   ]) fn.mockReset()
   stripeMock.subscriptions.list.mockResolvedValue({ data: [] })
+  stripeMock.checkout.sessions.list.mockResolvedValue({ data: [] })
+  stripeMock.checkout.sessions.expire.mockResolvedValue({})
   stripeMock.customers.retrieve.mockResolvedValue({ id: 'cus_existing', email: 'ada@example.com' })
   vi.mocked(isStripeConfigured).mockReturnValue(true)
   vi.mocked(userRepository.replaceStripeCustomer).mockReset()
@@ -243,6 +246,64 @@ describe('createCheckoutSession', () => {
     vi.mocked(userRepository.findByStripeCustomerId).mockResolvedValue(makeUser({ plan: 'tier1', billing: { customerId: 'cus_1', subscriptionId: 'sub_1', status: 'active' } }))
     await expect(billingService.createCheckoutSession(request)).rejects.toMatchObject({ code: 'already_subscribed' })
     expect(stripeMock.checkout.sessions.create).not.toHaveBeenCalled()
+  })
+
+  describe('open sessions', () => {
+    const now = (): number => Math.floor(Date.now() / 1000)
+    const openSession = (overrides: { id?: string; price?: string; successUrl?: string; expiresAt?: number; mode?: string } = {}): unknown => ({
+      id: overrides.id ?? 'cs_open',
+      mode: overrides.mode ?? 'subscription',
+      url: `https://checkout.stripe.com/c/pay/${overrides.id ?? 'cs_open'}`,
+      success_url: overrides.successUrl ?? 'http://localhost:3000/?billing=success',
+      expires_at: overrides.expiresAt ?? now() + 50 * 60,
+      line_items: { data: [{ price: { id: overrides.price ?? 'price_tier1' } }] },
+    })
+
+    it('creates a session that expires in an hour when none is open', async () => {
+      await billingService.createCheckoutSession(request)
+      expect(stripeMock.checkout.sessions.list).toHaveBeenCalledWith({ customer: 'cus_new', status: 'open', limit: 10, expand: ['data.line_items'] })
+      const params = stripeMock.checkout.sessions.create.mock.calls[0]?.[0] as { expires_at: number }
+      expect(params.expires_at).toBeGreaterThanOrEqual(now() + CHECKOUT_LIFETIME_S - 5)
+      expect(params.expires_at).toBeLessThanOrEqual(now() + CHECKOUT_LIFETIME_S)
+      expect(stripeMock.checkout.sessions.expire).not.toHaveBeenCalled()
+    })
+
+    it('reuses an open session for the same price, so a second tab pays the same one', async () => {
+      stripeMock.checkout.sessions.list.mockResolvedValue({ data: [openSession({ id: 'cs_tab1' })] })
+      expect(await billingService.createCheckoutSession(request)).toBe('https://checkout.stripe.com/c/pay/cs_tab1')
+      expect(stripeMock.checkout.sessions.create).not.toHaveBeenCalled()
+      expect(stripeMock.checkout.sessions.expire).not.toHaveBeenCalled()
+    })
+
+    it('expires an open session for another plan and creates a new one', async () => {
+      stripeMock.checkout.sessions.list.mockResolvedValue({ data: [openSession({ id: 'cs_tier2', price: 'price_tier2' })] })
+      expect(await billingService.createCheckoutSession(request)).toBe('https://checkout.stripe.com/c/pay/cs_test')
+      expect(stripeMock.checkout.sessions.expire).toHaveBeenCalledWith('cs_tier2')
+      expect(stripeMock.checkout.sessions.create).toHaveBeenCalled()
+    })
+
+    it('keeps one matching session and expires the rest', async () => {
+      stripeMock.checkout.sessions.list.mockResolvedValue({ data: [
+        openSession({ id: 'cs_a' }),
+        openSession({ id: 'cs_b' }),
+        openSession({ id: 'cs_other_origin', successUrl: 'https://www.fractaleyez.com/?billing=success' }),
+      ] })
+      expect(await billingService.createCheckoutSession(request)).toBe('https://checkout.stripe.com/c/pay/cs_a')
+      expect(stripeMock.checkout.sessions.expire.mock.calls.map((c) => c[0])).toEqual(['cs_b', 'cs_other_origin'])
+    })
+
+    it('replaces a matching session that is about to lapse', async () => {
+      stripeMock.checkout.sessions.list.mockResolvedValue({ data: [openSession({ id: 'cs_old', expiresAt: now() + CHECKOUT_REUSE_MIN_LEFT_S - 60 })] })
+      expect(await billingService.createCheckoutSession(request)).toBe('https://checkout.stripe.com/c/pay/cs_test')
+      expect(stripeMock.checkout.sessions.expire).toHaveBeenCalledWith('cs_old')
+    })
+
+    it('leaves open sessions that are not subscriptions alone (a future pack purchase)', async () => {
+      stripeMock.checkout.sessions.list.mockResolvedValue({ data: [openSession({ id: 'cs_pack', mode: 'payment', price: 'price_pack' })] })
+      await billingService.createCheckoutSession(request)
+      expect(stripeMock.checkout.sessions.expire).not.toHaveBeenCalled()
+      expect(stripeMock.checkout.sessions.create).toHaveBeenCalled()
+    })
   })
 
   it('reports a missing price instead of creating a session', async () => {
