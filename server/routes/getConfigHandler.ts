@@ -1,11 +1,12 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node'
+import type { Request, Response } from 'express'
 import { Types } from 'mongoose'
-import { connectDB } from '../../server/db'
-import { Preset } from '../../server/models/Preset'
+import { connectDB } from '../db'
+import { Preset } from '../models/Preset'
 
-export default async (req: VercelRequest, res: VercelResponse): Promise<void> => {
-  const { name } = req.query
-  if (!name || Array.isArray(name)) {
+/** GET /api/getConfig/:name: a preset's config by id or name. Older than /api/preset, kept for anything that still calls it. */
+export const getConfigHandler = async (req: Request, res: Response): Promise<void> => {
+  const { name } = req.params
+  if (typeof name !== 'string' || !name) {
     res.status(400).json({ error: 'Invalid preset name' })
     return
   }

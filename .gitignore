@@ -33,3 +33,6 @@ scripts/section-eval/__pycache__/
 /raveform.zip
 /raveform/
 /raveform-levels/
+
+# Vercel CLI project link and build output
+.vercel

@@ -7,5 +7,11 @@
       "path": "/api/ping",
       "schedule": "0 0 */5 * *"
     }
+  ],
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api"
+    }
   ]
 }
