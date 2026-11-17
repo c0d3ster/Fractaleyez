@@ -1,6 +1,6 @@
 # Monetization plan (task #11)
 
-Research and plan. Subscriptions (phase 5, test mode) are implemented: see `docs/stripe-setup.md`. Gating and quotas are not. Decisions marked **Decided** came from the owner; everything else is a proposal.
+Research and plan. Subscriptions (phase 5, test mode) are implemented: see `docs/stripe-setup.md`. Quota enforcement (phase 2) and the client gating with upgrade prompts (phase 3) are implemented too, with the placeholder numbers below; see Enforcement points for what is and isn't covered. Decisions marked **Decided** came from the owner; everything else is a proposal.
 
 ## Current state
 
@@ -107,6 +107,15 @@ Server-side, in the service layer (matching the existing handler to service to r
 - Sprite upload path (`StorageService` caller): count against the upload limit.
 - `PackService.createPack`: private/public limits, and admin-only for `origin` and premium flags.
 - Pack and preset reads: filter or flag by entitlement so a non-entitled client cannot fetch premium preset configs directly.
+
+Implemented (`server/services/EntitlementService.ts`, numbers in `server/services/entitlements.ts`):
+
+- Preset save: a new preset counts, overwriting an own preset never does.
+- Uploads: each R2 upload is recorded in an `Upload` collection and counted. The one copy of the Clerk profile photo (`?kind=avatar`) is free; a second one counts. Uploads made before the collection existed are not counted until backfilled.
+- Packs: every user pack counts against `privatePacks`, since packs have no visibility yet (#19), so `publicPacks` is not enforced. Premium or priced packs are admin-only, and `origin` is set on create (`builtIn` for admins, `creator` otherwise).
+- Pack access: `canUsePack`. A pack stored without `origin` reads as `builtIn`.
+- Admins have no limits.
+- Not yet: premium preset configs are still served by id to anyone (the client preview needs them), saves from a preview session are not refused server-side, and the custom fractal path feature has no lock (it has no UI yet).
 
 Client-side (UI only): `ParticleSpriteHud` (`#20`), preset list and pack tabs (existing `.pack-tab--premium` styling), and upgrade prompts. These read the entitlement payload from `/api/me`.
 

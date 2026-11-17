@@ -1,8 +1,9 @@
 import type { Request, Response } from 'express'
-import crypto from 'crypto'
 import { imageSize } from 'image-size'
 import { AuthUnauthorizedError, verifyAuth } from '../auth.js'
-import { storageService } from '../services/StorageService.js'
+import { uploadService } from '../services/UploadService.js'
+import { isQuotaExceededError } from '../services/EntitlementService.js'
+import { isUploadKind } from '../models/Upload.js'
 
 // Mirrors ParticleSpriteHud's client-side MAX_DATA_URL_BYTES — client checks are
 // supplementary only, this is the real boundary.
@@ -63,17 +64,21 @@ export const uploadParticleHandler = async (req: Request, res: Response): Promis
     return
   }
 
-  const key = `particles/${userId}/${crypto.randomUUID()}.${format}`
+  // `?kind=avatar` is the one-time copy of the Clerk profile photo (src/utils/clerkPhotoLogo.ts); everything else is a sprite.
+  const kind = isUploadKind(req.query?.kind) ? req.query.kind : 'sprite'
 
   try {
-    // UUID collision is practically unreachable, but the endpoint must never silently overwrite a key.
-    if (await storageService.objectExists(key)) {
+    const url = await uploadService.uploadParticle({ userId, body, format, contentType: ALLOWED_FORMATS[format], kind })
+    res.status(200).json({ url })
+  } catch (err) {
+    if (isQuotaExceededError(err)) {
+      res.status(403).json(err.toJSON())
+      return
+    }
+    if ((err as { status?: number }).status === 409) {
       res.status(409).json({ error: 'Object already exists' })
       return
     }
-    const url = await storageService.putObject(key, body, ALLOWED_FORMATS[format])
-    res.status(200).json({ url })
-  } catch (err) {
     console.error('Failed to upload particle to R2', err)
     res.status(500).json({ error: 'Internal server error' })
   }

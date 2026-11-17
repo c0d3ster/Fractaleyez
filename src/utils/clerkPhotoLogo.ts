@@ -26,7 +26,7 @@ export const persistClerkPhotoAsLogo = async (imageUrl: string, token: string): 
     const processed = await prepareSprite(await blobToDataUrl(await photo.blob()), LOGO_MAX_SIDE_PX)
     const blob = await (await fetch(processed)).blob()
     if (blob.size > MAX_UPLOAD_BYTES) return null
-    const { data } = await axios.post<{ url: string }>('/api/uploadParticle', blob, {
+    const { data } = await axios.post<{ url: string }>('/api/uploadParticle?kind=avatar', blob, {
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': blob.type || 'image/png' },
     })
     return data.url

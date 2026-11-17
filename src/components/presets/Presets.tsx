@@ -8,6 +8,7 @@ import { presetSpriteSrc } from '../../utils/presetSpriteSrc'
 import { resolveUserName } from '../../utils/userReference'
 import { usePremiumTrial } from './usePremiumTrial'
 import { PremiumTrialModal } from './PremiumTrialModal'
+import { useUpgrade } from '../upgrade/UpgradeProvider'
 
 export type PresetSelection = { name: string; label: string; pack: string; isOwn: boolean }
 
@@ -36,6 +37,7 @@ const PresetsInner = ({ retrieveConfigPreset, revertConfig, presets, packs = [],
   const containerRef = useRef<HTMLDivElement>(null)
 
   const packMap = useMemo(() => new Map(packs.map(p => [p.name, p])), [packs])
+  const { requestUpgrade } = useUpgrade()
 
   const { startTrial, cancelTrial, modalVisible, trialPackName, secondsLeft, dismissTrial } = usePremiumTrial({
     revertConfig,
@@ -196,7 +198,14 @@ const PresetsInner = ({ retrieveConfigPreset, revertConfig, presets, packs = [],
         </div>
       </div>
       {modalVisible && (
-        <PremiumTrialModal packName={resolveUserName(trialPackName, userName)} onDismiss={dismissTrial} />
+        <PremiumTrialModal
+          packName={resolveUserName(trialPackName, userName)}
+          onDismiss={dismissTrial}
+          onSubscribe={() => {
+            dismissTrial()
+            requestUpgrade(`${resolveUserName(trialPackName, userName)} is a premium pack. Lucid and Third Eye include every built-in premium pack.`)
+          }}
+        />
       )}
     </>
   )

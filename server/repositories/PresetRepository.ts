@@ -31,6 +31,16 @@ export class PresetRepository {
     return Preset.findById(id)
   }
 
+  async countByUserId(userId: string): Promise<number> {
+    await connectDB()
+    return Preset.countDocuments({ userId })
+  }
+
+  async existsForUser(name: string, userId: string): Promise<boolean> {
+    await connectDB()
+    return (await Preset.exists({ name, userId })) !== null
+  }
+
   async create(data: UpsertData): Promise<IPreset> {
     await connectDB()
     return Preset.create(data)

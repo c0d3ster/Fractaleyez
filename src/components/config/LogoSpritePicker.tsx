@@ -19,11 +19,14 @@ type LogoSpritePickerProps = {
   isAdmin: boolean
   isSignedIn: boolean
   getToken: () => Promise<string | null>
+  entitlements: ConfigContextValue['entitlements']
+  usage: ConfigContextValue['usage']
+  refreshAccount: ConfigContextValue['refreshAccount']
 }
 
 const selectLogoSprite = (config: AppConfig): string | undefined => config.logo.sprite.value[0]
 
-const LogoSpritePickerInner = ({ updateLogoSprite, applyUserReference, releaseUserReference, userReferenceStandIn, userSettings, isAdmin, isSignedIn, getToken }: LogoSpritePickerProps): React.ReactElement => {
+const LogoSpritePickerInner = ({ updateLogoSprite, applyUserReference, releaseUserReference, userReferenceStandIn, userSettings, isAdmin, isSignedIn, getToken, entitlements, usage, refreshAccount }: LogoSpritePickerProps): React.ReactElement => {
   const info = useInfo()
   const selected = useConfigSelector(selectLogoSprite)
 
@@ -31,7 +34,7 @@ const LogoSpritePickerInner = ({ updateLogoSprite, applyUserReference, releaseUs
     void updateLogoSprite(src)
   }, [updateLogoSprite])
 
-  const { onFiles, uploadError } = useSpriteUpload({ isSignedIn, getToken, atCapacity: false, onUploaded: choose })
+  const { onFiles, uploadError } = useSpriteUpload({ isSignedIn, getToken, atCapacity: false, onUploaded: choose, entitlements, usage, refreshAccount })
 
   // A custom upload is not in the built-in list, so it gets its own selected tile.
   // The viewer's own logo (plain or as @user) is drawn by the "Yours" row, so it never gets a duplicate tile here.

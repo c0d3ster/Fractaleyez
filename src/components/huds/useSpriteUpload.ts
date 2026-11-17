@@ -1,6 +1,8 @@
 import React, { useCallback, useState } from 'react'
 import axios from 'axios'
 import { prepareSprite } from 'sprite-strip'
+import { useUpgrade } from '../upgrade/UpgradeProvider'
+import { Entitlements, Usage, hasRoomFor, isQuotaExceeded, quotaMessage } from '../../config/plans.config'
 
 // Mirrors the server's MAX_UPLOAD_BYTES / MAX_DECODED_DIMENSION_PX in uploadParticleHandler.ts —
 // these client-side checks only save a round trip, the server enforces its own limits independently.
@@ -20,6 +22,11 @@ type UseSpriteUploadOptions = {
   atCapacity: boolean
   // Called with the uploaded sprite URL. The caller decides whether to add it to an array or replace a value.
   onUploaded: (url: string) => void
+  // The plan's upload quota and usage, from the config context. A user at the limit gets the upgrade prompt instead of an upload.
+  entitlements: Entitlements | null
+  usage: Usage | null
+  // Re-reads usage after an upload or a refusal.
+  refreshAccount: () => void
 }
 
 type UseSpriteUpload = {
@@ -27,8 +34,17 @@ type UseSpriteUpload = {
   uploadError: string | null
 }
 
-export const useSpriteUpload = ({ isSignedIn, getToken, atCapacity, onUploaded }: UseSpriteUploadOptions): UseSpriteUpload => {
+export const useSpriteUpload = ({
+  isSignedIn,
+  getToken,
+  atCapacity,
+  onUploaded,
+  entitlements,
+  usage,
+  refreshAccount,
+}: UseSpriteUploadOptions): UseSpriteUpload => {
   const [uploadError, setUploadError] = useState<string | null>(null)
+  const { requestUpgrade } = useUpgrade()
 
   const showUploadError = useCallback((message: string): void => {
     setUploadError(message)
@@ -43,6 +59,14 @@ export const useSpriteUpload = ({ isSignedIn, getToken, atCapacity, onUploaded }
       if (!file || !file.type.startsWith('image/')) return
       if (!isSignedIn) {
         showUploadError('Sign in to upload a custom particle.')
+        requestUpgrade('Sign in to upload a custom particle.')
+        e.target.value = ''
+        return
+      }
+      if (entitlements && !hasRoomFor(entitlements, usage, 'particleUploads')) {
+        const message = quotaMessage({ quota: 'particleUploads', limit: entitlements.quotas.particleUploads ?? 0, plan: entitlements.plan })
+        showUploadError(message)
+        requestUpgrade(message)
         e.target.value = ''
         return
       }
@@ -79,7 +103,15 @@ export const useSpriteUpload = ({ isSignedIn, getToken, atCapacity, onUploaded }
               headers: { Authorization: `Bearer ${token}`, 'Content-Type': blob.type || 'image/png' },
             })
             onUploaded(data.url)
-          } catch {
+            refreshAccount()
+          } catch (err) {
+            const body = axios.isAxiosError(err) ? err.response?.data : undefined
+            if (isQuotaExceeded(body)) {
+              showUploadError(quotaMessage(body))
+              requestUpgrade(quotaMessage(body))
+              refreshAccount()
+              return
+            }
             showUploadError('Could not upload this image.')
           }
         })()
@@ -87,7 +119,7 @@ export const useSpriteUpload = ({ isSignedIn, getToken, atCapacity, onUploaded }
       reader.readAsDataURL(file)
       e.target.value = ''
     },
-    [atCapacity, isSignedIn, getToken, showUploadError, onUploaded],
+    [atCapacity, isSignedIn, getToken, showUploadError, onUploaded, entitlements, usage, refreshAccount, requestUpgrade],
   )
 
   return { onFiles, uploadError }

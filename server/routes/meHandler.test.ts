@@ -3,11 +3,15 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { AuthUnauthorizedError, verifyAuth } from '../auth.js'
 import { userService } from '../services/UserService.js'
 import { IUser } from '../models/User.js'
+import { entitlementService } from '../services/EntitlementService.js'
 import { meHandler, updateMeHandler } from './meHandler.js'
 
 vi.mock('../auth.js', () => ({
   AuthUnauthorizedError: class AuthUnauthorizedError extends Error {},
   verifyAuth: vi.fn(),
+}))
+vi.mock('../services/EntitlementService.js', () => ({
+  entitlementService: { getUsage: vi.fn() },
 }))
 vi.mock('../services/UserService.js', () => ({
   userService: {
@@ -36,7 +40,10 @@ const makeReq = (authorization = 'Bearer valid-token', body: unknown = {}): Requ
   ({ headers: { authorization }, body }) as unknown as Request
 
 describe('meHandler', () => {
+  const usage = { savedPresets: 2, particleUploads: 1, privatePacks: 0, publicPacks: 0 }
+
   beforeEach(() => {
+    vi.mocked(entitlementService.getUsage).mockReset().mockResolvedValue(usage)
     vi.mocked(verifyAuth).mockReset().mockResolvedValue('user_123')
     vi.mocked(userService.getOrCreateUser).mockReset().mockResolvedValue({
       clerkId: 'user_123',
@@ -71,6 +78,14 @@ describe('meHandler', () => {
     const res = makeRes()
     await meHandler(makeReq(), res)
     expect(res.body).toMatchObject({ isAdmin: true })
+    expect((res.body as { entitlements: { quotas: { savedPresets: unknown } } }).entitlements.quotas.savedPresets).toBeNull()
+  })
+
+  it('returns the plan\'s entitlements and what the user has used, for the client\'s locks', async () => {
+    vi.mocked(userService.getOrCreateUser).mockResolvedValueOnce({ clerkId: 'user_123', displayName: '', settings: {}, plan: 'tier1' } as unknown as IUser)
+    const res = makeRes()
+    await meHandler(makeReq(), res)
+    expect(res.body).toMatchObject({ plan: 'tier1', usage, entitlements: { plan: 'tier1', quotas: { savedPresets: 10 }, features: { builtInPremiumPacks: true } } })
   })
 
   it('returns 500 without leaking internals when the upsert fails', async () => {

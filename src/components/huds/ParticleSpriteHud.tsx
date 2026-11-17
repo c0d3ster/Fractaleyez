@@ -26,11 +26,14 @@ type ParticleSpriteHudProps = {
   isAdmin: boolean
   isSignedIn: boolean
   getToken: () => Promise<string | null>
+  entitlements: ConfigContextValue['entitlements']
+  usage: ConfigContextValue['usage']
+  refreshAccount: ConfigContextValue['refreshAccount']
 }
 
 const selectSprites = (config: AppConfig): string[] => config.particle.sprites.value
 
-const ParticleSpriteHudInner = ({ updateParticleSprites, applyUserReference, releaseUserReference, userReferenceStandIn, userSettings, isAdmin, isSignedIn, getToken }: ParticleSpriteHudProps): React.ReactElement => {
+const ParticleSpriteHudInner = ({ updateParticleSprites, applyUserReference, releaseUserReference, userReferenceStandIn, userSettings, isAdmin, isSignedIn, getToken, entitlements, usage, refreshAccount }: ParticleSpriteHudProps): React.ReactElement => {
   const info = useInfo()
   const sprites = useConfigSelector(selectSprites)
   const spritesRef = useRef(sprites)
@@ -73,7 +76,7 @@ const ParticleSpriteHudInner = ({ updateParticleSprites, applyUserReference, rel
   // straight to the cached blob: URL instead of racing a cold cross-origin fetch.
   const onUploaded = useCallback((url: string): void => setSprites([...spritesRef.current, url]), [setSprites])
 
-  const { onFiles, uploadError } = useSpriteUpload({ isSignedIn, getToken, atCapacity, onUploaded })
+  const { onFiles, uploadError } = useSpriteUpload({ isSignedIn, getToken, atCapacity, onUploaded, entitlements, usage, refreshAccount })
 
   return (
     <div className='particle-sprite-hud'>
