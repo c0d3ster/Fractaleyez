@@ -136,6 +136,11 @@ export const PlanPage = (): React.ReactElement => {
       ) : null}
 
       {error ? <div className='plan-page__error'>{error}</div> : null}
+
+      <div className='plan-page__legal'>
+        <a href='/terms' target='_blank' rel='noopener'>Terms</a>
+        <a href='/privacy' target='_blank' rel='noopener'>Privacy</a>
+      </div>
     </div>
   )
 }

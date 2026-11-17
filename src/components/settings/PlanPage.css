@@ -135,3 +135,17 @@
     border-color: #666;
   }
 }
+
+.plan-page__legal {
+  display: flex;
+  gap: 16px;
+  font-size: 12px;
+}
+
+.plan-page__legal a {
+  color: #888;
+}
+
+.plan-page__legal a:hover {
+  color: #ddd;
+}
