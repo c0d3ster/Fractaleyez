@@ -66,6 +66,14 @@ const currentPeriodEndOf = (subscription: Stripe.Subscription): Date | undefined
   return ends.length > 0 ? new Date(Math.max(...ends) * 1000) : undefined
 }
 
+/**
+ * How long a Checkout Session stays payable (Stripe allows 30 minutes to 24 hours, default 24). An hour is plenty to pay,
+ * and an abandoned tab stops being a way into a second subscription soon after.
+ */
+export const CHECKOUT_LIFETIME_S = 60 * 60
+/** An open session with less time left than this is expired and replaced instead of reused, so nobody lands on one that lapses mid-payment. */
+export const CHECKOUT_REUSE_MIN_LEFT_S = 10 * 60
+
 /** Set on the portal configuration scripts/stripe-portal-config.js creates. */
 export const PORTAL_METADATA_APP = 'fractaleyez'
 
@@ -135,6 +143,10 @@ export class BillingService {
     if (!price) throw new BillingError('price_not_found', `No active Stripe price with lookup key ${lookupKey}`)
 
     const customerId = await this.ensureCustomer(user)
+    const successUrl = withBillingParam(returnUrl, 'success')
+    const reusable = await this.settleOpenCheckouts(customerId, price.id, successUrl)
+    if (reusable) return reusable
+
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
       customer: customerId,
@@ -142,11 +154,41 @@ export class BillingService {
       line_items: [{ price: price.id, quantity: 1 }],
       subscription_data: { metadata: { clerkId } },
       allow_promotion_codes: true,
-      success_url: withBillingParam(returnUrl, 'success'),
+      success_url: successUrl,
       cancel_url: withBillingParam(returnUrl, 'cancel'),
+      expires_at: Math.floor(Date.now() / 1000) + CHECKOUT_LIFETIME_S,
     })
     if (!session.url) throw new Error('Stripe returned a Checkout Session without a URL')
     return session.url
+  }
+
+  /**
+   * Keeps at most one open subscription Checkout per customer, so two tabs can't end in two subscriptions. Returns the URL of
+   * an open session for the same price and return URL with time left on it; every other open subscription session of the
+   * customer (another plan, another interval, nearly expired) is expired, so its tab can no longer be paid. Two requests in
+   * the same instant can still both create one; reconcile's pickSubscription then decides the plan, as before.
+   */
+  private async settleOpenCheckouts(customerId: string, priceId: string, successUrl: string): Promise<string | null> {
+    const stripe = getStripe()
+    const { data: open } = await stripe.checkout.sessions.list({
+      customer: customerId,
+      status: 'open',
+      limit: 10,
+      expand: ['data.line_items'],
+    })
+    const minExpiresAt = Math.floor(Date.now() / 1000) + CHECKOUT_REUSE_MIN_LEFT_S
+    let reusable: string | null = null
+    for (const session of open) {
+      if (session.mode !== 'subscription') continue
+      const matches = session.url && session.success_url === successUrl && session.expires_at >= minExpiresAt &&
+        session.line_items?.data.length === 1 && session.line_items.data[0]?.price?.id === priceId
+      if (matches && !reusable) {
+        reusable = session.url
+        continue
+      }
+      await stripe.checkout.sessions.expire(session.id)
+    }
+    return reusable
   }
 
   async createPortalSession(clerkId: string, returnUrl: string): Promise<string> {
