@@ -1,8 +1,8 @@
 import { MongoMemoryServer } from 'mongodb-memory-server'
 import mongoose from 'mongoose'
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest'
-import { userRepository } from './UserRepository'
-import { User } from '../models/User'
+import { userRepository } from './UserRepository.js'
+import { User } from '../models/User.js'
 
 // db.ts's connectDB() reads MONGO_URI from a snapshot of process.env taken at module import
 // time (env.ts), which is too early for a value only known once MongoMemoryServer starts.

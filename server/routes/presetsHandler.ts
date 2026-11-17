@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express'
-import { AuthUnauthorizedError, verifyAuth } from '../auth'
-import { presetService } from '../services/PresetService'
+import { AuthUnauthorizedError, verifyAuth } from '../auth.js'
+import { presetService } from '../services/PresetService.js'
 
 export const presetsHandler = async (req: Request, res: Response): Promise<void> => {
   let viewerId: string | null = null

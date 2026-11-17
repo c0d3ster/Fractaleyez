@@ -1,18 +1,18 @@
 import type { Request, Response } from 'express'
 import request from 'supertest'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { createApp } from './app'
-import * as presets from './routes/presetsHandler'
-import * as preset from './routes/presetHandler'
-import * as savePreset from './routes/savePresetHandler'
-import * as packs from './routes/packsHandler'
-import * as myPacks from './routes/myPacksHandler'
-import * as createPack from './routes/createPackHandler'
-import * as upload from './routes/uploadParticleHandler'
-import * as me from './routes/meHandler'
-import * as clerk from './routes/clerkWebhookHandler'
-import * as ping from './routes/pingHandler'
-import * as getConfig from './routes/getConfigHandler'
+import { createApp } from './app.js'
+import * as presets from './routes/presetsHandler.js'
+import * as preset from './routes/presetHandler.js'
+import * as savePreset from './routes/savePresetHandler.js'
+import * as packs from './routes/packsHandler.js'
+import * as myPacks from './routes/myPacksHandler.js'
+import * as createPack from './routes/createPackHandler.js'
+import * as upload from './routes/uploadParticleHandler.js'
+import * as me from './routes/meHandler.js'
+import * as clerk from './routes/clerkWebhookHandler.js'
+import * as ping from './routes/pingHandler.js'
+import * as getConfig from './routes/getConfigHandler.js'
 
 // Each stub answers with its own name plus what the route received, so a test sees which handler ran and with what body.
 // Hoisted because vi.mock factories run before the rest of the module.
@@ -22,17 +22,17 @@ const { stub } = vi.hoisted(() => ({
   }),
 }))
 
-vi.mock('./routes/presetsHandler', () => ({ presetsHandler: stub('presets') }))
-vi.mock('./routes/presetHandler', () => ({ presetHandler: stub('preset') }))
-vi.mock('./routes/savePresetHandler', () => ({ savePresetHandler: stub('savePreset') }))
-vi.mock('./routes/packsHandler', () => ({ packsHandler: stub('packs') }))
-vi.mock('./routes/myPacksHandler', () => ({ myPacksHandler: stub('myPacks') }))
-vi.mock('./routes/createPackHandler', () => ({ createPackHandler: stub('createPack') }))
-vi.mock('./routes/uploadParticleHandler', () => ({ uploadParticleHandler: stub('uploadParticle'), MAX_UPLOAD_BYTES: 64 }))
-vi.mock('./routes/meHandler', () => ({ meHandler: stub('me'), updateMeHandler: stub('updateMe') }))
-vi.mock('./routes/clerkWebhookHandler', () => ({ clerkWebhookHandler: stub('clerkWebhook'), MAX_WEBHOOK_BYTES: 1024 }))
-vi.mock('./routes/pingHandler', () => ({ pingHandler: stub('ping') }))
-vi.mock('./routes/getConfigHandler', () => ({ getConfigHandler: stub('getConfig') }))
+vi.mock('./routes/presetsHandler.js', () => ({ presetsHandler: stub('presets') }))
+vi.mock('./routes/presetHandler.js', () => ({ presetHandler: stub('preset') }))
+vi.mock('./routes/savePresetHandler.js', () => ({ savePresetHandler: stub('savePreset') }))
+vi.mock('./routes/packsHandler.js', () => ({ packsHandler: stub('packs') }))
+vi.mock('./routes/myPacksHandler.js', () => ({ myPacksHandler: stub('myPacks') }))
+vi.mock('./routes/createPackHandler.js', () => ({ createPackHandler: stub('createPack') }))
+vi.mock('./routes/uploadParticleHandler.js', () => ({ uploadParticleHandler: stub('uploadParticle'), MAX_UPLOAD_BYTES: 64 }))
+vi.mock('./routes/meHandler.js', () => ({ meHandler: stub('me'), updateMeHandler: stub('updateMe') }))
+vi.mock('./routes/clerkWebhookHandler.js', () => ({ clerkWebhookHandler: stub('clerkWebhook'), MAX_WEBHOOK_BYTES: 1024 }))
+vi.mock('./routes/pingHandler.js', () => ({ pingHandler: stub('ping') }))
+vi.mock('./routes/getConfigHandler.js', () => ({ getConfigHandler: stub('getConfig') }))
 
 const app = createApp()
 

@@ -1,7 +1,7 @@
-import { packRepository } from '../repositories/PackRepository'
-import { presetRepository, PresetMeta } from '../repositories/PresetRepository'
-import { IPreset } from '../models/Preset'
-import { userService } from './UserService'
+import { packRepository } from '../repositories/PackRepository.js'
+import { presetRepository, PresetMeta } from '../repositories/PresetRepository.js'
+import { IPreset } from '../models/Preset.js'
+import { userService } from './UserService.js'
 
 // Mirrors USER_REFERENCE in src/utils/userReference.ts.
 const USER_REFERENCE = '@user'

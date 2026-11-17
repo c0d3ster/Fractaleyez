@@ -1,12 +1,13 @@
-const net = require('net')
-const path = require('path')
-const webpack = require('webpack')
+import net from 'net'
+import path from 'path'
+import webpack from 'webpack'
+import dotenv from 'dotenv'
 
 // Load .env before EnvironmentPlugin reads process.env (client bundle is separate from the server (server/dev.ts)).
-require('dotenv').config({ path: path.join(__dirname, '.env'), quiet: true })
+dotenv.config({ path: path.join(import.meta.dirname, '.env'), quiet: true })
 
-const BUILD_DIR = path.join( __dirname, 'public' )
-const APP_DIR = path.join( __dirname, 'src' )
+const BUILD_DIR = path.join( import.meta.dirname, 'public' )
+const APP_DIR = path.join( import.meta.dirname, 'src' )
 
 const DEV_PORT = 3000
 const DEV_PORT_TRIES = 20
@@ -144,4 +145,4 @@ const createConfig = (devPort) => ({
 })
 
 // Only a dev-server run needs a port; a plain build skips the probe.
-module.exports = async (env) => [createConfig(env && env.WEBPACK_SERVE ? await findDevPort() : DEV_PORT), workletConfig]
+export default async (env) => [createConfig(env && env.WEBPACK_SERVE ? await findDevPort() : DEV_PORT), workletConfig]

@@ -5,22 +5,15 @@
 //   pnpm seed --file presets.json fire ice limits the run to the named presets
 //
 // The file is not committed: `pnpm export-presets` writes one from the database (scripts/presets.local.json).
-require('./loadEnv')
-require('@babel/register')({
-  extensions: ['.ts'],
-  presets: [
-    ['@babel/preset-env', { targets: { node: 'current' } }],
-    '@babel/preset-typescript',
-  ],
-})
+import './loadEnv.js'
 
-const fs = require('fs')
-const path = require('path')
-const mongoose = require('mongoose')
-const { requireEnv } = require('../server/env.ts')
-const { configDefaults } = require('../src/config/configDefaults.ts')
-const { toStoredConfig } = require('../src/config/storedConfig.ts')
-const { Preset } = require('../server/models/Preset.ts')
+import fs from 'fs'
+import path from 'path'
+import mongoose from 'mongoose'
+import { requireEnv } from '../server/env.ts'
+import { configDefaults } from '../src/config/configDefaults.ts'
+import { toStoredConfig } from '../src/config/storedConfig.ts'
+import { Preset } from '../server/models/Preset.ts'
 
 const parseArgs = (args) => {
   const fileFlag = args.indexOf('--file')

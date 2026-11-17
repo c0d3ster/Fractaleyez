@@ -1,8 +1,8 @@
 import type { Request, Response } from 'express'
 import { Webhook } from 'svix'
 import type { UserJSON } from '@clerk/backend'
-import { env } from '../env'
-import { userService } from '../services/UserService'
+import { env } from '../env.js'
+import { userService } from '../services/UserService.js'
 
 // Clerk's user.* payloads are a few KB at most; this is just a ceiling against an
 // unauthenticated caller flooding memory before signature verification can reject them.

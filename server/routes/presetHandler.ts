@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express'
-import { presetService } from '../services/PresetService'
+import { presetService } from '../services/PresetService.js'
 
 export const presetHandler = async (req: Request, res: Response): Promise<void> => {
   const id = typeof req.query.id === 'string' ? req.query.id.trim() : ''

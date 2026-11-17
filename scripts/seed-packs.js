@@ -2,19 +2,12 @@
 //
 // Run `pnpm seed` BEFORE this script: membership is looked up by preset name, so presets that are not in the
 // database yet are left out of their packs. Safe to re-run; each run re-syncs rather than duplicating.
-require('./loadEnv')
-require('@babel/register')({
-  extensions: ['.ts'],
-  presets: [
-    ['@babel/preset-env', { targets: { node: 'current' } }],
-    '@babel/preset-typescript',
-  ],
-})
+import './loadEnv.js'
 
-const mongoose = require('mongoose')
-const { requireEnv } = require('../server/env.ts')
-const { Pack } = require('../server/models/Pack.ts')
-const { Preset } = require('../server/models/Preset.ts')
+import mongoose from 'mongoose'
+import { requireEnv } from '../server/env.ts'
+import { Pack } from '../server/models/Pack.ts'
+import { Preset } from '../server/models/Preset.ts'
 
 // Each environment has its own Clerk instance, so the pack owner is that environment's admin account. Stamping the
 // wrong ID makes the admin a stranger to every pack there (isOwn is false and the premium gate shows).

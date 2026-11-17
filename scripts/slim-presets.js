@@ -5,18 +5,11 @@
 //   node scripts/slim-presets.js --apply   writes the slim configs
 //
 // Targets whichever database MONGO_URI points at (dev or prod), so check .env first.
-require('./loadEnv')
-require('@babel/register')({
-  extensions: ['.ts'],
-  presets: [
-    ['@babel/preset-env', { targets: { node: 'current' } }],
-    '@babel/preset-typescript',
-  ],
-})
+import './loadEnv.js'
 
-const mongoose = require('mongoose')
-const { requireEnv } = require('../server/env.ts')
-const { Preset } = require('../server/models/Preset.ts')
+import mongoose from 'mongoose'
+import { requireEnv } from '../server/env.ts'
+import { Preset } from '../server/models/Preset.ts'
 
 const isItem = (value) => value !== null && typeof value === 'object' && !Array.isArray(value) && 'value' in value
 

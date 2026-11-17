@@ -1,5 +1,5 @@
-import { connectDB } from '../db'
-import { User, IUser, UserSettings } from '../models/User'
+import { connectDB } from '../db.js'
+import { User, IUser, UserSettings } from '../models/User.js'
 
 export type UserSyncFields = {
   displayName?: string

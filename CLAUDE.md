@@ -33,7 +33,7 @@ API logic lives once in `server/routes/*Handler.ts` (plain Express `(req, res)` 
 
 When adding an API endpoint: write the handler in `server/routes/` and add its route in `server/app.ts` (and a case in `server/app.test.ts`). Nothing else: both runtimes pick it up. Some routes have two paths (`/api/pack` and `/api/createPack`, `/api/packs/mine` and `/api/myPacks`) because the old one-function-per-file layout named them after their files; keep both until nothing calls the old ones.
 
-`server/app.load.test.ts` loads `api/index.ts` the way Vercel runs it, which a plain local run can't show: a package Vercel's runtime can't load (`svix` 2.x was one) fails that test instead of crashing every API request in production.
+The repo is ES modules (`"type": "module"`). The server and `api/` compile with `api/tsconfig.json` (`NodeNext`), so every relative import carries its `.js` extension (`import { connectDB } from './db.js'`) and paths come from `import.meta.dirname`, not `__dirname`. `server/app.load.test.ts` compiles `api/` with that config and imports the result in plain Node, which a local run through tsx or vitest can't show: a missing `.js`, or a package Node can't load that way, fails that test instead of crashing every API request in production. The database scripts (`scripts/*.js`) are ES modules run through `tsx` by their `pnpm` commands, which compiles the server and `src/` TypeScript they import; `scripts/bench/` stays CommonJS through its own `package.json` and runs with plain `node`.
 
 Handlers → `server/services/*Service.ts` (business logic, auth-derived `userId`, validation) → `server/repositories/*Repository.ts` (Mongoose queries) → `server/models/*.ts` (schemas). Keep that layering when touching presets/packs.
 

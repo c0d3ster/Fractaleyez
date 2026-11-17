@@ -1,35 +1,29 @@
 import { execFileSync } from 'child_process'
+import { rmSync } from 'fs'
 import path from 'path'
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, afterAll } from 'vitest'
 
-const ROOT = path.resolve(__dirname, '..')
+const ROOT = path.resolve(import.meta.dirname, '..')
+// Inside the repo so the compiled files resolve packages from the repo's node_modules, as the deployed function does from its own.
+const OUT_DIR = path.join(ROOT, 'node_modules/.cache/app-load-test')
 
-// Loads api/index.ts the way Vercel runs it: each .ts file compiled to CommonJS on its own, and Node's require() of ES modules
-// switched off, as Vercel's runtime loader refuses it. Locally Node 22+ quietly allows require() of an ES-module-only package,
-// so without this an ESM-only dependency (svix 2.x did this) passes every other test and then crashes the one function
-// that serves the whole API.
-const LOADER = `
-const fs = require('fs')
-const ts = require('typescript')
-require.extensions['.ts'] = (module, filename) => {
-  const { outputText } = ts.transpileModule(fs.readFileSync(filename, 'utf8'), {
-    fileName: filename,
-    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, esModuleInterop: true },
+// Compiles the API with api/tsconfig.json (the ES modules Vercel deploys) and imports the result in a plain Node process. Vitest
+// and tsx are forgiving in ways Node is not: they find './db' without its '.js', and smooth over importing named exports from a
+// CommonJS package. This catches those before they reach the one function that serves the whole API.
+describe('api/index.ts as Node loads it', () => {
+  afterAll(() => {
+    rmSync(OUT_DIR, { recursive: true, force: true })
   })
-  module._compile(outputText, filename)
-}
-const mod = require('./api/index.ts')
-if (typeof mod.default !== 'function') throw new Error('api/index.ts must default-export the Express app')
-console.log('loaded')
-`
 
-describe('api/index.ts on a CommonJS-only runtime', () => {
-  it('loads without requiring any ES-module-only package', () => {
-    const output = execFileSync(process.execPath, ['--no-experimental-require-module', '--no-warnings', '-e', LOADER], {
+  it('compiles and imports as plain ES modules', () => {
+    rmSync(OUT_DIR, { recursive: true, force: true })
+    execFileSync(process.execPath, [path.join(ROOT, 'node_modules/typescript/bin/tsc'), '-p', 'api/tsconfig.json', '--outDir', OUT_DIR, '--rootDir', ROOT, '--ignoreDeprecations', '6.0'], {
       cwd: ROOT,
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'pipe'],
+      stdio: 'pipe',
     })
+    const entry = path.join(OUT_DIR, 'api/index.js')
+    const script = `const mod = await import(${JSON.stringify(entry)}); if (typeof mod.default !== 'function') throw new Error('api/index.ts must default-export the Express app'); console.log('loaded')`
+    const output = execFileSync(process.execPath, ['--input-type=module', '--no-warnings', '-e', script], { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })
     expect(output.trim()).toBe('loaded')
-  }, 60_000)
+  }, 120_000)
 })

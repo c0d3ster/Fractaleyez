@@ -3,22 +3,15 @@
 //
 //   pnpm export-presets                 writes scripts/presets.local.json (git-ignored)
 //   pnpm export-presets out/presets.json
-require('./loadEnv')
-require('@babel/register')({
-  extensions: ['.ts'],
-  presets: [
-    ['@babel/preset-env', { targets: { node: 'current' } }],
-    '@babel/preset-typescript',
-  ],
-})
+import './loadEnv.js'
 
-const fs = require('fs')
-const path = require('path')
-const mongoose = require('mongoose')
-const { requireEnv } = require('../server/env.ts')
-const { Preset } = require('../server/models/Preset.ts')
+import fs from 'fs'
+import path from 'path'
+import mongoose from 'mongoose'
+import { requireEnv } from '../server/env.ts'
+import { Preset } from '../server/models/Preset.ts'
 
-const DEFAULT_OUT = path.join(__dirname, 'presets.local.json')
+const DEFAULT_OUT = path.join(import.meta.dirname, 'presets.local.json')
 
 const exportPresets = async () => {
   const out = path.resolve(process.argv[2] ?? DEFAULT_OUT)

@@ -1,6 +1,6 @@
 import { Types } from 'mongoose'
-import { connectDB } from '../db'
-import { Preset, IPreset } from '../models/Preset'
+import { connectDB } from '../db.js'
+import { Preset, IPreset } from '../models/Preset.js'
 
 export type PresetMeta = {
   _id: Types.ObjectId

@@ -1,8 +1,8 @@
 import type { UserJSON } from '@clerk/backend'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { userRepository } from '../repositories/UserRepository'
-import { IUser } from '../models/User'
-import { resolveDisplayName, UserService } from './UserService'
+import { userRepository } from '../repositories/UserRepository.js'
+import { IUser } from '../models/User.js'
+import { resolveDisplayName, UserService } from './UserService.js'
 
 const getUserMock = vi.fn()
 vi.mock('@clerk/backend', async importOriginal => {
@@ -12,10 +12,10 @@ vi.mock('@clerk/backend', async importOriginal => {
     createClerkClient: () => ({ users: { getUser: getUserMock } }),
   }
 })
-vi.mock('../repositories/UserRepository', () => ({
+vi.mock('../repositories/UserRepository.js', () => ({
   userRepository: { upsertByClerkId: vi.fn(), findByClerkId: vi.fn() },
 }))
-vi.mock('../env', () => ({
+vi.mock('../env.js', () => ({
   requireEnv: { CLERK_SECRET_KEY: () => 'sk_test' },
 }))
 
