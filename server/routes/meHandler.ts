@@ -2,6 +2,7 @@ import type { Request, Response } from 'express'
 import { AuthUnauthorizedError, verifyAuth } from '../auth.js'
 import { userService } from '../services/UserService.js'
 import { UserSettings } from '../models/User.js'
+import { getEntitlements } from '../services/entitlements.js'
 
 // Mirrors src/config/visualizer.config.ts's PARTICLE_CROSSFADE_DURATION_MIN_MS/MAX_MS.
 const CROSSFADE_DURATION_MIN_MS = 0
@@ -49,6 +50,9 @@ export const meHandler = async (req: Request, res: Response): Promise<void> => {
       settings: user.settings,
       // Read-only here: the flag is only ever set directly in Mongo. The client uses it to hide admin-only UI; the server still enforces it on write.
       isAdmin: user.isAdmin === true,
+      // Read-only, written by the Stripe webhook. Display only for now: quotas are not enforced yet (monetization phase 2).
+      plan: user.plan ?? 'free',
+      entitlements: getEntitlements(user.plan ?? 'free'),
     })
   } catch (err) {
     console.error('Failed to get or create user', err)

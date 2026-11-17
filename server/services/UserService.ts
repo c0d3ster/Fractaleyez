@@ -64,6 +64,17 @@ export class UserService {
     return userRepository.upsertByClerkId(user.id, { displayName: resolveDisplayName(user) })
   }
 
+  /** The Clerk account's primary email, or null when it has none or Clerk can't be reached (callers treat it as optional). */
+  async getPrimaryEmail(clerkId: string): Promise<string | null> {
+    try {
+      const user = await getClerkClient().users.getUser(clerkId)
+      return user.primaryEmailAddress?.emailAddress ?? null
+    } catch (err) {
+      console.error('Failed to read the primary email from Clerk', err)
+      return null
+    }
+  }
+
   /** Missing user doc counts as non-admin; never lazy-creates one. */
   async isAdmin(clerkId: string): Promise<boolean> {
     const user = await userRepository.findByClerkId(clerkId)

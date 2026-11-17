@@ -11,6 +11,8 @@ import * as createPack from './routes/createPackHandler.js'
 import * as upload from './routes/uploadParticleHandler.js'
 import * as me from './routes/meHandler.js'
 import * as clerk from './routes/clerkWebhookHandler.js'
+import * as stripe from './routes/stripeWebhookHandler.js'
+import * as billing from './routes/billingHandler.js'
 import * as ping from './routes/pingHandler.js'
 import * as getConfig from './routes/getConfigHandler.js'
 
@@ -31,6 +33,8 @@ vi.mock('./routes/createPackHandler.js', () => ({ createPackHandler: stub('creat
 vi.mock('./routes/uploadParticleHandler.js', () => ({ uploadParticleHandler: stub('uploadParticle'), MAX_UPLOAD_BYTES: 64 }))
 vi.mock('./routes/meHandler.js', () => ({ meHandler: stub('me'), updateMeHandler: stub('updateMe') }))
 vi.mock('./routes/clerkWebhookHandler.js', () => ({ clerkWebhookHandler: stub('clerkWebhook'), MAX_WEBHOOK_BYTES: 1024 }))
+vi.mock('./routes/stripeWebhookHandler.js', () => ({ stripeWebhookHandler: stub('stripeWebhook'), MAX_STRIPE_WEBHOOK_BYTES: 1024 }))
+vi.mock('./routes/billingHandler.js', () => ({ billingStatusHandler: stub('billingStatus'), billingActionHandler: stub('billingAction') }))
 vi.mock('./routes/pingHandler.js', () => ({ pingHandler: stub('ping') }))
 vi.mock('./routes/getConfigHandler.js', () => ({ getConfigHandler: stub('getConfig') }))
 
@@ -38,7 +42,7 @@ const app = createApp()
 
 describe('createApp routing', () => {
   beforeEach(() => {
-    for (const mod of [presets, preset, savePreset, packs, myPacks, createPack, upload, me, clerk, ping, getConfig]) {
+    for (const mod of [presets, preset, savePreset, packs, myPacks, createPack, upload, me, clerk, stripe, billing, ping, getConfig]) {
       for (const fn of Object.values(mod)) if (vi.isMockFunction(fn)) fn.mockClear()
     }
   })
@@ -46,6 +50,8 @@ describe('createApp routing', () => {
   it.each([
     ['get', '/api/me', 'me'],
     ['patch', '/api/me', 'updateMe'],
+    ['get', '/api/billing', 'billingStatus'],
+    ['post', '/api/billing', 'billingAction'],
     ['get', '/api/presets', 'presets'],
     ['get', '/api/preset?id=x', 'preset'],
     ['post', '/api/savePreset', 'savePreset'],
@@ -66,10 +72,12 @@ describe('createApp routing', () => {
     expect(res.body).toMatchObject({ handler: 'getConfig', params: { name: 'default' } })
   })
 
-  it('gives the Clerk webhook the exact raw bytes', async () => {
+  it('gives both webhooks the exact raw bytes', async () => {
     const payload = '{"id":"evt_1",  "spacing":"kept"}'
-    const res = await request(app).post('/api/clerkWebhook').set('Content-Type', 'application/json').send(payload)
-    expect(res.body).toMatchObject({ handler: 'clerkWebhook', isBuffer: true, body: payload })
+    for (const [path, handler] of [['/api/stripeWebhook', 'stripeWebhook'], ['/api/clerkWebhook', 'clerkWebhook']] as const) {
+      const res = await request(app).post(path).set('Content-Type', 'application/json').send(payload)
+      expect(res.body).toMatchObject({ handler, isBuffer: true, body: payload })
+    }
   })
 
   it('parses JSON for the other routes', async () => {

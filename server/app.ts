@@ -8,6 +8,8 @@ import { createPackHandler } from './routes/createPackHandler.js'
 import { uploadParticleHandler, MAX_UPLOAD_BYTES } from './routes/uploadParticleHandler.js'
 import { meHandler, updateMeHandler } from './routes/meHandler.js'
 import { clerkWebhookHandler, MAX_WEBHOOK_BYTES } from './routes/clerkWebhookHandler.js'
+import { stripeWebhookHandler, MAX_STRIPE_WEBHOOK_BYTES } from './routes/stripeWebhookHandler.js'
+import { billingActionHandler, billingStatusHandler } from './routes/billingHandler.js'
 import { pingHandler } from './routes/pingHandler.js'
 import { getConfigHandler } from './routes/getConfigHandler.js'
 
@@ -40,8 +42,9 @@ export const createApp = (): Express => {
   const app = express()
   app.disable('x-powered-by')
 
-  // Before the JSON parser: svix verifies the webhook signature over the exact request bytes.
+  // Before the JSON parser: svix and Stripe verify signatures over the exact request bytes.
   app.post('/api/clerkWebhook', express.raw({ type: 'application/json', limit: MAX_WEBHOOK_BYTES }), clerkWebhookHandler)
+  app.post('/api/stripeWebhook', express.raw({ type: 'application/json', limit: MAX_STRIPE_WEBHOOK_BYTES }), stripeWebhookHandler)
   app.post('/api/uploadParticle', express.raw({ type: 'image/*', limit: MAX_UPLOAD_BYTES }), uploadParticleHandler)
 
   app.use(express.urlencoded({ extended: true }))
@@ -49,6 +52,8 @@ export const createApp = (): Express => {
 
   app.get('/api/me', meHandler)
   app.patch('/api/me', updateMeHandler)
+  app.get('/api/billing', billingStatusHandler)
+  app.post('/api/billing', billingActionHandler)
   app.get('/api/presets', presetsHandler)
   app.get('/api/preset', presetHandler)
   app.post('/api/savePreset', savePresetHandler)

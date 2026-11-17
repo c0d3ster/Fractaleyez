@@ -5,6 +5,8 @@ import './TopBar.css'
 
 import { UserSettingsPage } from '../settings/UserSettingsPage'
 import { VisualizerTabIcon } from '../settings/VisualizerTabIcon'
+import { PlanPage } from '../settings/PlanPage'
+import { PlanTabIcon } from '../settings/PlanTabIcon'
 
 const TRIGGER_Y_PX = 100
 const HIDE_AFTER_Y_PX = 120
@@ -68,6 +70,13 @@ export const TopBar = (): React.ReactElement => {
                 labelIcon={<VisualizerTabIcon />}
               >
                 <UserSettingsPage />
+              </UserButton.UserProfilePage>
+              <UserButton.UserProfilePage
+                label='Plan'
+                url='plan'
+                labelIcon={<PlanTabIcon />}
+              >
+                <PlanPage />
               </UserButton.UserProfilePage>
             </UserButton>
             : <SignInButton mode='modal'>

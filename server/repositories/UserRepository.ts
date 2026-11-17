@@ -1,8 +1,13 @@
 import { connectDB } from '../db.js'
-import { User, IUser, UserSettings } from '../models/User.js'
+import { User, IUser, UserSettings, PlanId, UserBilling } from '../models/User.js'
 
 export type UserSyncFields = {
   displayName?: string
+}
+
+export type BillingSyncFields = {
+  plan: PlanId
+  billing: Required<Pick<UserBilling, 'subscriptionId' | 'status' | 'cancelAtPeriodEnd'>> & Pick<UserBilling, 'currentPeriodEnd'>
 }
 
 const isDuplicateKeyError = (err: unknown): boolean =>
@@ -69,6 +74,61 @@ export class UserRepository {
     const created = await User.findOneAndUpdate({ clerkId }, { $set: set }, { returnDocument: 'after' })
     if (!created) throw new Error('Failed to persist settings after creating user')
     return created
+  }
+
+  async findByStripeCustomerId(customerId: string): Promise<IUser | null> {
+    await connectDB()
+    return User.findOne({ 'billing.customerId': customerId })
+  }
+
+  /**
+   * Links a Stripe customer to the user only if none is linked yet, and returns the customer id that ends up stored. Two
+   * concurrent checkouts could each create a customer; the first write wins and the caller uses whatever this returns.
+   */
+  async linkStripeCustomer(clerkId: string, customerId: string): Promise<string> {
+    await connectDB()
+    const linked = await User.findOneAndUpdate(
+      { clerkId, 'billing.customerId': { $exists: false } },
+      { $set: { 'billing.customerId': customerId } },
+      { returnDocument: 'after' },
+    )
+    if (linked?.billing?.customerId) return linked.billing.customerId
+    const existing = await User.findOne({ clerkId })
+    const existingCustomerId = existing?.billing?.customerId
+    if (!existingCustomerId) throw new Error(`No user document for ${clerkId} to link a Stripe customer to`)
+    return existingCustomerId
+  }
+
+  /**
+   * Swaps a deleted Stripe customer for a new one, only if the user is still linked to the deleted one, and resets the plan:
+   * deleting a customer cancels its subscriptions. Returns the customer id that ends up stored.
+   */
+  async replaceStripeCustomer(clerkId: string, fromCustomerId: string, toCustomerId: string): Promise<string> {
+    await connectDB()
+    const replaced = await User.findOneAndUpdate(
+      { clerkId, 'billing.customerId': fromCustomerId },
+      { $set: { plan: 'free', billing: { customerId: toCustomerId } } },
+      { returnDocument: 'after' },
+    )
+    if (replaced?.billing?.customerId) return replaced.billing.customerId
+    const current = (await User.findOne({ clerkId }))?.billing?.customerId
+    if (!current) throw new Error(`No Stripe customer linked for ${clerkId} after replacing ${fromCustomerId}`)
+    return current
+  }
+
+  /** Writes the plan and the subscription mirror. Dot-notated so customerId is never touched. */
+  async syncBilling(customerId: string, { plan, billing }: BillingSyncFields): Promise<IUser | null> {
+    await connectDB()
+    const set: Record<string, unknown> = { plan }
+    for (const [key, value] of Object.entries(billing)) {
+      if (value !== undefined) set[`billing.${key}`] = value
+    }
+    const unset = billing.currentPeriodEnd === undefined ? { 'billing.currentPeriodEnd': '' } : undefined
+    return User.findOneAndUpdate(
+      { 'billing.customerId': customerId },
+      unset ? { $set: set, $unset: unset } : { $set: set },
+      { returnDocument: 'after' },
+    )
   }
 }
 

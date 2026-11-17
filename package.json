@@ -20,6 +20,8 @@
     "export-presets:prod": "tsx scripts/export-presets.js --env=production",
     "seed-packs": "tsx scripts/seed-packs.js",
     "seed-packs:prod": "tsx scripts/seed-packs.js --env=production",
+    "stripe-portal-config": "node scripts/stripe-portal-config.js",
+    "stripe-portal-config:prod": "node scripts/stripe-portal-config.js --env=production",
     "migrate-particles-to-r2": "tsx scripts/migrate-particles-to-r2.js"
   },
   "author": "Cody Douglass",
@@ -42,6 +44,7 @@
     "react-dom": "^18.2.0",
     "sprite-strip": "workspace:*",
     "stats-js": "^1.0.0-alpha1",
+    "stripe": "^23.1.0",
     "svix": "^2.10.0",
     "three": "^0.125.0"
   },

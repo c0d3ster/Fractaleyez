@@ -8,6 +8,10 @@ export const env = {
   R2_BUCKET_NAME: process.env.R2_BUCKET_NAME,
   R2_PUBLIC_URL: process.env.R2_PUBLIC_URL,
   CLERK_WEBHOOK_SECRET: process.env.CLERK_WEBHOOK_SECRET,
+  STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
+  STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
+  /** Base URL Stripe redirects back to after Checkout and the Portal. Optional: falls back to the request's Origin header. */
+  APP_URL: process.env.APP_URL,
 }
 
 export const requireEnv = {
@@ -42,5 +46,13 @@ export const requireEnv = {
   CLERK_WEBHOOK_SECRET: (): string => {
     if (!env.CLERK_WEBHOOK_SECRET) throw new Error('CLERK_WEBHOOK_SECRET is required but not set')
     return env.CLERK_WEBHOOK_SECRET
+  },
+  STRIPE_SECRET_KEY: (): string => {
+    if (!env.STRIPE_SECRET_KEY) throw new Error('STRIPE_SECRET_KEY is required but not set')
+    return env.STRIPE_SECRET_KEY
+  },
+  STRIPE_WEBHOOK_SECRET: (): string => {
+    if (!env.STRIPE_WEBHOOK_SECRET) throw new Error('STRIPE_WEBHOOK_SECRET is required but not set')
+    return env.STRIPE_WEBHOOK_SECRET
   },
 }

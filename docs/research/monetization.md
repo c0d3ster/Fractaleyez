@@ -1,6 +1,6 @@
 # Monetization plan (task #11)
 
-Research and plan only. No billing is implemented. Decisions marked **Decided** came from the owner; everything else is a proposal.
+Research and plan. Subscriptions (phase 5, test mode) are implemented: see `docs/stripe-setup.md`. Gating and quotas are not. Decisions marked **Decided** came from the owner; everything else is a proposal.
 
 ## Current state
 
@@ -128,7 +128,7 @@ Technical (follows the "write once in `server/routes`, wire in `dev.ts`, thin ad
 - Events: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`, `charge.refunded`.
 - Webhook handlers must be idempotent (store processed event ids or make writes idempotent).
 - The webhook is the only writer of `plan` and `PackPurchase`. Success redirects never grant access.
-- Local testing: Stripe CLI `stripe listen --forward-to localhost:8080/api/stripe-webhook`.
+- Local testing: Stripe CLI `stripe listen --forward-to localhost:8080/api/stripeWebhook`. Setup steps and env vars are in `docs/stripe-setup.md`.
 - Alternative considered: Clerk Billing. Less code, but extra fees and fewer features, and it does not cover one-time pack purchases well. Not recommended.
 
 ## Phased breakdown

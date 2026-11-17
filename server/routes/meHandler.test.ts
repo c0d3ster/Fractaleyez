@@ -58,7 +58,7 @@ describe('meHandler', () => {
     await meHandler(makeReq(), res)
     expect(userService.getOrCreateUser).toHaveBeenCalledWith('user_123')
     expect(res.statusCode).toBe(200)
-    expect(res.body).toEqual({ clerkId: 'user_123', displayName: 'Ada Lovelace', settings: {}, isAdmin: false })
+    expect(res.body).toMatchObject({ clerkId: 'user_123', displayName: 'Ada Lovelace', settings: {}, isAdmin: false, plan: 'free' })
   })
 
   it('reports isAdmin true only when the user doc has it set', async () => {

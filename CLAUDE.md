@@ -26,7 +26,7 @@ There is no `test` script yet — vitest, supertest, and mongodb-memory-server a
 
 ### One Express app, two runtimes
 
-API logic lives once in `server/routes/*Handler.ts` (plain Express `(req, res)` handlers), and `server/app.ts#createApp` mounts every route (the Clerk webhook and the particle upload get raw bodies before the JSON parser; unknown `/api` paths and body-parser errors answer as JSON). Two entrypoints serve that same app:
+API logic lives once in `server/routes/*Handler.ts` (plain Express `(req, res)` handlers), and `server/app.ts#createApp` mounts every route (the Clerk and Stripe webhooks and the particle upload get raw bodies before the JSON parser; unknown `/api` paths and body-parser errors answer as JSON). Two entrypoints serve that same app:
 
 - **Local dev**: `server/dev.ts` (run by `tsx watch`) serves `public/` as static files plus `createApp()`. Runs on `:8080`; webpack-dev-server proxies `/api` to it.
 - **Production (Vercel)**: `api/index.ts` exports `createApp()` as the project's only serverless function, with Vercel's body parsing off so Express parses. `vercel.json` rewrites `/api/(.*)` to it (Express routes on the original path), builds with `pnpm build` and serves `public/` as `outputDirectory`.
@@ -52,6 +52,10 @@ Handlers → `server/services/*Service.ts` (business logic, auth-derived `userId
 ### Auth
 
 Clerk is the identity provider. Client: `ClerkProvider` wraps the app in `src/index.tsx`. Server: `server/auth.ts#verifyAuth` verifies the `Authorization: Bearer <token>` header via `@clerk/backend` and returns the Clerk user id (`sub`); it throws `AuthUnauthorizedError` for a missing/invalid token, which handlers map to 401. Read endpoints (e.g. `presetsHandler`) treat auth as optional (`viewerId` may be `null`, used to compute `isOwn`); write endpoints (e.g. `savePresetHandler`, `createPackHandler`) require it.
+
+### Billing
+
+Stripe subscriptions for the paid tiers (Dream is free, Lucid is `tier1`, Third Eye is `tier2`; display names in `src/config/plans.config.ts`, stored ids stay neutral). `server/services/BillingService.ts` creates Checkout and Customer Portal sessions (`/api/billing`), and `User.plan` and `User.billing` are written only from Stripe's own data, by `BillingService.reconcile`: it reads all of the customer's subscriptions and applies the one that decides the plan (`pickSubscription`, highest plan then newest). Two paths call it: `/api/stripeWebhook` (raw body, signature checked) on every subscription event, and the billing requests themselves (opening the Plan tab, starting a checkout), so a late or missing webhook can't leave the wrong plan or allow a second subscription. Redelivery and ordering don't matter, and a success redirect never grants anything. Without `STRIPE_SECRET_KEY` billing reports itself unavailable and the Plan tab shows the tiers without buttons. Prices are found by lookup key (`tier1_monthly`, ...). `server/services/entitlements.ts` maps a plan to quotas and features, returned by `/api/me` but not enforced yet. Setup, env vars (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, optional `APP_URL`) and local testing with `stripe listen` are in `docs/stripe-setup.md`.
 
 ### Presets and packs
 
