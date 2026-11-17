@@ -10,6 +10,14 @@
   ],
   "rewrites": [
     {
+      "source": "/terms",
+      "destination": "/terms/index.html"
+    },
+    {
+      "source": "/privacy",
+      "destination": "/privacy/index.html"
+    },
+    {
       "source": "/api/(.*)",
       "destination": "/api"
     }

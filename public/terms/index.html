@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Terms of Service | Fractaleyez</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+    <style>
+      :root { color-scheme: dark; }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: #0a0a0a;
+        color: rgba(220, 220, 220, 0.9);
+        font: 16px/1.6 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+      }
+      main { max-width: 760px; margin: 0 auto; padding: 24px 16px 48px; }
+      h1 { font-size: 28px; margin: 24px 0 4px; color: #fff; }
+      h2 { font-size: 19px; margin: 32px 0 8px; color: #fff; }
+      p, li { color: rgba(220, 220, 220, 0.9); }
+      ul { padding-left: 22px; }
+      a { color: #9fd3ff; }
+      .draft {
+        border: 1px solid #c9a227;
+        background: rgba(201, 162, 39, 0.12);
+        color: #f0d77a;
+        padding: 12px 14px;
+        border-radius: 6px;
+        font-weight: 600;
+      }
+      .meta { color: rgba(160, 160, 160, 0.9); font-size: 14px; }
+      .todo { color: #f0d77a; }
+      footer {
+        border-top: 1px solid rgba(40, 40, 40, 0.9);
+        margin-top: 40px;
+        padding-top: 16px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        font-size: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p class="draft" role="note">Draft for review. Not legal advice. Not yet in effect.</p>
+
+      <h1>Terms of Service</h1>
+      <p class="meta">Effective date: <span class="todo">[effective date]</span></p>
+
+      <p>
+        These terms cover your use of Fractaleyez at fractaleyez.com (the "Service"), run by c0d3ster LLC
+        ("we", "us"). By using the Service you agree to them. If you do not agree, do not use the Service.
+      </p>
+
+      <h2>1. What the Service is</h2>
+      <p>
+        Fractaleyez is a real-time audio visualizer that runs in your browser. It listens to your microphone
+        (and, if you turn it on, your camera) and draws visuals from it. Audio and camera input are processed
+        on your device. See the <a href="/privacy">Privacy Policy</a> for what data we handle.
+      </p>
+
+      <h2>2. Eligibility</h2>
+      <p>
+        You must be at least <span class="todo">[minimum age, e.g. 13]</span> years old to use the Service,
+        and old enough to form a contract where you live to buy a paid plan.
+      </p>
+
+      <h2>3. Accounts</h2>
+      <p>
+        You can use the Service without an account. Saving presets, uploading images and buying a plan need an
+        account, which is provided through our sign-in provider, Clerk. You are responsible for activity on your
+        account and for keeping your sign-in details secure. Tell us at
+        <span class="todo">[contact email]</span> if you think your account has been misused.
+      </p>
+
+      <h2>4. Plans and billing</h2>
+      <ul>
+        <li>Plans: Dream (free), Lucid and Third Eye (paid monthly subscriptions). Current prices and what each plan includes are shown in the Plan tab of your account. Prices are in US dollars <span class="todo">[confirm currency]</span>.</li>
+        <li>Payments are handled by Stripe. We do not see or store your full card number.</li>
+        <li>A paid plan renews automatically each billing period until you cancel. Stripe charges the payment method on file at the start of each period.</li>
+        <li>Taxes may be added where required <span class="todo">[confirm once Stripe Tax is decided]</span>.</li>
+        <li>If a payment fails, Stripe retries it for a while. Your plan stays active during the retries and drops to Dream if they all fail.</li>
+        <li>We may change prices. A change applies from your next billing period after we give you notice, and you can cancel before it takes effect.</li>
+      </ul>
+
+      <h2>5. Switching plans and cancelling</h2>
+      <ul>
+        <li>You can switch plans, cancel, update your card and see invoices from "Manage billing" in the Plan tab, which opens Stripe's customer portal.</li>
+        <li>Switching between paid plans is prorated by Stripe: you are credited for unused time on the old plan and charged for the rest of the period on the new one.</li>
+        <li>When you cancel, your plan stays active until the end of the period you already paid for, then moves to Dream. You are not charged again.</li>
+        <li>Moving to Dream never deletes your content. Presets, uploads and packs you already have stay and keep loading. You cannot create new ones beyond the Dream limits until you are under them again.</li>
+      </ul>
+
+      <h2>6. Refunds</h2>
+      <p>
+        Cancelling stops future charges but does not refund the current period, since you keep access until it
+        ends. Other refunds are at our discretion <span class="todo">[owner decision: refund policy, e.g. none,
+        or within N days of a charge]</span>. Contact <span class="todo">[contact email]</span> to ask. This does not
+        limit any refund rights you have under the law where you live.
+      </p>
+
+      <h2>7. Your content</h2>
+      <ul>
+        <li>"Your content" is what you create or upload: saved presets, packs and images you upload as particle or logo sprites.</li>
+        <li>You keep ownership of your content. You give us a worldwide, non-exclusive, royalty-free license to store, copy, display and serve it as needed to run the Service.</li>
+        <li>Uploaded images are stored on Cloudflare R2 and served from a public URL. Anyone who has that URL can view the image, so do not upload anything private.</li>
+        <li>You must have the rights to anything you upload, and it must not be illegal, infringing, sexually explicit, hateful or harassing.</li>
+        <li>We may remove content that breaks these terms or that we are asked to remove under the law, for example a copyright notice sent to <span class="todo">[contact email]</span>.</li>
+      </ul>
+
+      <h2>8. Premium packs and presets</h2>
+      <p>
+        Built-in and premium presets and packs are our content (or licensed to us). Your plan gives you a personal,
+        non-transferable license to use them inside the Service while your plan includes them. You may not copy,
+        resell or redistribute them outside the Service.
+      </p>
+
+      <h2>9. Acceptable use</h2>
+      <p>Do not:</p>
+      <ul>
+        <li>break the law or anyone's rights using the Service;</li>
+        <li>try to get around plan limits, access other accounts or reach parts of the Service you are not meant to;</li>
+        <li>overload, scrape, reverse engineer or interfere with the Service or its infrastructure;</li>
+        <li>use the Service to distribute malware or spam.</li>
+      </ul>
+
+      <h2>10. Health warning</h2>
+      <p>
+        The Service shows fast-moving, flashing and high-contrast visuals that can trigger seizures in people with
+        photosensitive epilepsy. Stop using it right away if you feel dizzy, disoriented or unwell.
+      </p>
+
+      <h2>11. Availability and changes</h2>
+      <p>
+        We may change, pause or stop parts of the Service at any time. If we stop offering a paid plan you are
+        subscribed to, we will cancel it and <span class="todo">[owner decision: refund the unused part of the
+        period, or let it run to the period end]</span>.
+      </p>
+
+      <h2>12. Ending your use</h2>
+      <p>
+        You can stop using the Service and delete your account at any time. We may suspend or close an account
+        that breaks these terms. Cancel any paid plan first, or we will cancel it when the account is closed.
+      </p>
+
+      <h2>13. Disclaimers</h2>
+      <p>
+        The Service is provided "as is" and "as available", without warranties of any kind, to the extent the law
+        allows. We do not promise it will be uninterrupted, error-free or work on every device or browser.
+      </p>
+
+      <h2>14. Limitation of liability</h2>
+      <p>
+        To the extent the law allows, we are not liable for indirect, incidental, special or consequential damages,
+        or for lost data or profits. Our total liability for any claim about the Service is limited to the amount you
+        paid us in the 12 months before the claim, or US $50 if you paid nothing.
+        <span class="todo">[owner to confirm the cap]</span>
+      </p>
+
+      <h2>15. Governing law</h2>
+      <p>
+        These terms are governed by the laws of <span class="todo">[governing law state]</span>, USA, and disputes
+        are handled in the courts of <span class="todo">[venue county and state]</span>, unless the law where you
+        live says otherwise.
+      </p>
+
+      <h2>16. Changes to these terms</h2>
+      <p>
+        We may update these terms. We will post the new version here with a new effective date, and tell signed-in
+        users about material changes. Using the Service after a change means you accept it.
+      </p>
+
+      <h2>17. Contact</h2>
+      <p>c0d3ster LLC, <span class="todo">[mailing address]</span>, <span class="todo">[contact email]</span>.</p>
+
+      <footer>
+        <a href="/">Back to Fractaleyez</a>
+        <a href="/privacy">Privacy Policy</a>
+      </footer>
+    </main>
+  </body>
+</html>

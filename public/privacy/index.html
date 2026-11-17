@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Privacy Policy | Fractaleyez</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+    <style>
+      :root { color-scheme: dark; }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: #0a0a0a;
+        color: rgba(220, 220, 220, 0.9);
+        font: 16px/1.6 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+      }
+      main { max-width: 760px; margin: 0 auto; padding: 24px 16px 48px; }
+      h1 { font-size: 28px; margin: 24px 0 4px; color: #fff; }
+      h2 { font-size: 19px; margin: 32px 0 8px; color: #fff; }
+      p, li, td, th { color: rgba(220, 220, 220, 0.9); }
+      ul { padding-left: 22px; }
+      a { color: #9fd3ff; }
+      .table-wrap { overflow-x: auto; }
+      table { border-collapse: collapse; width: 100%; font-size: 14px; }
+      th, td { text-align: left; vertical-align: top; padding: 8px; border-bottom: 1px solid rgba(40, 40, 40, 0.9); }
+      th { color: #fff; }
+      .draft {
+        border: 1px solid #c9a227;
+        background: rgba(201, 162, 39, 0.12);
+        color: #f0d77a;
+        padding: 12px 14px;
+        border-radius: 6px;
+        font-weight: 600;
+      }
+      .meta { color: rgba(160, 160, 160, 0.9); font-size: 14px; }
+      .todo { color: #f0d77a; }
+      footer {
+        border-top: 1px solid rgba(40, 40, 40, 0.9);
+        margin-top: 40px;
+        padding-top: 16px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        font-size: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p class="draft" role="note">Draft for review. Not legal advice. Not yet in effect.</p>
+
+      <h1>Privacy Policy</h1>
+      <p class="meta">Effective date: <span class="todo">[effective date]</span></p>
+
+      <p>
+        This policy explains what data Fractaleyez (run by c0d3ster LLC, "we", "us") collects, why, and who
+        handles it for us. It goes with our <a href="/terms">Terms of Service</a>.
+      </p>
+
+      <h2>1. Your microphone and camera stay on your device</h2>
+      <p>
+        The visualizer listens to your microphone, and to your camera if you turn on the camera layer. Both are
+        processed in your browser to draw the visuals. We never record, upload or store your audio or video.
+        Your browser asks for permission first, and you can revoke it at any time in its settings.
+      </p>
+
+      <h2>2. What we collect</h2>
+      <ul>
+        <li><strong>Account details</strong>, if you sign in: your account id, display name, email address and profile photo, provided by our sign-in provider Clerk (directly or from the social account you sign in with).</li>
+        <li><strong>Settings and content</strong> you save: visualizer settings (such as crossfade time, quality and HUD options), saved presets, packs, and images you upload as particle or logo sprites. If your sign-in account has a profile photo, we make a copy of it as your logo sprite.</li>
+        <li><strong>Plan and billing status</strong>: your plan, your Stripe customer and subscription ids, the subscription status, the renewal or end date, and whether it is set to cancel. We do not receive or store your card number.</li>
+        <li><strong>Usage and device data</strong>: anonymous page views and basic device and browser information through Vercel Analytics and Google Analytics, and standard server logs (such as IP address and request times) kept by our hosting provider.</li>
+      </ul>
+
+      <h2>3. How we use it</h2>
+      <ul>
+        <li>To run the Service: sign you in, save and load your settings, presets, packs and images.</li>
+        <li>To bill paid plans and apply the plan you paid for. We give Stripe your email and display name so it can send receipts and fill in Checkout.</li>
+        <li>To understand how the Service is used and keep it fast and working.</li>
+        <li>To meet legal obligations, such as keeping billing records.</li>
+      </ul>
+      <p>We do not sell your personal data and do not use it for targeted advertising.</p>
+
+      <h2>4. Who handles data for us</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Provider</th><th>What for</th><th>Data</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Clerk</td><td>Sign-in and accounts</td><td>Account id, name, email, profile photo, sign-in sessions</td></tr>
+            <tr><td>Stripe</td><td>Payments, subscriptions, receipts, the billing portal</td><td>Email, name, card and billing details (held by Stripe), subscription history</td></tr>
+            <tr><td>MongoDB (Atlas)</td><td>Database</td><td>Display name, settings, plan and billing status, presets and packs</td></tr>
+            <tr><td>Cloudflare R2</td><td>Storing and serving uploaded images</td><td>Images you upload and your profile photo copy</td></tr>
+            <tr><td>Vercel</td><td>Hosting, server logs and Vercel Analytics</td><td>Requests, IP address, anonymous page views</td></tr>
+            <tr><td>Google</td><td>Google Analytics and Google Fonts</td><td>Page views, device and browser info, IP address</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        These providers may process data in the United States and other countries.
+        <span class="todo">[owner to confirm the MongoDB Atlas host and regions]</span>
+      </p>
+
+      <h2>5. Uploaded images are public</h2>
+      <p>
+        Images you upload are served from a public URL so the visualizer can load them. Anyone with the URL can
+        see the image. Do not upload anything you want to keep private.
+      </p>
+
+      <h2>6. Data stored in your browser</h2>
+      <p>
+        The app keeps some data in your browser's local storage so it loads quickly and works offline: cached
+        preset lists and preset settings, your quality tier, your chosen camera, panel layout preferences and
+        audio timing calibration. Clerk sets cookies to keep you signed in, and Google Analytics sets cookies to
+        count visits. You can clear these in your browser settings.
+        <span class="todo">[owner decision: cookie banner or consent for Google Analytics where required]</span>
+      </p>
+
+      <h2>7. How long we keep it</h2>
+      <ul>
+        <li>Account data, settings and content: while your account exists.</li>
+        <li>Billing records: kept by Stripe and by us as long as tax and accounting rules require <span class="todo">[confirm period]</span>.</li>
+        <li>Logs and analytics: as long as our providers keep them by default.</li>
+      </ul>
+
+      <h2>8. Your choices and rights</h2>
+      <ul>
+        <li>You can use the visualizer without an account.</li>
+        <li>You can change your profile and delete your sign-in account from the account menu.</li>
+        <li>To get a copy of your data, correct it, or delete your presets, packs, uploads and other data we hold, email <span class="todo">[contact email]</span>. <span class="todo">[note: deleting the sign-in account does not yet delete this data automatically]</span></li>
+        <li>Depending on where you live (for example the EU, UK or California), you may have further rights, such as to object to processing or to complain to a data protection authority.</li>
+      </ul>
+
+      <h2>9. Children</h2>
+      <p>
+        The Service is not meant for children under <span class="todo">[minimum age, e.g. 13]</span>, and we do not
+        knowingly collect their data. Contact us if you think a child has given us data, and we will delete it.
+      </p>
+
+      <h2>10. Security</h2>
+      <p>
+        Data is sent over HTTPS, payments are handled by Stripe, and sign-in by Clerk. No system is perfectly
+        secure, so we cannot guarantee it.
+      </p>
+
+      <h2>11. Changes</h2>
+      <p>
+        We may update this policy. We will post the new version here with a new effective date, and tell signed-in
+        users about material changes.
+      </p>
+
+      <h2>12. Contact</h2>
+      <p>c0d3ster LLC, <span class="todo">[mailing address]</span>, <span class="todo">[contact email]</span>.</p>
+
+      <footer>
+        <a href="/">Back to Fractaleyez</a>
+        <a href="/terms">Terms of Service</a>
+      </footer>
+    </main>
+  </body>
+</html>
