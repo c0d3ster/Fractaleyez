@@ -47,7 +47,7 @@ To set a plan by hand without Stripe (for gating work), run `db.users.updateOne(
 
 1. Add `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` to the Preview and Development environments (test keys).
 2. In Stripe, under Developers, Webhooks, add an endpoint at `https://<domain>/api/stripeWebhook` with the events `checkout.session.completed`, `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`, `customer.subscription.paused` and `customer.subscription.resumed`. Its signing secret is the Vercel `STRIPE_WEBHOOK_SECRET`. Preview deployments behind Vercel Deployment Protection reject Stripe's calls, so point the test endpoint at a deployment Stripe can reach.
-3. Databases: Production's `MONGO_URI` points at the `prod` database and Preview and Development at `dev`, so test-mode payments on a preview never touch real users.
+3. Databases: Production's `MONGO_URI` points at the `prod` database and Preview and Development at `dev`, so test-mode payments on a preview never touch real users. Previews also need the Clerk development keys to sign in at all: see `docs/preview-environment.md`.
 4. Plan: the whole API is one Vercel function (`api/index.ts`), so the Hobby plan's function limit no longer matters. Hobby is for non-commercial use only, though, so selling subscriptions needs Pro.
 
 ## Going live

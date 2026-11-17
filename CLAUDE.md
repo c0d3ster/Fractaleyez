@@ -20,7 +20,7 @@ Scripts that touch the database (`seed`, `seed-packs`, `export-presets`, and the
 
 There is no `test` script yet — vitest, supertest, and mongodb-memory-server are present as devDependencies but no test files or vitest config exist in the repo currently.
 
-`pnpm dev` requires `MONGO_URI` and `CLERK_SECRET_KEY` (server) and `CLERK_PUBLISHABLE_KEY` (client, injected via webpack `EnvironmentPlugin`) in `.env`.
+`pnpm dev` requires `MONGO_URI` and `CLERK_SECRET_KEY` (server) and `CLERK_PUBLISHABLE_KEY` (client, injected via webpack `EnvironmentPlugin`) in `.env`. Vercel previews need the Clerk development instance's keys on the Preview environment (`docs/preview-environment.md`).
 
 ## Architecture
 
