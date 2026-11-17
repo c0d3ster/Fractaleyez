@@ -24,14 +24,16 @@ There is no `test` script yet — vitest, supertest, and mongodb-memory-server a
 
 ## Architecture
 
-### Two runtimes sharing one route layer
+### One Express app, two runtimes
 
-API logic lives once in `server/routes/*Handler.ts` (plain Express `(req, res)` handlers) and is consumed by two different entrypoints:
+API logic lives once in `server/routes/*Handler.ts` (plain Express `(req, res)` handlers), and `server/app.ts#createApp` mounts every route (the Clerk webhook and the particle upload get raw bodies before the JSON parser; unknown `/api` paths and body-parser errors answer as JSON). Two entrypoints serve that same app:
 
-- **Local dev**: `server/dev.ts` (run by `tsx watch`) boots an Express app, mounts the handlers directly, and serves `public/` as static files. Runs on `:8080`; webpack-dev-server proxies `/api` to it.
-- **Production (Vercel)**: each file under `api/*.ts` is a serverless function that imports the same handler from `server/routes` and adapts `VercelRequest`/`VercelResponse` to it (see `api/presets.ts`). `vercel.json` builds with `pnpm build` and serves `public/` as `outputDirectory`.
+- **Local dev**: `server/dev.ts` (run by `tsx watch`) serves `public/` as static files plus `createApp()`. Runs on `:8080`; webpack-dev-server proxies `/api` to it.
+- **Production (Vercel)**: `api/index.ts` exports `createApp()` as the project's only serverless function, with Vercel's body parsing off so Express parses. `vercel.json` rewrites `/api/(.*)` to it (Express routes on the original path), builds with `pnpm build` and serves `public/` as `outputDirectory`.
 
-When adding an API endpoint: write the handler once in `server/routes/`, wire it into `server/dev.ts`, and add a matching thin adapter file in `api/`.
+When adding an API endpoint: write the handler in `server/routes/` and add its route in `server/app.ts` (and a case in `server/app.test.ts`). Nothing else: both runtimes pick it up. Some routes have two paths (`/api/pack` and `/api/createPack`, `/api/packs/mine` and `/api/myPacks`) because the old one-function-per-file layout named them after their files; keep both until nothing calls the old ones.
+
+`server/app.load.test.ts` loads `api/index.ts` the way Vercel runs it, which a plain local run can't show: a package Vercel's runtime can't load (`svix` 2.x was one) fails that test instead of crashing every API request in production.
 
 Handlers → `server/services/*Service.ts` (business logic, auth-derived `userId`, validation) → `server/repositories/*Repository.ts` (Mongoose queries) → `server/models/*.ts` (schemas). Keep that layering when touching presets/packs.
 
@@ -97,7 +99,7 @@ Config is organized into five categories mirrored across `src/config/*.config.ts
 
 `.eslintrc` already enforces the global arrow-functions/single-quotes/no-semicolons/2-space style for this repo (`prefer-arrow`, `semi: never`, `quotes: single`, `indent: 2`, `no-var`) — run `pnpm lint` after changes. TypeScript is strict (`strict`, `noUncheckedIndexedAccess`, `noUnusedLocals`, `noImplicitOverride`, etc. — see `tsconfig.json`); run `pnpm typecheck` before considering `src/**` changes done. Note `tsconfig.json`'s `include` is `src/**/*` only — `pnpm typecheck` does not type-check `server/` or `api/`, which have no dedicated type-check script; rely on your editor's TS server or `tsc --noEmit` against `api/tsconfig.json` for those.
 
-One repo-specific exception to the global named-exports-only rule: files under `api/*.ts` use `export default` because Vercel serverless functions require it (same shape as the Next.js `page.tsx`/`layout.tsx` exception — default export on its own, everything else in the file stays a named export).
+One repo-specific exception to the global named-exports-only rule: `api/index.ts` uses `export default` because a Vercel serverless function requires it (same shape as the Next.js `page.tsx`/`layout.tsx` exception — default export on its own, everything else in the file stays a named export).
 
 ## Commits
 
