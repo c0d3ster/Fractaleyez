@@ -1,0 +1,137 @@
+.plan-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 4px 0;
+}
+
+.plan-page__section-title {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #888;
+}
+
+.plan-page__current {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.plan-page__current-name {
+  font-size: 22px;
+  color: #ddd;
+}
+
+.plan-page__hint {
+  font-size: 12px;
+  line-height: 1.4;
+  color: #666;
+}
+
+.plan-page__error {
+  font-size: 12px;
+  line-height: 1.4;
+  color: #e08080;
+}
+
+.plan-page__tiers {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.plan-page__tier {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid #3a3a3a;
+  border-radius: 8px;
+  background: #111;
+}
+
+.plan-page__tier--current {
+  border-color: #888;
+}
+
+.plan-page__tier-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.plan-page__tier-name {
+  font-size: 15px;
+  color: #ddd;
+}
+
+.plan-page__tier-price {
+  font-size: 12px;
+  color: #888;
+}
+
+.plan-page__perks {
+  margin: 0;
+  padding-left: 16px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #888;
+  flex: 1;
+}
+
+.plan-page__badge {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #888;
+  text-align: center;
+  padding: 8px 0;
+}
+
+.plan-page__row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.plan-page__button {
+  font: inherit;
+  font-size: 13px;
+  color: #111;
+  background: #ddd;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.plan-page__button--secondary {
+  color: #ccc;
+  background: transparent;
+  border-color: #3a3a3a;
+}
+
+.plan-page__button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.plan-page__button:focus-visible {
+  outline: 2px solid #ccc;
+  outline-offset: 2px;
+}
+
+@media (hover: hover) {
+  :where(html:not([data-input='touch'])) .plan-page__button:not(:disabled):hover {
+    background: #fff;
+    border-color: #fff;
+  }
+
+  :where(html:not([data-input='touch'])) .plan-page__button--secondary:not(:disabled):hover {
+    background: transparent;
+    border-color: #666;
+  }
+}

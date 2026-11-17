@@ -92,3 +92,59 @@ describe('UserRepository.updateSettings', () => {
     expect(await User.countDocuments({ clerkId: 'user_settings_4' })).toBe(1)
   })
 })
+
+describe('UserRepository billing', () => {
+  it('links a Stripe customer once, and the first link wins', async () => {
+    await userRepository.upsertByClerkId('user_b1', {})
+    expect(await userRepository.linkStripeCustomer('user_b1', 'cus_first')).toBe('cus_first')
+    expect(await userRepository.linkStripeCustomer('user_b1', 'cus_second')).toBe('cus_first')
+    expect((await userRepository.findByStripeCustomerId('cus_first'))?.clerkId).toBe('user_b1')
+    expect(await userRepository.findByStripeCustomerId('cus_second')).toBeNull()
+  })
+
+  it('refuses to link a customer to a user that does not exist', async () => {
+    await expect(userRepository.linkStripeCustomer('user_missing', 'cus_x')).rejects.toThrow()
+  })
+
+  it('writes the plan and subscription mirror without touching the customer id or settings', async () => {
+    await userRepository.upsertByClerkId('user_b2', {})
+    await userRepository.updateSettings('user_b2', { quality: 'ultra' })
+    await userRepository.linkStripeCustomer('user_b2', 'cus_b2')
+    const periodEnd = new Date('2027-01-01T00:00:00Z')
+
+    const synced = await userRepository.syncBilling('cus_b2', {
+      plan: 'tier1',
+      billing: { subscriptionId: 'sub_b2', status: 'active', cancelAtPeriodEnd: false, currentPeriodEnd: periodEnd },
+    })
+    expect(synced?.plan).toBe('tier1')
+    expect(synced?.billing.customerId).toBe('cus_b2')
+    expect(synced?.billing.currentPeriodEnd?.toISOString()).toBe(periodEnd.toISOString())
+    expect(synced?.settings.quality).toBe('ultra')
+
+    const lapsed = await userRepository.syncBilling('cus_b2', {
+      plan: 'free',
+      billing: { subscriptionId: 'sub_b2', status: 'canceled', cancelAtPeriodEnd: false, currentPeriodEnd: undefined },
+    })
+    expect(lapsed?.plan).toBe('free')
+    expect(lapsed?.billing.status).toBe('canceled')
+    expect(lapsed?.billing.currentPeriodEnd).toBeUndefined()
+  })
+
+  it('swaps a deleted customer for a new one and resets the plan, only while still linked to the deleted one', async () => {
+    await userRepository.upsertByClerkId('user_b4', {})
+    await userRepository.linkStripeCustomer('user_b4', 'cus_gone')
+    await userRepository.syncBilling('cus_gone', { plan: 'tier1', billing: { subscriptionId: 'sub_x', status: 'active', cancelAtPeriodEnd: false, currentPeriodEnd: new Date() } })
+
+    expect(await userRepository.replaceStripeCustomer('user_b4', 'cus_gone', 'cus_fresh')).toBe('cus_fresh')
+    const swapped = await userRepository.findByStripeCustomerId('cus_fresh')
+    expect(swapped?.plan).toBe('free')
+    expect(swapped?.billing.subscriptionId).toBeUndefined()
+
+    expect(await userRepository.replaceStripeCustomer('user_b4', 'cus_gone', 'cus_other')).toBe('cus_fresh')
+  })
+
+  it('defaults new users to the free plan', async () => {
+    const user = await userRepository.upsertByClerkId('user_b3', {})
+    expect(user.plan).toBe('free')
+  })
+})
