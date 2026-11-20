@@ -88,3 +88,11 @@ export const quotaMessage = ({ quota, limit, plan }: Pick<QuotaExceeded, 'quota'
   limit === 0
     ? `${PLAN_LABELS[plan]} doesn't include ${QUOTA_LABELS[quota]}.`
     : `${PLAN_LABELS[plan]} includes ${limit} ${QUOTA_LABELS[quota]}, and you've used them all.`
+
+/** The body of a 403 for a save from a premium preview (server/services/EntitlementService.ts's PremiumPreviewError). */
+export type PremiumPreviewRefusal = { error: string; code: 'premium_preview' }
+
+export const isPremiumPreviewRefusal = (value: unknown): value is PremiumPreviewRefusal =>
+  typeof value === 'object' && value !== null && (value as { code?: unknown }).code === 'premium_preview'
+
+export const PREMIUM_PREVIEW_MESSAGE = 'Premium presets are preview only. Lucid and Third Eye include every built-in premium pack, ready to tweak and save.'

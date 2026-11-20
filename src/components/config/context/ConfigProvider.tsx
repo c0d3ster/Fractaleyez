@@ -277,7 +277,9 @@ export type ConfigContextValue = {
   setLayerBlendMode: (key: LayerKey, blendMode: BlendMode) => void
   moveLayer: (key: LayerKey, toIndex: number) => void
   retrieveConfigPreset: (event: PresetRetrieveEvent) => Promise<void>
-  revertConfig: (snapshot: AppConfig) => void
+  /** The live config, the reset baseline and the active preset, to put back with `revertConfig` (the premium preview's way out). */
+  snapshotConfig: () => ConfigSnapshot
+  revertConfig: (snapshot: ConfigSnapshot) => void
   resetConfig: () => void
   /** Restore one item to the value it had when the active preset loaded (or was last saved). */
   resetConfigItem: (category: ConfigSectionKey, item: string) => void
@@ -316,6 +318,9 @@ export const useConfigContext = (): ConfigContextValue => {
 }
 
 /** Gives a component the context (actions and lists) as props. Config changes do not re-render it: it reads the slice it draws with `useConfigSelector`. */
+/** What a premium preview puts back when it ends: the config, its reset baseline and which preset it came from. */
+export type ConfigSnapshot = { config: AppConfig; baseline: AppConfig; presetId: string | null }
+
 export const connectConfigActions = <P extends Partial<ConfigContextValue>>(WrappedComponent: React.ComponentType<P>) =>
   (props: Omit<P, keyof ConfigContextValue>): React.ReactElement => {
     const context = useContext(ConfigContext)
@@ -343,6 +348,8 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
 
   // Values the active preset had when it loaded (or was last saved); the target of per-item and per-section reset.
   const baselineRef = useRef<AppConfig>(config)
+  // The preset the live config was loaded from (null for the default look). Sent with a save so the server can refuse one from a premium preview.
+  const activePresetIdRef = useRef<string | null>(null)
 
   const [presetList, setPresetList] = useState<PresetMeta[]>([])
   const presetListRef = useRef(presetList)
@@ -889,6 +896,7 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
     const next = active.logo ? await withSuggestedLogoFocus(resolved) : resolved
     activeUserReferenceRef.current = active
     baselineRef.current = next
+    activePresetIdRef.current = id || null
     // Same reasoning as updateParticleSprites: warm the cache before the config write triggers
     // a rebuild, so a preset's not-yet-cached sprites don't race a cold cross-origin load.
     await warmSpriteCache([...next.particle.sprites.value, ...next.logo.sprite.value])
@@ -908,7 +916,15 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
     }
   }, [])
 
-  const revertConfig = useCallback((snapshot: AppConfig) => {
+  const snapshotConfig = useCallback((): ConfigSnapshot => ({
+    config: window.config,
+    baseline: baselineRef.current,
+    presetId: activePresetIdRef.current,
+  }), [])
+
+  const revertConfig = useCallback(({ config: snapshot, baseline, presetId }: ConfigSnapshot) => {
+    baselineRef.current = baseline
+    activePresetIdRef.current = presetId
     setConfig(snapshot)
     window.config = snapshot
   }, [])
@@ -1016,10 +1032,13 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
       pack,
       config: storedConfig,
       force: force ?? false,
+      sourcePresetId: activePresetIdRef.current ?? undefined,
     }, {
       headers: { Authorization: `Bearer ${token}` },
     })
     baselineRef.current = live
+    // The live config is now the viewer's own preset.
+    activePresetIdRef.current = data.id
     const sprite = live.particle.sprites.value[0] ?? 'fractaleye.png'
     const updatedAt = data.updatedAt ?? null
     const newPreset: PresetMeta = { id: data.id, name: data.name, label: toLabel(data.name), pack, sprite, isOwn: true, updatedAt }
@@ -1054,6 +1073,7 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
     setLayerBlendMode,
     moveLayer,
     retrieveConfigPreset,
+    snapshotConfig,
     revertConfig,
     resetConfig,
     resetConfigItem,
@@ -1075,7 +1095,7 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
     updateUserSettings,
   }), [
     updateConfigItem, updateVideoClips, toggleLiveVideo, updateParticleSprites, updateLogoSprite, applyUserReference, releaseUserReference, userReferenceStandIn,
-    updateColorList, setLayerEnabled, setLayerOpacity, setLayerBlendMode, moveLayer, retrieveConfigPreset, revertConfig, resetConfig, resetConfigItem,
+    updateColorList, setLayerEnabled, setLayerOpacity, setLayerBlendMode, moveLayer, retrieveConfigPreset, snapshotConfig, revertConfig, resetConfig, resetConfigItem,
     resetConfigSection, resetVideoClips, savePreset, isSignedIn, user?.id, getToken, presetList, packList, userSettings, isAdmin, userSprite,
     displayName, updateUserSettings, entitlements, usage,
   ])
