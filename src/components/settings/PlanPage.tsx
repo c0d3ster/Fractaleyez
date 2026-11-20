@@ -34,11 +34,18 @@ const errorMessageOf = (err: unknown): string => {
   return 'Something went wrong. Try again in a moment.'
 }
 
+// A subscriber's button switches the plan on their subscription; a free user's starts one.
+const actionLabel = (current: PlanId, target: PaidPlanId): string => {
+  if (current === 'free') return `Go ${PLAN_LABELS[target]}`
+  return PLAN_ORDER.indexOf(target) > PLAN_ORDER.indexOf(current) ? `Upgrade to ${PLAN_LABELS[target]}` : `Switch to ${PLAN_LABELS[target]}`
+}
+
 const isSameAction = (a: BillingAction | null, b: BillingAction): boolean =>
   a !== null && a.action === b.action && (a.action === 'portal' || (b.action === 'checkout' && a.plan === b.plan))
 
 // Rendered as a custom tab inside Clerk's UserButton "Manage account" modal (see TopBar), so the viewer is signed in.
-// Subscribing redirects to Stripe Checkout; changing or cancelling a plan goes through the Stripe Customer Portal.
+// Subscribing redirects to Stripe Checkout, and a subscriber's plan buttons open the portal's confirm page for that plan.
+// Cancelling, the card and invoices go through the full Stripe Customer Portal (Manage billing).
 export const PlanPage = (): React.ReactElement => {
   const { getToken } = useAuth()
   const [billing, setBilling] = useState<BillingStatus | null>(null)
@@ -90,11 +97,11 @@ export const PlanPage = (): React.ReactElement => {
   const portal: BillingAction = { action: 'portal' }
 
   const renderAction = (plan: PlanId): React.ReactElement | null => {
-    if (plan === billing.plan || plan === 'free' || isSubscribed || !billing.available) return null
+    if (plan === billing.plan || plan === 'free' || !billing.available) return null
     const checkout: BillingAction = { action: 'checkout', plan }
     return (
       <button type='button' className='plan-page__button' disabled={pending !== null} onClick={() => void run(checkout)}>
-        {isSameAction(pending, checkout) ? 'Opening checkout...' : `Go ${PLAN_LABELS[plan]}`}
+        {isSameAction(pending, checkout) ? (isSubscribed ? 'Opening...' : 'Opening checkout...') : actionLabel(billing.plan, plan)}
       </button>
     )
   }
@@ -130,7 +137,7 @@ export const PlanPage = (): React.ReactElement => {
             {isSameAction(pending, portal) ? 'Opening billing...' : 'Manage billing'}
           </button>
           <span className='plan-page__hint'>
-            {isSubscribed ? 'Switch plans, cancel, update your card or see invoices.' : 'Update your card or see past invoices.'}
+            {isSubscribed ? 'Cancel, update your card or see invoices.' : 'Update your card or see past invoices.'}
           </span>
         </div>
       ) : null}
