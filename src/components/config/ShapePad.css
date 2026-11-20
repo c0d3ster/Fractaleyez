@@ -36,3 +36,45 @@
     color: #0a8f78;
   }
 }
+
+/* The Tour | Manual switch under the pad's title (Pad.css's .pad-label sets the type). */
+.shape-mode-switch {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  margin-top: 3px;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.shape-mode-option {
+  background: transparent;
+  color: #444;
+  border: 1px solid #888;
+  border-radius: 999px;
+  padding: 1px 10px;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.shape-mode-option--active {
+  background: #0a8f78;
+  border-color: #0a8f78;
+  color: #fff;
+}
+
+.shape-mode-option--premium {
+  border-color: transparent;
+  --premium-outline-inset: -1px;
+}
+
+@media (hover: hover) {
+  :where(html:not([data-input='touch'])) .shape-mode-option:not(.shape-mode-option--active):hover {
+    border-color: #0a8f78;
+    color: #0a8f78;
+  }
+
+  :where(html:not([data-input='touch'])) .shape-mode-option--premium:not(.shape-mode-option--active):hover {
+    border-color: transparent;
+  }
+}

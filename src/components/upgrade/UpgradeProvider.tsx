@@ -1,7 +1,7 @@
 import React, { useCallback, useContext, useMemo, useState } from 'react'
 import { UpgradeModal } from './UpgradeModal'
 
-type UpgradeContextValue = {
+export type UpgradeContextValue = {
   /** Opens the upgrade prompt: the plan tiers with their Checkout buttons, or a sign-in for a guest. `reason` says what was locked. */
   requestUpgrade: (reason?: string) => void
 }
@@ -10,6 +10,11 @@ const UpgradeContext = React.createContext<UpgradeContextValue | undefined>(unde
 
 /** Outside a provider (a test, or a tree without one) the request is a no-op, so a lock never throws. */
 export const useUpgrade = (): UpgradeContextValue => useContext(UpgradeContext) ?? { requestUpgrade: (): void => undefined }
+
+/** Hands the main window's upgrade prompt to a tree rendered by its own root (the pop-out config window), which no provider reaches. */
+export const UpgradeBridge = ({ value, children }: { value: UpgradeContextValue; children: React.ReactNode }): React.ReactElement => (
+  <UpgradeContext.Provider value={value}>{children}</UpgradeContext.Provider>
+)
 
 export const UpgradeProvider = ({ children }: { children: React.ReactNode }): React.ReactElement => {
   // undefined is closed; a string (possibly empty) is open with that reason.

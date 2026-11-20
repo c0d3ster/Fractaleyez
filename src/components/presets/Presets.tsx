@@ -3,8 +3,7 @@ import './Presets.css'
 import '../upgrade/PremiumRing.css'
 
 import { connectConfigActions } from '../config/context/ConfigProvider'
-import { PresetRetrieveEvent, PresetMeta, PackMeta } from '../config/context/ConfigProvider'
-import { AppConfig } from '../../config/configDefaults'
+import { ConfigSnapshot, PresetRetrieveEvent, PresetMeta, PackMeta } from '../config/context/ConfigProvider'
 import { presetSpriteSrc } from '../../utils/presetSpriteSrc'
 import { resolveUserName } from '../../utils/userReference'
 import { usePremiumTrial } from './usePremiumTrial'
@@ -13,12 +12,16 @@ import { useUpgrade } from '../upgrade/UpgradeProvider'
 
 export type PresetSelection = { name: string; label: string; pack: string; isOwn: boolean }
 
+const premiumPackReason = (packName: string): string =>
+  `${packName} is a premium pack. Lucid and Third Eye include every built-in premium pack.`
+
 /** Every pack a preset is listed under; a preset can be in several. */
 const packsOf = ({ pack, packs }: PresetMeta): string[] => (packs?.length ? packs : pack ? [pack] : [])
 
 type PresetsProps = {
   retrieveConfigPreset: (event: PresetRetrieveEvent) => Promise<void>
-  revertConfig: (snapshot: AppConfig) => void
+  snapshotConfig: () => ConfigSnapshot
+  revertConfig: (snapshot: ConfigSnapshot) => void
   presets: PresetMeta[]
   packs?: PackMeta[]
   userSprite?: string
@@ -29,7 +32,7 @@ type PresetsProps = {
   headerActions?: React.ReactNode
 }
 
-const PresetsInner = ({ retrieveConfigPreset, revertConfig, presets, packs = [], userSprite, userName = null, expanded = false, onSelect, onPackSelect, headerActions }: PresetsProps): React.ReactElement => {
+const PresetsInner = ({ retrieveConfigPreset, snapshotConfig, revertConfig, presets, packs = [], userSprite, userName = null, expanded = false, onSelect, onPackSelect, headerActions }: PresetsProps): React.ReactElement => {
   const [activePack, setActivePack] = useState('All')
   const [page, setPage] = useState(0)
   const [paging, setPaging] = useState(false)
@@ -41,6 +44,7 @@ const PresetsInner = ({ retrieveConfigPreset, revertConfig, presets, packs = [],
   const { requestUpgrade } = useUpgrade()
 
   const { startTrial, cancelTrial, modalVisible, trialPackName, secondsLeft, dismissTrial } = usePremiumTrial({
+    snapshotConfig,
     revertConfig,
     retrieveConfigPreset,
   })
@@ -81,16 +85,21 @@ const PresetsInner = ({ retrieveConfigPreset, revertConfig, presets, packs = [],
 
   const handlePresetClick = useCallback((preset: PresetMeta, event: PresetRetrieveEvent): void => {
     const locked = lockingPack(preset)
+    const presetKey = preset.id ?? preset.name
     if (locked) {
-      setTrialPresetKey(preset.id ?? preset.name)
-      startTrial(locked, event)
+      // One preview per preset per day; after that a click goes straight to the upgrade prompt.
+      if (!startTrial(presetKey, locked, event)) {
+        requestUpgrade(premiumPackReason(resolveUserName(locked, userName)))
+        return
+      }
+      setTrialPresetKey(presetKey)
     } else {
       cancelTrial()
       setTrialPresetKey(null)
       void retrieveConfigPreset(event)
     }
     onSelect?.({ name: preset.name, label: preset.label, pack: preset.pack, isOwn: preset.isOwn })
-  }, [lockingPack, startTrial, cancelTrial, retrieveConfigPreset, onSelect])
+  }, [lockingPack, startTrial, cancelTrial, retrieveConfigPreset, onSelect, requestUpgrade, userName])
 
   useEffect(() => {
     // Popped-out config windows render this component into a separate window.open()
@@ -204,7 +213,7 @@ const PresetsInner = ({ retrieveConfigPreset, revertConfig, presets, packs = [],
           onDismiss={dismissTrial}
           onSubscribe={() => {
             dismissTrial()
-            requestUpgrade(`${resolveUserName(trialPackName, userName)} is a premium pack. Lucid and Third Eye include every built-in premium pack.`)
+            requestUpgrade(premiumPackReason(resolveUserName(trialPackName, userName)))
           }}
         />
       )}

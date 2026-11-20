@@ -14,6 +14,7 @@ import { perfProbe } from './visualization/perf'
 import { qualityController } from './visualization/quality-controller'
 import { displayStutters, videoStutters } from './visualization/stutter-monitor'
 import { videoFrameSignal } from './visualization/video-frame-signal'
+import { previewLock } from './components/presets/previewLock'
 
 // Size of the fft transform performed on audio stream
 const FFT_SIZE = 512
@@ -59,6 +60,8 @@ document.addEventListener('keydown', (event: KeyboardEvent) => {
   if (event.ctrlKey || event.metaKey || event.altKey) return
   const focused = document.activeElement?.tagName
   if (focused === 'INPUT' || focused === 'TEXTAREA' || focused === 'SELECT') return
+  // A premium preview locks the config, hotkeys included.
+  if (previewLock.isLocked()) return
   const key = event.key.toLowerCase()
   const hotkeyLayer = LAYER_HOTKEYS.find((layerKey) => LAYER_REGISTRY[layerKey].hotkey === key)
   if (hotkeyLayer) toggleLayer(hotkeyLayer)
