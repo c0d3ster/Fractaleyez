@@ -47,6 +47,14 @@ describe('session file', () => {
     expect(() => parseSessionFile(withTick('120'))).toThrow('section log')
   })
 
+  it('keeps the drum thresholds the sliders set, and reads a session without them', () => {
+    const thresholds = { kick: 0.875, hat: 0.9, snare: 0.8, clap: 0.85 }
+    const file = { ...smallFile(), drumThresholds: [{ t: 0, thresholds }, { t: 800, thresholds: { ...thresholds, hat: 0.95 } }] }
+    expect(parseSessionFile(serializeSessionFile(file))).toEqual(file)
+    expect(parseSessionFile(serializeSessionFile(smallFile())).drumThresholds).toBeUndefined()
+    expect(() => parseSessionFile(withField(file, { drumThresholds: [{ t: 0, thresholds: { ...thresholds, hat: 2 } }] }))).toThrow('drumThresholds[0] is not valid')
+  })
+
   it('sorts labels on read', () => {
     const file = smallFile()
     const text = withField(file, { labels: [{ id: 2, kind: 'kick', t: 900 }, { id: 1, kind: 'hat', t: 300 }] })

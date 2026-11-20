@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react'
-import { BeatHud, FrequencyHud, HudProvider, SectionHud, type AnalysisSource } from 'beatsense-ui'
+import { BeatHud, FrequencyHud, HudProvider, SectionHud, type AnalysisSource, type DrumThresholds } from 'beatsense-ui'
 
 import { LabSession, type LabPhase } from './labSession'
 import { LabelButtons } from './LabelButtons'
@@ -35,6 +35,7 @@ export const LabPage = (): React.ReactElement => {
   const [phase, setPhase] = useState<LabPhase>('idle')
   const [source, setSource] = useState<AnalysisSource>(EMPTY_SOURCE)
   const [enabledBands, setEnabledBands] = useState<readonly boolean[]>(() => session.getEnabledBands())
+  const [drumThresholds, setDrumThresholds] = useState<DrumThresholds>(() => session.getDrumThresholds())
   const recording = useRecording(session)
   // Each HUD's view, which the strip under it follows (set by the HUD on mount and as it zooms).
   const [beatViewMs, setBeatViewMs] = useState(LIVE_WINDOW_MS)
@@ -53,6 +54,11 @@ export const LabPage = (): React.ReactElement => {
   const handleEnabledBandsChange = useCallback((next: boolean[]): void => {
     session.setEnabledBands(next)
     setEnabledBands(next)
+  }, [session])
+
+  const handleDrumThresholdsChange = useCallback((next: DrumThresholds): void => {
+    session.setDrumThresholds(next)
+    setDrumThresholds(next)
   }, [session])
 
   return (
@@ -75,7 +81,12 @@ export const LabPage = (): React.ReactElement => {
         <main className='lab-huds'>
           <HudProvider source={source} ticker={session.ticker}>
             <div className='lab-hud lab-hud-frequency'>
-              <FrequencyHud enabledBands={enabledBands} onEnabledBandsChange={handleEnabledBandsChange} />
+              <FrequencyHud
+                enabledBands={enabledBands}
+                onEnabledBandsChange={handleEnabledBandsChange}
+                drumThresholds={drumThresholds}
+                onDrumThresholdsChange={handleDrumThresholdsChange}
+              />
               <LabelButtons controls={recording} actions={DRUM_LABEL_KINDS} name='Drum labels' />
             </div>
             <div className='lab-hud lab-hud-beat'>

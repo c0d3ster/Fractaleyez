@@ -2,7 +2,7 @@
 // The HUDs read the analysis through the nearest HudProvider; each imports its own stylesheet.
 
 export { BeatHud, type BeatHudProps } from './BeatHud'
-export { FrequencyHud, type FrequencyHudProps } from './FrequencyHud'
+export { FrequencyHud, type DrumThresholds, type FrequencyHudProps } from './FrequencyHud'
 export { SectionHud, type SectionHudProps } from './SectionHud'
 export { agoTicks, formatAgo } from './agoTicks'
 export { DRUM_COLORS, DRUM_SHAPES, drawDrumMark, type DrumShape, type MarkContext, type MarkStyle } from './drumMarks'

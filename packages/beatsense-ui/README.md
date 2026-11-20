@@ -108,6 +108,11 @@ handlers). `titleHint` gives the browser's tooltip; the Fractaleyez app passes i
 - `enabledBands: readonly boolean[]`: which bands can set off a beat, in `ONSET_BANDS` order.
 - `onEnabledBandsChange: (enabledBands: boolean[]) => void`: called with the new selection when a band is clicked. The HUD is controlled:
   it shows the change once it comes back as `enabledBands`.
+- `barHeight?: number`: the bars' height in units (90 by default).
+- `drumThresholds?: DrumThresholds` and `onDrumThresholdsChange?: (thresholds: DrumThresholds) => void`: with both, a slider under each
+  drum light for how sure the drum model has to be to call that drum (0 to 1 here, 0 to 100 on the slider; higher calls fewer). A
+  double-click puts a slider back at the model's trained value, and a value off it is drawn brighter. Pass them to beatsense's
+  `DrumHits.setThresholds`. Without them, no sliders.
 
 ## Lab
 
@@ -133,7 +138,8 @@ gain into the worklet, and every frame pushed into an `AnalysisHost` on the page
 the audio clock (a frame's time is its sample count), so the HUDs' `now` is that clock too, estimated from `performance.now()` with the
 same delivery-delay tracking as the app's frame clock. The snare roll is ticked on every frame and the rhythm name read on demand, as the
 app does. The beat settings are beatsense's `DEFAULT_FEED_SETTINGS` (Ignore Time 250 ms); the band toggles are page state and are not
-saved.
+saved. The drum threshold sliders under the Frequency HUD's drum lights change the analysis's `DrumHits` live and are saved in the browser
+(localStorage), and a recorded session keeps the thresholds in effect through it (`drumThresholds`, absent when recorded before the sliders).
 
 ### Recording
 

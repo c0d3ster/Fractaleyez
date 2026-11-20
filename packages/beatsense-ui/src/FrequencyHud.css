@@ -37,3 +37,35 @@
   /* App.css hides the cursor on every canvas. */
   cursor: pointer;
 }
+
+/* The drum threshold sliders: one under each drum light, in its column (FrequencyHud places them). */
+.frequency-hud-thresholds {
+  position: relative;
+  height: 34px;
+}
+
+.frequency-hud-threshold {
+  position: absolute;
+  top: 2px;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+}
+
+.frequency-hud-threshold input {
+  width: 100%;
+  margin: 0;
+  accent-color: #777;
+  cursor: pointer;
+}
+
+.frequency-hud-threshold-value {
+  font: 10px monospace;
+  color: #666;
+}
+
+.frequency-hud-threshold-value.is-changed {
+  color: #cfcfcf;
+}
