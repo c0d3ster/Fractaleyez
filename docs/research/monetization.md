@@ -6,7 +6,7 @@ Research and plan. Subscriptions (phase 5, test mode) are implemented: see `docs
 
 - `Pack` has `isPremium` and an optional `price`. `User` has only `isAdmin`. There is no per-user plan or entitlement.
 - Nothing enforces quotas server-side. `Preset` is unique on `(name, userId)` and that is the only limit.
-- The client previews premium packs through `usePremiumTrial` / `PremiumTrialModal`.
+- The client previews premium packs through `usePremiumTrial` / `PremiumTrialModal`: 15s, once per preset per local day, config controls locked.
 - `#20` (upload gating), `#19` (visibility model), and `#6` (pack references) all depend on the entitlement model below.
 
 ## Core model
@@ -60,22 +60,22 @@ Legend: yes = available, locked = visible but disabled with an upgrade prompt, n
 |---|---|---|---|---|---|
 | Load existing presets | yes | yes | yes | yes | proposed |
 | Edit from the default configuration | yes | yes | yes | yes | **Decided** |
-| Modify a premium preset during the preview | locked | locked | n/a | n/a | **Decided** |
+| Modify a premium preset during the preview | locked | locked | n/a | n/a | **Decided**, implemented |
 | Edit a free built-in preset | yes | yes | yes | yes | **Decided** |
 | Save a modified copy of a free built-in preset | locked | quota | quota | unlimited | **Decided** |
-| Custom path for the fractal | locked | locked | yes | yes | **Decided** (see note) |
+| Custom path for the fractal (Shape pad's Manual mode) | locked | locked | yes | yes | **Decided**, implemented (client lock only) |
 | Save presets | locked | quota | quota | unlimited | proposed |
 | Custom particle sprite upload | locked | quota | quota | unlimited | proposed |
 | Create private packs | locked | quota | quota | unlimited | proposed |
 | Create public packs | locked | locked | quota | unlimited | proposed |
-| Built-in premium packs | preview | preview | yes | yes | **Decided** |
+| Built-in premium packs | preview | preview | yes | yes | **Decided**, implemented |
 | Creator packs | n/a | purchase | purchase | TBD | open |
 
 Notes:
 
-- **Premium presets in the preview.** **Decided:** no modification at all for Guest and Dream during the 15s preview. The controls are locked (visible, disabled, rainbow outline), so there is nothing to save. This also removes the need for a derived-from marker for premium content: the server only has to refuse saves from a session that is in preview.
+- **Premium presets in the preview.** **Decided:** no modification at all for Guest and Dream during the 15s preview. The controls are locked (visible, disabled, rainbow outline), so there is nothing to save. This also removes the need for a derived-from marker for premium content: the server only has to refuse saves from a session that is in preview. **Implemented:** `usePremiumTrial` runs a 15s preview once per preset per local day (`previewRecord.ts`, localStorage key `premiumPreviews`); a preset already previewed today opens the upgrade prompt. `PreviewLockFrame` makes the config controls inert inside the rainbow outline, and the config hotkeys in `main.ts` stand down (`previewLock`). The client sends the active preset's id as `sourcePresetId` with every save, and `PresetService.savePreset` refuses with 403 `{ code: 'premium_preview' }` when every pack that preset is in fails `canUsePack`.
 - **Free built-in presets.** **Decided:** everyone can edit them, and Dream users can save a modified copy within their quota. Premium content is fully protected by the preview lock, so the extra save restriction would add little. Guests can edit but never save.
-- **Custom fractal path.** Read as locked for Guest and Dream, open for Lucid and up. The boundary between Lucid and Third Eye is not decided.
+- **Custom fractal path.** Locked for Guest and Dream, open for Lucid and up (`features.customFractalPath`; Lucid and up get every premium feature, only quotas differ by tier). The Shape pad has a Tour | Manual switch under its title. Tour stays free. For Guest and Dream, Manual shows the rainbow outline, and picking it, dragging the pad or a named-shape chip opens the upgrade prompt. The shape is not stored in a preset, so there is no write for the server to refuse.
 - **Locked means visible.** Controls stay on screen, disabled, with the existing rainbow premium outline and an upgrade message. Hiding them would hide what the paid tiers offer.
 - **Enforcement.** Locked controls are a client display. The server must also refuse the matching writes (for example, a saved preset whose settings differ from the original for a Dream user), or the lock is cosmetic. `getEntitlements` should expose a feature set (`features: { editLoadedPreset, customFractalPath, ... }`) next to the quotas, so a new gated feature is one config entry.
 - **Open inventory.** Other candidates to place: external config window, video layer, logo layer, camera macros, extra layer slots beyond a cap, high-resolution or recording features. These need a tier each.
@@ -115,7 +115,8 @@ Implemented (`server/services/EntitlementService.ts`, numbers in `server/service
 - Packs: every user pack counts against `privatePacks`, since packs have no visibility yet (#19), so `publicPacks` is not enforced. Premium or priced packs are admin-only, and `origin` is set on create (`builtIn` for admins, `creator` otherwise).
 - Pack access: `canUsePack`. A pack stored without `origin` reads as `builtIn`.
 - Admins have no limits.
-- Not yet: premium preset configs are still served by id to anyone (the client preview needs them), saves from a preview session are not refused server-side, and the custom fractal path feature has no lock (it has no UI yet).
+- Preview saves: `savePreset` takes the source preset's id (`sourcePresetId`) and refuses with 403 `{ code: 'premium_preview' }` when every pack it is in is premium and closed to the user (`canUsePack`). Pack membership is read like the preset list (the packs that reference it, else the legacy `pack` name). The user's own presets and a source in no pack pass.
+- Not yet: premium preset configs are still served by id to anyone (the client preview needs them), and a client that leaves out `sourcePresetId` is not refused (the preview lock is the main guard).
 
 Client-side (UI only): `ParticleSpriteHud` (`#20`), preset list and pack tabs (existing `.pack-tab--premium` styling), and upgrade prompts. These read the entitlement payload from `/api/me`.
 
@@ -157,7 +158,7 @@ This is a rough sketch. The real ordering, file-level detail, and task split bel
 - Feature gating inventory: which tier gets each unplaced feature (see Feature gating).
 
 - Final tier prices and limits (the table is a starting point).
-- Premium preview. **Decided:** the preview stays but becomes one-shot per preset. Today it is a fixed 30s that restarts on every click, so re-clicking gives unlimited viewing. Shorten to 15s and record each previewed preset in localStorage (soft nudge, not security; server entitlements protect real content). A previewed preset opens the upgrade modal directly, and the record resets each local day so every locked preset can be previewed once per day.
+- Premium preview. **Decided:** the preview stays but becomes one-shot per preset. It was a fixed 30s that restarted on every click, so re-clicking gave unlimited viewing. Shortened to 15s and record each previewed preset in localStorage (soft nudge, not security; server entitlements protect real content). A previewed preset opens the upgrade modal directly, and the record resets each local day so every locked preset can be previewed once per day. Implemented (see Feature gating).
 - Annual pricing and any launch discount.
 - Pack updates and new releases. **Decided:** inclusion is dynamic, so Lucid keeps access to built-in packs released after they subscribe.
 - Whether guests get any server-side presence (analytics, rate limits) beyond local-only use.
