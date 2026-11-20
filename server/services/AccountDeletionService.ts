@@ -56,15 +56,15 @@ export class AccountDeletionService {
   }
 
   /**
-   * Private presets and packs are deleted. Public ones and built-in packs are kept with their owner removed, and so is any of
-   * the user's presets a kept pack lists, so built-in content survives even the admin's deletion. Global presets have no
+   * Private presets and packs are deleted. Public ones and built-in packs are kept, owned by DELETED_USER_ID from then on, and
+   * so is any of the user's presets a kept pack lists, so built-in content survives even the admin's deletion. Global presets have no
    * owner and are never touched.
    */
   private async removeContent(clerkId: string): Promise<Pick<AccountDeletionResult, 'deletedPresets' | 'keptPresets' | 'deletedPacks' | 'keptPacks'>> {
     const packs = await packRepository.findByUserId(clerkId)
     const keptPacks = packs.filter(isKeptPack)
     const deletedPacks = packs.filter((pack) => !isKeptPack(pack))
-    await packRepository.unlinkOwner(idsOf(keptPacks))
+    await packRepository.markOwnerDeleted(idsOf(keptPacks))
     await packRepository.deleteByIds(idsOf(deletedPacks))
 
     const presets = await presetRepository.findByUserId(clerkId)
@@ -76,7 +76,7 @@ export class AccountDeletionService {
     const isKeptPreset = (preset: PresetMeta): boolean => isPublic(preset) || listedByKeptPack.has(String(preset._id))
     const keptPresets = presets.filter(isKeptPreset)
     const deletedPresets = presets.filter((preset) => !isKeptPreset(preset))
-    for (const preset of keptPresets) await presetRepository.unlinkOwner(preset)
+    for (const preset of keptPresets) await presetRepository.markOwnerDeleted(preset)
     await packRepository.removePresetsFromAll(idsOf(deletedPresets))
     await presetRepository.deleteByIds(idsOf(deletedPresets))
 
@@ -89,16 +89,16 @@ export class AccountDeletionService {
   }
 
   /**
-   * Runs after removeContent, so kept presets are ownerless by now: an image an ownerless preset (global, or kept from this
-   * account) still shows is kept, record and object, without its owner. The object goes before its record, so a failed R2
+   * Runs after removeContent, so kept presets carry DELETED_USER_ID by now: an image a global or kept preset still shows is
+   * kept, record and object, its record handed to DELETED_USER_ID too. The object goes before its record, so a failed R2
    * delete leaves the record for the redelivery to find.
    */
   private async removeUploads(clerkId: string): Promise<Pick<AccountDeletionResult, 'deletedUploads' | 'keptUploads'>> {
     let deletedUploads = 0
     let keptUploads = 0
     for (const upload of await uploadRepository.findByUserId(clerkId)) {
-      if (await presetRepository.ownerlessUsesSprite(upload.url)) {
-        await uploadRepository.unlinkOwner(upload._id)
+      if (await presetRepository.keptPresetUsesSprite(upload.url)) {
+        await uploadRepository.markOwnerDeleted(upload._id)
         keptUploads++
         continue
       }

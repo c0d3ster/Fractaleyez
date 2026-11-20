@@ -6,7 +6,7 @@ import { billingService } from './BillingService.js'
 import { storageService } from './StorageService.js'
 import { isPublic } from './visibility.js'
 import { accountDeletionService } from './AccountDeletionService.js'
-import { User } from '../models/User.js'
+import { User, DELETED_USER_ID } from '../models/User.js'
 import { Preset } from '../models/Preset.js'
 import { Pack } from '../models/Pack.js'
 import { Upload } from '../models/Upload.js'
@@ -132,7 +132,7 @@ describe('AccountDeletionService.deleteAccount', () => {
     expect(pack?.presetIds.map(String)).toEqual([String(theirs._id)])
   })
 
-  it('keeps public presets and packs, unlinked, once isPublic says so', async () => {
+  it('keeps public presets and packs under the deleted-user marker once isPublic says so', async () => {
     await User.create({ clerkId: USER })
     await makePreset('public one', USER)
     await makePreset('private one', USER)
@@ -148,26 +148,28 @@ describe('AccountDeletionService.deleteAccount', () => {
     expect(result).toMatchObject({ deletedPresets: 1, keptPresets: 1, deletedPacks: 1, keptPacks: 1 })
     const kept = await Preset.findOne({ name: 'public one' }).lean()
     expect(kept).not.toBeNull()
-    expect(kept?.userId).toBeUndefined()
+    expect(kept?.userId).toBe(DELETED_USER_ID)
     expect(await Preset.exists({ name: 'private one' })).toBeNull()
     const keptPack = await Pack.findOne({ slug: 'public-pack' }).lean()
-    expect(keptPack?.userId).toBeUndefined()
+    expect(keptPack?.userId).toBe(DELETED_USER_ID)
     expect(await Pack.exists({ slug: 'private-pack' })).toBeNull()
   })
 
-  it('renames a kept preset whose name clashes with a global preset once unlinked', async () => {
-    await User.create({ clerkId: USER })
+  it('renames a kept preset whose name another deleted account already left behind', async () => {
     await makePreset('shlump', undefined)
     await makePreset('shlump', USER)
+    await makePreset('shlump', OTHER)
     vi.mocked(isPublic).mockReturnValue(true)
 
+    await accountDeletionService.deleteAccount(OTHER)
     await accountDeletionService.deleteAccount(USER)
 
-    const names = (await Preset.find({}).lean()).map((p) => p.name).sort()
+    const global = await Preset.findOne({ name: 'shlump', userId: { $exists: false } }).lean()
+    expect(global).not.toBeNull()
+    const names = (await Preset.find({ userId: DELETED_USER_ID }).lean()).map((p) => p.name).sort()
     expect(names).toHaveLength(2)
     expect(names[0]).toBe('shlump')
     expect(names[1]).toMatch(/^shlump \([0-9a-f]{6}\)$/)
-    expect(await Preset.countDocuments({ userId: USER })).toBe(0)
   })
 
   it("keeps built-in packs, global presets and the presets they list when the admin's account is deleted", async () => {
@@ -184,13 +186,13 @@ describe('AccountDeletionService.deleteAccount', () => {
     for (const slug of ['essentials', 'galaxy']) {
       const pack = await Pack.findOne({ slug }).lean()
       expect(pack).not.toBeNull()
-      expect(pack?.userId).toBeUndefined()
+      expect(pack?.userId).toBe(DELETED_USER_ID)
     }
     const essentials = await Pack.findOne({ slug: 'essentials' }).lean()
     expect(essentials?.presetIds.map(String)).toEqual([String(global._id), String(adminPreset._id)])
     expect(await Preset.exists({ _id: global._id })).not.toBeNull()
     const kept = await Preset.findById(adminPreset._id).lean()
-    expect(kept?.userId).toBeUndefined()
+    expect(kept?.userId).toBe(DELETED_USER_ID)
     expect(await Pack.exists({ slug: 'admin-private' })).toBeNull()
   })
 
@@ -229,7 +231,7 @@ describe('AccountDeletionService.deleteAccount', () => {
     expect(storageService.deleteObject).toHaveBeenCalledWith(`particles/${USER}/private.png`)
     const kept = await Upload.find({ url: { $in: [builtInSprite, keptSprite] } }).lean()
     expect(kept).toHaveLength(2)
-    for (const upload of kept) expect(upload.userId).toBeUndefined()
+    for (const upload of kept) expect(upload.userId).toBe(DELETED_USER_ID)
     expect(await Upload.exists({ url: privateSprite })).toBeNull()
   })
 

@@ -1,5 +1,11 @@
 import { Schema, model, Document } from 'mongoose'
 
+/**
+ * Stands in for the owner of content kept after its owner deleted their account (public presets and packs, built-in packs, images
+ * they show). Clerk user ids start with `user_`, so no account can ever match it.
+ */
+export const DELETED_USER_ID = 'deleted-user'
+
 /** Stored plan ids. Neutral on purpose: the display names (Dream, Lucid, Third Eye) live in src/config/plans.config.ts, so a rename never touches the data. */
 export const PLAN_IDS = ['free', 'tier1', 'tier2'] as const
 export type PlanId = typeof PLAN_IDS[number]

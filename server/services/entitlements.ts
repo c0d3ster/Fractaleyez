@@ -60,7 +60,7 @@ export const getEntitlements = (plan: PlanId, { isAdmin = false }: EntitlementOp
 /** Room for one more. Over the limit (after a downgrade) is not an error: existing content stays, only new content is refused. */
 export const hasRoomFor = (quota: Quota, used: number): boolean => quota === null || used < quota
 
-type PackAccess = { isPremium: boolean; origin?: PackOrigin; userId?: string }
+type PackAccess = { isPremium: boolean; origin?: PackOrigin; userId: string }
 
 /**
  * Whether a viewer with these entitlements may use a pack's presets. Signed out (null) only gets free packs. Tier inclusion
@@ -69,7 +69,7 @@ type PackAccess = { isPremium: boolean; origin?: PackOrigin; userId?: string }
 export const canUsePack = (pack: PackAccess, viewerId: string | null, entitlements: Entitlements | null): boolean => {
   if (!pack.isPremium) return true
   if (!viewerId || !entitlements) return false
-  if (pack.userId !== undefined && pack.userId === viewerId) return true
+  if (pack.userId === viewerId) return true
   if (entitlements.features.allPacks) return true
   return entitlements.features.builtInPremiumPacks && (pack.origin ?? 'builtIn') === 'builtIn'
 }

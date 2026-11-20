@@ -2,12 +2,13 @@ import { Types } from 'mongoose'
 import { connectDB } from '../db.js'
 import { Pack, IPack } from '../models/Pack.js'
 import type { PackOrigin } from '../models/Pack.js'
+import { DELETED_USER_ID } from '../models/User.js'
 
 export type PackMeta = {
   _id: Types.ObjectId
   name: string
   slug: string
-  userId?: string // absent on a built-in pack whose owner deleted their account
+  userId: string // DELETED_USER_ID on a pack kept after its owner deleted their account
   description?: string
   isPremium: boolean
   price?: number
@@ -54,11 +55,11 @@ export class PackRepository {
     await Pack.deleteMany({ _id: { $in: ids } })
   }
 
-  /** Removes the owner from packs that outlive their account. */
-  async unlinkOwner(ids: Types.ObjectId[]): Promise<void> {
+  /** Hands packs that outlive their owner's account to the deleted-user marker. */
+  async markOwnerDeleted(ids: Types.ObjectId[]): Promise<void> {
     await connectDB()
     if (ids.length === 0) return
-    await Pack.updateMany({ _id: { $in: ids } }, { $unset: { userId: '' } })
+    await Pack.updateMany({ _id: { $in: ids } }, { $set: { userId: DELETED_USER_ID } })
   }
 
   /** Drops deleted presets from every pack's membership. */
