@@ -16,9 +16,9 @@ How subscriptions are wired, and the steps outside the code to make them work. T
 ## Stripe dashboard (test mode)
 
 1. Products (done): Lucid at $5/month with lookup key `tier1_monthly`, and Third Eye at $20/month with `tier2_monthly`.
-2. Customer Portal: set up in code, not the dashboard form. `pnpm stripe-portal-config` creates or updates a configuration tagged `metadata.app = fractaleyez` (cancel at period end, switching between the plan prices with proration, card updates, invoice history, email updates). `BillingService` finds it by that tag when it opens the portal, and falls back to the dashboard's default config if there's none. Test mode is done (`bpc_1UcKJ1CaVNXxCE3wQ0w1zs2g`). Run it again after adding prices (yearly) so the portal can switch to them. With `APP_URL` set, it also sets the terms and privacy links to `<APP_URL>/terms` and `/privacy` and the return URL.
+2. Customer Portal (done): a configuration tagged `metadata.app = fractaleyez`, edited in the dashboard (Settings, Billing, Customer portal). `BillingService` finds it by that tag when it opens the portal, and falls back to the dashboard's default config if there's none, so keep the tag on any replacement. It allows cancel at period end, switching between the plan prices with proration (added to the next invoice), card updates, invoice history and email updates, with quantity changes off, and links the terms and privacy pages. Test: `bpc_1UcKJ1CaVNXxCE3wQ0w1zs2g`. Live: `bpc_1UdjmT2RTj0kJ6eZmkEtQ4H5`. Add any new prices (yearly) to its plan switching in both modes.
 3. Branding (optional): under Settings, Branding, add the logo, icon and colors. Under Settings, Public details, set the business name to `Fractaleyez` and the statement descriptor to `FRACTALEYEZ`.
-4. API key: a restricted test key (`rk_test_...`) is enough, with Customer portal Write, Products Read, Prices Read, Checkout Sessions Write, Customers Write and Subscriptions Read. Use it as `STRIPE_SECRET_KEY`.
+4. API key: a restricted test key (`rk_test_...`) is enough, with Customer portal Write, Products Read, Prices Read, Checkout Sessions Write, Customers Write and Subscriptions Write (account deletion cancels a subscription immediately). Use it as `STRIPE_SECRET_KEY`.
 
 ## Env vars
 
@@ -53,6 +53,6 @@ To set a plan by hand without Stripe (for gating work), run `db.users.updateOne(
 
 ## Going live
 
-- The account is activated. Make a live restricted key with the same permissions, check the live prices kept their lookup keys, run `pnpm stripe-portal-config:prod` with the live key in `.env.production`, and set the live key and a live webhook endpoint on Vercel Production.
+- Done: the live restricted key has the same permissions, the live prices kept their lookup keys, the live portal config is set up (above), and the live webhook (`we_1Udjm42RTj0kJ6eZkEoXSNSH`, `https://www.fractaleyez.com/api/stripeWebhook`, the six events) signs with the Vercel Production `STRIPE_WEBHOOK_SECRET`.
 - Test and live are separate data in Stripe: a customer id from test mode doesn't exist in live. The dev and prod databases are already separate, so this only matters if test-mode data is copied into prod.
 - Revisit tax (Stripe Tax and SaaS taxability per state), terms and privacy pages, and receipt emails (Settings, Emails).
