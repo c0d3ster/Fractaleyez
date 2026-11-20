@@ -10,10 +10,10 @@ import { IUser, PlanId } from '../models/User.js'
 
 // The real EntitlementService runs against these, so the tests cover the quota rules end to end down to the counts.
 vi.mock('../repositories/PresetRepository.js', () => ({
-  presetRepository: { create: vi.fn(), upsert: vi.fn(), findAll: vi.fn(), countByUserId: vi.fn(), existsForUser: vi.fn() },
+  presetRepository: { create: vi.fn(), upsert: vi.fn(), findAll: vi.fn(), findById: vi.fn(), countByUserId: vi.fn(), existsForUser: vi.fn() },
 }))
 vi.mock('../repositories/PackRepository.js', () => ({
-  packRepository: { findAll: vi.fn(), countByUserId: vi.fn() },
+  packRepository: { findAll: vi.fn(), countByUserId: vi.fn(), findByPresetId: vi.fn(), findByName: vi.fn() },
 }))
 vi.mock('../repositories/UploadRepository.js', () => ({
   uploadRepository: { countByUserId: vi.fn() },
@@ -207,5 +207,86 @@ describe('PresetService#savePreset quota', () => {
     vi.mocked(userRepository.findByClerkId).mockResolvedValue(null)
     vi.mocked(presetRepository.countByUserId).mockResolvedValue(3)
     await expect(save()).rejects.toMatchObject({ limit: 3, plan: 'free' })
+  })
+})
+
+describe('PresetService#savePreset premium preview', () => {
+  const service = new PresetService()
+  const saved = { _id: 'p1', name: 'x' } as unknown as IPreset
+  const sourceId = new Types.ObjectId()
+  const save = (force = false): Promise<IPreset> =>
+    service.savePreset({ name: 'x', pack: '', config: { particle: { sprites: ['a.png'] } }, userId: 'user_1', force, sourcePresetId: String(sourceId) })
+  const source = (fields: Partial<IPreset> = {}): void => {
+    vi.mocked(presetRepository.findById).mockResolvedValue({ _id: sourceId, name: 'aurora', pack: '', ...fields } as unknown as IPreset)
+  }
+  const pack = (fields: Partial<PackMeta> = {}): PackMeta =>
+    ({ _id: new Types.ObjectId(), name: 'Cosmic', slug: 'cosmic', userId: 'owner', isPremium: true, presetIds: [sourceId], ...fields })
+  const inPacks = (...packs: PackMeta[]): void => {
+    vi.mocked(packRepository.findByPresetId).mockResolvedValue(packs)
+  }
+  const refused = { status: 403, code: 'premium_preview' }
+
+  beforeEach(() => {
+    vi.mocked(presetRepository.create).mockReset().mockResolvedValue(saved)
+    vi.mocked(presetRepository.upsert).mockReset().mockResolvedValue(saved)
+    vi.mocked(presetRepository.existsForUser).mockReset().mockResolvedValue(false)
+    vi.mocked(presetRepository.countByUserId).mockReset().mockResolvedValue(0)
+    vi.mocked(packRepository.findByName).mockReset().mockResolvedValue([])
+    vi.mocked(packRepository.findByPresetId).mockReset().mockResolvedValue([])
+    vi.mocked(presetRepository.findById).mockReset()
+    source()
+    asUser('free')
+  })
+
+  it('refuses a Dream user saving from a preset that is only in premium packs, on both paths', async () => {
+    inPacks(pack(), pack({ name: 'Nebula' }))
+    await expect(save()).rejects.toMatchObject(refused)
+    await expect(save(true)).rejects.toMatchObject(refused)
+    expect(presetRepository.create).not.toHaveBeenCalled()
+    expect(presetRepository.upsert).not.toHaveBeenCalled()
+  })
+
+  it('allows the save when any pack the preset is in is free', async () => {
+    inPacks(pack(), pack({ name: 'Essentials', isPremium: false }))
+    await expect(save()).resolves.toBe(saved)
+  })
+
+  it('allows plans that include the pack: Lucid for built-in packs, Third Eye for creator packs too, and admins', async () => {
+    inPacks(pack())
+    asUser('tier1')
+    await expect(save()).resolves.toBe(saved)
+    inPacks(pack({ origin: 'creator' }))
+    await expect(save()).rejects.toMatchObject(refused)
+    asUser('tier2')
+    await expect(save()).resolves.toBe(saved)
+    asUser('free', true)
+    await expect(save()).resolves.toBe(saved)
+  })
+
+  it('allows the owner of the premium pack', async () => {
+    inPacks(pack({ userId: 'user_1' }))
+    await expect(save()).resolves.toBe(saved)
+  })
+
+  it('falls back to the legacy pack name when no pack lists the preset', async () => {
+    source({ pack: 'Cosmic' })
+    vi.mocked(packRepository.findByName).mockResolvedValue([pack({ presetIds: [] })])
+    await expect(save()).rejects.toMatchObject(refused)
+    expect(packRepository.findByName).toHaveBeenCalledWith('Cosmic')
+  })
+
+  it('allows a source in no pack, the user\'s own preset, and one that no longer exists', async () => {
+    await expect(save()).resolves.toBe(saved)
+    inPacks(pack())
+    source({ userId: 'user_1' })
+    await expect(save()).resolves.toBe(saved)
+    vi.mocked(presetRepository.findById).mockResolvedValue(null)
+    await expect(save()).resolves.toBe(saved)
+  })
+
+  it('skips the check when no source is sent', async () => {
+    inPacks(pack())
+    await expect(service.savePreset({ name: 'x', pack: '', config: {}, userId: 'user_1', force: false })).resolves.toBe(saved)
+    expect(presetRepository.findById).not.toHaveBeenCalled()
   })
 })

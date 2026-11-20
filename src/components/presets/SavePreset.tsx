@@ -3,7 +3,8 @@ import { useInfo } from '../config/info/info'
 import { ConfigContext } from '../config/context/ConfigProvider'
 import { PresetSelection } from './Presets'
 import { useUpgrade } from '../upgrade/UpgradeProvider'
-import { hasRoomFor, isQuotaExceeded, quotaMessage } from '../../config/plans.config'
+import { PREMIUM_PREVIEW_MESSAGE, hasRoomFor, isPremiumPreviewRefusal, isQuotaExceeded, quotaMessage } from '../../config/plans.config'
+import { previewLock } from './previewLock'
 
 type SavePresetProps = {
   prefill?: PresetSelection | null
@@ -69,6 +70,11 @@ export const SavePreset = ({ prefill, onSaved }: SavePresetProps): React.ReactEl
       requestUpgrade(limitMessage)
       return
     }
+    // The server would refuse it (premium_preview); no need to ask.
+    if (previewLock.isLocked()) {
+      requestUpgrade(PREMIUM_PREVIEW_MESSAGE)
+      return
+    }
     setStatus('saving')
     try {
       await context.savePreset(name.trim(), pack.trim(), force)
@@ -87,6 +93,9 @@ export const SavePreset = ({ prefill, onSaved }: SavePresetProps): React.ReactEl
         setStatus('idle')
         context.refreshAccount()
         requestUpgrade(quotaMessage(e.response.data))
+      } else if (httpStatus === 403 && isPremiumPreviewRefusal(e?.response?.data)) {
+        setStatus('idle')
+        requestUpgrade(PREMIUM_PREVIEW_MESSAGE)
       } else {
         const msg = e?.response?.data?.error ?? `Error (${httpStatus ?? 'network'})`
         setErrorMessage(msg)

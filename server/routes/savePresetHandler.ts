@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express'
 import { presetService, toUpdatedAt } from '../services/PresetService.js'
 import { AuthUnauthorizedError, verifyAuth } from '../auth.js'
-import { isQuotaExceededError } from '../services/EntitlementService.js'
+import { isPremiumPreviewError, isQuotaExceededError } from '../services/EntitlementService.js'
 
 export const savePresetHandler = async (req: Request, res: Response): Promise<void> => {
   let userId: string
@@ -18,7 +18,7 @@ export const savePresetHandler = async (req: Request, res: Response): Promise<vo
   }
 
   const body = req.body && typeof req.body === 'object' ? req.body : {}
-  const { name, pack, config, force: forceRaw } = body as Record<string, unknown>
+  const { name, pack, config, force: forceRaw, sourcePresetId } = body as Record<string, unknown>
   if (!name || typeof name !== 'string' || !name.trim()) {
     res.status(400).json({ error: 'name is required' })
     return
@@ -33,12 +33,13 @@ export const savePresetHandler = async (req: Request, res: Response): Promise<vo
       config: (config ?? {}) as Record<string, unknown>,
       userId,
       force,
+      sourcePresetId: typeof sourcePresetId === 'string' && sourcePresetId ? sourcePresetId : undefined,
     })
     res.status(200).json({ id: preset._id, name: preset.name, updatedAt: toUpdatedAt(preset.updatedAt) })
   } catch (err: unknown) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const e = err as any
-    if (isQuotaExceededError(err)) {
+    if (isQuotaExceededError(err) || isPremiumPreviewError(err)) {
       res.status(403).json(err.toJSON())
     } else if (e.status === 403) {
       res.status(403).json({ error: e.message })

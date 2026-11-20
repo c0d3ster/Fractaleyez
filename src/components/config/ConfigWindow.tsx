@@ -21,6 +21,8 @@ import { LogoConfigBody } from './LogoConfigBody'
 import { BeatHud, SectionHud } from 'beatsense-ui'
 import { AppHudProvider, ConnectedFrequencyHud, ParticleSpriteHud } from '../huds'
 import { AutoSwitch } from './AutoSwitch'
+import { UpgradeBridge, UpgradeContextValue, useUpgrade } from '../upgrade/UpgradeProvider'
+import { PreviewLockFrame } from '../presets/PreviewLockFrame'
 
 // The Audio column is narrow and the HUDs stack in it: shorter frequency bars than the HUD's default 90 units.
 const AUDIO_HUD_BAR_HEIGHT = 64
@@ -107,10 +109,10 @@ const isTypingTarget = (element: Element | null, key: string): boolean => {
   return element.tagName === 'INPUT' && !NON_TEXT_INPUT_TYPES.includes(element.getAttribute('type') ?? 'text')
 }
 
-type ExternalWindowBridgeProps = { context: ConfigContextValue }
+type ExternalWindowBridgeProps = { context: ConfigContextValue; upgrade: UpgradeContextValue }
 
 // Renders inside the external window's React root, bridging ConfigContext from the main window
-const ExternalWindowBridge = ({ context }: ExternalWindowBridgeProps): React.ReactElement => {
+const ExternalWindowBridge = ({ context, upgrade }: ExternalWindowBridgeProps): React.ReactElement => {
   const { updateConfigItem } = context
   const [prefill, setPrefill] = useState<PresetSelection | null>(null)
   // Every commit of the pop-out's tree, and the time from the last config change to it (no-ops unless the perf probe is on).
@@ -120,57 +122,61 @@ const ExternalWindowBridge = ({ context }: ExternalWindowBridgeProps): React.Rea
   })
   return (
     <ConfigContext.Provider value={context}>
-      <InfoProvider>
-        <AppHudProvider>
-          <div className='config-window-grid flow-root px-[15px]'>
-            <Presets
-              expanded
-              onSelect={setPrefill}
-              onPackSelect={(pack: string) => setPrefill(prev => prev ? { ...prev, pack } : { name: '', label: '', pack, isOwn: false })}
-              headerActions={<><SavePreset prefill={prefill} onSaved={() => setPrefill(null)} /><LogConfigButton /></>}
-            />
-            <div className='config-columns'>
-              {DISPLAY_ORDER.map((entry) => (
-                <div className='config-column' key={entry}>
-                  {entry === 'video' ? <ConfigVideo isOpen={true} toggleOpen={() => null} popup /> : null}
-                  {entry === 'color' ? (
-                    <ConfigCategory name='color' onChange={updateConfigItem} isOpen={true} toggleOpen={() => null} expanded popup bare>
-                      <ColorConfigBody />
-                    </ConfigCategory>
-                  ) : null}
-                  {entry === 'orbit' ? (
-                    <ConfigCategory name='orbit' onChange={updateConfigItem} isOpen={true} toggleOpen={() => null} expanded popup bare>
-                      <OrbitColumnBody onChange={updateConfigItem} />
-                    </ConfigCategory>
-                  ) : null}
-                  {entry === 'logo' ? (
-                    <ConfigCategory name='logo' onChange={updateConfigItem} isOpen={true} toggleOpen={() => null} expanded popup bare>
-                      <LogoConfigBody />
-                    </ConfigCategory>
-                  ) : null}
-                  {entry === 'fractal' ? (
-                    <ConfigCategory name='fractal' onChange={updateConfigItem} isOpen={true} toggleOpen={() => null} expanded popup>
-                      <ShapePad />
-                    </ConfigCategory>
-                  ) : null}
-                  {entry === 'user' ? (
-                    <ConfigCategory name='user' onChange={updateConfigItem} isOpen={true} toggleOpen={() => null} expanded popup bare>
-                      <UserConfigBody />
-                    </ConfigCategory>
-                  ) : null}
-                  {entry === 'effects' || entry === 'audio' ? (
-                    <ConfigCategory name={entry} onChange={updateConfigItem} isOpen={true} toggleOpen={() => null} expanded popup>
-                      {entry === 'audio' ? <><ConnectedFrequencyHud barHeight={AUDIO_HUD_BAR_HEIGHT} /><BeatHud drumRow /><SectionHud /></> : null}
-                    </ConfigCategory>
-                  ) : null}
-                  {entry === 'effects' ? <AutoSwitch /> : null}
+      <UpgradeBridge value={upgrade}>
+        <InfoProvider>
+          <AppHudProvider>
+            <div className='config-window-grid flow-root px-[15px]'>
+              <Presets
+                expanded
+                onSelect={setPrefill}
+                onPackSelect={(pack: string) => setPrefill(prev => prev ? { ...prev, pack } : { name: '', label: '', pack, isOwn: false })}
+                headerActions={<><SavePreset prefill={prefill} onSaved={() => setPrefill(null)} /><LogConfigButton /></>}
+              />
+              <PreviewLockFrame>
+                <div className='config-columns'>
+                  {DISPLAY_ORDER.map((entry) => (
+                    <div className='config-column' key={entry}>
+                      {entry === 'video' ? <ConfigVideo isOpen={true} toggleOpen={() => null} popup /> : null}
+                      {entry === 'color' ? (
+                        <ConfigCategory name='color' onChange={updateConfigItem} isOpen={true} toggleOpen={() => null} expanded popup bare>
+                          <ColorConfigBody />
+                        </ConfigCategory>
+                      ) : null}
+                      {entry === 'orbit' ? (
+                        <ConfigCategory name='orbit' onChange={updateConfigItem} isOpen={true} toggleOpen={() => null} expanded popup bare>
+                          <OrbitColumnBody onChange={updateConfigItem} />
+                        </ConfigCategory>
+                      ) : null}
+                      {entry === 'logo' ? (
+                        <ConfigCategory name='logo' onChange={updateConfigItem} isOpen={true} toggleOpen={() => null} expanded popup bare>
+                          <LogoConfigBody />
+                        </ConfigCategory>
+                      ) : null}
+                      {entry === 'fractal' ? (
+                        <ConfigCategory name='fractal' onChange={updateConfigItem} isOpen={true} toggleOpen={() => null} expanded popup>
+                          <ShapePad />
+                        </ConfigCategory>
+                      ) : null}
+                      {entry === 'user' ? (
+                        <ConfigCategory name='user' onChange={updateConfigItem} isOpen={true} toggleOpen={() => null} expanded popup bare>
+                          <UserConfigBody />
+                        </ConfigCategory>
+                      ) : null}
+                      {entry === 'effects' || entry === 'audio' ? (
+                        <ConfigCategory name={entry} onChange={updateConfigItem} isOpen={true} toggleOpen={() => null} expanded popup>
+                          {entry === 'audio' ? <><ConnectedFrequencyHud barHeight={AUDIO_HUD_BAR_HEIGHT} /><BeatHud drumRow /><SectionHud /></> : null}
+                        </ConfigCategory>
+                      ) : null}
+                      {entry === 'effects' ? <AutoSwitch /> : null}
+                    </div>
+                  ))}
                 </div>
-              ))}
+              </PreviewLockFrame>
+              <InfoStrip />
             </div>
-            <InfoStrip />
-          </div>
-        </AppHudProvider>
-      </InfoProvider>
+          </AppHudProvider>
+        </InfoProvider>
+      </UpgradeBridge>
     </ConfigContext.Provider>
   )
 }
@@ -182,6 +188,7 @@ type ConfigWindowProps = {
 const ConfigWindowInner = ({ onClose }: ConfigWindowProps): null => {
   // The actions and lists, not the config: this component, and the pop-out's tree under it, must not re-render on every config change.
   const context = useConfigContext()
+  const upgrade = useUpgrade()
   const reactRootRef = useRef<Root | null>(null)
   // Root creation is now async (waits on second-screen resolution) — this flips once the root
   // exists so the render effect below re-fires even if config/presets/etc haven't changed since.
@@ -262,8 +269,8 @@ const ConfigWindowInner = ({ onClose }: ConfigWindowProps): null => {
   // Re-render the external root whenever config changes, keeping both windows in sync
   useEffect(() => {
     if (!reactRootRef.current) return
-    reactRootRef.current.render(<ExternalWindowBridge context={context} />)
-  }, [externalRootReady, context])
+    reactRootRef.current.render(<ExternalWindowBridge context={context} upgrade={upgrade} />)
+  }, [externalRootReady, context, upgrade])
 
   return null
 }
