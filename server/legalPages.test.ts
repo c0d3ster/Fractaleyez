@@ -45,6 +45,12 @@ describe('legal pages', () => {
     expect(html).not.toContain('[mailing address]')
   })
 
+  it.each(Object.entries(pages))('%s has no placeholders left', (_name, html) => {
+    expect(html).not.toContain('class="todo"')
+    expect(html).not.toMatch(/\[(?:owner|confirm|effective date|minimum age|contact email|mailing address)[^\]]*\]/i)
+    expect(html).toContain('Last updated: November 20, 2026')
+  })
+
   it.each(Object.entries(pages))('%s has no em dashes', (_name, html) => {
     expect(html).not.toContain('\u2014')
   })
