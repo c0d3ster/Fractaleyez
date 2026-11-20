@@ -133,14 +133,15 @@ export class BillingService {
     assertAvailable()
     // Asks Stripe, not just the stored plan: a subscription whose webhook hasn't landed yet still counts.
     const user = await this.reconcile(await userService.getOrCreateUser(clerkId))
-    // Switching plans goes through the portal, which prorates; a second Checkout would start a second subscription.
-    if (holdsPlan(user)) throw new BillingError('already_subscribed', 'Already subscribed: change plans from the billing portal')
 
     const stripe = getStripe()
     const lookupKey = lookupKeyFor(plan, interval)
     const { data: prices } = await stripe.prices.list({ lookup_keys: [lookupKey], active: true, limit: 1 })
     const price = prices[0]
     if (!price) throw new BillingError('price_not_found', `No active Stripe price with lookup key ${lookupKey}`)
+
+    // A subscriber changes the price on their subscription (prorated by the portal); a second Checkout would start a second subscription.
+    if (holdsPlan(user)) return this.createPlanChangeSession(user, price.id, returnUrl)
 
     const customerId = await this.ensureCustomer(user)
     const successUrl = withBillingParam(returnUrl, 'success')
@@ -189,6 +190,37 @@ export class BillingService {
       await stripe.checkout.sessions.expire(session.id)
     }
     return reusable
+  }
+
+  /**
+   * A portal session that opens straight on the confirm page for switching the subscription to `priceId`, so the Plan tab's
+   * button changes the plan in one step instead of through the portal's menus. Back on the app, `?billing=success` reconciles.
+   * A subscription set to cancel opens the portal home instead, where it can be renewed and switched.
+   */
+  private async createPlanChangeSession(user: IUser, priceId: string, returnUrl: string): Promise<string> {
+    const customerId = user.billing?.customerId
+    const subscriptionId = user.billing?.subscriptionId
+    if (!customerId || !subscriptionId) throw new BillingError('no_customer', 'No subscription to change yet')
+
+    const stripe = getStripe()
+    const subscription = await stripe.subscriptions.retrieve(subscriptionId)
+    const [item, ...rest] = subscription.items.data
+    if (!item || rest.length > 0) throw new Error(`Stripe subscription ${subscription.id} does not have exactly one item`)
+    if (item.price.id === priceId) throw new BillingError('already_subscribed', 'You are already on this plan')
+
+    const flowData: Stripe.BillingPortal.SessionCreateParams.FlowData = {
+      type: 'subscription_update_confirm',
+      subscription_update_confirm: { subscription: subscription.id, items: [{ id: item.id, price: priceId, quantity: 1 }] },
+      after_completion: { type: 'redirect', redirect: { return_url: withBillingParam(returnUrl, 'success') } },
+    }
+    const configuration = await this.resolvePortalConfiguration()
+    const session = await stripe.billingPortal.sessions.create({
+      customer: customerId,
+      return_url: returnUrl,
+      ...(configuration ? { configuration } : {}),
+      ...(subscription.cancel_at_period_end ? {} : { flow_data: flowData }),
+    })
+    return session.url
   }
 
   async createPortalSession(clerkId: string, returnUrl: string): Promise<string> {

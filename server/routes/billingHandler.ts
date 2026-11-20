@@ -66,8 +66,9 @@ export const billingStatusHandler = async (req: Request, res: Response): Promise
 }
 
 /**
- * POST /api/billing with `{ action: 'checkout', plan, interval? }` (a Stripe Checkout URL for a new subscription) or
- * `{ action: 'portal' }` (a Customer Portal URL to switch plans, cancel, or update the card). Responds `{ url }`.
+ * POST /api/billing with `{ action: 'checkout', plan, interval? }` (a Stripe Checkout URL for a new subscription, or for a
+ * subscriber the portal's confirm page for switching to that plan) or `{ action: 'portal' }` (a Customer Portal URL to
+ * cancel, update the card or see invoices). Responds `{ url }`.
  */
 export const billingActionHandler = async (req: Request, res: Response): Promise<void> => {
   const clerkId = await authenticate(req, res)

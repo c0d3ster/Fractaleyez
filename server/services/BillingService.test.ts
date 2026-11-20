@@ -233,19 +233,62 @@ describe('createCheckoutSession', () => {
     expect(stripeMock.checkout.sessions.create).toHaveBeenCalledWith(expect.objectContaining({ customer: 'cus_existing' }))
   })
 
-  it('refuses a second subscription while one holds a plan', async () => {
-    vi.mocked(userService.getOrCreateUser).mockResolvedValue(makeUser({ plan: 'tier1', billing: { customerId: 'cus_1', subscriptionId: 'sub_1', status: 'active' } }))
-    await expect(billingService.createCheckoutSession(request)).rejects.toMatchObject({ code: 'already_subscribed' })
-    expect(stripeMock.checkout.sessions.create).not.toHaveBeenCalled()
-  })
+  describe('for a subscriber', () => {
+    const subscriber = makeUser({ plan: 'tier1', billing: { customerId: 'cus_1', subscriptionId: 'sub_1', status: 'active' } })
+    const upgrade = { ...request, plan: 'tier2' as const }
+    const subscription = (cancelAtPeriodEnd = false): unknown => ({
+      id: 'sub_1',
+      cancel_at_period_end: cancelAtPeriodEnd,
+      items: { data: [{ id: 'si_1', price: { id: 'price_tier1' } }] },
+    })
 
-  it('refuses a second subscription that Stripe knows about before its webhook landed', async () => {
-    const stale = makeUser({ billing: { customerId: 'cus_1' } })
-    vi.mocked(userService.getOrCreateUser).mockResolvedValue(stale)
-    stripeMock.subscriptions.list.mockResolvedValue({ data: [makeSubscription()] })
-    vi.mocked(userRepository.findByStripeCustomerId).mockResolvedValue(makeUser({ plan: 'tier1', billing: { customerId: 'cus_1', subscriptionId: 'sub_1', status: 'active' } }))
-    await expect(billingService.createCheckoutSession(request)).rejects.toMatchObject({ code: 'already_subscribed' })
-    expect(stripeMock.checkout.sessions.create).not.toHaveBeenCalled()
+    beforeEach(() => {
+      vi.mocked(userService.getOrCreateUser).mockResolvedValue(subscriber)
+      stripeMock.prices.list.mockResolvedValue({ data: [{ id: 'price_tier2' }] })
+      stripeMock.subscriptions.retrieve.mockResolvedValue(subscription())
+      stripeMock.billingPortal.configurations.list.mockResolvedValue({ data: [{ id: 'bpc_app', metadata: { app: 'fractaleyez' } }] })
+      stripeMock.billingPortal.sessions.create.mockResolvedValue({ url: 'https://billing.stripe.com/p/session/change' })
+    })
+
+    it('opens the portal confirm page for the new plan instead of a second Checkout', async () => {
+      const url = await new BillingService().createCheckoutSession(upgrade)
+      expect(url).toBe('https://billing.stripe.com/p/session/change')
+      expect(stripeMock.prices.list).toHaveBeenCalledWith(expect.objectContaining({ lookup_keys: ['tier2_monthly'] }))
+      expect(stripeMock.subscriptions.retrieve).toHaveBeenCalledWith('sub_1')
+      expect(stripeMock.billingPortal.sessions.create).toHaveBeenCalledWith({
+        customer: 'cus_1',
+        return_url: 'http://localhost:3000/',
+        configuration: 'bpc_app',
+        flow_data: {
+          type: 'subscription_update_confirm',
+          subscription_update_confirm: { subscription: 'sub_1', items: [{ id: 'si_1', price: 'price_tier2', quantity: 1 }] },
+          after_completion: { type: 'redirect', redirect: { return_url: 'http://localhost:3000/?billing=success' } },
+        },
+      })
+      expect(stripeMock.checkout.sessions.create).not.toHaveBeenCalled()
+      expect(stripeMock.customers.create).not.toHaveBeenCalled()
+    })
+
+    it('treats a subscription Stripe knows about before its webhook landed the same way', async () => {
+      vi.mocked(userService.getOrCreateUser).mockResolvedValue(makeUser({ billing: { customerId: 'cus_1' } }))
+      stripeMock.subscriptions.list.mockResolvedValue({ data: [makeSubscription()] })
+      vi.mocked(userRepository.findByStripeCustomerId).mockResolvedValue(subscriber)
+      await expect(new BillingService().createCheckoutSession(upgrade)).resolves.toBe('https://billing.stripe.com/p/session/change')
+      expect(stripeMock.checkout.sessions.create).not.toHaveBeenCalled()
+    })
+
+    it('refuses the plan the subscription already has', async () => {
+      stripeMock.prices.list.mockResolvedValue({ data: [{ id: 'price_tier1' }] })
+      await expect(new BillingService().createCheckoutSession(request)).rejects.toMatchObject({ code: 'already_subscribed' })
+      expect(stripeMock.billingPortal.sessions.create).not.toHaveBeenCalled()
+      expect(stripeMock.checkout.sessions.create).not.toHaveBeenCalled()
+    })
+
+    it('opens the portal home for a subscription set to cancel, where it can be renewed first', async () => {
+      stripeMock.subscriptions.retrieve.mockResolvedValue(subscription(true))
+      await new BillingService().createCheckoutSession(upgrade)
+      expect(stripeMock.billingPortal.sessions.create).toHaveBeenCalledWith({ customer: 'cus_1', return_url: 'http://localhost:3000/', configuration: 'bpc_app' })
+    })
   })
 
   describe('open sessions', () => {
