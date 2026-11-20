@@ -5,7 +5,7 @@ import { PLAN_PERKS } from '../../src/config/plans.config'
 describe('getEntitlements', () => {
   it('gives each plan its row of the tier table', () => {
     expect(getEntitlements('free').quotas).toEqual({ savedPresets: 3, particleUploads: 3, privatePacks: 1, publicPacks: 0 })
-    expect(getEntitlements('tier1').quotas).toEqual({ savedPresets: 10, particleUploads: 10, privatePacks: 3, publicPacks: 3 })
+    expect(getEntitlements('tier1').quotas).toEqual({ savedPresets: 10, particleUploads: 15, privatePacks: 3, publicPacks: 3 })
     expect(Object.values(getEntitlements('tier2').quotas)).toEqual([null, null, null, null])
   })
 
