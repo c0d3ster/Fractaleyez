@@ -1,0 +1,18 @@
+/* A still version of the premium rainbow (Presets.css's .premium-ring colors) for locked controls. It is a masked pseudo-element,
+   so it needs no fill color behind it and fits any shape (the ring's spinning square gradient only covers items near square), and
+   being still it costs no repaints while the visualizer runs. Size it with --premium-outline-inset and --premium-outline-radius. */
+.premium-outline {
+  position: relative;
+}
+
+.premium-outline::before {
+  content: '';
+  position: absolute;
+  inset: var(--premium-outline-inset, -1px);
+  z-index: 2;
+  padding: var(--premium-outline-width, 1.5px);
+  border-radius: var(--premium-outline-radius, 999px);
+  background: linear-gradient(135deg, #ff6b6b, #ffd93d, #6bcb77, #4d96ff, #c77dff, #ff6b6b);
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  pointer-events: none;
+}

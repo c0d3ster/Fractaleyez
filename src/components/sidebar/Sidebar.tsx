@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react'
 import classNames from 'classnames'
 import './Sidebar.css'
 
+import { PreviewLockFrame } from '../presets/PreviewLockFrame'
 import { Presets, PresetSelection } from '../presets/Presets'
 import { SavePreset } from '../presets/SavePreset'
 import { ConfigAccordion, useOpenCategories } from '../config/ConfigAccordion'
@@ -111,7 +112,11 @@ const SidebarInner = ({ setConfigWindow, configWindowVisible }: SidebarProps): R
               ⤢
             </button>
           </div>
-          {showConfigBody && <ConfigAccordion openCategories={openCategories} toggleOpen={toggleOpen} />}
+          {showConfigBody && (
+            <PreviewLockFrame>
+              <ConfigAccordion openCategories={openCategories} toggleOpen={toggleOpen} />
+            </PreviewLockFrame>
+          )}
         </div>
       </div>
     </div>

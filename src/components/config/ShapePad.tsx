@@ -1,11 +1,14 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { JULIA_FAMOUS_SHAPES, JULIA_MAP_VIEW, JULIA_TOUR } from '../../visualization/julia-tour'
 import './ShapePad.css'
+import '../upgrade/premiumOutline.css'
 import { mainWindow, Pad, PadPoint } from './Pad'
 import { subscribeUiTick } from '../../utils/uiTicker'
 import { colorConfig } from '../../config/color.config'
 import { ColorState, resolveColorState } from '../../config/colorState'
 import { sampleLut } from '../../config/paletteLut'
+import { useConfigContext } from './context/ConfigProvider'
+import { useUpgrade } from '../upgrade/UpgradeProvider'
 
 // The pad fills its column (3:2, see ShapePad.css); the canvases use a fixed backing size that
 // stays sharp when scaled to the column width.
@@ -172,6 +175,35 @@ const drawOverlay = (canvas: HTMLCanvasElement, shape: ShapeReadout): void => {
   context.fill()
 }
 
+const MANUAL_UPGRADE_REASON = 'Picking your own fractal shape is a premium feature. Lucid and Third Eye include it. The Tour stays free.'
+
+const HINT = 'Drag to pick a shape. The ring is the shape now showing and the pink dot is where it is heading. The dashed line is the Tour and the teal dots are the named shapes, also under the pad. Double-click to go back to the Tour slider.'
+const LOCKED_HINT = 'The shape follows the Tour slider. Picking your own shape (Manual) comes with Lucid and Third Eye. The ring is the shape now showing and the dashed line is the Tour.'
+
+type ShapeModeSwitchProps = {
+  manual: boolean
+  manualLocked: boolean
+  onTour: () => void
+  onManual: () => void
+}
+
+/** Tour | Manual under the pad's title. Manual shows the premium outline when the plan doesn't include it. */
+const ShapeModeSwitch = ({ manual, manualLocked, onTour, onManual }: ShapeModeSwitchProps): React.ReactElement => (
+  <span className='shape-mode-switch' role='group' aria-label='Shape mode'>
+    <button type='button' className={`shape-mode-option${manual ? '' : ' shape-mode-option--active'}`} aria-pressed={!manual} onClick={onTour}>
+      Tour
+    </button>
+    <button
+      type='button'
+      className={`shape-mode-option${manual ? ' shape-mode-option--active' : ''}${manualLocked ? ' shape-mode-option--premium premium-outline' : ''}`}
+      aria-pressed={manual}
+      onClick={onManual}
+    >
+      {manualLocked ? '✦ ' : ''}Manual
+    </button>
+  </span>
+)
+
 const formatCoordinate = (value: number): string => `${value < 0 ? '−' : ''}${Math.abs(value).toFixed(3)}`
 
 export const ShapePad = (): React.ReactElement => {
@@ -182,6 +214,10 @@ export const ShapePad = (): React.ReactElement => {
   const drawnHueRef = useRef(Number.NaN)
   const drawnColorKeyRef = useRef('')
   const lastRecolorAtRef = useRef(0)
+  // Picking a shape (drag, chips, Manual) is premium; the Tour and going back to it are open to all. Guests have no entitlements.
+  const { entitlements } = useConfigContext()
+  const manualLocked = entitlements?.features.customFractalPath !== true
+  const { requestUpgrade } = useUpgrade()
   const [readout, setReadout] = useState<ShapeReadout>({ re: -0.75, im: 0, manual: false, hue: 0, saturation: colorConfig.saturation_DEFAULT, targetRe: -0.75, targetIm: 0 })
 
   useEffect(() => {
@@ -225,24 +261,51 @@ export const ShapePad = (): React.ReactElement => {
     return subscribeUiTick(tick, overlayRef.current)
   }, [])
 
-  const handlePick = useCallback((point: PadPoint): void => {
+  const handlePick = useCallback((point: PadPoint, phase: 'start' | 'move'): void => {
+    if (manualLocked) {
+      if (phase === 'start') requestUpgrade(MANUAL_UPGRADE_REASON)
+      return
+    }
     mainWindow().setJuliaShape?.(
       JULIA_MAP_VIEW.reMin + point.x * VIEW_WIDTH,
       JULIA_MAP_VIEW.imMax - point.y * VIEW_HEIGHT,
     )
-  }, [])
+  }, [manualLocked, requestUpgrade])
 
   const handleReset = useCallback((): void => {
     mainWindow().clearJuliaShape?.()
   }, [])
 
+  // Manual from the Tour holds the shape that is showing; the pad, a chip or a drag then moves it.
+  const handleManual = useCallback((): void => {
+    if (manualLocked) {
+      requestUpgrade(MANUAL_UPGRADE_REASON)
+      return
+    }
+    const shape = mainWindow().getJuliaShape?.()
+    if (shape && !shape.manual) mainWindow().setJuliaShape?.(shape.re, shape.im)
+  }, [manualLocked, requestUpgrade])
+
+  const pickNamedShape = useCallback((re: number, im: number): void => {
+    if (manualLocked) {
+      requestUpgrade(MANUAL_UPGRADE_REASON)
+      return
+    }
+    mainWindow().setJuliaShape?.(re, im)
+  }, [manualLocked, requestUpgrade])
+
   return (
     <Pad
-      label={`Shape ${readout.manual ? '(manual)' : '(tour)'}`}
+      label={(
+        <>
+          Shape
+          <ShapeModeSwitch manual={readout.manual} manualLocked={manualLocked} onTour={handleReset} onManual={handleManual} />
+        </>
+      )}
       onPick={handlePick}
       onReset={handleReset}
       readouts={[`Re ${formatCoordinate(readout.re)}`, `Im ${formatCoordinate(readout.im)}`]}
-      hint='Drag to pick a shape. The ring is the shape now showing and the pink dot is where it is heading. The dashed line is the Tour and the teal dots are the named shapes, also under the pad. Double-click to go back to the Tour slider.'
+      hint={manualLocked ? LOCKED_HINT : HINT}
       footer={(
         <div className='shape-pad-chips'>
           {JULIA_FAMOUS_SHAPES.map(({ name, re, im }) => (
@@ -250,7 +313,7 @@ export const ShapePad = (): React.ReactElement => {
               key={name}
               type='button'
               className='shape-pad-chip'
-              onClick={() => mainWindow().setJuliaShape?.(re, im)}
+              onClick={() => pickNamedShape(re, im)}
             >
               {name}
             </button>

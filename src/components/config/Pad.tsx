@@ -17,7 +17,8 @@ const clamp01 = (value: number): number => Math.max(0, Math.min(1, value))
 export type PadPoint = { x: number, y: number, width: number, height: number }
 
 type PadProps = {
-  label: string
+  /** The title; a pad can add a control under it (the Shape pad's Tour | Manual switch). */
+  label: React.ReactNode
   /** Width over height of the drawing surface; 3:2 unless given. */
   aspectRatio?: number
   /** A press (`start`) or a drag step (`move`), clamped to the pad. */
