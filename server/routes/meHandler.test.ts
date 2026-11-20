@@ -85,7 +85,7 @@ describe('meHandler', () => {
     vi.mocked(userService.getOrCreateUser).mockResolvedValueOnce({ clerkId: 'user_123', displayName: '', settings: {}, plan: 'tier1' } as unknown as IUser)
     const res = makeRes()
     await meHandler(makeReq(), res)
-    expect(res.body).toMatchObject({ plan: 'tier1', usage, entitlements: { plan: 'tier1', quotas: { savedPresets: 10 }, features: { builtInPremiumPacks: true } } })
+    expect(res.body).toMatchObject({ plan: 'tier1', usage, entitlements: { plan: 'tier1', quotas: { savedPresets: 15 }, features: { builtInPremiumPacks: true } } })
   })
 
   it('returns 500 without leaking internals when the upsert fails', async () => {

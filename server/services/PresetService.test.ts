@@ -192,11 +192,11 @@ describe('PresetService#savePreset quota', () => {
   })
 
   it('raises the limit for Lucid and lifts it for Third Eye and admins', async () => {
-    vi.mocked(presetRepository.countByUserId).mockResolvedValue(9)
+    vi.mocked(presetRepository.countByUserId).mockResolvedValue(14)
     asUser('tier1')
     await expect(save()).resolves.toBe(saved)
-    vi.mocked(presetRepository.countByUserId).mockResolvedValue(10)
-    await expect(save()).rejects.toMatchObject({ quota: 'savedPresets', limit: 10, plan: 'tier1' })
+    vi.mocked(presetRepository.countByUserId).mockResolvedValue(15)
+    await expect(save()).rejects.toMatchObject({ quota: 'savedPresets', limit: 15, plan: 'tier1' })
     asUser('tier2')
     await expect(save()).resolves.toBe(saved)
     asUser('free', true)
