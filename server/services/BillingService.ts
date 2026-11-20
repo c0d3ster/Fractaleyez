@@ -74,7 +74,7 @@ export const CHECKOUT_LIFETIME_S = 60 * 60
 /** An open session with less time left than this is expired and replaced instead of reused, so nobody lands on one that lapses mid-payment. */
 export const CHECKOUT_REUSE_MIN_LEFT_S = 10 * 60
 
-/** Set on the portal configuration scripts/stripe-portal-config.js creates. */
+/** Tag on the portal configuration the app uses (set in the dashboard, test and live). */
 export const PORTAL_METADATA_APP = 'fractaleyez'
 
 const idOf = (value: string | { id: string } | null | undefined): string | null => {
@@ -206,7 +206,7 @@ export class BillingService {
   }
 
   /**
-   * The configuration scripts/stripe-portal-config.js made, found by its metadata and kept for the life of the process. Without
+   * The configuration tagged with PORTAL_METADATA_APP, found by its metadata and kept for the life of the process. Without
    * one, Stripe uses the dashboard's default configuration. A failed lookup is not kept, so the next call tries again.
    */
   private resolvePortalConfiguration(): Promise<string | null> {
