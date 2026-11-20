@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3'
+import { S3Client, PutObjectCommand, HeadObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3'
 import { requireEnv } from '../env.js'
 
 // Particles served from R2 are content-addressed / never overwritten in place, so
@@ -41,6 +41,11 @@ export class StorageService {
       CacheControl: IMMUTABLE_CACHE_CONTROL,
     }))
     return this.buildPublicUrl(key)
+  }
+
+  /** S3 delete is idempotent: a key that is already gone succeeds too. */
+  async deleteObject(key: string): Promise<void> {
+    await getClient().send(new DeleteObjectCommand({ Bucket: requireEnv.R2_BUCKET_NAME(), Key: key }))
   }
 
   buildPublicUrl(key: string): string {

@@ -3,6 +3,7 @@ import { Webhook } from 'svix'
 import type { UserJSON } from '@clerk/backend'
 import { env } from '../env.js'
 import { userService } from '../services/UserService.js'
+import { accountDeletionService } from '../services/AccountDeletionService.js'
 
 // Clerk's user.* payloads are a few KB at most; this is just a ceiling against an
 // unauthenticated caller flooding memory before signature verification can reject them.
@@ -19,6 +20,32 @@ const isUserPayload = (data: unknown): data is UserJSON => {
   return typeof candidate.id === 'string' &&
     Array.isArray(candidate.external_accounts) &&
     Array.isArray(candidate.email_addresses)
+}
+
+// Clerk's user.deleted payload is a deleted-object stub: { object: 'user', id, deleted: true }.
+const deletedUserId = (data: unknown): string | null => {
+  if (typeof data !== 'object' || data === null) return null
+  const { id } = data as Record<string, unknown>
+  return typeof id === 'string' && id.length > 0 ? id : null
+}
+
+/** Safe to redeliver: a second delivery, or a user who never had a document, finds nothing to delete and still answers 200. */
+const handleUserDeleted = async (data: unknown, res: Response): Promise<void> => {
+  const clerkId = deletedUserId(data)
+  if (!clerkId) {
+    console.error('Clerk user.deleted payload has no user id')
+    res.status(400).json({ error: 'Invalid payload' })
+    return
+  }
+  try {
+    const result = await accountDeletionService.deleteAccount(clerkId)
+    console.info(`Deleted the data of Clerk user ${clerkId}`, result)
+    res.status(200).json({ received: true })
+  } catch (err) {
+    // 500 so Clerk redelivers; every step that already ran is a no-op the next time.
+    console.error(`Failed to delete the data of Clerk user ${clerkId}`, err)
+    res.status(500).json({ error: 'Internal server error' })
+  }
 }
 
 export const clerkWebhookHandler = async (req: Request, res: Response): Promise<void> => {
@@ -56,7 +83,12 @@ export const clerkWebhookHandler = async (req: Request, res: Response): Promise<
     return
   }
 
-  // Redelivery of an event this handler doesn't act on (e.g. user.deleted, session.*) is a no-op ack.
+  if (isClerkEventEnvelope(event) && event.type === 'user.deleted') {
+    await handleUserDeleted(event.data, res)
+    return
+  }
+
+  // Redelivery of an event this handler doesn't act on (e.g. session.*) is a no-op ack.
   if (!isClerkEventEnvelope(event) || (event.type !== 'user.created' && event.type !== 'user.updated')) {
     res.status(200).json({ received: true })
     return

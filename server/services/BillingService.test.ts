@@ -9,6 +9,7 @@ import { BillingError, BillingService, billingService, CHECKOUT_LIFETIME_S, CHEC
 vi.mock('../stripe.js', () => ({ getStripe: vi.fn(), isStripeConfigured: vi.fn(() => true) }))
 vi.mock('../repositories/UserRepository.js', () => ({
   userRepository: {
+    findByClerkId: vi.fn(),
     findByStripeCustomerId: vi.fn(),
     linkStripeCustomer: vi.fn(),
     replaceStripeCustomer: vi.fn(),
@@ -22,7 +23,7 @@ const stripeMock = {
   customers: { create: vi.fn(), del: vi.fn(), retrieve: vi.fn(), update: vi.fn() },
   checkout: { sessions: { create: vi.fn(), list: vi.fn(), expire: vi.fn() } },
   billingPortal: { sessions: { create: vi.fn() }, configurations: { list: vi.fn() } },
-  subscriptions: { retrieve: vi.fn(), list: vi.fn() },
+  subscriptions: { retrieve: vi.fn(), list: vi.fn(), cancel: vi.fn() },
 }
 
 const makeSubscription = (overrides: {
@@ -58,7 +59,7 @@ beforeEach(() => {
   for (const fn of [
     stripeMock.prices.list, stripeMock.customers.create, stripeMock.customers.del, stripeMock.customers.retrieve, stripeMock.customers.update, stripeMock.checkout.sessions.create,
     stripeMock.checkout.sessions.list, stripeMock.checkout.sessions.expire,
-    stripeMock.billingPortal.sessions.create, stripeMock.billingPortal.configurations.list, stripeMock.subscriptions.retrieve, stripeMock.subscriptions.list,
+    stripeMock.billingPortal.sessions.create, stripeMock.billingPortal.configurations.list, stripeMock.subscriptions.retrieve, stripeMock.subscriptions.list, stripeMock.subscriptions.cancel,
   ]) fn.mockReset()
   stripeMock.subscriptions.list.mockResolvedValue({ data: [] })
   stripeMock.checkout.sessions.list.mockResolvedValue({ data: [] })
@@ -67,6 +68,7 @@ beforeEach(() => {
   vi.mocked(isStripeConfigured).mockReturnValue(true)
   vi.mocked(userRepository.replaceStripeCustomer).mockReset()
   vi.mocked(userRepository.findByStripeCustomerId).mockReset()
+  vi.mocked(userRepository.findByClerkId).mockReset().mockResolvedValue(makeUser())
   vi.mocked(userRepository.linkStripeCustomer).mockReset()
   vi.mocked(userRepository.syncBilling).mockReset().mockResolvedValue(null)
   vi.mocked(userService.getOrCreateUser).mockReset().mockResolvedValue(makeUser())
@@ -416,6 +418,18 @@ describe('handleEvent', () => {
     expect(userRepository.syncBilling).toHaveBeenCalledWith('cus_1', expect.objectContaining({ plan: 'tier1' }))
   })
 
+  it('does not bring back a deleted account for the subscription its deletion canceled', async () => {
+    givenStripe(makeSubscription({ status: 'canceled', metadata: { clerkId: 'user_1' } }))
+    vi.mocked(userRepository.findByStripeCustomerId).mockResolvedValue(null)
+    vi.mocked(userRepository.findByClerkId).mockResolvedValue(null)
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    await billingService.handleEvent(subscriptionEvent('customer.subscription.deleted'))
+    expect(userService.getOrCreateUser).not.toHaveBeenCalled()
+    expect(userRepository.linkStripeCustomer).not.toHaveBeenCalled()
+    expect(userRepository.syncBilling).not.toHaveBeenCalled()
+    warn.mockRestore()
+  })
+
   it('skips a subscription no user can be matched to', async () => {
     givenStripe(makeSubscription())
     vi.mocked(userRepository.findByStripeCustomerId).mockResolvedValue(null)
@@ -423,6 +437,30 @@ describe('handleEvent', () => {
     await billingService.handleEvent(subscriptionEvent('customer.subscription.updated'))
     expect(userRepository.syncBilling).not.toHaveBeenCalled()
     warn.mockRestore()
+  })
+})
+
+describe('cancelSubscriptionsNow', () => {
+  it('cancels every live subscription of the customer at once and leaves ended ones and the customer alone', async () => {
+    stripeMock.subscriptions.list.mockResolvedValue({ data: [
+      makeSubscription({ id: 'sub_active' }),
+      makeSubscription({ id: 'sub_past_due', status: 'past_due' }),
+      makeSubscription({ id: 'sub_trial', status: 'trialing', cancelAtPeriodEnd: true }),
+      makeSubscription({ id: 'sub_done', status: 'canceled' }),
+      makeSubscription({ id: 'sub_expired', status: 'incomplete_expired' }),
+    ] })
+    stripeMock.subscriptions.cancel.mockResolvedValue({})
+
+    expect(await billingService.cancelSubscriptionsNow('cus_1')).toEqual(['sub_active', 'sub_past_due', 'sub_trial'])
+    expect(stripeMock.subscriptions.list).toHaveBeenCalledWith({ customer: 'cus_1', status: 'all', limit: 100 })
+    expect(stripeMock.subscriptions.cancel.mock.calls).toEqual([['sub_active'], ['sub_past_due'], ['sub_trial']])
+    expect(stripeMock.customers.del).not.toHaveBeenCalled()
+  })
+
+  it('cancels nothing when every subscription already ended', async () => {
+    stripeMock.subscriptions.list.mockResolvedValue({ data: [makeSubscription({ status: 'canceled' })] })
+    expect(await billingService.cancelSubscriptionsNow('cus_1')).toEqual([])
+    expect(stripeMock.subscriptions.cancel).not.toHaveBeenCalled()
   })
 })
 

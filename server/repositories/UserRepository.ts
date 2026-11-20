@@ -76,6 +76,13 @@ export class UserRepository {
     return created
   }
 
+  /** True when a document was deleted; false when there was none (a redelivered user.deleted). */
+  async deleteByClerkId(clerkId: string): Promise<boolean> {
+    await connectDB()
+    const { deletedCount } = await User.deleteOne({ clerkId })
+    return deletedCount > 0
+  }
+
   async findByStripeCustomerId(customerId: string): Promise<IUser | null> {
     await connectDB()
     return User.findOne({ 'billing.customerId': customerId })
