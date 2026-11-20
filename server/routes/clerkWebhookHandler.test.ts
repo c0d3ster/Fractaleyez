@@ -3,6 +3,7 @@ import type { UserJSON } from '@clerk/backend'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { Webhook } from 'svix'
 import { userService } from '../services/UserService.js'
+import { accountDeletionService, AccountDeletionResult } from '../services/AccountDeletionService.js'
 import { IUser } from '../models/User.js'
 import { env } from '../env.js'
 import { clerkWebhookHandler } from './clerkWebhookHandler.js'
@@ -13,6 +14,11 @@ vi.mock('svix', () => ({
 vi.mock('../services/UserService.js', () => ({
   userService: {
     syncFromClerk: vi.fn(),
+  },
+}))
+vi.mock('../services/AccountDeletionService.js', () => ({
+  accountDeletionService: {
+    deleteAccount: vi.fn(),
   },
 }))
 vi.mock('../env.js', () => ({
@@ -52,6 +58,9 @@ describe('clerkWebhookHandler', () => {
     verifyMock.mockReset()
     vi.mocked(Webhook).mockReset().mockImplementation(MockWebhook as unknown as new (secret: string) => Webhook)
     vi.mocked(userService.syncFromClerk).mockReset().mockResolvedValue({} as unknown as IUser)
+    vi.mocked(accountDeletionService.deleteAccount).mockReset().mockResolvedValue({} as unknown as AccountDeletionResult)
+    vi.spyOn(console, 'info').mockImplementation(() => undefined)
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
   })
 
   it('rejects a non-buffer body', async () => {
@@ -121,5 +130,50 @@ describe('clerkWebhookHandler', () => {
     const res = makeRes()
     await clerkWebhookHandler(makeReq(Buffer.from('{}')), res)
     expect(res.statusCode).toBe(500)
+  })
+
+  it('deletes the account on a verified user.deleted event', async () => {
+    verifyMock.mockReturnValue({ type: 'user.deleted', data: { object: 'user', id: 'user_123', deleted: true } })
+    const res = makeRes()
+    await clerkWebhookHandler(makeReq(Buffer.from('{}')), res)
+    expect(accountDeletionService.deleteAccount).toHaveBeenCalledWith('user_123')
+    expect(userService.syncFromClerk).not.toHaveBeenCalled()
+    expect(res.statusCode).toBe(200)
+  })
+
+  it('answers 200 on a redelivered user.deleted (the service finds nothing to delete)', async () => {
+    verifyMock.mockReturnValue({ type: 'user.deleted', data: { object: 'user', id: 'user_123', deleted: true } })
+    vi.mocked(accountDeletionService.deleteAccount).mockResolvedValue({ hadUser: false } as AccountDeletionResult)
+    for (let i = 0; i < 2; i++) {
+      const res = makeRes()
+      await clerkWebhookHandler(makeReq(Buffer.from('{}')), res)
+      expect(res.statusCode).toBe(200)
+    }
+    expect(accountDeletionService.deleteAccount).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not delete anything when the signature of a user.deleted is invalid', async () => {
+    verifyMock.mockImplementation(() => { throw new Error('bad signature') })
+    const res = makeRes()
+    await clerkWebhookHandler(makeReq(Buffer.from('{"type":"user.deleted","data":{"id":"user_123"}}')), res)
+    expect(res.statusCode).toBe(400)
+    expect(accountDeletionService.deleteAccount).not.toHaveBeenCalled()
+  })
+
+  it('rejects a user.deleted without a user id', async () => {
+    verifyMock.mockReturnValue({ type: 'user.deleted', data: { object: 'user', deleted: true } })
+    const res = makeRes()
+    await clerkWebhookHandler(makeReq(Buffer.from('{}')), res)
+    expect(res.statusCode).toBe(400)
+    expect(accountDeletionService.deleteAccount).not.toHaveBeenCalled()
+  })
+
+  it('returns 500 so Clerk redelivers when the deletion fails', async () => {
+    verifyMock.mockReturnValue({ type: 'user.deleted', data: { object: 'user', id: 'user_123', deleted: true } })
+    vi.mocked(accountDeletionService.deleteAccount).mockRejectedValueOnce(new Error('mongo down'))
+    const res = makeRes()
+    await clerkWebhookHandler(makeReq(Buffer.from('{}')), res)
+    expect(res.statusCode).toBe(500)
+    expect(res.body).toEqual({ error: 'Internal server error' })
   })
 })

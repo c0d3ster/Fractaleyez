@@ -43,6 +43,9 @@ const assertAvailable = (): void => {
 // past_due keeps the plan while Stripe retries the card (Smart Retries); it ends as canceled or unpaid if every retry fails.
 const PLAN_HOLDING_STATUSES: ReadonlySet<string> = new Set<Stripe.Subscription.Status>(['active', 'trialing', 'past_due'])
 
+// Already over: Stripe refuses to cancel these again.
+const ENDED_STATUSES: ReadonlySet<string> = new Set<Stripe.Subscription.Status>(['canceled', 'incomplete_expired'])
+
 /** Stripe price lookup keys are `<plan>_<interval>`, e.g. `tier1_monthly`: set on each price in the dashboard. */
 export const lookupKeyFor = (plan: PaidPlanId, interval: BillingInterval): string => `${plan}_${interval}`
 
@@ -332,12 +335,26 @@ export class BillingService {
     })
   }
 
+  /**
+   * Account deletion: cancels every subscription of the customer that is still live, at once rather than at period end. The
+   * customer stays in Stripe for its invoices and tax records. Returns the ids it canceled.
+   */
+  async cancelSubscriptionsNow(customerId: string): Promise<string[]> {
+    const stripe = getStripe()
+    const { data } = await stripe.subscriptions.list({ customer: customerId, status: 'all', limit: 100 })
+    const live = data.filter((s) => !ENDED_STATUSES.has(s.status))
+    for (const subscription of live) await stripe.subscriptions.cancel(subscription.id)
+    return live.map((s) => s.id)
+  }
+
   /** By the linked customer, else by the clerkId Checkout stamped on the subscription (customer created outside ensureCustomer). */
   private async findSubscriber(customerId: string, subscription: Stripe.Subscription): Promise<IUser | null> {
     const byCustomer = await userRepository.findByStripeCustomerId(customerId)
     if (byCustomer) return byCustomer
     const clerkId = subscription.metadata.clerkId
     if (!clerkId) return null
+    // A subscription that grants nothing never creates a user: the one canceled by account deletion would bring the account back.
+    if (planFromSubscription(subscription) === 'free' && !(await userRepository.findByClerkId(clerkId))) return null
     await userService.getOrCreateUser(clerkId)
     const linkedCustomerId = await userRepository.linkStripeCustomer(clerkId, customerId)
     if (linkedCustomerId !== customerId) return null
