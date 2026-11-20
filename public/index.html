@@ -3,22 +3,23 @@
   <head>
     <title>Fractaleyez</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link href="https://fonts.googleapis.com/css?family=Acme" rel="stylesheet">
+    <link rel="preload" href="/fonts/acme/acme-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+    <style>
+      /* Acme by Juan Pablo del Peral, SIL Open Font License 1.1 (/fonts/acme/OFL.txt). Self-hosted so no third party sees page loads. */
+      @font-face {
+        font-family: 'Acme';
+        font-style: normal;
+        font-weight: 400;
+        font-display: swap;
+        src: url('/fonts/acme/acme-latin-400-normal.woff2') format('woff2');
+      }
+    </style>
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
     <link rel="manifest" href="/site.webmanifest">
     <meta name="msapplication-TileColor" content="#da532c">
     <meta name="theme-color" content="#ffffff">
-    <!-- Google tag (gtag.js) -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-VS63TSTCWL"></script>
-    <script>
-      window.dataLayer = window.dataLayer || []
-      function gtag(){dataLayer.push(arguments)}
-      gtag('js', new Date())
-
-      gtag('config', 'G-VS63TSTCWL')
-    </script>
   </head>
 
   <body>
