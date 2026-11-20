@@ -13,10 +13,16 @@ export const SPRITE_SOURCES: readonly { id: SpriteSource; label: string }[] = [
   { id: 'yours', label: 'Yours' },
 ]
 
-/** Two fixed rows, so the panel's height never changes with the number of images. */
-export const GRID_COLUMNS = 6
+/**
+ * Two fixed rows, so the panel's height never changes with the number of images. The column count follows the width: about
+ * 119px in the expanded config window's columns gives 3, the wider sidebar more.
+ */
 export const GRID_ROWS = 2
-export const PAGE_SIZE = GRID_COLUMNS * GRID_ROWS
+export const TILE_TARGET_PX = 36
+export const TILE_GAP_PX = 4
+
+/** How many tiles of about TILE_TARGET_PX fit across `width`, at least one. */
+export const columnsFor = (width: number): number => Math.max(1, Math.floor((width + TILE_GAP_PX) / (TILE_TARGET_PX + TILE_GAP_PX)))
 
 export type SpriteTile =
   | { type: 'add' }
@@ -45,16 +51,16 @@ export const yoursTiles = ({ uploads, logoUrl, isAdmin }: YoursTilesInput): Spri
 export const builtinTiles = (sprites: readonly string[]): SpriteTile[] =>
   sprites.map((src) => ({ type: 'image', src, uploadId: null, isLogo: false }))
 
-export const pageCount = (count: number, size: number = PAGE_SIZE): number => Math.max(1, Math.ceil(count / size))
+export const pageCount = (count: number, size: number): number => Math.max(1, Math.ceil(count / size))
 
 /** The page's items; a page past the end (after a delete) shows the last page instead. */
-export const pageItems = <T>(items: readonly T[], page: number, size: number = PAGE_SIZE): T[] => {
+export const pageItems = <T>(items: readonly T[], page: number, size: number): T[] => {
   const last = pageCount(items.length, size) - 1
   const current = Math.min(Math.max(0, page), last)
   return items.slice(current * size, (current + 1) * size)
 }
 
-export const clampPage = (page: number, count: number, size: number = PAGE_SIZE): number =>
+export const clampPage = (page: number, count: number, size: number): number =>
   Math.min(Math.max(0, page), pageCount(count, size) - 1)
 
 /** `4 / 15`, or `4 / ∞` on an unlimited plan. */

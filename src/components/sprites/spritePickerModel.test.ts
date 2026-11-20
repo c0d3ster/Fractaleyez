@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { AppConfig } from '../../config/configDefaults'
 import { LibraryUpload } from './uploadLibrary'
-import { PAGE_SIZE, SpriteTile, builtinTiles, clampPage, pageCount, pageItems, uploadCountLabel, usedByLiveConfig, yoursTiles } from './spritePickerModel'
+import { SpriteTile, builtinTiles, clampPage, columnsFor, pageCount, pageItems, uploadCountLabel, usedByLiveConfig, yoursTiles } from './spritePickerModel'
 
 const upload = (id: string, url: string, kind: LibraryUpload['kind'] = 'sprite'): LibraryUpload => ({ id, url, kind, createdAt: '2026-11-01T00:00:00.000Z' })
 
@@ -27,25 +27,34 @@ describe('yoursTiles', () => {
   })
 })
 
+const PAGE_SIZE = 6
+
+describe('columnsFor', () => {
+  it('fits 3 columns in the expanded window and more in the sidebar, never none', () => {
+    expect(columnsFor(119)).toBe(3)
+    expect(columnsFor(380)).toBe(9)
+    expect(columnsFor(10)).toBe(1)
+  })
+})
+
 describe('paging', () => {
   const items = Array.from({ length: PAGE_SIZE * 2 + 3 }, (_, i) => i)
 
   it('always has at least one page', () => {
-    expect(pageCount(0)).toBe(1)
-    expect(pageCount(PAGE_SIZE)).toBe(1)
-    expect(pageCount(PAGE_SIZE + 1)).toBe(2)
+    expect(pageCount(0, PAGE_SIZE)).toBe(1)
+    expect(pageCount(PAGE_SIZE, PAGE_SIZE)).toBe(1)
+    expect(pageCount(PAGE_SIZE + 1, PAGE_SIZE)).toBe(2)
   })
 
   it('slices a page and shows the last page for one past the end', () => {
-    expect(pageItems(items, 0)).toEqual(items.slice(0, PAGE_SIZE))
-    expect(pageItems(items, 2)).toEqual(items.slice(PAGE_SIZE * 2))
-    expect(pageItems(items, 9)).toEqual(items.slice(PAGE_SIZE * 2))
-    expect(clampPage(9, items.length)).toBe(2)
-    expect(clampPage(-1, items.length)).toBe(0)
+    expect(pageItems(items, 0, PAGE_SIZE)).toEqual(items.slice(0, PAGE_SIZE))
+    expect(pageItems(items, 2, PAGE_SIZE)).toEqual(items.slice(PAGE_SIZE * 2))
+    expect(pageItems(items, 9, PAGE_SIZE)).toEqual(items.slice(PAGE_SIZE * 2))
+    expect(clampPage(9, items.length, PAGE_SIZE)).toBe(2)
+    expect(clampPage(-1, items.length, PAGE_SIZE)).toBe(0)
   })
 
-  it('never shows more than two rows', () => {
-    expect(PAGE_SIZE).toBe(12)
+  it('lists the built-ins as plain image tiles', () => {
     expect(builtinTiles(['a.png', 'b.png']).map(describeTile)).toEqual(['a.png', 'b.png'])
   })
 })

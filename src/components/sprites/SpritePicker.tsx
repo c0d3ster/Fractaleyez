@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import './SpritePicker.css'
 import '../upgrade/PremiumRing.css'
 
@@ -11,12 +11,13 @@ import { USER_REFERENCE } from '../../utils/userReference'
 import { useSpriteUpload } from './useSpriteUpload'
 import { uploadLibrary, useUploadLibrary } from './uploadLibrary'
 import {
-  PAGE_SIZE,
+  GRID_ROWS,
   SPRITE_SOURCES,
   SpriteSource,
   SpriteTile,
   builtinTiles,
   clampPage,
+  columnsFor,
   pageCount,
   pageItems,
   uploadCountLabel,
@@ -46,6 +47,31 @@ export type SpritePickerProps = {
 }
 
 type Notice = { text: string; tone: 'error' | 'info' }
+
+// A refusal stays up long enough to read the preset names, and goes on a click before that.
+const NOTICE_DISPLAY_MS = 6000
+// The expanded config window's columns, the narrowest place the picker lives, until the first measure.
+const INITIAL_COLUMNS = 3
+
+/**
+ * Columns that fit the grid's own width, re-measured when it changes. The observer comes from the grid's own window: in the
+ * popped-out config window the element belongs to that document, which the main window's ResizeObserver doesn't watch.
+ */
+const useGridColumns = (ref: React.RefObject<HTMLElement>): number => {
+  const [columns, setColumns] = useState(INITIAL_COLUMNS)
+  useLayoutEffect(() => {
+    const element = ref.current
+    if (!element) return undefined
+    const measure = (): void => setColumns(columnsFor(element.clientWidth))
+    measure()
+    const Observer = element.ownerDocument.defaultView?.ResizeObserver
+    if (!Observer) return undefined
+    const observer = new Observer(measure)
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [ref])
+  return columns
+}
 
 const TrashIcon = (): React.ReactElement => (
   <svg viewBox='0 0 16 16' width='10' height='10' aria-hidden focusable='false'>
@@ -85,6 +111,16 @@ export const SpritePicker = ({
   const [confirmId, setConfirmId] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [notice, setNotice] = useState<Notice | null>(null)
+  const [uploadErrorDismissed, setUploadErrorDismissed] = useState(false)
+  const gridRef = useRef<HTMLDivElement>(null)
+  const columns = useGridColumns(gridRef)
+  const pageSize = columns * GRID_ROWS
+
+  useEffect(() => {
+    if (!notice) return undefined
+    const timer = setTimeout(() => setNotice(null), NOTICE_DISPLAY_MS)
+    return () => clearTimeout(timer)
+  }, [notice])
 
   // One fetch per signed-in user, shared by every picker; signing out clears it.
   useEffect(() => {
@@ -96,9 +132,9 @@ export const SpritePicker = ({
     () => (source === 'builtin' ? builtinTiles(builtins) : yoursTiles({ uploads: library.uploads, logoUrl, isAdmin })),
     [source, builtins, library.uploads, logoUrl, isAdmin],
   )
-  const page = clampPage(pages[source], tiles.length)
-  const totalPages = pageCount(tiles.length)
-  const visible = pageItems(tiles, page)
+  const page = clampPage(pages[source], tiles.length, pageSize)
+  const totalPages = pageCount(tiles.length, pageSize)
+  const visible = pageItems(tiles, page, pageSize)
 
   const changeSource = useCallback((next: SpriteSource): void => {
     setSource(next)
@@ -126,6 +162,8 @@ export const SpritePicker = ({
     usage,
     refreshAccount,
   })
+  // A new error shows again even after the last one was clicked away.
+  useEffect(() => setUploadErrorDismissed(false), [uploadError])
 
   const askDelete = useCallback((uploadId: string, src: string): void => {
     // The config at call time, not a closed-over copy (see CLAUDE.md, Config UI rendering).
@@ -235,61 +273,93 @@ export const SpritePicker = ({
     )
   }
 
-  const renderStatus = (): React.ReactNode => {
+  const confirmSrc = confirmId ? library.uploads.find((u) => u.id === confirmId)?.url : undefined
+
+  // Messages cover the grid instead of taking a line under it, so the panel keeps its height in the narrow expanded window.
+  const renderOverlay = (): React.ReactNode => {
     if (confirmId) {
       return (
-        <span className='sprite-picker__confirm'>
-          Delete this image for good?
-          <button type='button' className='sprite-picker__confirm-btn sprite-picker__confirm-btn--danger' disabled={deleting} onClick={() => void confirmDelete()}>
-            {deleting ? 'Deleting' : 'Delete'}
-          </button>
-          <button type='button' className='sprite-picker__confirm-btn' disabled={deleting} onClick={() => setConfirmId(null)}>
-            Cancel
-          </button>
-        </span>
+        <div className='sprite-picker__overlay' role='dialog' aria-label='Delete this upload'>
+          {confirmSrc ? <img className='sprite-picker__overlay-thumb' src={presetSpriteSrc(confirmSrc)} alt='' /> : null}
+          <span>Delete for good?</span>
+          <span className='sprite-picker__overlay-actions'>
+            <button type='button' className='sprite-picker__confirm-btn sprite-picker__confirm-btn--danger' disabled={deleting} onClick={() => void confirmDelete()}>
+              {deleting ? '...' : 'Delete'}
+            </button>
+            <button type='button' className='sprite-picker__confirm-btn' disabled={deleting} onClick={() => setConfirmId(null)}>
+              Cancel
+            </button>
+          </span>
+        </div>
       )
     }
-    if (notice) return <span className={`sprite-picker__notice sprite-picker__notice--${notice.tone}`} role='alert'>{notice.text}</span>
-    if (uploadError) return <span className='sprite-picker__notice sprite-picker__notice--error' role='alert'>{uploadError}</span>
-    if (source === 'yours' && library.status === 'error') return <span className='sprite-picker__notice'>Could not load your uploads.</span>
+    const text = notice?.text ?? (uploadError && !uploadErrorDismissed ? uploadError : null)
+    if (text) {
+      return (
+        <button
+          type='button'
+          className='sprite-picker__overlay sprite-picker__overlay--notice'
+          role='alert'
+          {...info('Click to dismiss')}
+          onClick={() => {
+            setNotice(null)
+            setUploadErrorDismissed(true)
+          }}
+        >
+          {text}
+        </button>
+      )
+    }
+    if (source === 'yours' && library.status === 'error') {
+      return (
+        <div className='sprite-picker__overlay'>
+          <span>Could not load your uploads.</span>
+          <button type='button' className='sprite-picker__confirm-btn' onClick={() => void uploadLibrary.load(currentUserId, getToken, true)}>
+            Retry
+          </button>
+        </div>
+      )
+    }
     return null
   }
 
+  const showCount = source === 'yours' && isSignedIn && usage !== null && limit !== undefined
+
   return (
     <div className='sprite-picker'>
-      <div className='sprite-picker__header'>
-        <div className='sprite-picker__switch' role='tablist' aria-label='Image source'>
-          {SPRITE_SOURCES.map(({ id, label }) => (
-            <button
-              key={id}
-              type='button'
-              role='tab'
-              aria-selected={source === id}
-              className={`sprite-picker__switch-btn${source === id ? ' sprite-picker__switch-btn--active' : ''}`}
-              onClick={() => changeSource(id)}
-            >
-              {label}
-            </button>
-          ))}
+      <div className='sprite-picker__switch' role='tablist' aria-label='Image source'>
+        {SPRITE_SOURCES.map(({ id, label }) => (
+          <button
+            key={id}
+            type='button'
+            role='tab'
+            aria-selected={source === id}
+            className={`sprite-picker__switch-btn${source === id ? ' sprite-picker__switch-btn--active' : ''}`}
+            onClick={() => changeSource(id)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      <div className='sprite-picker__body'>
+        <div ref={gridRef} className='sprite-picker__grid' role='tabpanel' style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>
+          {visible.map(renderTile)}
+          {/* Empty cells hold the second row on a short page, so the grid is always two rows tall. */}
+          {Array.from({ length: pageSize - visible.length }, (_, i) => <div key={`filler-${i}`} className='sprite-picker__cell' aria-hidden />)}
         </div>
-        <div className='sprite-picker__header-end'>
-          {source === 'yours' && isSignedIn && usage && limit !== undefined ? (
-            <span className='sprite-picker__count' {...info('Uploads used on your plan')}>{uploadCountLabel(usage.particleUploads, limit)}</span>
-          ) : null}
-          {/* Kept in the layout when there is one page, so the header doesn't shift between sources. */}
-          <div className={`sprite-picker__pagination${totalPages > 1 ? '' : ' sprite-picker__pagination--hidden'}`}>
-            <button type='button' className='sprite-picker__arrow' aria-label='Previous page' onClick={() => changePage(page - 1)}>&#8592;</button>
-            <span className='sprite-picker__page-label'>{page + 1}/{totalPages}</span>
-            <button type='button' className='sprite-picker__arrow' aria-label='Next page' onClick={() => changePage(page + 1)}>&#8594;</button>
-          </div>
+        {renderOverlay()}
+      </div>
+      {/* Both ends keep their space when empty (Built-in has no count, one page has no arrows), so nothing moves between tabs. */}
+      <div className='sprite-picker__footer'>
+        <span className={`sprite-picker__count${showCount ? '' : ' sprite-picker__hidden'}`} {...info(showCount ? 'Uploads used on your plan' : undefined)}>
+          {showCount && usage ? uploadCountLabel(usage.particleUploads, limit ?? null) : '0 / 0'}
+        </span>
+        <div className={`sprite-picker__pagination${totalPages > 1 ? '' : ' sprite-picker__hidden'}`}>
+          <button type='button' className='sprite-picker__arrow' aria-label='Previous page' onClick={() => changePage(page - 1)}>&#8592;</button>
+          <span className='sprite-picker__page-label'>{page + 1}/{totalPages}</span>
+          <button type='button' className='sprite-picker__arrow' aria-label='Next page' onClick={() => changePage(page + 1)}>&#8594;</button>
         </div>
       </div>
-      <div className='sprite-picker__grid' role='tabpanel'>
-        {visible.map(renderTile)}
-        {/* Empty cells hold the second row on a short page, so the grid is always two rows tall. */}
-        {Array.from({ length: PAGE_SIZE - visible.length }, (_, i) => <div key={`filler-${i}`} className='sprite-picker__cell' aria-hidden />)}
-      </div>
-      <div className='sprite-picker__status'>{renderStatus()}</div>
     </div>
   )
 }

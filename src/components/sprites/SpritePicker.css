@@ -5,23 +5,17 @@
   user-select: none;
 }
 
-.sprite-picker__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  min-height: 20px;
-}
-
 .sprite-picker__switch {
-  display: inline-flex;
+  display: flex;
   border: 1px solid #333;
   border-radius: 10px;
   overflow: hidden;
 }
 
 .sprite-picker__switch-btn {
-  padding: 2px 9px;
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 3px 4px;
   border: 0;
   background: none;
   color: #666;
@@ -47,10 +41,17 @@
   }
 }
 
-.sprite-picker__header-end {
+.sprite-picker__footer {
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: space-between;
+  gap: 4px;
+  min-height: 18px;
+}
+
+/* Hidden but still in the layout, so the footer keeps its height and both ends stay put. */
+.sprite-picker__hidden {
+  visibility: hidden;
 }
 
 .sprite-picker__count {
@@ -65,10 +66,6 @@
   display: flex;
   align-items: center;
   gap: 4px;
-}
-
-.sprite-picker__pagination--hidden {
-  visibility: hidden;
 }
 
 .sprite-picker__arrow {
@@ -97,13 +94,15 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Two fixed rows (spritePickerModel.ts's GRID_COLUMNS x GRID_ROWS): the height is the same with 1 image or 100. Tiles are
-   36px, and shrink with the column on a narrow sidebar (phones) rather than overflow it. */
+/* Two fixed rows; SpritePicker sets the column count from the measured width (spritePickerModel.ts's columnsFor), so tiles stay
+   about 36px: 3 across in the expanded config window's columns, more in the sidebar. */
+.sprite-picker__body {
+  position: relative;
+}
+
 .sprite-picker__grid {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 6px;
-  max-width: 246px;
+  gap: 4px;
 }
 
 .sprite-picker__cell {
@@ -244,25 +243,54 @@
   border-color: #a04040;
 }
 
-/* One line under the grid for the delete confirm, refusals and upload errors. Its height is reserved so nothing moves. */
-.sprite-picker__status {
-  min-height: 18px;
+/* Confirms, refusals and upload errors cover the grid rather than adding a line under it, so the height never changes. */
+.sprite-picker__overlay {
+  position: absolute;
+  inset: -6px;
+  z-index: 3;
+  box-sizing: border-box;
   display: flex;
+  flex-direction: column;
   align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 4px 6px;
+  border: 1px solid #333;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.92);
+  color: #ccc;
+  font: inherit;
   font-size: 10px;
   line-height: 1.3;
-  color: #777;
+  text-align: center;
+  overflow: hidden;
 }
 
-.sprite-picker__notice--error {
+.sprite-picker__overlay--notice {
+  border-color: #6a3030;
   color: #e08080;
+  cursor: pointer;
 }
 
-.sprite-picker__confirm {
+/* Not the app-wide green button hover (App.css): the message is the point, not the click. */
+@media (hover: hover) {
+  :where(html:not([data-input='touch'])) .sprite-picker__overlay--notice:hover {
+    background: rgba(0, 0, 0, 0.92);
+    color: #f09a9a;
+  }
+}
+
+.sprite-picker__overlay-thumb {
+  width: 22px;
+  height: 22px;
+  object-fit: cover;
+  border-radius: 3px;
+  border: 1px solid #c05050;
+}
+
+.sprite-picker__overlay-actions {
   display: flex;
-  align-items: center;
-  gap: 6px;
-  color: #ccc;
+  gap: 5px;
 }
 
 .sprite-picker__confirm-btn {
