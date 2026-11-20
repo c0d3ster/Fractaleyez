@@ -11,6 +11,7 @@ import { USER_REFERENCE } from '../../utils/userReference'
 import { useSpriteUpload } from './useSpriteUpload'
 import { uploadLibrary, useUploadLibrary } from './uploadLibrary'
 import {
+  PAGE_SIZE,
   SPRITE_SOURCES,
   SpriteSource,
   SpriteTile,
@@ -285,6 +286,8 @@ export const SpritePicker = ({
       </div>
       <div className='sprite-picker__grid' role='tabpanel'>
         {visible.map(renderTile)}
+        {/* Empty cells hold the second row on a short page, so the grid is always two rows tall. */}
+        {Array.from({ length: PAGE_SIZE - visible.length }, (_, i) => <div key={`filler-${i}`} className='sprite-picker__cell' aria-hidden />)}
       </div>
       <div className='sprite-picker__status'>{renderStatus()}</div>
     </div>
