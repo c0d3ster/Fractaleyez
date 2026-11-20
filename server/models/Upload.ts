@@ -7,7 +7,7 @@ export type UploadKind = typeof UPLOAD_KINDS[number]
 export const isUploadKind = (value: unknown): value is UploadKind =>
   typeof value === 'string' && (UPLOAD_KINDS as readonly string[]).includes(value)
 
-/** One image a user put in R2. Kept so the upload quota is a count; the object itself is never deleted with this record. */
+/** One image a user put in R2. The upload quota is a count of these; deleting one (UploadService.deleteUpload) removes the object too. */
 export interface IUpload extends Document {
   userId: string
   key: string
@@ -24,6 +24,7 @@ const uploadSchema = new Schema<IUpload>({
 }, { timestamps: { createdAt: true, updatedAt: false } })
 
 uploadSchema.index({ userId: 1, kind: 1 })
+uploadSchema.index({ userId: 1, createdAt: -1 })
 uploadSchema.index({ key: 1 }, { unique: true })
 
 export const Upload = model<IUpload>('Upload', uploadSchema)

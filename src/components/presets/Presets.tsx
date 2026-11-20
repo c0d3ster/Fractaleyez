@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import './Presets.css'
+import '../upgrade/PremiumRing.css'
 
 import { connectConfigActions } from '../config/context/ConfigProvider'
 import { PresetRetrieveEvent, PresetMeta, PackMeta } from '../config/context/ConfigProvider'

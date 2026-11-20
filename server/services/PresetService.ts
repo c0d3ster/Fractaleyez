@@ -50,8 +50,11 @@ const spriteList = (config: Record<string, unknown>, section: 'particle' | 'logo
   return Array.isArray(list) ? list : []
 }
 
-const usesUserReference = (config: Record<string, unknown>): boolean =>
-  spriteList(config).includes(USER_REFERENCE) || spriteList(config, 'logo').includes(USER_REFERENCE)
+/** True when the config draws `url` as a particle sprite or as the logo. */
+export const usesSprite = (config: Record<string, unknown>, url: string): boolean =>
+  spriteList(config).includes(url) || spriteList(config, 'logo').includes(url)
+
+const usesUserReference = (config: Record<string, unknown>): boolean => usesSprite(config, USER_REFERENCE)
 
 const firstSprite = (config: Record<string, unknown>): string => {
   // A preset with Orbit off has no particle section, so its logo sprite stands in for the thumbnail.
@@ -92,6 +95,12 @@ export class PresetService {
     const preset = await presetRepository.findById(id)
     if (!preset) throw serviceError('Preset not found', 404)
     return preset
+  }
+
+  /** Names of the user's own saved presets that draw `url` (particle sprites or logo), in either stored shape. */
+  async presetNamesUsingSprite(userId: string, url: string): Promise<string[]> {
+    const rows = await presetRepository.findConfigsByUserId(userId)
+    return rows.filter((row) => isRecord(row.config) && usesSprite(row.config, url)).map((row) => row.name)
   }
 
   async savePreset({ name, pack, config, userId, force }: SavePresetParams): Promise<IPreset> {

@@ -11,6 +11,11 @@ export type PresetMeta = {
   updatedAt?: Date
 }
 
+export type PresetConfigRow = {
+  name: string
+  config: Record<string, unknown>
+}
+
 export type UpsertData = {
   name: string
   pack?: string
@@ -34,6 +39,12 @@ export class PresetRepository {
   async countByUserId(userId: string): Promise<number> {
     await connectDB()
     return Preset.countDocuments({ userId })
+  }
+
+  /** Name and config of every preset the user saved, for checks that read inside the config (which sprites it uses). */
+  async findConfigsByUserId(userId: string): Promise<PresetConfigRow[]> {
+    await connectDB()
+    return Preset.find({ userId }, 'name config').lean<PresetConfigRow[]>()
   }
 
   async existsForUser(name: string, userId: string): Promise<boolean> {
