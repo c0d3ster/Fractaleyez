@@ -70,7 +70,7 @@
         <li><strong>Account details</strong>, if you sign in: your account id, display name, email address and profile photo, provided by our sign-in provider Clerk (directly or from the social account you sign in with).</li>
         <li><strong>Settings and content</strong> you save: visualizer settings (such as crossfade time, quality and HUD options), saved presets, packs, and images you upload as particle or logo sprites. If your sign-in account has a profile photo, we make a copy of it as your logo sprite.</li>
         <li><strong>Plan and billing status</strong>: your plan, your Stripe customer and subscription ids, the subscription status, the renewal or end date, and whether it is set to cancel. We do not receive or store your card number.</li>
-        <li><strong>Usage and device data</strong>: anonymous page views and basic device and browser information through Vercel Analytics and Google Analytics, and standard server logs (such as IP address and request times) kept by our hosting provider.</li>
+        <li><strong>Usage and device data</strong>: anonymous, aggregated page views and basic device and browser information through Vercel Analytics, and standard server logs (such as IP address and request times) kept by our hosting provider. Vercel Analytics is cookieless and privacy-friendly: it sets no cookies, does not track you across sites and does not build a profile of you.</li>
       </ul>
 
       <h2>3. How we use it</h2>
@@ -93,8 +93,7 @@
             <tr><td>Stripe</td><td>Payments, subscriptions, receipts, the billing portal</td><td>Email, name, card and billing details (held by Stripe), subscription history</td></tr>
             <tr><td>MongoDB (Atlas)</td><td>Database</td><td>Display name, settings, plan and billing status, presets and packs</td></tr>
             <tr><td>Cloudflare R2</td><td>Storing and serving uploaded images</td><td>Images you upload and your profile photo copy</td></tr>
-            <tr><td>Vercel</td><td>Hosting, server logs and Vercel Analytics</td><td>Requests, IP address, anonymous page views</td></tr>
-            <tr><td>Google</td><td>Google Analytics and Google Fonts</td><td>Page views, device and browser info, IP address</td></tr>
+            <tr><td>Vercel</td><td>Hosting, server logs and Vercel Analytics (cookieless)</td><td>Requests, IP address, anonymous page views</td></tr>
           </tbody>
         </table>
       </div>
@@ -113,9 +112,15 @@
       <p>
         The app keeps some data in your browser's local storage so it loads quickly and works offline: cached
         preset lists and preset settings, your quality tier, your chosen camera, panel layout preferences and
-        audio timing calibration. Clerk sets cookies to keep you signed in, and Google Analytics sets cookies to
-        count visits. You can clear these in your browser settings.
-        <span class="todo">[owner decision: cookie banner or consent for Google Analytics where required]</span>
+        audio timing calibration. This data is only used to make the app work for you and is never sent to anyone
+        for tracking.
+      </p>
+      <p>
+        The only cookies are the ones our sign-in provider, Clerk, sets to keep you signed in. They are strictly
+        necessary for signing in and are not used for advertising or analytics. We use no advertising or tracking
+        cookies, our analytics are cookieless, and our fonts are served from our own site, so there is no cookie
+        banner. You can clear local storage and cookies in your browser settings at any time (clearing Clerk's
+        cookies signs you out).
       </p>
 
       <h2>7. How long we keep it</h2>
@@ -128,14 +133,14 @@
       <h2>8. Your choices and rights</h2>
       <ul>
         <li>You can use the visualizer without an account.</li>
-        <li>You can change your profile and delete your sign-in account from the account menu.</li>
-        <li>To get a copy of your data, correct it, or delete your presets, packs, uploads and other data we hold, email <span class="todo">[contact email]</span>. <span class="todo">[note: deleting the sign-in account does not yet delete this data automatically]</span></li>
+        <li>You can change your profile and delete your account from the account menu. Deleting your account deletes your private presets, packs and uploads, unlinks you from public content you shared (it stays available but is no longer tied to you), and cancels any subscription immediately. Billing records that Stripe and we must keep for tax and accounting are kept for the period described above.</li>
+        <li>To get a copy of your data, correct it, or ask us to delete something, email <a href="mailto:support@c0d3ster.com">support@c0d3ster.com</a>.</li>
         <li>Depending on where you live (for example the EU, UK or California), you may have further rights, such as to object to processing or to complain to a data protection authority.</li>
       </ul>
 
       <h2>9. Children</h2>
       <p>
-        The Service is not meant for children under <span class="todo">[minimum age, e.g. 13]</span>, and we do not
+        The Service is not meant for children under 13, and we do not
         knowingly collect their data. Contact us if you think a child has given us data, and we will delete it.
       </p>
 
@@ -152,7 +157,7 @@
       </p>
 
       <h2>12. Contact</h2>
-      <p>c0d3ster LLC, <span class="todo">[mailing address]</span>, <span class="todo">[contact email]</span>.</p>
+      <p>c0d3ster LLC, <a href="mailto:support@c0d3ster.com">support@c0d3ster.com</a>.</p>
 
       <footer>
         <a href="/">Back to Fractaleyez</a>
