@@ -37,7 +37,7 @@ Setting `origin: 'builtIn'` or marking a pack premium is admin-only, enforced in
 
 | | Guest | Dream (free) | Lucid (~$5/mo) | Third Eye (~$20/mo) |
 |---|---|---|---|---|
-| Saved presets | 0 (local only) | 3 | 10 | unlimited |
+| Saved presets | 0 (local only) | 3 | 15 | unlimited |
 | Particle uploads | 0 | 3 | 15 | unlimited |
 | Private packs | 0 | 1 | 3 | unlimited |
 | Public packs | 0 | 0 | 3 | unlimited |

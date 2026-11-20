@@ -35,7 +35,7 @@ export const PLAN_ENTITLEMENTS: Record<PlanId, PlanEntitlements> = {
     features: { builtInPremiumPacks: false, allPacks: false, customFractalPath: false },
   },
   tier1: {
-    quotas: { savedPresets: 10, particleUploads: 15, privatePacks: 3, publicPacks: 3 },
+    quotas: { savedPresets: 15, particleUploads: 15, privatePacks: 3, publicPacks: 3 },
     features: { builtInPremiumPacks: true, allPacks: false, customFractalPath: true },
   },
   tier2: {

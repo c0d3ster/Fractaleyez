@@ -20,7 +20,7 @@ export const PLAN_PRICE_LABELS: Record<PlanId, string> = {
 /** The tier table in docs/research/monetization.md, in words. */
 export const PLAN_PERKS: Record<PlanId, readonly string[]> = {
   free: ['3 saved presets', '3 particle uploads', '1 private pack'],
-  tier1: ['10 saved presets', '15 particle uploads', 'Private and public packs', 'Every built-in premium pack', 'Custom fractal path'],
+  tier1: ['15 saved presets', '15 particle uploads', 'Private and public packs', 'Every built-in premium pack', 'Custom fractal path'],
   tier2: ['Unlimited presets and uploads', 'Unlimited packs', 'Every pack included', 'Custom fractal path'],
 }
 
