@@ -1,0 +1,65 @@
+import { AppConfig } from '../../config/configDefaults'
+import { Quota } from '../../config/plans.config'
+import { LibraryUpload } from './uploadLibrary'
+
+/**
+ * The picker's sources, one shown at a time. A premium `create` source (inline image generation) and video clips are meant
+ * to join this list later; each source only has to produce tiles for the same grid.
+ */
+export type SpriteSource = 'builtin' | 'yours'
+
+export const SPRITE_SOURCES: readonly { id: SpriteSource; label: string }[] = [
+  { id: 'builtin', label: 'Built-in' },
+  { id: 'yours', label: 'Yours' },
+]
+
+/** Two fixed rows, so the panel's height never changes with the number of images. */
+export const GRID_COLUMNS = 6
+export const GRID_ROWS = 2
+export const PAGE_SIZE = GRID_COLUMNS * GRID_ROWS
+
+export type SpriteTile =
+  | { type: 'add' }
+  | { type: 'reference' }
+  | { type: 'image'; src: string; uploadId: string | null; isLogo: boolean }
+
+type YoursTilesInput = {
+  uploads: readonly LibraryUpload[]
+  /** The viewer's saved logo (settings.logoParticle). Usually one of their uploads (the avatar copy), drawn once either way. */
+  logoUrl: string | undefined
+  isAdmin: boolean
+}
+
+/** The Yours grid: the upload tile first, then `@user` for admins, the logo, then the uploads newest first. */
+export const yoursTiles = ({ uploads, logoUrl, isAdmin }: YoursTilesInput): SpriteTile[] => {
+  const logoUpload = logoUrl ? uploads.find((u) => u.url === logoUrl) : undefined
+  const logoTile: SpriteTile[] = logoUrl && !logoUpload ? [{ type: 'image', src: logoUrl, uploadId: null, isLogo: true }] : []
+  return [
+    { type: 'add' },
+    ...(isAdmin ? [{ type: 'reference' } as const] : []),
+    ...logoTile,
+    ...uploads.map((u): SpriteTile => ({ type: 'image', src: u.url, uploadId: u.id, isLogo: u.url === logoUrl })),
+  ]
+}
+
+export const builtinTiles = (sprites: readonly string[]): SpriteTile[] =>
+  sprites.map((src) => ({ type: 'image', src, uploadId: null, isLogo: false }))
+
+export const pageCount = (count: number, size: number = PAGE_SIZE): number => Math.max(1, Math.ceil(count / size))
+
+/** The page's items; a page past the end (after a delete) shows the last page instead. */
+export const pageItems = <T>(items: readonly T[], page: number, size: number = PAGE_SIZE): T[] => {
+  const last = pageCount(items.length, size) - 1
+  const current = Math.min(Math.max(0, page), last)
+  return items.slice(current * size, (current + 1) * size)
+}
+
+export const clampPage = (page: number, count: number, size: number = PAGE_SIZE): number =>
+  Math.min(Math.max(0, page), pageCount(count, size) - 1)
+
+/** `4 / 15`, or `4 / ∞` on an unlimited plan. */
+export const uploadCountLabel = (used: number, limit: Quota): string => `${used} / ${limit === null ? '∞' : limit}`
+
+/** True while the live (unsaved) config draws `url`: deleting it would break what is on screen. */
+export const usedByLiveConfig = (config: Pick<AppConfig, 'particle' | 'logo'> | undefined, url: string): boolean =>
+  !!config && (config.particle.sprites.value.includes(url) || config.logo.sprite.value.includes(url))

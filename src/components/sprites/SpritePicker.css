@@ -1,0 +1,282 @@
+.sprite-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  user-select: none;
+}
+
+.sprite-picker__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 20px;
+}
+
+.sprite-picker__switch {
+  display: inline-flex;
+  border: 1px solid #333;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.sprite-picker__switch-btn {
+  padding: 2px 9px;
+  border: 0;
+  background: none;
+  color: #666;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.sprite-picker__switch-btn + .sprite-picker__switch-btn {
+  border-left: 1px solid #333;
+}
+
+.sprite-picker__switch-btn--active {
+  background: #1d1d1d;
+  color: #ddd;
+}
+
+@media (hover: hover) {
+  :where(html:not([data-input='touch'])) .sprite-picker__switch-btn:not(.sprite-picker__switch-btn--active):hover {
+    color: #ccc;
+  }
+}
+
+.sprite-picker__header-end {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sprite-picker__count {
+  font-size: 10px;
+  color: #777;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.sprite-picker__pagination {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.sprite-picker__pagination--hidden {
+  visibility: hidden;
+}
+
+.sprite-picker__arrow {
+  background: none;
+  border: 1px solid #444;
+  border-radius: 4px;
+  color: #999;
+  padding: 0 5px;
+  font-size: 11px;
+  line-height: 16px;
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  :where(html:not([data-input='touch'])) .sprite-picker__arrow:hover {
+    border-color: #999;
+    color: #ccc;
+  }
+}
+
+.sprite-picker__page-label {
+  min-width: 22px;
+  text-align: center;
+  color: #666;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Two fixed rows (spritePickerModel.ts's GRID_COLUMNS x GRID_ROWS): the height is the same with 1 image or 100. */
+.sprite-picker__grid {
+  display: grid;
+  grid-template-columns: repeat(6, 36px);
+  grid-template-rows: repeat(2, 36px);
+  gap: 6px;
+}
+
+.sprite-picker__cell {
+  position: relative;
+  width: 36px;
+  height: 36px;
+}
+
+.sprite-picker__tile {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 4px;
+  border: 1px solid #333;
+  background: #151515;
+  cursor: pointer;
+  overflow: hidden;
+  opacity: 0.45;
+  transition: opacity 0.15s ease, border-color 0.15s ease;
+}
+
+.sprite-picker__tile img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+@media (hover: hover) {
+  :where(html:not([data-input='touch'])) .sprite-picker__tile:hover:not(:disabled):not(.sprite-picker__tile--disabled) {
+    opacity: 0.85;
+    border-color: #004400;
+  }
+}
+
+.sprite-picker__tile--selected {
+  opacity: 1;
+  border-color: rgba(100, 180, 255, 0.55);
+}
+
+.sprite-picker__tile:disabled,
+.sprite-picker__tile--disabled {
+  cursor: not-allowed;
+  opacity: 0.25;
+}
+
+.sprite-picker__tile--text {
+  color: #ddd;
+  font-size: 9px;
+  opacity: 0.8;
+}
+
+.sprite-picker__tile--add {
+  border-style: dashed;
+  border-color: #444;
+  color: #888;
+  font-size: 18px;
+  line-height: 1;
+  opacity: 0.8;
+}
+
+.sprite-picker__tile--add input {
+  position: absolute;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* At the plan's upload limit the + tile wears the premium ring and opens the upgrade prompt. */
+.sprite-picker__tile--premium {
+  position: relative;
+  isolation: isolate;
+  overflow: visible;
+  border: 1px solid transparent;
+  --premium-fill: #151515;
+  --premium-radius: 3px;
+  color: #ddd;
+  opacity: 1;
+}
+
+@media (hover: hover) {
+  :where(html:not([data-input='touch'])) .sprite-picker__tile--premium:hover:not(:disabled) {
+    border-color: transparent;
+    opacity: 1;
+  }
+}
+
+.sprite-picker__trash {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 1px solid #555;
+  border-radius: 50%;
+  background: #1a1a1a;
+  color: #bbb;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+
+.sprite-picker__cell:hover .sprite-picker__trash,
+.sprite-picker__trash:focus-visible,
+.sprite-picker__cell--confirming .sprite-picker__trash,
+:where(html[data-input='touch']) .sprite-picker__trash {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+@media (hover: hover) {
+  :where(html:not([data-input='touch'])) .sprite-picker__trash:hover {
+    color: #ff8a8a;
+    border-color: #a04040;
+  }
+}
+
+.sprite-picker__cell--confirming .sprite-picker__tile {
+  border-color: #c05050;
+  opacity: 1;
+}
+
+.sprite-picker__cell--confirming .sprite-picker__trash {
+  color: #ff8a8a;
+  border-color: #a04040;
+}
+
+/* One line under the grid for the delete confirm, refusals and upload errors. Its height is reserved so nothing moves. */
+.sprite-picker__status {
+  min-height: 18px;
+  display: flex;
+  align-items: center;
+  font-size: 10px;
+  line-height: 1.3;
+  color: #777;
+}
+
+.sprite-picker__notice--error {
+  color: #e08080;
+}
+
+.sprite-picker__confirm {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #ccc;
+}
+
+.sprite-picker__confirm-btn {
+  padding: 1px 7px;
+  border: 1px solid #444;
+  border-radius: 4px;
+  background: none;
+  color: #bbb;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.sprite-picker__confirm-btn--danger {
+  border-color: #a04040;
+  color: #ff9a9a;
+}
+
+.sprite-picker__confirm-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

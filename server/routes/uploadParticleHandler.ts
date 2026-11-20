@@ -5,7 +5,7 @@ import { uploadService } from '../services/UploadService.js'
 import { isQuotaExceededError } from '../services/EntitlementService.js'
 import { isUploadKind } from '../models/Upload.js'
 
-// Mirrors ParticleSpriteHud's client-side MAX_DATA_URL_BYTES — client checks are
+// Mirrors useSpriteUpload's client-side MAX_DATA_URL_BYTES — client checks are
 // supplementary only, this is the real boundary.
 export const MAX_UPLOAD_BYTES = 2 * 1024 * 1024
 // Well above the 512px client resize target; just a hard ceiling against decompression-bomb-style images.
