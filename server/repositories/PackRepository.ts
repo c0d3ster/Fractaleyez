@@ -41,6 +41,18 @@ export class PackRepository {
     return Pack.countDocuments({ userId })
   }
 
+  /** The packs whose membership lists this preset. */
+  async findByPresetId(presetId: Types.ObjectId | string): Promise<PackMeta[]> {
+    await connectDB()
+    return Pack.find({ presetIds: presetId }).lean<PackMeta[]>()
+  }
+
+  /** Packs by name, for a preset that only has the legacy `pack` string. */
+  async findByName(name: string): Promise<PackMeta[]> {
+    await connectDB()
+    return Pack.find({ name }).lean<PackMeta[]>()
+  }
+
   async findBySlug(slug: string): Promise<IPack | null> {
     await connectDB()
     return Pack.findOne({ slug })

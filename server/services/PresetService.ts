@@ -1,7 +1,8 @@
 import { packRepository } from '../repositories/PackRepository.js'
 import { presetRepository, PresetMeta } from '../repositories/PresetRepository.js'
 import { IPreset } from '../models/Preset.js'
-import { entitlementService } from './EntitlementService.js'
+import { entitlementService, PremiumPreviewError, Viewer } from './EntitlementService.js'
+import { canUsePack } from './entitlements.js'
 
 // Mirrors USER_REFERENCE in src/utils/userReference.ts.
 const USER_REFERENCE = '@user'
@@ -12,6 +13,8 @@ type SavePresetParams = {
   config: Record<string, unknown>
   userId: string
   force: boolean
+  /** The preset the saved config was loaded from, if any: a premium one the user can only preview refuses the save. */
+  sourcePresetId?: string
 }
 
 type ServiceError = Error & { status?: number; presetName?: string }
@@ -94,11 +97,25 @@ export class PresetService {
     return preset
   }
 
-  async savePreset({ name, pack, config, userId, force }: SavePresetParams): Promise<IPreset> {
+  /**
+   * Whether the user may only preview this preset: every pack it is in is premium and closed to them. Pack membership is read the
+   * way the client lists it (the packs that reference it, else its legacy `pack` name). A preset in no pack, the user's own, or one
+   * that no longer exists is not a preview.
+   */
+  async isPreviewOnly(presetId: string, userId: string, viewer: Viewer): Promise<boolean> {
+    const preset = await presetRepository.findById(presetId)
+    if (!preset || (preset.userId && preset.userId === userId)) return false
+    const listed = await packRepository.findByPresetId(String(preset._id))
+    const packs = listed.length || !preset.pack ? listed : await packRepository.findByName(preset.pack)
+    return packs.length > 0 && packs.every((p) => !canUsePack(p, userId, viewer.entitlements))
+  }
+
+  async savePreset({ name, pack, config, userId, force, sourcePresetId }: SavePresetParams): Promise<IPreset> {
     const viewer = await entitlementService.forUser(userId)
     if (usesUserReference(config) && !viewer.isAdmin) {
       throw serviceError('Only admins can create presets that use @user', 403)
     }
+    if (sourcePresetId && await this.isPreviewOnly(sourcePresetId, userId, viewer)) throw new PremiumPreviewError()
     // Overwriting one of the user's own presets is always allowed, even over the limit after a downgrade; only a new one counts.
     if (!(await presetRepository.existsForUser(name, userId))) {
       await entitlementService.assertRoomFor(userId, 'savedPresets', viewer)
