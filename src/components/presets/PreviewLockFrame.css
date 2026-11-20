@@ -3,7 +3,7 @@
 }
 
 .preview-lock--on {
-  --premium-outline-inset: -4px;
+  --premium-outline-inset: 0;
   --premium-outline-radius: 10px;
   --premium-outline-width: 2px;
   cursor: not-allowed;
@@ -21,6 +21,7 @@
   z-index: 3;
   width: fit-content;
   margin: 0 auto 6px;
+  transform: translateY(4px);
   padding: 2px 10px;
   border-radius: 999px;
   background: #111;
