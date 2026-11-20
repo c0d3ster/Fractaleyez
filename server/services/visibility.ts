@@ -6,7 +6,7 @@ export type VisibilityFields = {
 
 /**
  * Whether a preset or pack is public. Always false until presets and packs get a visibility setting: everything a user owns
- * is private today. Account deletion keeps public content (without its owner) and deletes private content, so this is the
+ * is private today. Account deletion keeps public content (owned by DELETED_USER_ID) and deletes private content, so this is the
  * one place to change when visibility lands.
  */
 export const isPublic: (content: VisibilityFields) => boolean = () => false

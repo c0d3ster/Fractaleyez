@@ -1,6 +1,7 @@
 import { Types } from 'mongoose'
 import { connectDB } from '../db.js'
 import { Preset, IPreset } from '../models/Preset.js'
+import { DELETED_USER_ID } from '../models/User.js'
 
 export type PresetMeta = {
   _id: Types.ObjectId
@@ -14,8 +15,8 @@ export type PresetMeta = {
 const isDuplicateKeyError = (err: unknown): boolean =>
   typeof err === 'object' && err !== null && 'code' in err && (err as { code: unknown }).code === 11000
 
-/** Presets with no owner: the seeded global ones, and kept presets whose owner deleted their account. */
-const ownerless = { $or: [{ userId: { $exists: false } }, { userId: null }] }
+/** Presets that outlive any account: the seeded global ones (no owner), and those kept after their owner deleted their account. */
+const kept = { $or: [{ userId: { $exists: false } }, { userId: null }, { userId: DELETED_USER_ID }] }
 
 export type UpsertData = {
   name: string
@@ -54,22 +55,22 @@ export class PresetRepository {
   }
 
   /**
-   * Removes the owner from a preset that outlives their account. Without a userId it is unique by name among the global
-   * presets, so on a name clash it is renamed with the end of its id.
+   * Hands a preset that outlives its owner's account to the deleted-user marker. Names are unique per owner, so when another
+   * deleted account already left a preset with this name, it is renamed with the end of its id.
    */
-  async unlinkOwner(preset: Pick<PresetMeta, '_id' | 'name'>): Promise<void> {
+  async markOwnerDeleted(preset: Pick<PresetMeta, '_id' | 'name'>): Promise<void> {
     await connectDB()
     try {
-      await Preset.updateOne({ _id: preset._id }, { $unset: { userId: '' } })
+      await Preset.updateOne({ _id: preset._id }, { $set: { userId: DELETED_USER_ID } })
     } catch (err) {
       if (!isDuplicateKeyError(err)) throw err
       const name = `${preset.name} (${String(preset._id).slice(-6)})`
-      await Preset.updateOne({ _id: preset._id }, { $unset: { userId: '' }, $set: { name } })
+      await Preset.updateOne({ _id: preset._id }, { $set: { userId: DELETED_USER_ID, name } })
     }
   }
 
-  /** Whether an ownerless preset shows this image, as its thumbnail or in its particle or logo sprites (either stored shape). */
-  async ownerlessUsesSprite(url: string): Promise<boolean> {
+  /** Whether a kept or global preset shows this image, as its thumbnail or in its particle or logo sprites (either stored shape). */
+  async keptPresetUsesSprite(url: string): Promise<boolean> {
     await connectDB()
     const usesUrl = [
       { sprite: url },
@@ -78,7 +79,7 @@ export class PresetRepository {
       { 'config.logo.sprite': url },
       { 'config.logo.sprite.value': url },
     ]
-    return (await Preset.exists({ $and: [ownerless, { $or: usesUrl }] })) !== null
+    return (await Preset.exists({ $and: [kept, { $or: usesUrl }] })) !== null
   }
 
   async existsForUser(name: string, userId: string): Promise<boolean> {

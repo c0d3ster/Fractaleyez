@@ -6,8 +6,7 @@ export type PackOrigin = typeof PACK_ORIGINS[number]
 export interface IPack extends Document {
   name: string
   slug: string
-  /** The creator. Removed (not the pack) when the creator of a kept pack deletes their account. */
-  userId?: string
+  userId: string
   description?: string
   isPremium: boolean
   price?: number
@@ -19,7 +18,7 @@ export interface IPack extends Document {
 const packSchema = new Schema<IPack>({
   name: { type: String, required: true },
   slug: { type: String, required: true },
-  userId: { type: String },
+  userId: { type: String, required: true },
   description: { type: String },
   isPremium: { type: Boolean, default: false },
   price: { type: Number },

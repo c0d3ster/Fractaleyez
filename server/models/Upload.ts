@@ -9,10 +9,10 @@ export const isUploadKind = (value: unknown): value is UploadKind =>
 
 /**
  * One image a user put in R2. Kept so the upload quota is a count. Account deletion removes the record and the object, except an
- * image still used by kept content, whose record stays without its `userId`.
+ * image still used by kept content, whose record stays with `userId` set to DELETED_USER_ID.
  */
 export interface IUpload extends Document {
-  userId?: string
+  userId: string
   key: string
   url: string
   kind: UploadKind
@@ -20,7 +20,7 @@ export interface IUpload extends Document {
 }
 
 const uploadSchema = new Schema<IUpload>({
-  userId: { type: String },
+  userId: { type: String, required: true },
   key: { type: String, required: true },
   url: { type: String, required: true },
   kind: { type: String, enum: UPLOAD_KINDS, default: 'sprite' },
