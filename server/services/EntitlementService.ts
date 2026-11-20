@@ -38,6 +38,26 @@ export class QuotaExceededError extends Error {
   }
 }
 
+/**
+ * A save whose source is a premium preset the user can only preview. The preview locks the controls, so this only fires for a
+ * client that skipped the lock; handlers answer 403 with `toJSON()` and the client opens the upgrade prompt.
+ */
+export class PremiumPreviewError extends Error {
+  readonly status = 403
+  readonly code = 'premium_preview'
+
+  constructor() {
+    super('This preset is in a premium pack. Upgrade to save your own version of it.')
+    this.name = 'PremiumPreviewError'
+  }
+
+  toJSON(): { error: string; code: 'premium_preview' } {
+    return { error: this.message, code: this.code }
+  }
+}
+
+export const isPremiumPreviewError = (err: unknown): err is PremiumPreviewError => err instanceof PremiumPreviewError
+
 export const isQuotaExceededError = (err: unknown): err is QuotaExceededError => err instanceof QuotaExceededError
 
 /**
