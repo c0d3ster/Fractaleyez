@@ -3,6 +3,8 @@
   top: 0;
   left: 0;
   height: 100vh;
+  /* What's visible between a mobile browser's bars, so the last items can scroll into view */
+  height: 100dvh;
   width: 20px;
   z-index: 2;
 }
@@ -17,6 +19,7 @@
   transform: translate(-100%, 0);
   width: 30vw;
   height: 100vh;
+  height: 100dvh;
   background-color: black;
   color: rgba(220,220,220,.9);
   border-right: 3px solid rgba(20,20,20,.9);
