@@ -9,7 +9,8 @@ export const BUILTIN_PARTICLE_SPRITES = [
 export const particleConfig = {
   sprites_DEFAULT: ['galaxySprite.png', 'galaxy2Sprite.png', 'galaxy3Sprite.png'],
   sprites_MIN: 1,
-  sprites_MAX: 5,
+  // Four, so the active row fits on one line in the expanded config window's narrow columns. A preset saved with more loads with its first four.
+  sprites_MAX: 4,
 
   particles_DEFAULT: 7500,
   particles_MIN: 1,

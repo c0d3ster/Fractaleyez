@@ -6,6 +6,7 @@ import { packsHandler } from './routes/packsHandler.js'
 import { myPacksHandler } from './routes/myPacksHandler.js'
 import { createPackHandler } from './routes/createPackHandler.js'
 import { uploadParticleHandler, MAX_UPLOAD_BYTES } from './routes/uploadParticleHandler.js'
+import { listUploadsHandler, deleteUploadHandler } from './routes/uploadsHandler.js'
 import { meHandler, updateMeHandler } from './routes/meHandler.js'
 import { clerkWebhookHandler, MAX_WEBHOOK_BYTES } from './routes/clerkWebhookHandler.js'
 import { stripeWebhookHandler, MAX_STRIPE_WEBHOOK_BYTES } from './routes/stripeWebhookHandler.js'
@@ -61,6 +62,8 @@ export const createApp = (): Express => {
   app.get('/api/packs', packsHandler)
   app.get(['/api/packs/mine', '/api/myPacks'], myPacksHandler)
   app.post(['/api/pack', '/api/createPack'], createPackHandler)
+  app.get('/api/uploads', listUploadsHandler)
+  app.delete('/api/uploads/:id', deleteUploadHandler)
   app.get('/api/ping', pingHandler)
 
   app.use('/api', (_req, res) => {

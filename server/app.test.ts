@@ -9,6 +9,7 @@ import * as packs from './routes/packsHandler.js'
 import * as myPacks from './routes/myPacksHandler.js'
 import * as createPack from './routes/createPackHandler.js'
 import * as upload from './routes/uploadParticleHandler.js'
+import * as uploads from './routes/uploadsHandler.js'
 import * as me from './routes/meHandler.js'
 import * as clerk from './routes/clerkWebhookHandler.js'
 import * as stripe from './routes/stripeWebhookHandler.js'
@@ -31,6 +32,7 @@ vi.mock('./routes/packsHandler.js', () => ({ packsHandler: stub('packs') }))
 vi.mock('./routes/myPacksHandler.js', () => ({ myPacksHandler: stub('myPacks') }))
 vi.mock('./routes/createPackHandler.js', () => ({ createPackHandler: stub('createPack') }))
 vi.mock('./routes/uploadParticleHandler.js', () => ({ uploadParticleHandler: stub('uploadParticle'), MAX_UPLOAD_BYTES: 64 }))
+vi.mock('./routes/uploadsHandler.js', () => ({ listUploadsHandler: stub('listUploads'), deleteUploadHandler: stub('deleteUpload') }))
 vi.mock('./routes/meHandler.js', () => ({ meHandler: stub('me'), updateMeHandler: stub('updateMe') }))
 vi.mock('./routes/clerkWebhookHandler.js', () => ({ clerkWebhookHandler: stub('clerkWebhook'), MAX_WEBHOOK_BYTES: 1024 }))
 vi.mock('./routes/stripeWebhookHandler.js', () => ({ stripeWebhookHandler: stub('stripeWebhook'), MAX_STRIPE_WEBHOOK_BYTES: 1024 }))
@@ -42,7 +44,7 @@ const app = createApp()
 
 describe('createApp routing', () => {
   beforeEach(() => {
-    for (const mod of [presets, preset, savePreset, packs, myPacks, createPack, upload, me, clerk, stripe, billing, ping, getConfig]) {
+    for (const mod of [presets, preset, savePreset, packs, myPacks, createPack, upload, uploads, me, clerk, stripe, billing, ping, getConfig]) {
       for (const fn of Object.values(mod)) if (vi.isMockFunction(fn)) fn.mockClear()
     }
   })
@@ -60,6 +62,8 @@ describe('createApp routing', () => {
     ['get', '/api/myPacks', 'myPacks'],
     ['post', '/api/pack', 'createPack'],
     ['post', '/api/createPack', 'createPack'],
+    ['get', '/api/uploads', 'listUploads'],
+    ['delete', '/api/uploads/abc', 'deleteUpload'],
     ['get', '/api/ping', 'ping'],
   ] as const)('%s %s reaches %s', async (method, path, handler) => {
     const res = await request(app)[method](path).send({})
@@ -70,6 +74,11 @@ describe('createApp routing', () => {
   it('passes the preset name to getConfig', async () => {
     const res = await request(app).get('/api/getConfig/default')
     expect(res.body).toMatchObject({ handler: 'getConfig', params: { name: 'default' } })
+  })
+
+  it('passes the upload id to deleteUpload', async () => {
+    const res = await request(app).delete('/api/uploads/65f000000000000000000001')
+    expect(res.body).toMatchObject({ handler: 'deleteUpload', params: { id: '65f000000000000000000001' } })
   })
 
   it('gives both webhooks the exact raw bytes', async () => {
