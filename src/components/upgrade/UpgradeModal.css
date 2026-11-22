@@ -19,6 +19,7 @@
   width: 100%;
   max-width: 560px;
   max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px);
   overflow-y: auto;
   color: rgba(220, 220, 220, 0.9);
 }
