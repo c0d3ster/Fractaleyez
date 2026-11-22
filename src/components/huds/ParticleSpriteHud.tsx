@@ -8,8 +8,7 @@ import { AppConfig } from '../../config/configDefaults'
 import { BUILTIN_PARTICLE_SPRITES, particleConfig } from '../../config/particle.config'
 import { presetSpriteSrc } from '../../utils/presetSpriteSrc'
 import { USER_REFERENCE } from '../../utils/userReference'
-import { useSpriteUpload } from './useSpriteUpload'
-import { UserSpriteTiles } from './UserSpriteTiles'
+import { SpritePicker } from '../sprites'
 
 const spriteLabel = (src: string): string => {
   if (src.startsWith('data:')) return 'Custom'
@@ -23,24 +22,17 @@ type ParticleSpriteHudProps = {
   releaseUserReference: ConfigContextValue['releaseUserReference']
   userReferenceStandIn: ConfigContextValue['userReferenceStandIn']
   userSettings: ConfigContextValue['userSettings']
-  isAdmin: boolean
-  isSignedIn: boolean
-  getToken: () => Promise<string | null>
-  entitlements: ConfigContextValue['entitlements']
-  usage: ConfigContextValue['usage']
-  refreshAccount: ConfigContextValue['refreshAccount']
 }
 
 const selectSprites = (config: AppConfig): string[] => config.particle.sprites.value
 
-const ParticleSpriteHudInner = ({ updateParticleSprites, applyUserReference, releaseUserReference, userReferenceStandIn, userSettings, isAdmin, isSignedIn, getToken, entitlements, usage, refreshAccount }: ParticleSpriteHudProps): React.ReactElement => {
+const ParticleSpriteHudInner = ({ updateParticleSprites, applyUserReference, releaseUserReference, userReferenceStandIn, userSettings }: ParticleSpriteHudProps): React.ReactElement => {
   const info = useInfo()
   const sprites = useConfigSelector(selectSprites)
   const spritesRef = useRef(sprites)
   spritesRef.current = sprites
   const { sprites_MIN: minN, sprites_MAX: maxN } = particleConfig
   const atCapacity = sprites.length >= maxN
-  const uploadDisabled = atCapacity || !isSignedIn
 
   const setSprites = useCallback(
     (next: string[]) => {
@@ -57,7 +49,8 @@ const ParticleSpriteHudInner = ({ updateParticleSprites, applyUserReference, rel
     [sprites, minN, setSprites],
   )
 
-  const toggleBuiltin = useCallback(
+  // Built-in and uploaded images alike: in the list toggles out (down to the minimum), otherwise in (up to the maximum).
+  const toggleSprite = useCallback(
     (path: string) => {
       const i = sprites.indexOf(path)
       if (i >= 0) {
@@ -75,8 +68,9 @@ const ParticleSpriteHudInner = ({ updateParticleSprites, applyUserReference, rel
   // updating the live config, so the particle system rebuild it triggers resolves
   // straight to the cached blob: URL instead of racing a cold cross-origin fetch.
   const onUploaded = useCallback((url: string): void => setSprites([...spritesRef.current, url]), [setSprites])
-
-  const { onFiles, uploadError } = useSpriteUpload({ isSignedIn, getToken, atCapacity, onUploaded, entitlements, usage, refreshAccount })
+  const isSelected = useCallback((src: string): boolean => sprites.includes(src), [sprites])
+  const isTileDisabled = useCallback((): boolean => atCapacity, [atCapacity])
+  const logoUrl = userSettings?.logoParticle
 
   return (
     <div className='particle-sprite-hud'>
@@ -84,10 +78,7 @@ const ParticleSpriteHudInner = ({ updateParticleSprites, applyUserReference, rel
       <div className='particle-sprite-hud__panel'>
         <div>
           <div className='particle-sprite-hud__section-heading'>
-            <span className='particle-sprite-hud__section-title'>Active</span>
-            <span className='particle-sprite-hud__section-count'>
-              {sprites.length} / {maxN} (min {minN})
-            </span>
+            <span className='particle-sprite-hud__section-title' {...info(`Up to ${maxN} particle images, at least ${minN}`)}>Active</span>
           </div>
           <div className='particle-sprite-hud__active'>
             {sprites.map((src, index) => (
@@ -113,57 +104,26 @@ const ParticleSpriteHudInner = ({ updateParticleSprites, applyUserReference, rel
                 ) : null}
               </div>
             ))}
+            {/* Empty slots show the room left, so the row needs no count. */}
+            {Array.from({ length: Math.max(0, maxN - sprites.length) }, (_, i) => (
+              <div key={`slot-${i}`} className='particle-sprite-hud__slot' aria-hidden />
+            ))}
           </div>
         </div>
-        <div>
-          <div className='particle-sprite-hud__section-title'>Built-in</div>
-          <div className='particle-sprite-hud__library'>
-            {BUILTIN_PARTICLE_SPRITES.map((path) => {
-              const selected = sprites.includes(path)
-              return (
-                <button
-                  key={path}
-                  type='button'
-                  className={`particle-sprite-hud__lib-btn${selected ? ' particle-sprite-hud__lib-btn--selected' : ''}`}
-                  {...info(path)}
-                  onClick={() => toggleBuiltin(path)}
-                  aria-pressed={selected}
-                >
-                  <img src={`/${path}`} alt='' />
-                </button>
-              )
-            })}
-          </div>
-        </div>
-        <UserSpriteTiles
-          logoUrl={userSettings?.logoParticle}
-          logoSelected={userSettings?.logoParticle !== undefined && sprites.includes(userSettings.logoParticle) && userReferenceStandIn.particle === null}
+        <SpritePicker
+          builtins={BUILTIN_PARTICLE_SPRITES}
+          isSelected={isSelected}
+          onPick={toggleSprite}
+          onUploaded={onUploaded}
+          logoSelected={logoUrl !== undefined && sprites.includes(logoUrl) && userReferenceStandIn.particle === null}
           // With @user active the logo is already in the list, so picking the plain tile turns that into a concrete sprite instead of removing it.
-          onPickLogo={(url) => void (userReferenceStandIn.particle !== null ? releaseUserReference('particle') : Promise.resolve(toggleBuiltin(url)))}
-          isAdmin={isAdmin}
+          onPickLogo={(url) => void (userReferenceStandIn.particle !== null ? releaseUserReference('particle') : Promise.resolve(toggleSprite(url)))}
           referenceSelected={userReferenceStandIn.particle !== null}
           onPickReference={() => void (userReferenceStandIn.particle !== null ? releaseUserReference('particle', { remove: true }) : applyUserReference('particle'))}
-          disabled={atCapacity && !sprites.includes(userSettings?.logoParticle ?? '')}
+          isTileDisabled={isTileDisabled}
+          addBlockedReason={atCapacity ? `Max ${maxN} particles reached` : undefined}
+          noun='particle'
         />
-        <div className='particle-sprite-hud__upload'>
-          <label
-            className={`particle-sprite-hud__upload-label${uploadDisabled ? ' particle-sprite-hud__upload-label--disabled' : ''}`}
-            {...info(!isSignedIn ? 'Sign in to upload a custom particle' : atCapacity ? `Max ${maxN} particles reached` : undefined)}
-          >
-            + Add image
-            <input
-              type='file'
-              accept='image/*'
-              disabled={uploadDisabled}
-              onChange={onFiles}
-            />
-          </label>
-          {uploadError ? (
-            <div className='particle-sprite-hud__upload-error' role='alert'>
-              {uploadError}
-            </div>
-          ) : null}
-        </div>
       </div>
     </div>
   )

@@ -1,14 +1,11 @@
-import React, { useCallback } from 'react'
-import { useInfo } from './info/info'
+import React, { useCallback, useMemo } from 'react'
 import '../huds/ParticleSpriteHud.css'
 
 import { connectConfigActions, ConfigContextValue } from './context/ConfigProvider'
 import { useConfigSelector } from './context/useConfigSelector'
 import { AppConfig } from '../../config/configDefaults'
 import { BUILTIN_PARTICLE_SPRITES } from '../../config/particle.config'
-import { presetSpriteSrc } from '../../utils/presetSpriteSrc'
-import { useSpriteUpload } from '../huds/useSpriteUpload'
-import { UserSpriteTiles } from '../huds/UserSpriteTiles'
+import { SpritePicker, useUploadLibrary } from '../sprites'
 
 type LogoSpritePickerProps = {
   updateLogoSprite: (sprite: string) => Promise<void>
@@ -16,64 +13,43 @@ type LogoSpritePickerProps = {
   releaseUserReference: ConfigContextValue['releaseUserReference']
   userReferenceStandIn: ConfigContextValue['userReferenceStandIn']
   userSettings: ConfigContextValue['userSettings']
-  isAdmin: boolean
-  isSignedIn: boolean
-  getToken: () => Promise<string | null>
-  entitlements: ConfigContextValue['entitlements']
-  usage: ConfigContextValue['usage']
-  refreshAccount: ConfigContextValue['refreshAccount']
 }
 
 const selectLogoSprite = (config: AppConfig): string | undefined => config.logo.sprite.value[0]
 
-const LogoSpritePickerInner = ({ updateLogoSprite, applyUserReference, releaseUserReference, userReferenceStandIn, userSettings, isAdmin, isSignedIn, getToken, entitlements, usage, refreshAccount }: LogoSpritePickerProps): React.ReactElement => {
-  const info = useInfo()
+const LogoSpritePickerInner = ({ updateLogoSprite, applyUserReference, releaseUserReference, userReferenceStandIn, userSettings }: LogoSpritePickerProps): React.ReactElement => {
   const selected = useConfigSelector(selectLogoSprite)
+  const { uploads } = useUploadLibrary()
 
   const choose = useCallback((src: string): void => {
     void updateLogoSprite(src)
   }, [updateLogoSprite])
 
-  const { onFiles, uploadError } = useSpriteUpload({ isSignedIn, getToken, atCapacity: false, onUploaded: choose, entitlements, usage, refreshAccount })
+  // A logo from someone else's preset is in neither set, so it gets its own selected tile after the built-ins. The viewer's own
+  // logo and uploads are drawn under Yours, so they never get a duplicate here.
+  const builtins = useMemo((): readonly string[] => {
+    const known = selected === undefined
+      || selected === userSettings?.logoParticle
+      || (BUILTIN_PARTICLE_SPRITES as readonly string[]).includes(selected)
+      || uploads.some((u) => u.url === selected)
+    return known ? BUILTIN_PARTICLE_SPRITES : [...BUILTIN_PARTICLE_SPRITES, selected]
+  }, [selected, userSettings?.logoParticle, uploads])
 
-  // A custom upload is not in the built-in list, so it gets its own selected tile.
-  // The viewer's own logo (plain or as @user) is drawn by the "Yours" row, so it never gets a duplicate tile here.
-  const custom = selected && selected !== userSettings?.logoParticle && !(BUILTIN_PARTICLE_SPRITES as readonly string[]).includes(selected) ? selected : null
-  const tiles = custom ? [...BUILTIN_PARTICLE_SPRITES, custom] : BUILTIN_PARTICLE_SPRITES
+  const isSelected = useCallback((src: string): boolean => src === selected, [selected])
 
   return (
     <div className='particle-sprite-hud__panel'>
-      <div className='particle-sprite-hud__library'>
-        {tiles.map((src) => (
-          <button
-            key={src.slice(0, 48)}
-            type='button'
-            className={`particle-sprite-hud__lib-btn${src === selected ? ' particle-sprite-hud__lib-btn--selected' : ''}`}
-            onClick={() => choose(src)}
-            aria-pressed={src === selected}
-          >
-            <img src={presetSpriteSrc(src)} alt='' />
-          </button>
-        ))}
-      </div>
-      <UserSpriteTiles
-        logoUrl={userSettings?.logoParticle}
+      <SpritePicker
+        builtins={builtins}
+        isSelected={isSelected}
+        onPick={choose}
+        onUploaded={choose}
         logoSelected={selected === userSettings?.logoParticle && userReferenceStandIn.logo === null}
         onPickLogo={(url) => void releaseUserReference('logo').then(() => choose(url))}
-        isAdmin={isAdmin}
         referenceSelected={userReferenceStandIn.logo !== null}
         onPickReference={() => void applyUserReference('logo')}
+        noun='logo'
       />
-      <div className='particle-sprite-hud__upload'>
-        <label
-          className={`particle-sprite-hud__upload-label${isSignedIn ? '' : ' particle-sprite-hud__upload-label--disabled'}`}
-          {...info(isSignedIn ? undefined : 'Sign in to upload a custom logo')}
-        >
-          + Add image
-          <input type='file' accept='image/*' disabled={!isSignedIn} onChange={onFiles} />
-        </label>
-        {uploadError ? <div className='particle-sprite-hud__upload-error' role='alert'>{uploadError}</div> : null}
-      </div>
     </div>
   )
 }

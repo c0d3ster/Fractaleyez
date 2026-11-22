@@ -12,6 +12,11 @@ export type PresetMeta = {
   updatedAt?: Date
 }
 
+export type PresetConfigRow = {
+  name: string
+  config: Record<string, unknown>
+}
+
 const isDuplicateKeyError = (err: unknown): boolean =>
   typeof err === 'object' && err !== null && 'code' in err && (err as { code: unknown }).code === 11000
 
@@ -41,6 +46,12 @@ export class PresetRepository {
   async countByUserId(userId: string): Promise<number> {
     await connectDB()
     return Preset.countDocuments({ userId })
+  }
+
+  /** Name and config of every preset the user saved, for checks that read inside the config (which sprites it uses). */
+  async findConfigsByUserId(userId: string): Promise<PresetConfigRow[]> {
+    await connectDB()
+    return Preset.find({ userId }, 'name config').lean<PresetConfigRow[]>()
   }
 
   async findByUserId(userId: string): Promise<PresetMeta[]> {
