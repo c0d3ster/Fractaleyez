@@ -23,15 +23,15 @@ type GetToken = () => Promise<string | null>
 
 const EMPTY: UploadLibraryState = { userId: null, uploads: [], status: 'idle' }
 
-/** The body of a 409 from DELETE /api/uploads/:id (UploadInUseError). */
-type UploadInUse = { error: string; code: 'upload_in_use'; presets: string[]; logo: boolean }
+/** The body of a 409 from DELETE /api/uploads/:id (UploadInUseError). `shared`: a built-in or kept preset shows it. */
+type UploadInUse = { error: string; code: 'upload_in_use'; presets: string[]; logo: boolean; shared?: boolean }
 
 const isUploadInUse = (value: unknown): value is UploadInUse =>
   typeof value === 'object' && value !== null && (value as { code?: unknown }).code === 'upload_in_use'
 
 /** What the picker says when the server refuses a delete. */
-export const inUseMessage = ({ presets, logo }: Pick<UploadInUse, 'presets' | 'logo'>): string => {
-  const uses = [...(logo ? ['your logo'] : []), ...presets.map((name) => `"${name}"`)]
+export const inUseMessage = ({ presets, logo, shared }: Pick<UploadInUse, 'presets' | 'logo' | 'shared'>): string => {
+  const uses = [...(logo ? ['your logo'] : []), ...presets.map((name) => `"${name}"`), ...(shared ? ['a built-in preset'] : [])]
   return `Used in ${uses.join(', ')}. Remove it there first.`
 }
 

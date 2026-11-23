@@ -81,7 +81,8 @@ describe('UploadLibrary', () => {
 })
 
 describe('inUseMessage', () => {
-  it('names the logo first, then the presets', () => {
+  it('names the logo first, then the presets, then a built-in preset', () => {
     expect(inUseMessage({ presets: ['One', 'Two'], logo: true })).toBe('Used in your logo, "One", "Two". Remove it there first.')
+    expect(inUseMessage({ presets: [], logo: false, shared: true })).toBe('Used in a built-in preset. Remove it there first.')
   })
 })
