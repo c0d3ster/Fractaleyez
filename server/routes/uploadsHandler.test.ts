@@ -21,7 +21,7 @@ vi.mock('../repositories/UploadRepository.js', () => ({
   uploadRepository: { findByUserId: vi.fn(), findById: vi.fn(), deleteById: vi.fn(), countByUserId: vi.fn() },
 }))
 vi.mock('../repositories/PresetRepository.js', () => ({
-  presetRepository: { findConfigsByUserId: vi.fn() },
+  presetRepository: { findConfigsByUserId: vi.fn(), keptPresetUsesSprite: vi.fn() },
 }))
 vi.mock('../repositories/UserRepository.js', () => ({
   userRepository: { findByClerkId: vi.fn() },
@@ -77,6 +77,7 @@ beforeEach(() => {
   vi.mocked(uploadRepository.findById).mockReset().mockResolvedValue(upload())
   vi.mocked(uploadRepository.deleteById).mockReset().mockResolvedValue()
   vi.mocked(presetRepository.findConfigsByUserId).mockReset().mockResolvedValue([])
+  vi.mocked(presetRepository.keptPresetUsesSprite).mockReset().mockResolvedValue(false)
   withSettings({})
 })
 
@@ -157,7 +158,7 @@ describe('deleteUploadHandler', () => {
     await deleteUploadHandler(makeReq({ id: '65f000000000000000000001' }), res)
     expect(presetRepository.findConfigsByUserId).toHaveBeenCalledWith('user_1')
     expect(res.statusCode).toBe(409)
-    expect(res.body).toEqual({ error: 'Used in Night drive', code: 'upload_in_use', presets: ['Night drive'], logo: false })
+    expect(res.body).toEqual({ error: 'Used in Night drive', code: 'upload_in_use', presets: ['Night drive'], logo: false, shared: false })
     expect(storageService.deleteObject).not.toHaveBeenCalled()
     expect(uploadRepository.deleteById).not.toHaveBeenCalled()
   })
@@ -167,19 +168,31 @@ describe('deleteUploadHandler', () => {
     const res = makeRes()
     await deleteUploadHandler(makeReq({ id: '65f000000000000000000001' }), res)
     expect(res.statusCode).toBe(409)
-    expect(res.body).toEqual({ error: 'Used in your logo', code: 'upload_in_use', presets: [], logo: true })
+    expect(res.body).toEqual({ error: 'Used in your logo', code: 'upload_in_use', presets: [], logo: true, shared: false })
     expect(storageService.deleteObject).not.toHaveBeenCalled()
+  })
+
+  it('refuses with 409 while a built-in or kept preset shows it (an admin upload)', async () => {
+    vi.mocked(presetRepository.keptPresetUsesSprite).mockResolvedValue(true)
+    const res = makeRes()
+    await deleteUploadHandler(makeReq({ id: '65f000000000000000000001' }), res)
+    expect(presetRepository.keptPresetUsesSprite).toHaveBeenCalledWith(URL_A)
+    expect(res.statusCode).toBe(409)
+    expect(res.body).toEqual({ error: 'Used in a built-in preset', code: 'upload_in_use', presets: [], logo: false, shared: true })
+    expect(storageService.deleteObject).not.toHaveBeenCalled()
+    expect(uploadRepository.deleteById).not.toHaveBeenCalled()
   })
 
   it('names every use at once', async () => {
     withSettings({ logoParticle: URL_A })
+    vi.mocked(presetRepository.keptPresetUsesSprite).mockResolvedValue(true)
     vi.mocked(presetRepository.findConfigsByUserId).mockResolvedValue([
       { name: 'One', config: { particle: { sprites: [URL_A] } } },
       { name: 'Two', config: { logo: { sprite: [URL_A] } } },
     ])
     const res = makeRes()
     await deleteUploadHandler(makeReq({ id: '65f000000000000000000001' }), res)
-    expect(res.body).toMatchObject({ error: 'Used in your logo, One, Two', presets: ['One', 'Two'], logo: true })
+    expect(res.body).toMatchObject({ error: 'Used in your logo, One, Two, a built-in preset', presets: ['One', 'Two'], logo: true, shared: true })
   })
 
   it('keeps the record when the R2 delete fails, so a retry can finish it', async () => {
