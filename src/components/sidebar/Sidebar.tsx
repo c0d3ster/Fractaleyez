@@ -8,6 +8,10 @@ import { SavePreset } from '../presets/SavePreset'
 import { ConfigAccordion, useOpenCategories } from '../config/ConfigAccordion'
 import { SLIDE_OUT_MS, shouldRenderConfigBody, canParkConfigBody } from './configBodyParking'
 
+const SUB_ACCORDION_TITLE = '.config-sub-accordion__title'
+/** The headers that still open and close their section during a premium preview: each section's title and the Orbit column's sub-accordions. */
+const PEEK_SELECTOR = `[data-config-entry] > div > .category-container > .category-title, ${SUB_ACCORDION_TITLE}`
+
 type SidebarProps = {
   setConfigWindow: () => void
   configWindowVisible: boolean
@@ -19,6 +23,15 @@ const SidebarInner = ({ setConfigWindow, configWindowVisible }: SidebarProps): R
   const [prefill, setPrefill] = useState<PresetSelection | null>(null)
   const hideTimerRef = useRef<number | null>(null)
   const { openCategories, toggleOpen } = useOpenCategories(false)
+  // During a premium preview the controls are locked, but a section header still opens and closes its section so the config can be looked through.
+  const peekSection = useCallback((header: HTMLElement): void => {
+    if (header.matches(SUB_ACCORDION_TITLE)) {
+      header.click()
+      return
+    }
+    const entry = header.closest<HTMLElement>('[data-config-entry]')?.dataset.configEntry
+    if (entry) toggleOpen(entry)
+  }, [toggleOpen])
   // True once the sidebar has been out of sight, with the expanded config window open, long enough that its config body can go (see configBodyParking.ts).
   const [bodySettled, setBodySettled] = useState(false)
 
@@ -113,7 +126,7 @@ const SidebarInner = ({ setConfigWindow, configWindowVisible }: SidebarProps): R
             </button>
           </div>
           {showConfigBody && (
-            <PreviewLockFrame>
+            <PreviewLockFrame peekSelector={PEEK_SELECTOR} onPeek={peekSection}>
               <ConfigAccordion openCategories={openCategories} toggleOpen={toggleOpen} />
             </PreviewLockFrame>
           )}

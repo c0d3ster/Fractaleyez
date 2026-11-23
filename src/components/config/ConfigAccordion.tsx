@@ -83,7 +83,7 @@ const ConfigAccordionInner = ({ updateConfigItem, openCategories, toggleOpen }: 
   return (
     <>
       {DISPLAY_ORDER.map((entry) => (
-        <div key={entry} className='flow-root'>
+        <div key={entry} className='flow-root' data-config-entry={entry}>
           <div>
             <Entry entry={entry} onChange={updateConfigItem} isOpen={openCategories.includes(entry)} toggleOpen={toggleOpen} />
           </div>
