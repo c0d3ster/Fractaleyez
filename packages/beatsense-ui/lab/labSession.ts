@@ -1,10 +1,11 @@
 import { AnalysisHost, AudioSource, DEFAULT_ENABLED_BANDS, DEFAULT_FEED_SETTINGS, RhythmLabeler, RollReader } from 'beatsense'
-import type { FeedSettings, FrameReading, RhythmInput } from 'beatsense'
+import type { DrumKind, FeedSettings, FrameReading, RhythmInput } from 'beatsense'
 import { animationFrameTicker, type AnalysisSource, type Ticker } from 'beatsense-ui'
 // The worklet entry, bundled on its own and served as its own module (see vite.config.ts); this is its URL.
 import workletUrl from 'beatsense/worklet?worker&url'
 
 import { AudioClock } from './audioClock'
+import { loadDrumThresholds, saveDrumThresholds } from './drumThresholdStore'
 import { FrameRate } from './frameRate'
 import { PageFrames } from './pageFrames'
 import { RollingStats, type PerfReading } from './perfStats'
@@ -14,6 +15,7 @@ import { RecentHistory } from './recording/recentHistory'
 import { LocalPlayer, type PlayerMode } from './player/localPlayer'
 import type { DrumDetection, LabSessionFile, SessionPlayback } from './recording/sessionFile'
 import { SessionRecorder, type RecorderPhase } from './recording/sessionRecorder'
+import { ThresholdLog } from './recording/thresholdLog'
 
 export type LabPhase = 'idle' | 'starting' | 'running' | 'failed'
 
@@ -120,6 +122,9 @@ export class LabSession {
   private source: AnalysisSource | null = null
   private clock: AudioClock | null = null
   private readonly recorder = new SessionRecorder()
+  /** The drum model's thresholds from the sliders (saved in this browser), and every change of them on the audio clock for the sessions. */
+  private drumThresholds: Record<DrumKind, number> = loadDrumThresholds()
+  private readonly thresholdLog = new ThresholdLog()
   /** The model's output over the last couple of minutes, kept with or without a recording, for the strips. */
   private readonly history = new RecentHistory()
   /** The lab's file player, once the analysis runs (it plays into the same audio context). */
@@ -212,6 +217,17 @@ export class LabSession {
     this.host?.setSettings(this.settings)
   }
 
+  getDrumThresholds = (): Readonly<Record<DrumKind, number>> => this.drumThresholds
+
+  /** How sure the drum model has to be for each drum (the Frequency HUD's sliders), from the next hit it calls; kept for the next visit. */
+  setDrumThresholds = (thresholds: Readonly<Record<DrumKind, number>>): void => {
+    this.drumThresholds = { ...thresholds }
+    saveDrumThresholds(this.drumThresholds)
+    if (!this.host || !this.clock) return
+    this.host.analysers.drumHits.setThresholds(this.drumThresholds)
+    this.thresholdLog.push(this.clock.now(), this.host.analysers.drumHits.getThresholds())
+  }
+
   /**
    * Starts a recording (dropping the last one) at the audio clock's now, with the section tracker reset so the session's section log
    * replays to the sections recorded (the Section HUD starts over with it). A no-op until the analysis runs.
@@ -232,6 +248,7 @@ export class LabSession {
       sectionTicks: this.host.analysers.sectionTracker.getRecording(),
       sampleRate: this.context?.sampleRate ?? null,
       playback: this.recordedPlayback(),
+      drumThresholds: this.thresholdLog.between(this.recorder.getStartMs(), this.recorder.getEndMs()),
     })
     this.exported = false
     return this.file
@@ -320,6 +337,9 @@ export class LabSession {
     const clock = new AudioClock()
     const snareRoll = new RollReader()
     const { drumHits, tempoTracker } = host.analysers
+    drumHits.setThresholds(this.drumThresholds)
+    // In effect from the first frame (the audio clock starts at the first frame's time, at or after 0).
+    this.thresholdLog.push(0, drumHits.getThresholds())
     // Every frame the worklet measures goes to the analysis, whatever the display is doing; the riser and sweep are always shown here, so
     // the frames always carry the spectrum (the AudioSource and AnalysisHost default).
     capture.onFrame((frame) => {
