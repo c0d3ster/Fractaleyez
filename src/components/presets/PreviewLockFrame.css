@@ -2,17 +2,22 @@
   position: relative;
 }
 
+/* The outline and its badge start a little above the controls, so the badge (half its height above the line) never covers the first header. */
 .preview-lock--on {
-  --premium-outline-inset: 0;
   --premium-outline-radius: 10px;
   --premium-outline-width: 2px;
-  --preview-lock-top: 0px;
+  --preview-lock-top: -10px;
+  --premium-outline-inset: var(--preview-lock-top) 0 0;
   cursor: not-allowed;
 }
 
-/* In the pop-out, each column's reset and layer controls hang about 11px above the columns, so the outline and its badge start above them. */
+.preview-lock--peek {
+  cursor: pointer;
+}
+
+/* In the pop-out, each column's reset and layer controls hang about 11px above the columns, so the outline and its badge (half its height above the line) start clear of them. */
 .config-window-root .preview-lock--on {
-  --preview-lock-top: -14px;
+  --preview-lock-top: -22px;
   --premium-outline-inset: var(--preview-lock-top) -6px -6px;
 }
 
