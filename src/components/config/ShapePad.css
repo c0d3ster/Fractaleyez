@@ -25,8 +25,9 @@
   color: #333;
   border: 1px solid #888;
   border-radius: 999px;
-  padding: 1px 8px;
+  padding: 3px 8px;
   font-size: 10px;
+  line-height: 1;
   cursor: pointer;
 }
 
@@ -48,12 +49,16 @@
 }
 
 .shape-mode-option {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: transparent;
   color: #444;
   border: 1px solid #888;
   border-radius: 999px;
-  padding: 1px 10px;
+  padding: 3px 10px;
   font-size: 10px;
+  line-height: 1;
   cursor: pointer;
 }
 

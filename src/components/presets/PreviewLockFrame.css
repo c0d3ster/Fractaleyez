@@ -6,7 +6,14 @@
   --premium-outline-inset: 0;
   --premium-outline-radius: 10px;
   --premium-outline-width: 2px;
+  --preview-lock-top: 0px;
   cursor: not-allowed;
+}
+
+/* In the pop-out, each column's reset and layer controls hang about 11px above the columns, so the outline and its badge start above them. */
+.config-window-root .preview-lock--on {
+  --preview-lock-top: -14px;
+  --premium-outline-inset: var(--preview-lock-top) -6px -6px;
 }
 
 .preview-lock--on .preview-lock-body {
@@ -16,16 +23,20 @@
 }
 
 .preview-lock-badge {
-  position: sticky;
-  top: 4px;
+  /* Sits on the outline's top edge, like a fieldset legend, so it never covers a control or shifts the layout. */
+  position: absolute;
+  top: var(--preview-lock-top, 0px);
+  left: 50%;
   z-index: 3;
-  width: fit-content;
-  margin: 0 auto 6px;
-  transform: translateY(4px);
-  padding: 2px 10px;
+  transform: translate(-50%, -50%);
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  padding: 3px 10px;
   border-radius: 999px;
   background: #111;
   color: #eee;
   font-size: 11px;
+  line-height: 1;
   letter-spacing: 0.02em;
 }
