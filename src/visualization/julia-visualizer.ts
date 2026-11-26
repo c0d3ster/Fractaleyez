@@ -94,6 +94,8 @@ const DEEP_SCALE_FACTOR = 3
 // swap the sawtooth zoom for a breathing one (zoom in and back out, seamless by construction), and never dive past
 // the radius where the shader's series blend begins (WIDE_DIVE_FLOOR_FACTOR times the seam-safe radius).
 const WIDE_DIVE_FLOOR_FACTOR = 1.25
+// Where the shader's series blend begins (WIDE_START in julia-fragment.glsl.ts): the breathing dive never goes below it either.
+const SERIES_BLEND_START_RADIUS = 0.25
 // The most a family's referenceMultiplier may speed the loop up or slow it down.
 const ZOOM_RATE_MIN_FACTOR = 0.4
 const ZOOM_RATE_MAX_FACTOR = 2.5
@@ -414,6 +416,11 @@ export class JuliaVisualizer {
     return Math.max(ZOOM_RATE_MIN_FACTOR, Math.min(ZOOM_RATE_MAX_FACTOR, factor))
   }
 
+  private syncFamily(): void {
+    const family = getFractalFamily(window.config.fractal.family.value)
+    if (family !== this.family) this.setFamily(family)
+  }
+
   private removeMesh(material: THREE.ShaderMaterial): void {
     const mesh = this.scene?.children.find((child) => child instanceof THREE.Mesh && child.material === material)
     if (mesh) this.scene?.remove(mesh)
@@ -460,6 +467,9 @@ export class JuliaVisualizer {
   // Switches the shape to a manual point in the c plane (clamped to the shape pad's map). The shape heads
   // there at a Speed-based rate, also while the pointer is dragging, rather than snapping to it.
   setShape(re: number, im: number): void {
+    // The pad may pick a shape while the layer is hidden and not updating, right after a Type change: take the new type first, so the
+    // shape lands in its plane and the next update keeps it.
+    this.syncFamily()
     if (!this.manual) {
       const current = tourPoint(this.family.tour, this.tourGlider.position)
       this.manualRe = current.re
@@ -603,8 +613,7 @@ export class JuliaVisualizer {
   update(deltaTime: number, audioData: AudioSnapshot): void {
     if (!this.material) return
     const dt = deltaTime / 1000
-    const family = getFractalFamily(window.config.fractal.family.value)
-    if (family !== this.family) this.setFamily(family)
+    this.syncFamily()
     if (this.iterationCurrent !== null && this.iterationCurrent !== this.iterationTarget) {
       this.applyIterations(stepToward(this.iterationCurrent, this.iterationTarget, ITERATION_STEP_PER_SECOND * dt))
     }
@@ -789,7 +798,7 @@ export class JuliaVisualizer {
     const { seamSafeRadius } = this.family
     const wideFraction = Math.max(0, Math.min(1, Math.log(this.viewRadius / seamSafeRadius) / Math.log(scaleToRadius(SCALE_SETTLED, this.family.wholeSetRadius) / seamSafeRadius)))
     const settle = 1 - wideFraction * wideFraction * (3 - 2 * wideFraction)
-    const breathDepth = settle * Math.min(logZoomPerLoop, Math.max(0, Math.log(this.viewRadius / (seamSafeRadius * WIDE_DIVE_FLOOR_FACTOR))))
+    const breathDepth = settle * Math.min(logZoomPerLoop, Math.max(0, Math.log(this.viewRadius / Math.max(seamSafeRadius * WIDE_DIVE_FLOOR_FACTOR, SERIES_BLEND_START_RADIUS))))
     const breathZoom = -breathDepth * 0.5 * (1 - Math.cos(Math.PI * 2 * this.loopT))
     const breathSpin = (lambdaArg / lnLambda) * breathZoom
     const breathIterOffset = -breathZoom / lnLambda
