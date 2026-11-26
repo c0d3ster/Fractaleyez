@@ -178,7 +178,7 @@ const drawOverlay = (canvas: HTMLCanvasElement, shape: ShapeReadout): void => {
 const MANUAL_UPGRADE_REASON = 'Picking your own fractal shape is a premium feature. Lucid and Third Eye include it. The Tour stays free.'
 
 const HINT = 'Drag to pick a shape. The ring is the shape now showing and the pink dot is where it is heading. The dashed line is the Tour and the teal dots are the named shapes, also under the pad. Double-click to go back to the Tour slider.'
-const LOCKED_HINT = 'The shape follows the Tour slider. Picking your own shape (Manual) comes with Lucid and Third Eye. The ring is the shape now showing and the dashed line is the Tour.'
+const LOCKED_HINT = 'The shape follows the Tour slider, and the named shapes under the pad move it to their stop on the Tour. Picking your own shape (Manual) comes with Lucid and Third Eye. The ring is the shape now showing and the dashed line is the Tour.'
 
 type ShapeModeSwitchProps = {
   manual: boolean
@@ -214,8 +214,8 @@ export const ShapePad = (): React.ReactElement => {
   const drawnHueRef = useRef(Number.NaN)
   const drawnColorKeyRef = useRef('')
   const lastRecolorAtRef = useRef(0)
-  // Picking a shape (drag, chips, Manual) is premium; the Tour and going back to it are open to all. Guests have no entitlements.
-  const { entitlements } = useConfigContext()
+  // Picking your own shape (drag, Manual) is premium; the Tour, its named shapes and going back to it are open to all. Guests have no entitlements.
+  const { entitlements, updateConfigItem } = useConfigContext()
   const manualLocked = entitlements?.features.customFractalPath !== true
   const { requestUpgrade } = useUpgrade()
   const [readout, setReadout] = useState<ShapeReadout>({ re: -0.75, im: 0, manual: false, hue: 0, saturation: colorConfig.saturation_DEFAULT, targetRe: -0.75, targetIm: 0 })
@@ -286,13 +286,13 @@ export const ShapePad = (): React.ReactElement => {
     if (shape && !shape.manual) mainWindow().setJuliaShape?.(shape.re, shape.im)
   }, [manualLocked, requestUpgrade])
 
-  const pickNamedShape = useCallback((re: number, im: number): void => {
-    if (manualLocked) {
-      requestUpgrade(MANUAL_UPGRADE_REASON)
-      return
-    }
-    mainWindow().setJuliaShape?.(re, im)
-  }, [manualLocked, requestUpgrade])
+  // A named shape is a stop on the Tour, so picking one moves the Tour slider there and the shape stays on the Tour, where
+  // Switcheroo keeps hopping along the path. Free for everyone; from Manual it hands the shape back to the Tour first.
+  const pickNamedShape = useCallback((tourStop: number): void => {
+    const { min, max } = mainWindow().config.fractal.tour
+    mainWindow().clearJuliaShape?.()
+    updateConfigItem('fractal', 'tour', min + (tourStop / (JULIA_TOUR.length - 1)) * (max - min))
+  }, [updateConfigItem])
 
   return (
     <Pad
@@ -308,12 +308,12 @@ export const ShapePad = (): React.ReactElement => {
       hint={manualLocked ? LOCKED_HINT : HINT}
       footer={(
         <div className='shape-pad-chips'>
-          {JULIA_FAMOUS_SHAPES.map(({ name, re, im }) => (
+          {JULIA_FAMOUS_SHAPES.map(({ name, tourStop }) => (
             <button
               key={name}
               type='button'
               className='shape-pad-chip'
-              onClick={() => pickNamedShape(re, im)}
+              onClick={() => pickNamedShape(tourStop)}
             >
               {name}
             </button>
