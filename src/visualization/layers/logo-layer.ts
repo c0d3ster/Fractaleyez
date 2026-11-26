@@ -157,7 +157,11 @@ export class LogoLayer implements Layer {
   private zoomRoll = 0
   // In 3D, the vertical-axis turn the logo had when Zoom came on; the logo eases from it to face-on as the chain fades in.
   private heldTilt = 0
+  // In 3D, while Zoom fades out: the vertical-axis turn the logo eases back into, kept unwrapped so passing half a turn does not jump
+  // (the bearing wraps at +-pi, and scaling a wrapped angle would flip the logo).
+  private releaseTilt = 0
   private wasZooming = false
+  private wasZoomOn = false
   private readonly headingFollower = new HeadingFollower(logoHeading)
   // Every material the glow brightens.
   private readonly glowing: THREE.MeshBasicMaterial[] = this.solids.flatMap((solid) => solid.tinted)
@@ -361,7 +365,8 @@ export class LogoLayer implements Layer {
     // The chain turns about the focus point, so the dive stays on it: the rigid turn is zoomRoll and the twist adds a turn per level
     // (logo-spiral.ts). The plain logo turns about its middle. Flat, both are set in each solid's own matrix and the group never turns;
     // in 3D the group turns on its vertical axis, easing face-on while the chain is in.
-    if (isZooming && !this.wasZooming) {
+    const zoomStarted = isZooming && !this.wasZooming
+    if (zoomStarted) {
       this.zoomRoll = is3D ? 0 : this.bearing
       this.heldTilt = is3D ? this.bearing : 0
     }
@@ -370,8 +375,15 @@ export class LogoLayer implements Layer {
     const dialTurn = this.headingFollower.takeTurn(this.bearing)
     this.bearing = wrapAngle(this.bearing + dialTurn + spin)
     if (isZooming) this.zoomRoll = wrapAngle(this.zoomRoll + dialTurn + rigidTurn(spin, this.twist, levelStep))
+    // Zoom off and still fading: start from the bearing (scaled by the fade, so the logo leaves face-on) and follow the spin without
+    // wrapping, so the fade ends exactly on the bearing.
+    if (!logo.zoom.value && this.wasZoomOn) this.releaseTilt = this.bearing - dialTurn - spin
+    // Zoom back on before the fade-out finished: ease face-on again from where the logo is now.
+    if (logo.zoom.value && !this.wasZoomOn && !zoomStarted) this.heldTilt = this.releaseTilt
+    this.wasZoomOn = logo.zoom.value
+    this.releaseTilt = logo.zoom.value ? this.heldTilt : this.releaseTilt + dialTurn + spin
     logoHeading.report(this.bearing)
-    this.logo.rotation.y = is3D ? (logo.zoom.value ? this.heldTilt : this.bearing) * (1 - this.zoomMix) : 0
+    this.logo.rotation.y = is3D ? (isZooming ? this.releaseTilt * (1 - this.zoomMix) : this.bearing) : 0
     const aspect = image.width / image.height
     this.plain.group.matrix.fromArray(copyMatrix(1, is3D ? 0 : this.bearing, aspect, 0, 0))
     this.plain.group.matrixWorldNeedsUpdate = true
