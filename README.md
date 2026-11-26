@@ -103,7 +103,7 @@ The Count, Layers, Levels and Size sliders are painted green, yellow and red to 
 
 #### Logo
 
-Pick the logo image (or upload one), then set Spin Speed (0 is still), Beat Scale (how much it pulses on a beat) and Shake.
+Pick the logo image (or upload one), then set Spin Speed (0 is still), Beat Scale (how much it pulses on a beat) and Shake. With Zoom on, Spin Speed also twists the endless zoom into a spiral: each copy of the logo sits turned a little past the one around it, more the faster it spins, and the spiral stays seamless as it dives.
 
 ### Presets
 
