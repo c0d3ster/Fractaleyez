@@ -14,6 +14,7 @@ import { createBicubicUniforms, enableBicubicMap } from './bicubic-map'
 import { fillFromEdges } from './edge-fill'
 import { Layer } from './layer'
 import { LogoSolid } from './logo-solid'
+import { copyMatrix, followTwist, rigidTurn, twistForSpin } from './logo-spiral'
 import { traceWalls, type WallMesh } from './logo-walls'
 
 // Local distance in front of the camera. The logo fills `logoConfig.baseHeightFraction` of the viewport height at Size 1.
@@ -53,6 +54,8 @@ const SWAY_LEAN_EXPONENT = 0.5
 // the next copy inside it has grown to the logo's own size and the chain starts over, which is invisible because it
 // looks the same one level in. The copies inside are only faded in while they are still too small to see, so nothing
 // pops. Copy `j` sits `phase - j` levels from full size.
+// While Zoom is on, Spin twists the chain into a spiral (logo-spiral.ts): each copy is turned about the focus by its level times the
+// twist, so the copies' matrices are set by hand (the logo group's aspect scale would shear a plain rotation).
 // Where the zoom dives in, as 0..1 across the image (y down); the pad sets it.
 type FocusPoint = { x: number, y: number }
 // How fast the zoom runs: doublings of the image's size per second at User Speed 1, whatever the ratio.
@@ -144,6 +147,11 @@ export class LogoLayer implements Layer {
   private zoomMixPlaced = false
   /** How far the logo has turned (radians clockwise): the spin in the screen plane when flat, around the vertical axis in 3D. */
   private bearing = 0
+  // Radians each zoom copy is turned past the one around it (logo-spiral.ts), easing toward what Spin asks for.
+  private twist = 0
+  // In 3D the bearing turns the logo on its vertical axis, so the zoom chain keeps its own turn in the screen plane (radians
+  // clockwise). Flat, the bearing is already that turn and this stays 0.
+  private zoomRoll = 0
   private readonly headingFollower = new HeadingFollower(logoHeading)
   // Every material the glow brightens.
   private readonly glowing: THREE.MeshBasicMaterial[] = this.solids.flatMap((solid) => solid.tinted)
@@ -164,6 +172,7 @@ export class LogoLayer implements Layer {
     this.cameraManager.init()
     const camera = this.cameraManager.getCamera()
     this.solids.forEach((solid) => this.logo.add(solid.group))
+    this.zoomCopies.forEach((copy) => { copy.group.matrixAutoUpdate = false })
     this.pivot.add(this.logo)
     camera.add(this.pivot)
     this.pivot.position.z = -LOGO_DISTANCE
@@ -247,14 +256,14 @@ export class LogoLayer implements Layer {
    * branch `experiment/logo-3d-zoom`, since its origin could not match 3D off without a visible hop while the logo spins (see the 3D
    * logo zoom note in docs/implementation-plans/visualizer-layers.md).
    */
-  private updateZoom = (focus: FocusPoint, opacity: number, faceOpacity: number): void => {
+  private updateZoom = (focus: FocusPoint, aspect: number, roll: number, opacity: number, faceOpacity: number): void => {
     const px = focus.x - 0.5
     const py = 0.5 - focus.y // image y runs down, the plane's runs up
     this.zoomCopies.forEach((copy, i) => {
       const level = this.zoomPhase - (i + ZOOM_FIRST_COPY)
       const scale = Math.pow(ZOOM_RATIO, level)
-      copy.group.scale.set(scale, scale, 1)
-      copy.group.position.set(px * (1 - scale), py * (1 - scale), 0)
+      copy.group.matrix.fromArray(copyMatrix(scale, roll + level * this.twist, aspect, px, py))
+      copy.group.matrixWorldNeedsUpdate = true
       const fadeOut = 1 - THREE.MathUtils.smoothstep(level, ZOOM_FADE_START, ZOOM_FADE_END)
       const fadeIn = THREE.MathUtils.smoothstep(level, ZOOM_FADE_IN_START, ZOOM_FADE_IN_END)
       copy.update({ is3D: false, hasWalls: this.hasWalls, opacity: fadeOut * fadeIn * opacity, faceOpacity })
@@ -336,10 +345,20 @@ export class LogoLayer implements Layer {
     this.zoomMix = crossfadeMs > 0 ? moveToward(this.zoomMix, zoomTarget, deltaTime / crossfadeMs) : zoomTarget
     const isZooming = this.zoomMix > 0
     if (!isZooming) this.zoomPhase = 0
-    // A drag on the Spin dial turns the logo by the difference at once; the speed carries on from there.
-    this.bearing = wrapAngle(this.bearing + this.headingFollower.takeTurn(this.bearing) + spin)
+    // The user Speed sets the zoom rate, and the music speeds it up like it does Orbit.
+    const levelsPerSecond = window.config.user.speed.value * ZOOM_DOUBLINGS_PER_SPEED / Math.log2(ZOOM_RATIO) * getMusicSpeedMultiplier(audio)
+    const levelStep = isZooming ? levelsPerSecond * (deltaTime / 1000) : 0
+    // With Zoom on, Spin twists the chain into a spiral; the spin the twist does not cover turns the chain rigidly (logo-spiral.ts).
+    this.twist = followTwist(this.twist, logo.zoom.value ? twistForSpin(logo.spinSpeed.value) : 0, deltaTime / 1000)
+    const chainTurn = rigidTurn(spin, this.twist, levelStep)
+    // A drag on the Spin dial turns the logo by the difference at once; the speed carries on from there. Flat, the bearing is the
+    // chain's rigid turn. In 3D the bearing is the turn on the vertical axis, which holds while Zoom is on (the spin goes to the
+    // spiral instead), and the logo eases face-on as the chain takes over.
+    const bearingTurn = is3D ? (logo.zoom.value ? 0 : spin) : chainTurn
+    this.bearing = wrapAngle(this.bearing + this.headingFollower.takeTurn(this.bearing) + bearingTurn)
+    this.zoomRoll = is3D && isZooming ? wrapAngle(this.zoomRoll + chainTurn) : 0
     logoHeading.report(this.bearing)
-    this.logo.rotation.y = is3D ? this.bearing : 0
+    this.logo.rotation.y = is3D ? this.bearing * (1 - this.zoomMix) : 0
     this.logo.rotation.z = is3D ? 0 : -this.bearing
     // Turns toward where the camera has got to: its direction sets the way the logo leans (pad units, y down) and how
     // far it is through its swing sets how far. The angle at the edge of the swing also grows with Sway, but on a
@@ -362,13 +381,9 @@ export class LogoLayer implements Layer {
       ? THREE.MathUtils.smoothstep(Math.abs(this.faceNormal.z), FACE_FADE_END, FACE_FADE_START)
       : 1
     this.plain.update({ is3D, hasWalls: this.hasWalls, opacity: 1 - this.zoomMix, faceOpacity })
-    if (isZooming) {
-      // The user Speed sets the zoom rate, and the music speeds it up like it does Orbit.
-      const levelsPerSecond = window.config.user.speed.value * ZOOM_DOUBLINGS_PER_SPEED / Math.log2(ZOOM_RATIO) * getMusicSpeedMultiplier(audio)
-      this.zoomPhase = wrap01(this.zoomPhase + levelsPerSecond * (deltaTime / 1000))
-    }
+    if (isZooming) this.zoomPhase = wrap01(this.zoomPhase + levelStep)
     // Run at zoomMix 0 too, which hides the chain.
-    this.updateZoom({ x: logo.focusX.value, y: logo.focusY.value }, this.zoomMix, faceOpacity)
+    this.updateZoom({ x: logo.focusX.value, y: logo.focusY.value }, image.width / image.height, this.zoomRoll, this.zoomMix, faceOpacity)
     // The Effects glow switch drives the logo too, with the same formula as the global bloom.
     const glow = window.config.effects.glow.value ? Math.min(1, beat.value * beat.energy) : 0
     this.glowing.forEach((material) => material.color.setScalar(1 + glow))
