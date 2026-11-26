@@ -35,6 +35,12 @@ const step = (z: [number, number], cRe: number, cIm: number): void => {
   const cubeRe = squareRe * re - squareIm * im
   const cubeIm = squareRe * im + squareIm * re
   const cubeSquared = cubeRe * cubeRe + cubeIm * cubeIm
+  // With c = 0 there is no pole (the map is plain z^3), so a point near 0 stays near 0.
+  if (cRe === 0 && cIm === 0) {
+    z[0] = cubeRe
+    z[1] = cubeIm
+    return
+  }
   if (cubeSquared < POLE_GUARD) {
     z[0] = 1e10
     z[1] = 0
@@ -108,6 +114,7 @@ export const mcmullenFamily: FractalFamily = {
   },
   glsl: {
     step: `vec2 z3 = complexMul(complexSquare(z), z);
+    if (c.x == 0.0 && c.y == 0.0) return z3;
     float d = dot(z3, z3);
     if (d < 1e-30) return vec2(1e10, 0.0);
     vec2 a = vec2(-c.y, c.x);
