@@ -145,13 +145,19 @@ export class LogoLayer implements Layer {
   private zoomMix = 0
   // The first frame with an image takes the Zoom switch as it is, so a logo that loads zoomed does not start plain and fade.
   private zoomMixPlaced = false
-  /** How far the logo has turned (radians clockwise): the spin in the screen plane when flat, around the vertical axis in 3D. */
+  /**
+   * How far the logo has turned (radians clockwise): the spin in the screen plane when flat, around the vertical axis in 3D. It always
+   * moves at the Spin rate and is what the Spin dial shows, including while zooming, where the chain turns at that rate too.
+   */
   private bearing = 0
   // Radians each zoom copy is turned past the one around it (logo-spiral.ts), easing toward what Spin asks for.
   private twist = 0
-  // In 3D the bearing turns the logo on its vertical axis, so the zoom chain keeps its own turn in the screen plane (radians
-  // clockwise). Flat, the bearing is already that turn and this stays 0.
+  // The zoom chain's rigid turn in the screen plane, about the focus point (radians clockwise): the part of the spin the twist does not
+  // cover. It starts at the plain logo's own turn when the chain fades in, so the two line up.
   private zoomRoll = 0
+  // In 3D, the vertical-axis turn the logo had when Zoom came on; the logo eases from it to face-on as the chain fades in.
+  private heldTilt = 0
+  private wasZooming = false
   private readonly headingFollower = new HeadingFollower(logoHeading)
   // Every material the glow brightens.
   private readonly glowing: THREE.MeshBasicMaterial[] = this.solids.flatMap((solid) => solid.tinted)
@@ -171,8 +177,10 @@ export class LogoLayer implements Layer {
     }
     this.cameraManager.init()
     const camera = this.cameraManager.getCamera()
-    this.solids.forEach((solid) => this.logo.add(solid.group))
-    this.zoomCopies.forEach((copy) => { copy.group.matrixAutoUpdate = false })
+    this.solids.forEach((solid) => {
+      this.logo.add(solid.group)
+      solid.group.matrixAutoUpdate = false
+    })
     this.pivot.add(this.logo)
     camera.add(this.pivot)
     this.pivot.position.z = -LOGO_DISTANCE
@@ -350,16 +358,23 @@ export class LogoLayer implements Layer {
     const levelStep = isZooming ? levelsPerSecond * (deltaTime / 1000) : 0
     // With Zoom on, Spin twists the chain into a spiral; the spin the twist does not cover turns the chain rigidly (logo-spiral.ts).
     this.twist = followTwist(this.twist, logo.zoom.value ? twistForSpin(logo.spinSpeed.value) : 0, deltaTime / 1000)
-    const chainTurn = rigidTurn(spin, this.twist, levelStep)
-    // A drag on the Spin dial turns the logo by the difference at once; the speed carries on from there. Flat, the bearing is the
-    // chain's rigid turn. In 3D the bearing is the turn on the vertical axis, which holds while Zoom is on (the spin goes to the
-    // spiral instead), and the logo eases face-on as the chain takes over.
-    const bearingTurn = is3D ? (logo.zoom.value ? 0 : spin) : chainTurn
-    this.bearing = wrapAngle(this.bearing + this.headingFollower.takeTurn(this.bearing) + bearingTurn)
-    this.zoomRoll = is3D && isZooming ? wrapAngle(this.zoomRoll + chainTurn) : 0
+    // The chain turns about the focus point, so the dive stays on it: the rigid turn is zoomRoll and the twist adds a turn per level
+    // (logo-spiral.ts). The plain logo turns about its middle. Flat, both are set in each solid's own matrix and the group never turns;
+    // in 3D the group turns on its vertical axis, easing face-on while the chain is in.
+    if (isZooming && !this.wasZooming) {
+      this.zoomRoll = is3D ? 0 : this.bearing
+      this.heldTilt = is3D ? this.bearing : 0
+    }
+    this.wasZooming = isZooming
+    // A drag on the Spin dial turns the logo by the difference at once; the speed carries on from there.
+    const dialTurn = this.headingFollower.takeTurn(this.bearing)
+    this.bearing = wrapAngle(this.bearing + dialTurn + spin)
+    if (isZooming) this.zoomRoll = wrapAngle(this.zoomRoll + dialTurn + rigidTurn(spin, this.twist, levelStep))
     logoHeading.report(this.bearing)
-    this.logo.rotation.y = is3D ? this.bearing * (1 - this.zoomMix) : 0
-    this.logo.rotation.z = is3D ? 0 : -this.bearing
+    this.logo.rotation.y = is3D ? (logo.zoom.value ? this.heldTilt : this.bearing) * (1 - this.zoomMix) : 0
+    const aspect = image.width / image.height
+    this.plain.group.matrix.fromArray(copyMatrix(1, is3D ? 0 : this.bearing, aspect, 0, 0))
+    this.plain.group.matrixWorldNeedsUpdate = true
     // Turns toward where the camera has got to: its direction sets the way the logo leans (pad units, y down) and how
     // far it is through its swing sets how far. The angle at the edge of the swing also grows with Sway, but on a
     // curve (see SWAY_LEAN_EXPONENT), so a small Sway still leans clearly and none leans not at all.
@@ -383,7 +398,7 @@ export class LogoLayer implements Layer {
     this.plain.update({ is3D, hasWalls: this.hasWalls, opacity: 1 - this.zoomMix, faceOpacity })
     if (isZooming) this.zoomPhase = wrap01(this.zoomPhase + levelStep)
     // Run at zoomMix 0 too, which hides the chain.
-    this.updateZoom({ x: logo.focusX.value, y: logo.focusY.value }, image.width / image.height, this.zoomRoll, this.zoomMix, faceOpacity)
+    this.updateZoom({ x: logo.focusX.value, y: logo.focusY.value }, aspect, this.zoomRoll, this.zoomMix, faceOpacity)
     // The Effects glow switch drives the logo too, with the same formula as the global bloom.
     const glow = window.config.effects.glow.value ? Math.min(1, beat.value * beat.energy) : 0
     this.glowing.forEach((material) => material.color.setScalar(1 + glow))
