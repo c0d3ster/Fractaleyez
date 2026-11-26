@@ -34,6 +34,8 @@ import { userConfig } from '../../config/user.config'
 const SLIDER_DISPLAY_FORMATTERS: Partial<Record<string, (value: number) => string>> = {
   scaleFactor: (value) => `${(value / 1000).toFixed(2)}x`,
   sway: (value) => (value / 100).toFixed(1),
+  // A named shape sets the Tour to its stop exactly, which is rarely a whole step.
+  tour: (value) => String(Math.round(value * 10) / 10),
 }
 
 // Sliders whose track is painted in zones (Scale: the Julia view's regimes).
