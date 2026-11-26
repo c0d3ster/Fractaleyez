@@ -14,6 +14,7 @@ import { isLiveClip, LIVE_CLIP, normalizeClips } from '../../../config/video.con
 import { getResolvedSpriteUrl, warmSpriteCache } from '../../../utils/spriteCache'
 import { ApiPack, ApiPreset, readPresetListCache, updatePresetListCache } from '../../../utils/presetListCache'
 import { isCurrent, readCachedPresetBody, writeCachedPresetBody } from '../../../utils/presetBodyCache'
+import { PRESET_LINK_PARAM, resolvePresetLink } from '../../../utils/presetLink'
 import { FocusPoint, loadZoomFocus } from '../../../utils/zoomFocus'
 import { persistClerkPhotoAsLogo } from '../../../utils/clerkPhotoLogo'
 import { readGuestQuality, writeGuestQuality } from '../../../utils/guestQuality'
@@ -915,6 +916,22 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
       window.dispatchEvent(new CustomEvent('videoClipsRestored', { detail: { clips: nextClips } }))
     }
   }, [])
+
+  // A shared link (`?preset=<pack slug>/<preset name>`) loads its preset once, as soon as the lists can resolve it: the cached
+  // lists first, then the live ones. A preset the viewer picks before then wins, and the link is dropped.
+  const presetLinkHandledRef = useRef(false)
+  useEffect(() => {
+    if (presetLinkHandledRef.current) return
+    const value = new URLSearchParams(window.location.search).get(PRESET_LINK_PARAM)
+    if (!value || activePresetIdRef.current) {
+      presetLinkHandledRef.current = true
+      return
+    }
+    const preset = resolvePresetLink(value, presetList, packList)
+    if (!preset?.id) return
+    presetLinkHandledRef.current = true
+    void retrieveConfigPreset({ currentTarget: { dataset: { name: preset.name, id: preset.id } } })
+  }, [presetList, packList, retrieveConfigPreset])
 
   const snapshotConfig = useCallback((): ConfigSnapshot => ({
     config: window.config,
