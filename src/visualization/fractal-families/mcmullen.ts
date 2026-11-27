@@ -89,6 +89,8 @@ const TOUR: readonly (readonly [number, number])[] = [
 export const mcmullenFamily: FractalFamily = {
   key: 'mcmullen',
   label: 'Rings',
+  mathName: 'McMullen map',
+  formula: 'z³ + c / z³',
   description: 'Rings and carpets of round holes, each hole another copy of the outside.',
   tour: TOUR,
   famousShapes: [
