@@ -1,8 +1,8 @@
 import * as THREE from 'three'
-import { CAMERA_STEER_SCREEN_FRACTION_PER_PAD_UNIT } from '../config/visualizer.config'
+import { CAMERA_STEER_SCREEN_FRACTION_PER_PAD_UNIT, getParticleCrossfadeDurationMs } from '../config/visualizer.config'
 import type { AudioSnapshot } from '../audioanalysis/audio-snapshot'
-import { juliaFragmentShader, juliaVertexShader } from './shaders/julia-fragment.glsl'
-import { JULIA_MAP_VIEW, JULIA_TOUR } from './julia-tour'
+import { buildJuliaFragmentShader, juliaVertexShader } from './shaders/julia-fragment.glsl'
+import { getFractalFamily, koenigsPoint, quadraticFamily, type Complex, type FixedPointResult, type FractalFamily } from './fractal-families'
 import { userConfig } from '../config/user.config'
 import { userHeading } from '../config/heading'
 import { HeadingFollower } from '../config/headingFollower'
@@ -14,7 +14,6 @@ import { ghostKey, ghostStore } from '../utils/ghostStore'
 import { stepToward } from './step-toward'
 import { SHAPE_EASE_SECONDS, SHAPE_MAX_TRANSITION_SECONDS, SHAPE_VELOCITY_HALF_LIFE_SECONDS, ShapeGlider } from './shape-glider'
 
-const TOUR = JULIA_TOUR
 const TOUR_GHOST = ghostKey('fractal', 'tour')
 
 // A tier change moves the iteration cap this fast (Quality to Balanced, 128 to 96, takes about half a second).
@@ -84,32 +83,40 @@ const W_START = 0.006
 const SCALE_DEFAULT = JULIA_SCALE.default
 const SCALE_WHOLE_SET = JULIA_SCALE.wholeSet
 const SCALE_MIN = JULIA_SCALE.min
-const WHOLE_SET_RADIUS = 1.75
-const EYEBALL_RADIUS_AT_MIN_SCALE = 3.5
+// The eyeball zone's smallest picture, as a multiple of the family's whole-set radius.
+const EYEBALL_RADIUS_FACTOR = 2
 // Motion (dive, spin, orient turn) finishes settling at this Scale, so 0.3x down is a still picture.
 const SCALE_SETTLED = JULIA_SCALE.settled
 const DEEP_SCALE_SPAN = 0.5
 const DEEP_SCALE_FACTOR = 3
-// Measured wrap mismatch of the 3rd-order Koenigs loop grows with the cube of the starting radius: it is
-// sub-pixel up to about 0.2 (roughly Scale 0.7x) and pops beyond that. Wider views swap the sawtooth zoom
-// for a breathing one (zoom in and back out, seamless by construction), and never dive past the radius
-// where the shader's series blend begins.
-const SEAM_SAFE_RADIUS = 0.2
-const WIDE_DIVE_FLOOR_RADIUS = 0.25
+// Measured wrap mismatch of the 3rd-order Koenigs loop grows with the cube of the starting radius: for z^2 + c it is
+// sub-pixel up to about 0.2 (roughly Scale 0.7x) and pops beyond that (each family's seamSafeRadius). Wider views
+// swap the sawtooth zoom for a breathing one (zoom in and back out, seamless by construction), and never dive past
+// the radius where the shader's series blend begins (WIDE_DIVE_FLOOR_FACTOR times the seam-safe radius).
+const WIDE_DIVE_FLOOR_FACTOR = 1.25
+// The most a family's referenceMultiplier may speed the loop up or slow it down.
+const ZOOM_RATE_MIN_FACTOR = 0.4
+const ZOOM_RATE_MAX_FACTOR = 2.5
+// The longest step a Type crossfade takes in one frame (see stepFamilyFade).
+const FAMILY_FADE_MAX_STEP_SECONDS = 0.05
+// What the picture fading out after a Type change takes from the new one each frame: everything but its own shape.
+const SHARED_UNIFORMS = [
+  'uSpin', 'uLogZoom', 'uWStart', 'uAspect', 'uHuePhase', 'uPaletteCycles', 'uPalettePhase', 'uCenterOffset', 'uIterOffset',
+  'uRotation', 'uCyclone', 'uSaturation', 'uGlow', 'uShockRadius', 'uShockStrength', 'uMaxIter',
+] as const
 const WIDE_BLEND_HALF_LIFE_SECONDS = 0.4
 const RADIUS_HALF_LIFE_SECONDS = 0.15
 
 
-const scaleToRadius = (scale: number): number => {
+const scaleToRadius = (scale: number, wholeSetRadius: number): number => {
   if (scale >= SCALE_DEFAULT) return W_START * Math.pow(DEEP_SCALE_FACTOR, -(scale - SCALE_DEFAULT) / DEEP_SCALE_SPAN)
   if (scale >= SCALE_WHOLE_SET) {
     const wideness = (SCALE_DEFAULT - scale) / (SCALE_DEFAULT - SCALE_WHOLE_SET)
-    return W_START * Math.pow(WHOLE_SET_RADIUS / W_START, wideness)
+    return W_START * Math.pow(wholeSetRadius / W_START, wideness)
   }
   const eyeball = (SCALE_WHOLE_SET - Math.max(SCALE_MIN, scale)) / (SCALE_WHOLE_SET - SCALE_MIN)
-  return WHOLE_SET_RADIUS * Math.pow(EYEBALL_RADIUS_AT_MIN_SCALE / WHOLE_SET_RADIUS, eyeball)
+  return wholeSetRadius * Math.pow(EYEBALL_RADIUS_FACTOR, eyeball)
 }
-const SETTLED_RADIUS = scaleToRadius(SCALE_SETTLED)
 
 // Zoom speed = base * (1 + smoothed energy * gain + beat envelope * boost), capped.
 // Energy is the mean deviation from 128 on a 0-128 scale, so typical music sits around 5-30.
@@ -145,79 +152,15 @@ const GLOW_ENERGY_REFERENCE = 30
 const HUE_DRIFT_PER_SEC = 0.015
 const HUE_PEAK_JUMP = 0.12
 
-interface Complex {
-  re: number
-  im: number
-}
-
-interface FixedPointResult {
-  fixedPointX: number
-  fixedPointY: number
-  lambdaMag: number
-  lambdaArg: number
-  koenigs2: Complex
-  koenigs3: Complex
-}
-
-const cMul = (a: Complex, b: Complex): Complex => ({ re: a.re * b.re - a.im * b.im, im: a.re * b.im + a.im * b.re })
-const cSub = (a: Complex, b: Complex): Complex => ({ re: a.re - b.re, im: a.im - b.im })
-const cScale = (a: Complex, s: number): Complex => ({ re: a.re * s, im: a.im * s })
-const cDiv = (a: Complex, b: Complex): Complex => {
-  const d = b.re * b.re + b.im * b.im
-  return { re: (a.re * b.re + a.im * b.im) / d, im: (a.im * b.re - a.re * b.im) / d }
-}
-
-// Closed-form repelling fixed point + multiplier for f(z) = z^2 + c.
-// Fixed points solve z^2 + c = z, i.e. z = (1 +/- sqrt(1 - 4c)) / 2 (Vieta's formulas).
-// The multiplier at a fixed point is f'(z) = 2z; we pick whichever root has |2z| > 1 (repelling).
-const computeFixedPointAndLambda = (cx: number, cy: number): FixedPointResult => {
-  const dx = 1 - 4 * cx
-  const dy = -4 * cy
-  const dMag = Math.hypot(dx, dy)
-
-  const sqrtX = Math.sqrt(Math.max(0, (dMag + dx) / 2))
-  const sqrtYMagnitude = Math.sqrt(Math.max(0, (dMag - dx) / 2))
-  const sqrtY = dy < 0 ? -sqrtYMagnitude : sqrtYMagnitude
-
-  const z1x = (1 + sqrtX) / 2
-  const z1y = sqrtY / 2
-  const z2x = (1 - sqrtX) / 2
-  const z2y = -sqrtY / 2
-
-  const mag1 = 2 * Math.hypot(z1x, z1y)
-  const mag2 = 2 * Math.hypot(z2x, z2y)
-
-  const useFirst = mag1 >= mag2
-  const fixedPointX = useFirst ? z1x : z2x
-  const fixedPointY = useFirst ? z1y : z2y
-
-  // Guard against near-parabolic c (both fixed points weakly repelling) so pow(lambdaMag, -t) stays sane.
-  const lambdaMag = Math.max(mag1, mag2, 1.05)
-  const lambdaArg = Math.atan2(2 * fixedPointY, 2 * fixedPointX)
-
-  // Inverse Koenigs coordinate to third order: z = z0 + w + c2 w^2 + c3 w^3. Plain (z - z0) is only the
-  // first-order term, and its error is what made wider starting views mismatch at the loop wrap.
-  // From phi(f(u)) = lambda * phi(u) with f(z0 + u) = z0 + lambda u + u^2:
-  //   a2 = 1 / (lambda (1 - lambda)), a3 = 2 a2 / (1 - lambda^2), c2 = -a2, c3 = 2 a2^2 - a3.
-  const lambda: Complex = { re: 2 * fixedPointX, im: 2 * fixedPointY }
-  const one: Complex = { re: 1, im: 0 }
-  const a2 = cDiv(one, cMul(lambda, cSub(one, lambda)))
-  const a3 = cDiv(cScale(a2, 2), cSub(one, cMul(lambda, lambda)))
-  const koenigs2 = cScale(a2, -1)
-  const koenigs3 = cSub(cScale(cMul(a2, a2), 2), a3)
-
-  return { fixedPointX, fixedPointY, lambdaMag, lambdaArg, koenigs2, koenigs3 }
-}
-
-// Position along the tour in stop units (0 to TOUR.length - 1), smoothly interpolated between stops
+// Position along the tour in stop units (0 to tour.length - 1), smoothly interpolated between stops
 // with a Catmull-Rom spline so dragging the slider morphs continuously instead of snapping.
-const tourPoint = (position: number): Complex => {
-  const last = TOUR.length - 1
+const tourPoint = (tour: FractalFamily['tour'], position: number): Complex => {
+  const last = tour.length - 1
   const clamped = Math.max(0, Math.min(last, position))
   const index = Math.min(last - 1, Math.floor(clamped))
   const t = clamped - index
   const stop = (i: number): Complex => {
-    const [re, im] = TOUR[Math.max(0, Math.min(last, i))]!
+    const [re, im] = tour[Math.max(0, Math.min(last, i))]!
     return { re, im }
   }
   const p0 = stop(index - 1)
@@ -236,7 +179,8 @@ const tourPoint = (position: number): Complex => {
 const ORIENT_DIRECTIONS = 48
 const ORIENT_RING_RADII = [0.5, 1, 1.5, 2]
 const ORIENT_MAX_ITER = 100
-const massDirection = (cx: number, cy: number, fixedPoint: Complex, koenigs2: Complex, koenigs3: Complex): number | null => {
+const orbit: [number, number] = [0, 0]
+const massDirection = (family: FractalFamily, c: Complex, fixed: FixedPointResult): number | null => {
   let sumX = 0
   let sumY = 0
   let total = 0
@@ -245,18 +189,13 @@ const massDirection = (cx: number, cy: number, fixedPoint: Complex, koenigs2: Co
     const cosA = Math.cos(angle)
     const sinA = Math.sin(angle)
     for (const ring of ORIENT_RING_RADII) {
-      const w: Complex = { re: W_START * ring * cosA, im: W_START * ring * sinA }
-      const w2 = cMul(w, w)
-      const k2 = cMul(koenigs2, w2)
-      const k3 = cMul(koenigs3, cMul(w2, w))
-      let zRe = fixedPoint.re + w.re + k2.re + k3.re
-      let zIm = fixedPoint.im + w.im + k2.im + k3.im
+      const start = koenigsPoint(fixed, { re: W_START * ring * cosA, im: W_START * ring * sinA })
+      orbit[0] = start.re
+      orbit[1] = start.im
       let weight = 1
       for (let n = 0; n < ORIENT_MAX_ITER; n++) {
-        const nextRe = zRe * zRe - zIm * zIm + cx
-        zIm = 2 * zRe * zIm + cy
-        zRe = nextRe
-        if (zRe * zRe + zIm * zIm > 256) {
+        family.step(orbit, c.re, c.im)
+        if (family.escaped(orbit[0], orbit[1])) {
           // Late escapers are near the set and count for more; early escapers are far away and barely count.
           weight = 0.6 * Math.pow(n / ORIENT_MAX_ITER, 2)
           break
@@ -268,19 +207,6 @@ const massDirection = (cx: number, cy: number, fixedPoint: Complex, koenigs2: Co
     }
   }
   return total > 0 && Math.hypot(sumX, sumY) > 0.05 * total ? Math.atan2(sumY, sumX) : null
-}
-
-// True when c is inside the Mandelbrot set, i.e. its Julia set is connected and detailed rather than dust.
-const inMandelbrotSet = (cx: number, cy: number): boolean => {
-  let zRe = 0
-  let zIm = 0
-  for (let n = 0; n < 200; n++) {
-    const nextRe = zRe * zRe - zIm * zIm + cx
-    zIm = 2 * zRe * zIm + cy
-    zRe = nextRe
-    if (zRe * zRe + zIm * zIm > 4) return false
-  }
-  return true
 }
 
 // The one place the shape position is read: the Fractal config's Tour slider, as 0 to 1 along the tour.
@@ -348,19 +274,40 @@ export class JuliaVisualizer {
   private shapeIm = 0
   private hasShape = false
   private shockAge = -1
+  // The fractal family drawn (the Fractal config's Type) and the fixed point the zoom sat on last frame, so it stays on the same one.
+  private family: FractalFamily = quadraticFamily
+  private previousFixedPoint: Complex | null = null
+  // The type being faded out after a Type change, drawn under the new one until the fade ends; 0 to 1 through the fade.
+  private outgoing: { mesh: THREE.Mesh; material: THREE.ShaderMaterial } | null = null
+  private familyFade = 1
+  private readonly geometry = new THREE.PlaneGeometry(2, 2)
+  private lastLambdaMag = 0
   private shockRadius = 0
 
   // Draws into a render target with the layer compositor's shared renderer through renderTo().
   init(): void {
+    this.family = getFractalFamily(window.config.fractal.family.value)
     this.scene = new THREE.Scene()
     this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1)
     this.paletteTexture.wrapS = THREE.RepeatWrapping
     this.paletteTexture.magFilter = THREE.LinearFilter
     this.paletteTexture.minFilter = THREE.LinearFilter
 
-    this.material = new THREE.ShaderMaterial({
+    this.material = this.createMaterial(this.family)
+    this.scene.add(new THREE.Mesh(this.geometry, this.material))
+
+    window.addEventListener('resize', this.onResize)
+
+    // Bridge for the config panel's shape pad, which can live in a popup window (like the camera pad).
+    window.setJuliaShape = (re: number, im: number) => this.setShape(re, im)
+    window.getJuliaShape = () => this.getShape()
+    window.clearJuliaShape = () => this.clearShape()
+  }
+
+  private createMaterial(family: FractalFamily): THREE.ShaderMaterial {
+    return new THREE.ShaderMaterial({
       vertexShader: juliaVertexShader,
-      fragmentShader: juliaFragmentShader,
+      fragmentShader: buildJuliaFragmentShader(family),
       uniforms: {
         uC: { value: new THREE.Vector2() },
         uFixedPoint: { value: new THREE.Vector2() },
@@ -383,20 +330,10 @@ export class JuliaVisualizer {
         uGlow: { value: 0 },
         uShockRadius: { value: 0 },
         uShockStrength: { value: 0 },
-        uMaxIter: { value: QUALITY_PROFILES.quality.fractalIterations },
+        uMaxIter: { value: this.iterationCurrent ?? QUALITY_PROFILES.quality.fractalIterations },
+        uOpacity: { value: 1 },
       },
     })
-
-    const geometry = new THREE.PlaneGeometry(2, 2)
-    const mesh = new THREE.Mesh(geometry, this.material)
-    this.scene.add(mesh)
-
-    window.addEventListener('resize', this.onResize)
-
-    // Bridge for the config panel's shape pad, which can live in a popup window (like the camera pad).
-    window.setJuliaShape = (re: number, im: number) => this.setShape(re, im)
-    window.getJuliaShape = () => this.getShape()
-    window.clearJuliaShape = () => this.clearShape()
   }
 
   private onResize = (): void => {
@@ -425,6 +362,96 @@ export class JuliaVisualizer {
     this.material!.uniforms.uMaxIter!.value = iterations
   }
 
+  /**
+   * Switches to another fractal family (the Type picker): its shader replaces the current one, and the shape starts over on the new
+   * family's tour at the Tour slider's position, since a point of one family's parameter plane means nothing in another's.
+   */
+  private setFamily(family: FractalFamily): void {
+    this.family = family
+    if (this.material && this.scene) {
+      const incoming = this.createMaterial(family)
+      // Over the Crossfade Duration the old type keeps drawing underneath and the new one fades in over it (see stepFamilyFade).
+      // A switch in the middle of a fade drops the older picture: the one on screen becomes the one fading out.
+      this.dropOutgoing()
+      const crossfadeMs = getParticleCrossfadeDurationMs()
+      if (crossfadeMs > 0) {
+        const current = this.scene.children.find((child): child is THREE.Mesh => child instanceof THREE.Mesh && child.material === this.material)
+        if (current) {
+          this.material.uniforms.uOpacity!.value = 1
+          this.material.transparent = false
+          current.renderOrder = 0
+          this.outgoing = { mesh: current, material: this.material }
+        }
+        incoming.transparent = true
+        incoming.uniforms.uOpacity!.value = 0
+        this.familyFade = 0
+      } else {
+        this.removeMesh(this.material)
+        this.material.dispose()
+      }
+      const incomingMesh = new THREE.Mesh(this.geometry, incoming)
+      incomingMesh.renderOrder = 1
+      this.scene.add(incomingMesh)
+      this.material = incoming
+    }
+    this.manual = false
+    this.manualHopRe = 0
+    this.manualHopIm = 0
+    this.switcherooHop = 0
+    this.hasTourPosition = false
+    this.previousFixedPoint = null
+    this.hasOrient = false
+    // The drift and audio offset on c was in the old family's units; take the new family's at the next frame instead of easing over.
+    this.hasStartedLoop = false
+  }
+
+  // How much faster or slower than the base pace the loop runs, so families with much bigger or smaller multipliers than z^2 + c keep its
+  // zoom speed (see FractalFamily.referenceMultiplier). Uses last frame's multiplier: this frame's depends on the shape it is about to step.
+  private zoomRateFactor(): number {
+    const { referenceMultiplier } = this.family
+    if (referenceMultiplier === undefined || this.lastLambdaMag <= 1) return 1
+    const factor = Math.log(referenceMultiplier) / Math.log(this.lastLambdaMag)
+    return Math.max(ZOOM_RATE_MIN_FACTOR, Math.min(ZOOM_RATE_MAX_FACTOR, factor))
+  }
+
+  private removeMesh(material: THREE.ShaderMaterial): void {
+    const mesh = this.scene?.children.find((child) => child instanceof THREE.Mesh && child.material === material)
+    if (mesh) this.scene?.remove(mesh)
+  }
+
+  private dropOutgoing(): void {
+    if (!this.outgoing) return
+    this.scene?.remove(this.outgoing.mesh)
+    this.outgoing.material.dispose()
+    this.outgoing = null
+  }
+
+  /**
+   * Moves a Type crossfade along. The picture fading out keeps its own shape (its c, fixed point and orientation) but takes the shared
+   * zoom, spin, palette and effects from the new one, so it keeps moving with the music while it fades instead of freezing.
+   */
+  private stepFamilyFade(dt: number): void {
+    if (!this.outgoing || !this.material) return
+    const crossfadeMs = getParticleCrossfadeDurationMs()
+    // The first frame of a new type compiles its shader, which can take a while: cap the step so the fade does not jump past it.
+    this.familyFade = crossfadeMs > 0 ? Math.min(1, this.familyFade + Math.min(dt, FAMILY_FADE_MAX_STEP_SECONDS) * 1000 / crossfadeMs) : 1
+    if (this.familyFade >= 1) {
+      this.dropOutgoing()
+      this.material.transparent = false
+      this.material.uniforms.uOpacity!.value = 1
+      return
+    }
+    const { uniforms } = this.material
+    const outgoing = this.outgoing.material.uniforms
+    SHARED_UNIFORMS.forEach((name) => {
+      const value = uniforms[name]!.value as unknown
+      if (value instanceof THREE.Vector2) (outgoing[name]!.value as THREE.Vector2).copy(value)
+      else outgoing[name]!.value = value
+    })
+    const t = this.familyFade
+    uniforms.uOpacity!.value = t * t * (3 - 2 * t)
+  }
+
   private emaTowards(current: number, target: number, dtSeconds: number): number {
     const k = 1 - Math.pow(0.5, dtSeconds / EMA_HALF_LIFE_SECONDS)
     return current + (target - current) * k
@@ -434,15 +461,16 @@ export class JuliaVisualizer {
   // there at a Speed-based rate, also while the pointer is dragging, rather than snapping to it.
   setShape(re: number, im: number): void {
     if (!this.manual) {
-      const current = tourPoint(this.tourGlider.position)
+      const current = tourPoint(this.family.tour, this.tourGlider.position)
       this.manualRe = current.re
       this.manualIm = current.im
       this.manualVelocityRe = 0
       this.manualVelocityIm = 0
       this.manual = true
     }
-    this.manualHomeRe = Math.max(JULIA_MAP_VIEW.reMin, Math.min(JULIA_MAP_VIEW.reMax, re))
-    this.manualHomeIm = Math.max(JULIA_MAP_VIEW.imMin, Math.min(JULIA_MAP_VIEW.imMax, im))
+    const { mapView } = this.family
+    this.manualHomeRe = Math.max(mapView.reMin, Math.min(mapView.reMax, re))
+    this.manualHomeIm = Math.max(mapView.imMin, Math.min(mapView.imMax, im))
     this.manualHopRe = 0
     this.manualHopIm = 0
   }
@@ -453,8 +481,9 @@ export class JuliaVisualizer {
     this.manual = false
     let bestPosition = 0
     let bestDistance = Number.POSITIVE_INFINITY
-    for (let position = 0; position <= TOUR.length - 1; position += 0.05) {
-      const point = tourPoint(position)
+    const { tour } = this.family
+    for (let position = 0; position <= tour.length - 1; position += 0.05) {
+      const point = tourPoint(tour, position)
       const distance = Math.hypot(point.re - this.manualRe, point.im - this.manualIm)
       if (distance < bestDistance) {
         bestDistance = distance
@@ -474,12 +503,12 @@ export class JuliaVisualizer {
     if (this.hasShape) {
       // The shape trails its target: in manual mode that is where the pointer last put it (plus any
       // Switcheroo hop), on the tour it is the Tour slider's point plus the hop.
-      const tourTarget = tourPoint(this.currentTourTarget())
+      const tourTarget = tourPoint(this.family.tour, this.currentTourTarget())
       const targetRe = this.manual ? this.manualHomeRe + this.manualHopRe : tourTarget.re
       const targetIm = this.manual ? this.manualHomeIm + this.manualHopIm : tourTarget.im
       return { re: this.shapeRe, im: this.shapeIm, manual: this.manual, hue, saturation, targetRe, targetIm }
     }
-    const start = tourPoint(getShapePosition() * (TOUR.length - 1))
+    const start = tourPoint(this.family.tour, getShapePosition() * (this.family.tour.length - 1))
     return { re: start.re, im: start.im, manual: false, hue, saturation, targetRe: start.re, targetIm: start.im }
   }
 
@@ -488,7 +517,7 @@ export class JuliaVisualizer {
   private publishTourGhost(): void {
     const { tour } = window.config.fractal
     const hopped = !this.manual && this.switcherooHop !== 0
-    const along = this.currentTourTarget() / (TOUR.length - 1)
+    const along = this.currentTourTarget() / (this.family.tour.length - 1)
     ghostStore.set(TOUR_GHOST, hopped ? tour.min + along * (tour.max - tour.min) : null)
   }
 
@@ -498,27 +527,29 @@ export class JuliaVisualizer {
   }
 
   private currentTourTarget(): number {
-    return Math.max(0, Math.min(TOUR.length - 1, getShapePosition() * (TOUR.length - 1) + this.switcherooHop))
+    const last = this.family.tour.length - 1
+    return Math.max(0, Math.min(last, getShapePosition() * last + this.switcherooHop))
   }
 
   private hopManualShape(speed: number): void {
-    const hopDistance = switcherooHopPoints(speed) * MANUAL_HOP_DISTANCE_PER_TOUR_POINT
+    const hopDistance = switcherooHopPoints(speed) * MANUAL_HOP_DISTANCE_PER_TOUR_POINT * this.family.parameterScale
     const maxRadius = hopDistance * SWITCHEROO_MAX_HOPS
     const targetRe = this.manualHomeRe + this.manualHopRe
     const targetIm = this.manualHomeIm + this.manualHopIm
     // Prefer hopping to a point on the same side of the set boundary as the chosen point (connected
     // shapes stay connected, dust stays dust); if none turns up, take any nearby point so it still hops.
-    const homeInside = inMandelbrotSet(this.manualHomeRe, this.manualHomeIm)
+    const { mapView, parameterInSet } = this.family
+    const homeInside = parameterInSet({ re: this.manualHomeRe, im: this.manualHomeIm })
     for (const requireSameSide of [true, false]) {
       for (let attempt = 0; attempt < 24; attempt++) {
         const angle = Math.random() * Math.PI * 2
         const candidateRe = targetRe + Math.cos(angle) * hopDistance
         const candidateIm = targetIm + Math.sin(angle) * hopDistance
-        const inView = candidateRe > JULIA_MAP_VIEW.reMin && candidateRe < JULIA_MAP_VIEW.reMax
-          && candidateIm > JULIA_MAP_VIEW.imMin && candidateIm < JULIA_MAP_VIEW.imMax
+        const inView = candidateRe > mapView.reMin && candidateRe < mapView.reMax
+          && candidateIm > mapView.imMin && candidateIm < mapView.imMax
         const nearHome = Math.hypot(candidateRe - this.manualHomeRe, candidateIm - this.manualHomeIm) <= maxRadius
         if (!inView || !nearHome) continue
-        if (requireSameSide && inMandelbrotSet(candidateRe, candidateIm) !== homeInside) continue
+        if (requireSameSide && parameterInSet({ re: candidateRe, im: candidateIm }) !== homeInside) continue
         this.manualHopRe = candidateRe - this.manualHomeRe
         this.manualHopIm = candidateIm - this.manualHomeIm
         return
@@ -542,7 +573,7 @@ export class JuliaVisualizer {
       this.manualVelocityIm = 0
       return { re: this.manualRe, im: this.manualIm }
     }
-    const rate = Math.max(MANUAL_C_UNITS_PER_SEC_PER_SPEED * Math.max(SHAPE_MIN_SPEED, speed), distance / SHAPE_MAX_TRANSITION_SECONDS)
+    const rate = Math.max(MANUAL_C_UNITS_PER_SEC_PER_SPEED * this.family.parameterScale * Math.max(SHAPE_MIN_SPEED, speed), distance / SHAPE_MAX_TRANSITION_SECONDS)
     const desiredSpeed = rate * Math.min(1, distance / Math.max(1e-6, rate * SHAPE_EASE_SECONDS))
     const smoothing = 1 - Math.pow(0.5, dt / SHAPE_VELOCITY_HALF_LIFE_SECONDS)
     this.manualVelocityRe += ((offsetRe / distance) * desiredSpeed - this.manualVelocityRe) * smoothing
@@ -572,6 +603,8 @@ export class JuliaVisualizer {
   update(deltaTime: number, audioData: AudioSnapshot): void {
     if (!this.material) return
     const dt = deltaTime / 1000
+    const family = getFractalFamily(window.config.fractal.family.value)
+    if (family !== this.family) this.setFamily(family)
     if (this.iterationCurrent !== null && this.iterationCurrent !== this.iterationTarget) {
       this.applyIterations(stepToward(this.iterationCurrent, this.iterationTarget, ITERATION_STEP_PER_SECOND * dt))
     }
@@ -585,8 +618,10 @@ export class JuliaVisualizer {
     // Continuously-evolving target offset from slow autonomous drift + audio -- only ever
     // committed into the render at a loop wrap, never used mid-loop (see field comment above).
     this.driftPhase += dt * C_DRIFT_SPEED
-    const targetOffsetX = Math.cos(this.driftPhase) * C_DRIFT_RADIUS + this.smoothBass * BASS_C_INFLUENCE
-    const targetOffsetY = Math.sin(this.driftPhase * 1.3) * C_DRIFT_RADIUS + this.smoothTreble * TREBLE_C_INFLUENCE
+    // In the family's own parameter units (see FractalFamily.parameterScale).
+    const { parameterScale } = this.family
+    const targetOffsetX = (Math.cos(this.driftPhase) * C_DRIFT_RADIUS + this.smoothBass * BASS_C_INFLUENCE) * parameterScale
+    const targetOffsetY = (Math.sin(this.driftPhase * 1.3) * C_DRIFT_RADIUS + this.smoothTreble * TREBLE_C_INFLUENCE) * parameterScale
 
     const peakValue = audioData.beat.value
     const energyTarget = (audioData.energyAverage + audioData.energy) / 2
@@ -602,7 +637,7 @@ export class JuliaVisualizer {
 
     // Wob Wob: like Hopalong's backward jerk on a beat, the zoom recoils (briefly reverses) while the peak decays.
     const wobWobFactor = effects.wobWob.value ? 1 - WOBWOB_RECOIL * peakValue : 1
-    const progressDelta = BASE_LOOP_SPEED * (speed.value / SPEED_DEFAULT) * musicSpeedMultiplier * wobWobFactor * dt
+    const progressDelta = BASE_LOOP_SPEED * (speed.value / SPEED_DEFAULT) * musicSpeedMultiplier * wobWobFactor * this.zoomRateFactor() * dt
     this.loopProgress += progressDelta
     // A drag on the Rotation dial turns the view by the difference at once; the speed carries on from there.
     const turn = this.headingFollower.takeTurn(this.rotation)
@@ -620,7 +655,8 @@ export class JuliaVisualizer {
         const stepX = (targetOffsetX - this.loopOffsetX) * WRAP_C_LERP_FACTOR
         const stepY = (targetOffsetY - this.loopOffsetY) * WRAP_C_LERP_FACTOR
         const stepLength = Math.hypot(stepX, stepY)
-        const limit = stepLength > MAX_C_STEP_PER_WRAP ? MAX_C_STEP_PER_WRAP / stepLength : 1
+        const maxStep = MAX_C_STEP_PER_WRAP * parameterScale
+        const limit = stepLength > maxStep ? maxStep / stepLength : 1
         this.loopOffsetX += stepX * limit
         this.loopOffsetY += stepY * limit
       } else {
@@ -639,7 +675,7 @@ export class JuliaVisualizer {
     this.lastTourValue = tourValue
 
     // Scale sets the view's starting radius; ease it in log space so dragging the slider glides.
-    const targetRadius = scaleToRadius(window.config.user.scaleFactor.value / SCALE_UNITS_PER_SLIDER_STEP)
+    const targetRadius = scaleToRadius(window.config.user.scaleFactor.value / SCALE_UNITS_PER_SLIDER_STEP, this.family.wholeSetRadius)
     if (!this.hasViewRadius) {
       this.viewRadius = targetRadius
       this.hasViewRadius = true
@@ -648,7 +684,7 @@ export class JuliaVisualizer {
       this.viewRadius = Math.exp(Math.log(this.viewRadius) + (Math.log(targetRadius) - Math.log(this.viewRadius)) * kRadius)
     }
     const kWide = 1 - Math.pow(0.5, dt / WIDE_BLEND_HALF_LIFE_SECONDS)
-    this.wideBlend += ((this.viewRadius > SEAM_SAFE_RADIUS ? 1 : 0) - this.wideBlend) * kWide
+    this.wideBlend += ((this.viewRadius > this.family.seamSafeRadius ? 1 : 0) - this.wideBlend) * kWide
 
     // Switcheroo: on each beat, hop to a neighboring look and hold it until the next beat; the shape glides
     // there at the Speed-based rate. On the tour that is a few points along it (a random direction, bounded
@@ -670,7 +706,7 @@ export class JuliaVisualizer {
         this.hasTourPosition = true
       }
       const tourPosition = this.tourGlider.step(targetTourPosition, SHAPE_POINTS_PER_SEC_PER_SPEED * Math.max(SHAPE_MIN_SPEED, speed.value), dt)
-      baseC = tourPoint(tourPosition)
+      baseC = tourPoint(this.family.tour, tourPosition)
     } else {
       if (!effects.switcheroo.value) {
         this.manualHopRe = 0
@@ -686,7 +722,10 @@ export class JuliaVisualizer {
     this.hasShape = true
     const effectiveCx = baseC.re + this.loopOffsetX
     const effectiveCy = baseC.im + this.loopOffsetY
-    const { fixedPointX, fixedPointY, lambdaMag, lambdaArg, koenigs2, koenigs3 } = computeFixedPointAndLambda(effectiveCx, effectiveCy)
+    const fixed = this.family.fixedPoint({ re: effectiveCx, im: effectiveCy }, this.previousFixedPoint)
+    const { fixedPointX, fixedPointY, lambdaMag, lambdaArg, koenigs2, koenigs3 } = fixed
+    this.previousFixedPoint = { re: fixedPointX, im: fixedPointY }
+    this.lastLambdaMag = lambdaMag
 
     // Spin and zoom are carried as running totals instead of being recomputed from the current shape.
     // Recomputing (angle = -t * arg(lambda), radius = |lambda|^-t) made the whole view swing and the zoom
@@ -745,11 +784,12 @@ export class JuliaVisualizer {
     // never past the radius where the shader's series blend begins. The spin follows the zoom the way the
     // sawtooth's does (arg(lambda) per ln|lambda|), and the iteration offset tracks the zoom depth.
     const lnLambda = Math.log(lambdaMag)
-    // The dive and the orient turn both settle to nothing as the view widens from SEAM_SAFE_RADIUS to the
+    // The dive and the orient turn both settle to nothing as the view widens from the seam-safe radius to the
     // whole set, so the widest Scale is a fixed full-frame picture of the Julia set.
-    const wideFraction = Math.max(0, Math.min(1, Math.log(this.viewRadius / SEAM_SAFE_RADIUS) / Math.log(SETTLED_RADIUS / SEAM_SAFE_RADIUS)))
+    const { seamSafeRadius } = this.family
+    const wideFraction = Math.max(0, Math.min(1, Math.log(this.viewRadius / seamSafeRadius) / Math.log(scaleToRadius(SCALE_SETTLED, this.family.wholeSetRadius) / seamSafeRadius)))
     const settle = 1 - wideFraction * wideFraction * (3 - 2 * wideFraction)
-    const breathDepth = settle * Math.min(logZoomPerLoop, Math.max(0, Math.log(this.viewRadius / WIDE_DIVE_FLOOR_RADIUS)))
+    const breathDepth = settle * Math.min(logZoomPerLoop, Math.max(0, Math.log(this.viewRadius / (seamSafeRadius * WIDE_DIVE_FLOOR_FACTOR))))
     const breathZoom = -breathDepth * 0.5 * (1 - Math.cos(Math.PI * 2 * this.loopT))
     const breathSpin = (lambdaArg / lnLambda) * breathZoom
     const breathIterOffset = -breathZoom / lnLambda
@@ -763,7 +803,7 @@ export class JuliaVisualizer {
     uniforms.uFixedPoint!.value.set(fixedPointX, fixedPointY)
     // Turn the shape so its filled region faces down, easing so a shape change (or a flip in which side
     // dominates) turns the view smoothly instead of snapping.
-    const mass = massDirection(effectiveCx, effectiveCy, { re: fixedPointX, im: fixedPointY }, koenigs2, koenigs3)
+    const mass = massDirection(this.family, { re: effectiveCx, im: effectiveCy }, fixed)
     if (mass !== null) {
       const targetOrient = mass + Math.PI / 2
       if (!this.hasOrient) {
@@ -791,6 +831,7 @@ export class JuliaVisualizer {
     }
     uniforms.uShockRadius!.value = this.shockRadius
     uniforms.uShockStrength!.value = shockStrength
+    this.stepFamilyFade(dt)
   }
 
   // Draws into the caller's target with the caller's renderer.
@@ -807,6 +848,8 @@ export class JuliaVisualizer {
     delete window.getJuliaShape
     delete window.clearJuliaShape
     ghostStore.set(TOUR_GHOST, null)
+    this.dropOutgoing()
     this.material?.dispose()
+    this.geometry.dispose()
   }
 }

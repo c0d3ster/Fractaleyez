@@ -14,6 +14,7 @@ import { DISPLAY_ORDER } from '../../config/layers'
 import { ConfigContext, ConfigContextValue, useConfigContext } from './context/ConfigProvider'
 import { pickNearestScreen } from './popoutScreen'
 import { UserConfigBody } from './UserConfigBody'
+import { FractalTypePicker } from './FractalTypePicker'
 import { ShapePad } from './ShapePad'
 import { LogConfigButton } from './LogConfigButton'
 import { ColorConfigBody } from './ColorConfigBody'
@@ -154,6 +155,7 @@ const ExternalWindowBridge = ({ context, upgrade }: ExternalWindowBridgeProps): 
                       ) : null}
                       {entry === 'fractal' ? (
                         <ConfigCategory name='fractal' onChange={updateConfigItem} isOpen={true} toggleOpen={() => null} expanded popup>
+                          <FractalTypePicker expanded />
                           <ShapePad />
                         </ConfigCategory>
                       ) : null}

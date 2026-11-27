@@ -6,6 +6,7 @@ import { ConfigSubAccordion } from './ConfigSubAccordion'
 import { ConfigVideoBody } from './ConfigVideoBody'
 import { ColorConfigBody } from './ColorConfigBody'
 import { LogoConfigBody } from './LogoConfigBody'
+import { FractalTypePicker } from './FractalTypePicker'
 import { ShapePad } from './ShapePad'
 import { AutoSwitch } from './AutoSwitch'
 import { ParticleSpriteHud } from '../huds'
@@ -59,7 +60,7 @@ const Entry = ({ entry, onChange, isOpen, toggleOpen }: EntryProps): React.React
   case 'video':
     return <ConfigCategory {...shared} bare><ConfigVideoBody /></ConfigCategory>
   case 'fractal':
-    return <ConfigCategory {...shared}><ShapePad /></ConfigCategory>
+    return <ConfigCategory {...shared}><FractalTypePicker /><ShapePad /></ConfigCategory>
   case 'orbit':
     return (
       <ConfigCategory {...shared} bare>

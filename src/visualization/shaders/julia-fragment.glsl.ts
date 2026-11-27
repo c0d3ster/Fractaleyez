@@ -1,4 +1,5 @@
 import { FRACTAL_MAX_ITERATIONS } from '../../config/quality.config'
+import type { FractalFamily } from '../fractal-families'
 
 
 export const juliaVertexShader = /* glsl */ `
@@ -10,7 +11,10 @@ export const juliaVertexShader = /* glsl */ `
   }
 `
 
-export const juliaFragmentShader = /* glsl */ `
+// The fragment shader for one fractal family: the family's map, escape test and smooth count are spliced in (see FamilyGlsl).
+const glslFloat = (value: number): string => (Number.isInteger(value) ? value.toFixed(1) : String(value))
+
+export const buildJuliaFragmentShader = ({ glsl, wholeSetCenter }: FractalFamily): string => /* glsl */ `
   precision highp float;
 
   uniform vec2 uC;
@@ -35,6 +39,8 @@ export const juliaFragmentShader = /* glsl */ `
   uniform float uShockRadius;
   uniform float uShockStrength;
   uniform float uMaxIter;
+  // Below 1 only while this type fades in over the previous one after a Type change.
+  uniform float uOpacity;
 
   varying vec2 vUv;
 
@@ -42,6 +48,7 @@ export const juliaFragmentShader = /* glsl */ `
   const int MAX_ITER = ${FRACTAL_MAX_ITERATIONS};
   const float WIDE_START = 0.25;
   const float WIDE_END = 0.8;
+  const vec2 WIDE_CENTER = vec2(${glslFloat(wholeSetCenter.re)}, ${glslFloat(wholeSetCenter.im)});
 
   vec2 complexMul(vec2 a, vec2 b) {
     return vec2(a.x * b.x - a.y * b.y, a.x * b.y + a.y * b.x);
@@ -51,6 +58,18 @@ export const juliaFragmentShader = /* glsl */ `
     return vec2(z.x * z.x - z.y * z.y, 2.0 * z.x * z.y);
   }
 
+  vec2 familyStep(vec2 z, vec2 c) {
+    ${glsl.step}
+  }
+
+  bool familyEscaped(vec2 z) {
+    ${glsl.escaped}
+  }
+
+  float familySmooth(vec2 z, float n) {
+    ${glsl.smooth}
+  }
+
   // Continuous/smooth escape-time count. Returns -1.0 for points that never escape (inside the set).
   float juliaSmoothIter(vec2 z, vec2 c) {
     float n = float(MAX_ITER);
@@ -58,8 +77,8 @@ export const juliaFragmentShader = /* glsl */ `
 
     for (int i = 0; i < MAX_ITER; i++) {
       if (float(i) >= uMaxIter) break;
-      z = complexSquare(z) + c;
-      if (dot(z, z) > 256.0) {
+      z = familyStep(z, c);
+      if (familyEscaped(z)) {
         n = float(i);
         escaped = true;
         break;
@@ -68,8 +87,7 @@ export const juliaFragmentShader = /* glsl */ `
 
     if (!escaped) return -1.0;
 
-    float logZn = log(dot(z, z)) * 0.5;
-    return n + 1.0 - log2(logZn);
+    return familySmooth(z, n);
   }
 
   // The Color config's palette is read from a lookup texture. Its cycles set how fast the escape count runs through it,
@@ -104,13 +122,13 @@ export const juliaFragmentShader = /* glsl */ `
     float radius = uWStart * exp(uLogZoom);
     // Inverse Koenigs coordinate to third order, so wider views stay self-similar at the loop wrap.
     // The series only holds up to about WIDE_START; past that the view eases into plain complex-plane
-    // coordinates centered on the origin, so the widest views show the whole Julia set (the zoom then
+    // coordinates centered on the family's whole-set center, so the widest views show the whole Julia set (the zoom then
     // breathes instead of looping, see JuliaVisualizer).
     float wide = smoothstep(WIDE_START, WIDE_END, radius);
     vec2 w = rotated * radius;
     vec2 w2 = complexMul(w, w);
     vec2 series = complexMul(uKoenigs2, w2) + complexMul(uKoenigs3, complexMul(w2, w));
-    vec2 z0 = mix(uFixedPoint, vec2(0.0), wide) + w + (1.0 - wide) * series;
+    vec2 z0 = mix(uFixedPoint, WIDE_CENTER, wide) + w + (1.0 - wide) * series;
 
     float nu = juliaSmoothIter(z0, uC);
 
@@ -126,6 +144,6 @@ export const juliaFragmentShader = /* glsl */ `
     color = mix(vec3(dot(color, vec3(0.299, 0.587, 0.114))), color, uSaturation);
 
     color = min(color, vec3(1.0));
-    gl_FragColor = vec4(color, 1.0);
+    gl_FragColor = vec4(color, uOpacity);
   }
 `

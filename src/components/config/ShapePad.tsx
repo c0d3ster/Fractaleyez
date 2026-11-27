@@ -1,13 +1,14 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
-import { JULIA_FAMOUS_SHAPES, JULIA_MAP_VIEW, JULIA_TOUR } from '../../visualization/julia-tour'
+import { getFractalFamily, type FractalFamily } from '../../visualization/fractal-families'
 import './ShapePad.css'
 import '../upgrade/premiumOutline.css'
 import { mainWindow, Pad, PadPoint } from './Pad'
 import { subscribeUiTick } from '../../utils/uiTicker'
 import { colorConfig } from '../../config/color.config'
-import { ColorState, resolveColorState } from '../../config/colorState'
-import { sampleLut } from '../../config/paletteLut'
+import { resolveColorState } from '../../config/colorState'
+import { MAP_MAX_ITER, MIN_RECOLOR_HUE_STEP, MIN_RECOLOR_INTERVAL_MS, drawEscapeCounts } from './escapeMapColors'
 import { useConfigContext } from './context/ConfigProvider'
+import { useConfigSelector } from './context/useConfigSelector'
 import { useUpgrade } from '../upgrade/UpgradeProvider'
 
 // The pad fills its column (3:2, see ShapePad.css); the canvases use a fixed backing size that
@@ -17,103 +18,31 @@ const PAD_H = 320
 const BACKING = 1
 // The map is only a coarse color picture, so it is drawn at a quarter of the overlay's pixels and CSS scales it up.
 const MAP_BACKING = 0.5
-const MAP_MAX_ITER = 120
 
 type ShapeReadout = { re: number; im: number; manual: boolean; hue: number; saturation: number; targetRe: number; targetIm: number }
 
-const VIEW_WIDTH = JULIA_MAP_VIEW.reMax - JULIA_MAP_VIEW.reMin
-const VIEW_HEIGHT = JULIA_MAP_VIEW.imMax - JULIA_MAP_VIEW.imMin
-
-const toPixel = (re: number, im: number, width: number, height: number): [number, number] => [
-  ((re - JULIA_MAP_VIEW.reMin) / VIEW_WIDTH) * width,
-  ((JULIA_MAP_VIEW.imMax - im) / VIEW_HEIGHT) * height,
+const toPixel = ({ mapView }: FractalFamily, re: number, im: number, width: number, height: number): [number, number] => [
+  ((re - mapView.reMin) / (mapView.reMax - mapView.reMin)) * width,
+  ((mapView.imMax - im) / (mapView.imMax - mapView.imMin)) * height,
 ]
 
-const smoothIterations = (cRe: number, cIm: number): number => {
-  let zRe = 0
-  let zIm = 0
-  for (let n = 0; n < MAP_MAX_ITER; n++) {
-    const nextRe = zRe * zRe - zIm * zIm + cRe
-    zIm = 2 * zRe * zIm + cIm
-    zRe = nextRe
-    const magnitude = zRe * zRe + zIm * zIm
-    if (magnitude > 256) return n + 1 - Math.log(Math.log(magnitude) * 0.5) / Math.LN2
-  }
-  return -1
-}
-
-// The escape counts only depend on the view, so they are computed once; recoloring for a new hue is cheap.
-const computeIterations = (width: number, height: number): Float32Array => {
+// The escape counts only depend on the family and the view, so they are computed once per family; recoloring for a new hue is cheap.
+const computeIterations = ({ mapView, mapIterations }: FractalFamily, width: number, height: number): Float32Array => {
   const values = new Float32Array(width * height)
+  const viewWidth = mapView.reMax - mapView.reMin
+  const viewHeight = mapView.imMax - mapView.imMin
   for (let y = 0; y < height; y++) {
-    const cIm = JULIA_MAP_VIEW.imMax - (y / (height - 1)) * VIEW_HEIGHT
+    const cIm = mapView.imMax - (y / (height - 1)) * viewHeight
     for (let x = 0; x < width; x++) {
-      const cRe = JULIA_MAP_VIEW.reMin + (x / (width - 1)) * VIEW_WIDTH
-      values[y * width + x] = smoothIterations(cRe, cIm)
+      const cRe = mapView.reMin + (x / (width - 1)) * viewWidth
+      values[y * width + x] = mapIterations({ re: cRe, im: cIm }, MAP_MAX_ITER)
     }
   }
   return values
 }
 
-// The color only depends on the smooth escape count, so each recolor builds a small lookup table over the
-// count's range and the per-pixel work is one table read. Recoloring runs on every beat (the hue jumps) on the
-// same main thread as the visualizer, so the old per-pixel exp and three cos calls (about 25 ms per recolor)
-// were stalling the video texture.
-// This pad runs on the same main thread as the visualizer and its video texture (the config popup is rendered by
-// the main window's JS), so its per-frame work is kept small: recoloring and overlay/readout updates are rate
-// limited, and the hue has to move a visible amount before the map is repainted.
-const MIN_RECOLOR_INTERVAL_MS = 250
-const MIN_RECOLOR_HUE_STEP = 0.03
-const COLOR_LUT_SIZE = 2048
-const COLOR_LUT_SCALE = (COLOR_LUT_SIZE - 1) / MAP_MAX_ITER
 
-// The map's colors for one escape count: the same palette lookup as the Julia shader, dimmed toward the set.
-const colorAt = (nu: number, hue: number, color: ColorState): [number, number, number] => {
-  const glow = 0.18 + 0.82 * Math.exp(-nu * 0.16)
-  const [red, green, blue] = sampleLut(color.lut, nu * 0.05 * color.cycles + hue + color.phase)
-  return [red * 255 * glow, green * 255 * glow, blue * 255 * glow]
-}
-
-const buildColorLut = (hue: number, color: ColorState): Uint8ClampedArray => {
-  const lut = new Uint8ClampedArray(COLOR_LUT_SIZE * 3)
-  const { saturation } = color
-  for (let i = 0; i < COLOR_LUT_SIZE; i++) {
-    const [red, green, blue] = colorAt(i / COLOR_LUT_SCALE, hue, color)
-    // Same grayscale blend the Julia shader uses for the Saturation slider.
-    const luma = 0.299 * red + 0.587 * green + 0.114 * blue
-    lut[i * 3] = luma + (red - luma) * saturation
-    lut[i * 3 + 1] = luma + (green - luma) * saturation
-    lut[i * 3 + 2] = luma + (blue - luma) * saturation
-  }
-  return lut
-}
-
-const drawMandelbrot = (canvas: HTMLCanvasElement, iterations: Float32Array, hue: number, color: ColorState): void => {
-  const context = canvas.getContext('2d')
-  if (!context) return
-  const { width, height } = canvas
-  const image = context.createImageData(width, height)
-  const lut = buildColorLut(hue, color)
-  const pixelCount = width * height
-  for (let pixel = 0; pixel < pixelCount; pixel++) {
-    const nu = iterations[pixel] ?? -1
-    const offset = pixel * 4
-    if (nu < 0) {
-      image.data[offset] = 4
-      image.data[offset + 1] = 5
-      image.data[offset + 2] = 10
-    } else {
-      const lutOffset = Math.min(COLOR_LUT_SIZE - 1, Math.round(nu * COLOR_LUT_SCALE)) * 3
-      image.data[offset] = lut[lutOffset] ?? 0
-      image.data[offset + 1] = lut[lutOffset + 1] ?? 0
-      image.data[offset + 2] = lut[lutOffset + 2] ?? 0
-    }
-    image.data[offset + 3] = 255
-  }
-  context.putImageData(image, 0, 0)
-}
-
-const drawOverlay = (canvas: HTMLCanvasElement, shape: ShapeReadout): void => {
+const drawOverlay = (canvas: HTMLCanvasElement, family: FractalFamily, shape: ShapeReadout): void => {
   const context = canvas.getContext('2d')
   if (!context) return
   const { width, height } = canvas
@@ -124,8 +53,8 @@ const drawOverlay = (canvas: HTMLCanvasElement, shape: ShapeReadout): void => {
   context.lineWidth = 1.5
   context.strokeStyle = 'rgba(255,255,255,0.65)'
   context.beginPath()
-  JULIA_TOUR.forEach(([re, im], index) => {
-    const [x, y] = toPixel(re, im, width, height)
+  family.tour.forEach(([re, im], index) => {
+    const [x, y] = toPixel(family, re, im, width, height)
     if (index === 0) context.moveTo(x, y)
     else context.lineTo(x, y)
   })
@@ -133,8 +62,8 @@ const drawOverlay = (canvas: HTMLCanvasElement, shape: ShapeReadout): void => {
   context.restore()
 
   context.fillStyle = '#46e6c8'
-  JULIA_FAMOUS_SHAPES.forEach(({ re, im }) => {
-    const [x, y] = toPixel(re, im, width, height)
+  family.famousShapes.forEach(({ re, im }) => {
+    const [x, y] = toPixel(family, re, im, width, height)
     context.beginPath()
     context.arc(x, y, 3, 0, Math.PI * 2)
     context.fill()
@@ -143,7 +72,7 @@ const drawOverlay = (canvas: HTMLCanvasElement, shape: ShapeReadout): void => {
   // The shape trails its destination at a Speed-based rate (the pointer's spot in manual mode, the Tour
   // slider's spot plus any Switcheroo hop on the tour), so mark where it is headed.
   if (Math.hypot(shape.targetRe - shape.re, shape.targetIm - shape.im) > 0.01) {
-    const [targetX, targetY] = toPixel(shape.targetRe, shape.targetIm, width, height)
+    const [targetX, targetY] = toPixel(family, shape.targetRe, shape.targetIm, width, height)
     context.lineWidth = 1.5
     context.fillStyle = '#ff5db1'
     context.strokeStyle = 'rgba(0,0,0,0.6)'
@@ -153,7 +82,7 @@ const drawOverlay = (canvas: HTMLCanvasElement, shape: ShapeReadout): void => {
     context.stroke()
   }
 
-  const [dotX, dotY] = toPixel(shape.re, shape.im, width, height)
+  const [dotX, dotY] = toPixel(family, shape.re, shape.im, width, height)
   context.lineWidth = 2
   context.strokeStyle = shape.manual ? '#ff5db1' : '#ffffff'
   context.beginPath()
@@ -216,19 +145,24 @@ export const ShapePad = (): React.ReactElement => {
   const lastRecolorAtRef = useRef(0)
   // Picking your own shape (drag, Manual) is premium; the Tour, its named shapes and going back to it are open to all. Guests have no entitlements.
   const { entitlements, updateConfigItem } = useConfigContext()
+  const family = getFractalFamily(useConfigSelector((config) => config.fractal.family.value))
+  const familyRef = useRef(family)
+  familyRef.current = family
   const manualLocked = entitlements?.features.customFractalPath !== true
   const { requestUpgrade } = useUpgrade()
   const [readout, setReadout] = useState<ShapeReadout>({ re: -0.75, im: 0, manual: false, hue: 0, saturation: colorConfig.saturation_DEFAULT, targetRe: -0.75, targetIm: 0 })
 
+  // The map is the family's own parameter plane, so a new Type redraws it and the overlay.
   useEffect(() => {
     const canvas = mandelbrotRef.current
     if (!canvas) return
-    iterationsRef.current = computeIterations(canvas.width, canvas.height)
+    iterationsRef.current = computeIterations(family, canvas.width, canvas.height)
     drawnHueRef.current = 0
     const color = resolveColorState(mainWindow().config.color)
     drawnColorKeyRef.current = color.key
-    drawMandelbrot(canvas, iterationsRef.current, 0, color)
-  }, [])
+    drawEscapeCounts(canvas, iterationsRef.current, 0, color)
+    lastDrawnKey.current = ''
+  }, [family])
 
   // Poll the visualizer's current shape on the shared UI tick so the dot follows the Tour slider, glides, and
   // Switcheroo hops, the same way the camera pad stays in sync with the real mouse.
@@ -247,13 +181,13 @@ export const ShapePad = (): React.ReactElement => {
         lastRecolorAtRef.current = now
         drawnHueRef.current = shape.hue
         drawnColorKeyRef.current = color.key
-        drawMandelbrot(map, iterations, shape.hue, color)
+        drawEscapeCounts(map, iterations, shape.hue, color)
       }
       if (overlay && shape) {
-        const key = `${shape.re.toFixed(4)},${shape.im.toFixed(4)},${shape.manual},${shape.targetRe.toFixed(3)},${shape.targetIm.toFixed(3)}`
+        const key = `${familyRef.current.key},${shape.re.toFixed(4)},${shape.im.toFixed(4)},${shape.manual},${shape.targetRe.toFixed(3)},${shape.targetIm.toFixed(3)}`
         if (key !== lastDrawnKey.current) {
           lastDrawnKey.current = key
-          drawOverlay(overlay, shape)
+          drawOverlay(overlay, familyRef.current, shape)
           setReadout(shape)
         }
       }
@@ -266,11 +200,12 @@ export const ShapePad = (): React.ReactElement => {
       if (phase === 'start') requestUpgrade(MANUAL_UPGRADE_REASON)
       return
     }
+    const { mapView } = family
     mainWindow().setJuliaShape?.(
-      JULIA_MAP_VIEW.reMin + point.x * VIEW_WIDTH,
-      JULIA_MAP_VIEW.imMax - point.y * VIEW_HEIGHT,
+      mapView.reMin + point.x * (mapView.reMax - mapView.reMin),
+      mapView.imMax - point.y * (mapView.imMax - mapView.imMin),
     )
-  }, [manualLocked, requestUpgrade])
+  }, [family, manualLocked, requestUpgrade])
 
   const handleReset = useCallback((): void => {
     mainWindow().clearJuliaShape?.()
@@ -291,8 +226,8 @@ export const ShapePad = (): React.ReactElement => {
   const pickNamedShape = useCallback((tourStop: number): void => {
     const { min, max } = mainWindow().config.fractal.tour
     mainWindow().clearJuliaShape?.()
-    updateConfigItem('fractal', 'tour', min + (tourStop / (JULIA_TOUR.length - 1)) * (max - min))
-  }, [updateConfigItem])
+    updateConfigItem('fractal', 'tour', min + (tourStop / (family.tour.length - 1)) * (max - min))
+  }, [family, updateConfigItem])
 
   return (
     <Pad
@@ -308,7 +243,7 @@ export const ShapePad = (): React.ReactElement => {
       hint={manualLocked ? LOCKED_HINT : HINT}
       footer={(
         <div className='shape-pad-chips'>
-          {JULIA_FAMOUS_SHAPES.map(({ name, tourStop }) => (
+          {family.famousShapes.map(({ name, tourStop }) => (
             <button
               key={name}
               type='button'
