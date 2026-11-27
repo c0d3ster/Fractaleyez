@@ -2,7 +2,7 @@ import * as THREE from 'three'
 import { CAMERA_STEER_SCREEN_FRACTION_PER_PAD_UNIT, getParticleCrossfadeDurationMs } from '../config/visualizer.config'
 import type { AudioSnapshot } from '../audioanalysis/audio-snapshot'
 import { buildJuliaFragmentShader, juliaVertexShader } from './shaders/julia-fragment.glsl'
-import { getFractalFamily, koenigsPoint, quadraticFamily, type Complex, type FixedPointResult, type FractalFamily } from './fractal-families'
+import { FRACTAL_FAMILIES, getFractalFamily, koenigsPoint, quadraticFamily, type Complex, type FixedPointResult, type FractalFamily } from './fractal-families'
 import { userConfig } from '../config/user.config'
 import { userHeading } from '../config/heading'
 import { HeadingFollower } from '../config/headingFollower'
@@ -217,6 +217,9 @@ const getShapePosition = (): number => {
   return Math.max(0, Math.min(1, (value - min) / (max - min)))
 }
 
+// A Type's mesh, with the material type three's untyped Mesh loses.
+type FamilyMesh = THREE.Mesh & { material: THREE.ShaderMaterial }
+
 export class JuliaVisualizer {
   private scene: THREE.Scene | null = null
   private camera: THREE.OrthographicCamera | null = null
@@ -279,8 +282,14 @@ export class JuliaVisualizer {
   // The fractal family drawn (the Fractal config's Type) and the fixed point the zoom sat on last frame, so it stays on the same one.
   private family: FractalFamily = quadraticFamily
   private previousFixedPoint: Complex | null = null
+  // One mesh per Type, made once and kept (hidden while not drawn), so its shader compiles only once: three.js frees a program as soon as no
+  // material uses it, so making a material per switch compiled the shader again on every Type change, a freeze of a few hundred ms.
+  private readonly familyMeshes = new Map<FractalFamily, FamilyMesh>()
+  private mesh: FamilyMesh | null = null
+  // Types whose shader has compiled (drawn at least once).
+  private readonly warmedFamilies = new Set<FractalFamily>()
   // The type being faded out after a Type change, drawn under the new one until the fade ends; 0 to 1 through the fade.
-  private outgoing: { mesh: THREE.Mesh; material: THREE.ShaderMaterial } | null = null
+  private outgoing: FamilyMesh | null = null
   private familyFade = 1
   private readonly geometry = new THREE.PlaneGeometry(2, 2)
   private lastLambdaMag = 0
@@ -295,8 +304,14 @@ export class JuliaVisualizer {
     this.paletteTexture.magFilter = THREE.LinearFilter
     this.paletteTexture.minFilter = THREE.LinearFilter
 
-    this.material = this.createMaterial(this.family)
-    this.scene.add(new THREE.Mesh(this.geometry, this.material))
+    FRACTAL_FAMILIES.forEach((family) => {
+      const mesh = new THREE.Mesh(this.geometry, this.createMaterial(family)) as FamilyMesh
+      mesh.visible = family === this.family
+      this.familyMeshes.set(family, mesh)
+      this.scene?.add(mesh)
+    })
+    this.mesh = this.familyMeshes.get(this.family) ?? null
+    this.material = this.mesh?.material ?? null
 
     window.addEventListener('resize', this.onResize)
 
@@ -339,13 +354,48 @@ export class JuliaVisualizer {
   }
 
   private onResize = (): void => {
-    if (!this.material) return
-    this.material.uniforms.uAspect!.value = window.innerWidth / window.innerHeight
+    this.familyMeshes.forEach(({ material }) => {
+      material.uniforms.uAspect!.value = window.innerWidth / window.innerHeight
+    })
   }
 
-  /** Compiles the fractal shader now. Its long loop takes a while to compile, and left until the layer is first switched on that shows as a freeze. */
+  /**
+   * Compiles the shown Type's shader now. Its long loop takes a while to compile, and left until the layer is first switched on that shows
+   * as a freeze. The other Types compile later, one at a time, through warmNextFamily.
+   */
   warm(renderer: THREE.WebGLRenderer): void {
-    if (this.scene && this.camera) renderer.compile(this.scene, this.camera)
+    this.warmFamily(renderer, this.family)
+  }
+
+  /**
+   * Compiles one Type the viewer has not seen yet (each is a separate freeze, so the caller spreads them out over idle time). Returns false
+   * once every Type is ready. A Type picked before its turn compiles when it first draws, as before.
+   */
+  warmNextFamily(renderer: THREE.WebGLRenderer): boolean {
+    const next = FRACTAL_FAMILIES.find((family) => !this.warmedFamilies.has(family))
+    if (!next) return false
+    this.warmFamily(renderer, next)
+    return FRACTAL_FAMILIES.some((family) => !this.warmedFamilies.has(family))
+  }
+
+  // Draws one Type alone into a 1x1 target: that compiles its shader, and also finishes it on drivers that only do so at the first draw.
+  private warmFamily(renderer: THREE.WebGLRenderer, family: FractalFamily): void {
+    const { scene, camera } = this
+    const mesh = this.familyMeshes.get(family)
+    if (!scene || !camera || !mesh) return
+    const target = new THREE.WebGLRenderTarget(1, 1)
+    const shown = new Map([...this.familyMeshes.values()].map((other) => [other, other.visible]))
+    shown.forEach((_visible, other) => {
+      other.visible = other === mesh
+    })
+    renderer.setRenderTarget(target)
+    renderer.render(scene, camera)
+    renderer.setRenderTarget(null)
+    shown.forEach((visible, other) => {
+      other.visible = visible
+    })
+    target.dispose()
+    this.warmedFamilies.add(family)
   }
 
   /**
@@ -361,7 +411,9 @@ export class JuliaVisualizer {
 
   private applyIterations = (iterations: number): void => {
     this.iterationCurrent = iterations
-    this.material!.uniforms.uMaxIter!.value = iterations
+    this.familyMeshes.forEach(({ material }) => {
+      material.uniforms.uMaxIter!.value = iterations
+    })
   }
 
   /**
@@ -370,31 +422,30 @@ export class JuliaVisualizer {
    */
   private setFamily(family: FractalFamily): void {
     this.family = family
-    if (this.material && this.scene) {
-      const incoming = this.createMaterial(family)
+    const incoming = this.familyMeshes.get(family)
+    const current = this.mesh
+    if (incoming && current && incoming !== current) {
       // Over the Crossfade Duration the old type keeps drawing underneath and the new one fades in over it (see stepFamilyFade).
       // A switch in the middle of a fade drops the older picture: the one on screen becomes the one fading out.
-      this.dropOutgoing()
-      const crossfadeMs = getParticleCrossfadeDurationMs()
-      if (crossfadeMs > 0) {
-        const current = this.scene.children.find((child): child is THREE.Mesh => child instanceof THREE.Mesh && child.material === this.material)
-        if (current) {
-          this.material.uniforms.uOpacity!.value = 1
-          this.material.transparent = false
-          current.renderOrder = 0
-          this.outgoing = { mesh: current, material: this.material }
-        }
-        incoming.transparent = true
-        incoming.uniforms.uOpacity!.value = 0
+      if (this.outgoing && this.outgoing !== incoming) this.outgoing.visible = false
+      this.outgoing = null
+      if (getParticleCrossfadeDurationMs() > 0) {
+        current.material.uniforms.uOpacity!.value = 1
+        current.material.transparent = false
+        current.renderOrder = 0
+        this.outgoing = current
+        incoming.material.transparent = true
+        incoming.material.uniforms.uOpacity!.value = 0
         this.familyFade = 0
       } else {
-        this.removeMesh(this.material)
-        this.material.dispose()
+        current.visible = false
+        incoming.material.transparent = false
+        incoming.material.uniforms.uOpacity!.value = 1
       }
-      const incomingMesh = new THREE.Mesh(this.geometry, incoming)
-      incomingMesh.renderOrder = 1
-      this.scene.add(incomingMesh)
-      this.material = incoming
+      incoming.renderOrder = 1
+      incoming.visible = true
+      this.mesh = incoming
+      this.material = incoming.material
     }
     this.manual = false
     this.manualHopRe = 0
@@ -421,15 +472,9 @@ export class JuliaVisualizer {
     if (family !== this.family) this.setFamily(family)
   }
 
-  private removeMesh(material: THREE.ShaderMaterial): void {
-    const mesh = this.scene?.children.find((child) => child instanceof THREE.Mesh && child.material === material)
-    if (mesh) this.scene?.remove(mesh)
-  }
-
   private dropOutgoing(): void {
     if (!this.outgoing) return
-    this.scene?.remove(this.outgoing.mesh)
-    this.outgoing.material.dispose()
+    this.outgoing.visible = false
     this.outgoing = null
   }
 
@@ -849,6 +894,7 @@ export class JuliaVisualizer {
     renderer.setRenderTarget(target)
     renderer.render(this.scene, this.camera)
     renderer.setRenderTarget(null)
+    this.warmedFamilies.add(this.family)
   }
 
   dispose(): void {
@@ -857,8 +903,9 @@ export class JuliaVisualizer {
     delete window.getJuliaShape
     delete window.clearJuliaShape
     ghostStore.set(TOUR_GHOST, null)
-    this.dropOutgoing()
-    this.material?.dispose()
+    this.familyMeshes.forEach(({ material }) => material.dispose())
+    this.familyMeshes.clear()
+    this.outgoing = null
     this.geometry.dispose()
   }
 }
