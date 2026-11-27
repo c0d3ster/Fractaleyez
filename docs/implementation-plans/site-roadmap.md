@@ -71,7 +71,7 @@ An installation at a festival: a room, dome or wall where the visuals run for ho
 
 - **Exhibit mode:** a full-screen kiosk mode with no UI, Auto running the show (presets, layers, fractal Types and Tours changing with the music), and a hidden key or long press to get back to the controls.
 - **Hours of uptime:** a soak test of 12 hours or more watching memory, GPU resources and frame rate; recover on its own from a lost camera or audio input (the camera already reconnects), a GPU context loss, or a crash (reload into exhibit mode).
-- **Offline:** everything an exhibit uses (presets, sprites, video clips, the demo track) cached locally, since festival internet is unreliable.
+- **Offline, in the browser:** festival internet is unreliable, so the site has to start and run with no network. Much is already cached (the preset and pack lists per viewer, preset configs against `updatedAt`, user settings, sprites in Cache Storage). What is missing is the app itself: a cold reload with no network cannot fetch the page and `app.js`. A service worker that precaches the build fixes that and makes the site an installable PWA. Exhibit mode then warms everything the show uses (presets, sprites, video clips, the demo track, per-track AI looks) while online. The desktop app uses the same cache; it adds start at boot and a fixed display, not offline.
 - **Scheduling:** a playlist of looks by time of day (calmer by day, heavier at night), or tied to the stage's set times.
 
 ### Interactive
@@ -154,7 +154,7 @@ For people running it at shows, which is also what makes the booking credible.
 ## Phases
 
 1. **Now, around launch:** onboarding (the intro overlay and walkthrough, the mic explanation, pick a vibe, the demo track), the Learn page v1, the reference pages, and share links.
-2. **Next:** line in (the audio input picker and a level meter), the Pioneer spike and then the companion app's Pro DJ Link support (beat and tempo from the CDJs, knowing the song ahead, see `pioneer-pro-dj-link.md`), the Library page and visibility, recording clips, the booking page, a "what's new" page, and for exhibits: exhibit mode, the soak test, offline caching, the pitch kit and the interactive pieces (the camera dream, presence and the hands-on station).
+2. **Next:** the service worker (offline start and an installable PWA), line in (the audio input picker and a level meter), the Pioneer spike and then the companion app's Pro DJ Link support (beat and tempo from the CDJs, knowing the song ahead, see `pioneer-pro-dj-link.md`), the Library page and visibility, recording clips, the booking page, a "what's new" page, and for exhibits: exhibit mode, the soak test, warming the offline cache, the pitch kit and the interactive pieces (the camera dream, presence and the hands-on station).
 3. **Later:** per-channel mixer audio, the companion app for other DJ software (VirtualDJ, Serato, Traktor), AI logo generation from lyrics, the creator marketplace with payouts, the desktop app's visualizer window, live performance tools (MIDI, setlists, the output window, Spout/Syphon/NDI), phone control and multiple screens for exhibits, the gallery and challenges, embeds and branded editions.
 
 ## Open questions

@@ -101,6 +101,33 @@ About 3 to 5 seconds behind the singer: too slow to hit a word, fine for visuals
 
 Generate on a cadence, not per word: at most one image per scene or every N seconds, and only when the words have changed enough. Transcription is billed by audio minute, so it should run only while the feature is on.
 
+## Local and offline generation
+
+Festival internet is unreliable and cloud generation costs per image, so every provider interface (`ImageGenerator`, `Transcriber`, `LyricsSource`) also gets a local backend. Three modes, easiest first:
+
+1. **Pre-generated per track (no model at the gig).** A rekordbox USB export lists every track on the stick, so the app works through the DJ's playlist at home while online (cloud or local model) and stores each track's images, palette and lyrics in the per-song cache. At the show the CDJ says what is loaded (`docs/implementation-plans/pioneer-pro-dj-link.md`) and the look comes from local storage. Works on any machine, fully offline. This is the main offline path.
+2. **One image per lyric line, live.** Whisper (small or base) transcribes, a template or a small LLM (Llama 3.2 3B class, through llama.cpp or WebLLM) turns the words into a prompt, and a one-step model (SD Turbo, or a quantized SDXL Turbo) makes an image in a fraction of a second. One image every few seconds causes only brief hitches, which the quality governor absorbs.
+3. **Restyling the video every frame** (StreamDiffusion style). Continuous load on the GPU the visuals also use; the only mode that needs more hardware.
+
+### Where the model runs
+
+- **In the browser (WebGPU, ONNX Runtime Web or MLC):** no install, but a 1 to 2 GB model download (kept in Cache Storage or OPFS) and the model shares the GPU and the tab's memory with the visualizer. Good for mode 2 at low rates.
+- **In the desktop app:** the native stacks (diffusers with TensorRT, whisper.cpp, llama.cpp) use the GPU better and keep the model's memory out of the browser.
+- **On a second GPU:** an external GPU (such as ASUS's ROG XG Mobile) or a machine on the LAN runs the model, and the visuals keep the laptop's own GPU. Needed for mode 3.
+
+### Reference setup
+
+The development laptop: an ASUS ROG Flow X16 with a 13th gen Core i9, an RTX 4070 Laptop GPU (8 GB) and 32 GB of RAM.
+
+- **GPU:** the visualizer stays under about half the GPU today, so modes 1 and 2 should fit beside it. 8 GB of VRAM means SD Turbo in fp16 or a quantized SDXL Turbo; SDXL Turbo in fp16 needs about all of it.
+- **RAM is the tighter limit:** 32 GB is already often full while developing (browser, the pop-out config window, dev tools). The models also take system RAM while loading and running (several GB for the image model, more for an LLM). So mode 2 runs in the desktop app rather than the browser tab, with the dev tools closed at shows, and the LLM is optional (templates first).
+- **Heat:** a convertible throttles under long GPU load. Plugged in, performance profile, raised for airflow; the exhibit soak test runs with generation on.
+- **Upgrade path, only for mode 3:** the XG Mobile eGPU or a LAN box. Decide after mode 2 has run a full set on the laptop.
+
+### Model licenses
+
+Check before shipping a model with the app or using it commercially: FLUX.1 schnell is Apache 2.0; SD Turbo and SDXL Turbo are under Stability AI's licenses, which have had commercial limits; Whisper is MIT; Llama models have their own community license.
+
 ## Tiers and cost
 
 All three cost money per use, so they fit the paid tiers (tier names from the monetization plan: Dream free, Lucid, Third Eye):
