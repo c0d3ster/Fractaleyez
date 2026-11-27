@@ -1,4 +1,5 @@
 import { PerfProbe, ProbeSummary } from './perf-probe'
+import { startupTimeline, StartupReport } from './startup'
 
 const STORAGE_KEY = 'perfProbe'
 
@@ -8,6 +9,8 @@ export type PerfProbeControls = {
   disable: () => void
   reset: () => void
   summary: () => ProbeSummary
+  /** When each loading stage happened and how long the heavy steps took (see startup.ts); works with the probe off too. */
+  startup: () => StartupReport
 }
 
 // On with `?perf=1` in the address, or `localStorage.perfProbe = '1'`; the benchmark scripts can also call `window.perfProbe.enable()`.
@@ -31,6 +34,7 @@ if (typeof window !== 'undefined') {
     disable: perfProbe.disable,
     reset: perfProbe.reset,
     summary: perfProbe.summary,
+    startup: startupTimeline.report,
   }
   if (wantsProbe()) window.perfProbe.enable()
 }

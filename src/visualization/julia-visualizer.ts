@@ -12,6 +12,7 @@ import { LUT_SIZE } from '../config/paletteLut'
 import { JULIA_SCALE, SCALE_UNITS_PER_SLIDER_STEP } from '../config/juliaScale.config'
 import { ghostKey, ghostStore } from '../utils/ghostStore'
 import { stepToward } from './step-toward'
+import { startupTimeline } from './perf/startup'
 import { SHAPE_EASE_SECONDS, SHAPE_MAX_TRANSITION_SECONDS, SHAPE_VELOCITY_HALF_LIFE_SECONDS, ShapeGlider } from './shape-glider'
 
 const TOUR_GHOST = ghostKey('fractal', 'tour')
@@ -388,9 +389,11 @@ export class JuliaVisualizer {
     shown.forEach((_visible, other) => {
       other.visible = other === mesh
     })
-    renderer.setRenderTarget(target)
-    renderer.render(scene, camera)
-    renderer.setRenderTarget(null)
+    startupTimeline.span(`fractal-type:${family.key}`, () => {
+      renderer.setRenderTarget(target)
+      renderer.render(scene, camera)
+      renderer.setRenderTarget(null)
+    })
     shown.forEach((visible, other) => {
       other.visible = visible
     })
