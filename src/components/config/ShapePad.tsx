@@ -240,7 +240,7 @@ export const ShapePad = (): React.ReactElement => {
       onPick={handlePick}
       onReset={handleReset}
       readouts={[`Re ${formatCoordinate(readout.re)}`, `Im ${formatCoordinate(readout.im)}`]}
-      hint={manualLocked ? LOCKED_HINT : HINT}
+      hint={[manualLocked ? LOCKED_HINT : HINT, family.mapHint].filter(Boolean).join(' ')}
       footer={(
         <div className='shape-pad-chips'>
           {family.famousShapes.map(({ name, tourStop }) => (
