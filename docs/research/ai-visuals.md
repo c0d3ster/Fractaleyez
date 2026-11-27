@@ -54,9 +54,11 @@ Before picking: the same 20 prompts at sprite size through 4 or 5 candidates (GP
 
 ### Identification
 
+**On Pioneer gear, ask the decks first.** CDJs share the loaded track's title, artist, BPM, beat grid and (on CDJ-3000s) phrase analysis and exact playhead position over Pro DJ Link, the moment a track is loaded and before it plays (`docs/implementation-plans/pioneer-pro-dj-link.md`). That gives the identity and the offset with no lookup, works for edits and unreleased tracks, and gives a whole cue-up of lead time to prepare images and lyrics. Fingerprinting is the fallback for everything else.
+
 Fingerprinting services (ACRCloud, AudD) take 5 to 10 seconds of audio and return the song and the **offset into it**. The offset is what lines lyrics and tempo up with what is playing. Check once per song, not continuously: a lookup takes a few seconds and costs a little.
 
-Where it fails: DJ sets (tracks pitched, tempo-shifted, blended), remixes, live versions, unreleased music. Those fall back to the live path.
+Where it fails: DJ sets (tracks pitched, tempo-shifted, blended), remixes, live versions, unreleased music. On Pioneer gear the decks cover those; elsewhere they fall back to the live path.
 
 ### Tempo and beat as a hint to beatsense
 
