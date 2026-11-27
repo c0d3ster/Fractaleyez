@@ -38,7 +38,21 @@ A browser cannot join Pro DJ Link (it is UDP broadcast on the local network), so
 
 - It joins the network and keeps the state of every deck, then sends it to the visualizer over a local WebSocket (`ws://localhost`). The visualizer works exactly as today when the helper is not running.
 - Its first job is Pro DJ Link; it is also the natural home for MIDI, the outputs for OBS, Resolume and similar (Spout, Syphon, NDI) and the exhibit's offline cache (see `site-roadmap.md`), so it is worth building once.
-- Written in TypeScript (Node, packaged as a small app), to stay in the repo's stack, maybe as a workspace package like beatsense.
+- Written in TypeScript, to stay in the repo's stack, maybe as a workspace package like beatsense.
+
+### From helper to desktop app
+
+The helper has to be installed for Pro DJ Link anyway, so it grows into the desktop app for booths and exhibits rather than staying a separate tool:
+
+1. **Tray helper:** reads Pro DJ Link and serves the WebSocket to the visualizer in the browser.
+2. **Visualizer window:** the same app opens the visualizer in its own window, loading the same web build as the site. That window gets fullscreen on a chosen display, start at boot, no browser updates or tab throttling mid-set, offline caching for exhibits, and deck data without the WebSocket hop.
+3. **Native outputs and devices:** Spout, Syphon and NDI for Resolume and OBS, MIDI, and audio device and channel routing.
+
+**Electron, not Tauri.** Electron ships Chromium, the engine the app is tested and benchmarked in; Tauri uses the system webview (WebKit on macOS), where WebGL and Web Audio behave differently and the GPU timer extension the perf probe uses is missing. Electron also runs Node libraries such as `alphatheta-connect` directly, where Tauri would need a Node sidecar. Install size does not matter for a booth tool.
+
+**One codebase.** The native layer (Pro DJ Link, outputs, displays, audio devices) is exposed to the page through a preload bridge. The web app checks for the bridge and turns on the extra features when it is there, so the UI is never forked and the site works exactly as it does without it.
+
+**No native mobile app for now.** A phone's job here is a remote (control the booth or exhibit machine, step through a setlist), which a PWA and a phone control page cover. A native app adds store review and a 15 to 30% cut of in-app subscriptions, which conflicts with Stripe billing. Revisit if phone use proves real after launch.
 
 Two ways to read the network, to compare in the spike:
 
@@ -66,7 +80,7 @@ DJs playing from rekordbox on a laptop (Performance mode, or Link Export to CDJs
 2. **Beat and tempo:** feed the CDJ beat and tempo to beatsense as a prior; show the loaded tracks on the Beat HUD.
 3. **Know the song ahead:** on load, show the next track and prepare its look; Auto lands changes on phrase boundaries.
 4. **AI visuals per track:** the song-match path of `ai-visuals.md`, keyed on the CDJ's track identity, with images and lyrics prepared while the track is cued.
-5. **More of the helper:** MIDI and the video outputs.
+5. **Desktop app:** the visualizer window in the helper, then MIDI, the video outputs and the exhibit's offline mode.
 
 ## Open questions
 
