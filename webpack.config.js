@@ -138,7 +138,7 @@ const createConfig = (devPort) => ({
     ]
   },
   plugins: [
-    new webpack.EnvironmentPlugin({ CLERK_PUBLISHABLE_KEY: '' }),
+    new webpack.EnvironmentPlugin({ CLERK_PUBLISHABLE_KEY: '', FEATURE_FLAGS: '' }),
   ],
   // resolves directory to look for modules and resolves extensions
   resolve,

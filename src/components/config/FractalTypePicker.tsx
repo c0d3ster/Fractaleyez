@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef } from 'react'
 
-import { FRACTAL_FAMILIES, type FractalFamily } from '../../visualization/fractal-families'
+import { FRACTAL_FAMILIES, fractalTypesEnabled, type FractalFamily } from '../../visualization/fractal-families'
 import { resolveColorState } from '../../config/colorState'
 import { subscribeUiTick } from '../../utils/uiTicker'
 import { useConfigContext } from './context/ConfigProvider'
@@ -98,7 +98,7 @@ type FractalTypePickerProps = {
  * what it is in the info strip (a tooltip in the sidebar, which has none): the friendly name, then the math name and the map for anyone
  * who knows it, then a plain description.
  */
-export const FractalTypePicker = ({ expanded = false }: FractalTypePickerProps): React.ReactElement => {
+const FractalTypePickerInner = ({ expanded = false }: FractalTypePickerProps): React.ReactElement => {
   const { updateConfigItem } = useConfigContext()
   const current = Math.round(useConfigSelector((config) => config.fractal.family.value))
   const handlePick = useCallback((index: number): void => updateConfigItem('fractal', 'family', index), [updateConfigItem])
@@ -112,3 +112,7 @@ export const FractalTypePicker = ({ expanded = false }: FractalTypePickerProps):
     </div>
   )
 }
+
+/** The Type picker, shown only once the Types are released (the `fractalTypes` feature flag). */
+export const FractalTypePicker = (props: FractalTypePickerProps): React.ReactElement | null =>
+  fractalTypesEnabled() ? <FractalTypePickerInner {...props} /> : null
