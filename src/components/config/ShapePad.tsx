@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
-import { getFractalFamily, type FractalFamily } from '../../visualization/fractal-families'
+import { activeFractalFamily, type FractalFamily } from '../../visualization/fractal-families'
 import './ShapePad.css'
 import '../upgrade/premiumOutline.css'
 import { mainWindow, Pad, PadPoint } from './Pad'
@@ -145,7 +145,7 @@ export const ShapePad = (): React.ReactElement => {
   const lastRecolorAtRef = useRef(0)
   // Picking your own shape (drag, Manual) is premium; the Tour, its named shapes and going back to it are open to all. Guests have no entitlements.
   const { entitlements, updateConfigItem } = useConfigContext()
-  const family = getFractalFamily(useConfigSelector((config) => config.fractal.family.value))
+  const family = activeFractalFamily(useConfigSelector((config) => config.fractal.family.value))
   const familyRef = useRef(family)
   familyRef.current = family
   const manualLocked = entitlements?.features.customFractalPath !== true

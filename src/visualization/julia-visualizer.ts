@@ -2,7 +2,7 @@ import * as THREE from 'three'
 import { CAMERA_STEER_SCREEN_FRACTION_PER_PAD_UNIT, getParticleCrossfadeDurationMs } from '../config/visualizer.config'
 import type { AudioSnapshot } from '../audioanalysis/audio-snapshot'
 import { buildJuliaFragmentShader, juliaVertexShader } from './shaders/julia-fragment.glsl'
-import { FRACTAL_FAMILIES, getFractalFamily, koenigsPoint, quadraticFamily, type Complex, type FixedPointResult, type FractalFamily } from './fractal-families'
+import { activeFractalFamily, FRACTAL_FAMILIES, fractalTypesEnabled, koenigsPoint, quadraticFamily, type Complex, type FixedPointResult, type FractalFamily } from './fractal-families'
 import { userConfig } from '../config/user.config'
 import { userHeading } from '../config/heading'
 import { HeadingFollower } from '../config/headingFollower'
@@ -298,7 +298,7 @@ export class JuliaVisualizer {
 
   // Draws into a render target with the layer compositor's shared renderer through renderTo().
   init(): void {
-    this.family = getFractalFamily(window.config.fractal.family.value)
+    this.family = activeFractalFamily(window.config.fractal.family.value)
     this.scene = new THREE.Scene()
     this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1)
     this.paletteTexture.wrapS = THREE.RepeatWrapping
@@ -373,6 +373,7 @@ export class JuliaVisualizer {
    * once every Type is ready. A Type picked before its turn compiles when it first draws, as before.
    */
   warmNextFamily(renderer: THREE.WebGLRenderer): boolean {
+    if (!fractalTypesEnabled()) return false
     const next = FRACTAL_FAMILIES.find((family) => !this.warmedFamilies.has(family))
     if (!next) return false
     this.warmFamily(renderer, next)
@@ -471,7 +472,7 @@ export class JuliaVisualizer {
   }
 
   private syncFamily(): void {
-    const family = getFractalFamily(window.config.fractal.family.value)
+    const family = activeFractalFamily(window.config.fractal.family.value)
     if (family !== this.family) this.setFamily(family)
   }
 
