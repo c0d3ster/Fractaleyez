@@ -10,13 +10,15 @@ import { LAYER_REGISTRY } from './config/layers'
 import { createLayerPipeline, LayerPipeline } from './visualization/layers'
 import { shouldDrawForVideoFrame, shouldDrawUnderCap } from './visualization/frame-cap'
 import { loadTracker } from './visualization/load-tracker'
-import { perfProbe } from './visualization/perf'
+import { logStartupReport, perfProbe, STARTUP_WATCH_MS, startupTimeline } from './visualization/perf'
 import { qualityController } from './visualization/quality-controller'
 import { displayStutters, videoStutters } from './visualization/stutter-monitor'
 import { videoFrameSignal } from './visualization/video-frame-signal'
 import { previewLock } from './components/presets/previewLock'
 
 // Size of the fft transform performed on audio stream
+startupTimeline.mark('main')
+
 const FFT_SIZE = 512
 
 // Create the audio components required for analysis
@@ -107,6 +109,15 @@ const currentLag = (): LagEstimate => estimateLag(
 const STARTUP_FRAMES = 45
 let endStartupLoad: (() => void) | null = null
 let startupFramesLeft = 0
+let loggedStartup = false
+
+// Counts the first frames for the startup timeline, and with the perf probe on logs the timeline once its watch is over.
+const noteStartupFrame = (now: number): void => {
+  startupTimeline.frame(now)
+  if (loggedStartup) return
+  loggedStartup = true
+  if (perfProbe.isEnabled()) window.setTimeout(() => logStartupReport(startupTimeline.report()), STARTUP_WATCH_MS + 500)
+}
 
 const medianFpsFromDeltas = (deltas: number[]): { fps: number; frameMs: number } => {
   if (deltas.length === 0) return { fps: 0, frameMs: 0 }
@@ -146,9 +157,10 @@ const init = (microphone: MediaStreamAudioSourceNode | null): void => {
   lastFrameTime = performance.now()
   lastDisplayFrameTime = lastFrameTime
 
+  startupTimeline.mark('audio-ready')
   startupFramesLeft = STARTUP_FRAMES
   endStartupLoad = loadTracker.begin('startup')
-  pipeline = createLayerPipeline(qualityController)
+  pipeline = startupTimeline.span('pipeline', () => createLayerPipeline(qualityController))
   // Frames around a resize or a tab coming back say nothing about load; Auto waits them out.
   window.addEventListener('resize', qualityController.disturb)
   document.addEventListener('visibilitychange', qualityController.disturb)
@@ -261,11 +273,13 @@ const analyze = (): void => {
 
   pipeline?.render(deltaTime, visualizationData)
   perfProbe.frameEnd()
+  if (pipeline) noteStartupFrame(now)
   const submittedAt = performance.now()
   lagProbe.frameSubmitted(submittedAt)
   frameWorkMs.push(submittedAt - now)
   if (frameWorkMs.length > FRAME_DELTA_SAMPLES) frameWorkMs.shift()
   if (endStartupLoad && --startupFramesLeft <= 0) {
+    startupTimeline.mark('settled')
     endStartupLoad()
     endStartupLoad = null
   }

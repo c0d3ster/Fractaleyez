@@ -3,7 +3,7 @@ import * as THREE from 'three'
 import type { AudioSnapshot } from '../../audioanalysis/audio-snapshot'
 import { QualityProfile } from '../../config/quality.config'
 import { stepDisplayedColor } from '../../config/displayedColor'
-import { perfProbe } from '../perf'
+import { perfProbe, startupTimeline } from '../perf'
 import { ProfileRamp, RampedValues } from '../profile-ramp'
 import { QualityController } from '../quality-controller'
 import { warmInBackground } from './background-warm'
@@ -46,7 +46,7 @@ export const createLayerPipeline = (quality: QualityController): LayerPipeline =
   const effects = new PostEffects(renderer, compositor.getScene(), compositor.getCamera(), getVisualCenter)
   // Shaders that would otherwise compile the first time a layer or effect is switched on (a freeze of a few hundred ms) compile now, during startup.
   fractal.warm()
-  effects.warm()
+  startupTimeline.span('warm-effects', effects.warm)
   // The fractal Types not on screen compile one at a time over the next few seconds instead, so startup only pays for the one showing.
   const stopBackgroundWarm = warmInBackground(fractal.warmNext)
 

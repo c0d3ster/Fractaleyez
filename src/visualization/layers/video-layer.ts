@@ -4,6 +4,7 @@ import { isLiveClip } from '../../config/video.config'
 import { getParticleCrossfadeDurationMs } from '../../config/visualizer.config'
 import { cameraSource } from '../camera-source'
 import { loadTracker } from '../load-tracker'
+import { startupTimeline } from '../perf/startup'
 import { videoStutters } from '../stutter-monitor'
 import { videoFrameSignal } from '../video-frame-signal'
 import { isNearEnd, stepOpacity } from './fade'
@@ -348,6 +349,7 @@ export class VideoLayer implements Layer {
   }
 
   private finishLoad = (): void => {
+    if (this.endLoad) startupTimeline.mark('video-ready')
     this.endLoad?.()
     this.endLoad = null
   }

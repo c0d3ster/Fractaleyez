@@ -32,6 +32,7 @@ import { isValidBandSelection } from 'beatsense'
 import { QUALITY_SETTING_DEFAULT } from '../../../config/quality.config'
 import { Entitlements, Usage } from '../../../config/plans.config'
 import { qualityController } from '../../../visualization/quality-controller'
+import { startupTimeline } from '../../../visualization/perf/startup'
 
 export type PresetRetrieveEvent = {
   currentTarget: { dataset: { [key: string]: string | undefined } }
@@ -400,6 +401,7 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         })
         if (cancelled) return
+        startupTimeline.mark('presets')
         setPresetList(data.map(toPresetMeta))
         updatePresetListCache(viewerId, { presets: data })
       } catch (err) {
