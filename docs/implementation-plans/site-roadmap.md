@@ -26,7 +26,7 @@ Today a first visit drops straight into the visual. A guided start makes the fir
 
 - **Before the mic prompt:** the overlay is the natural place to ask, since it is a user gesture with context. say why the mic is needed (it listens to the music in the room; nothing is recorded or sent anywhere) so the browser prompt is not a surprise. If they decline or have no music playing, offer a built-in demo track so the visual still reacts.
 - **Pick a vibe:** three or four presets shown as moving thumbnails, so the first look is one they chose.
-- **A short tour:** the overlay's **Show me the way** walkthrough, pointing at the main controls (the info strip, layers and their hotkeys, the fractal Type and Tour, Auto, save and publish, the Library), reusing the item descriptions in `configDefaults`. Skippable, and never shown again once done or skipped.
+- **The tour:** the overlay's **Show me the way** walkthrough. Its step-by-step design is in progress separately (the onboarding design doc): it fades the visual down to just the logo and builds the layers back one at a time with their hotkeys, then effects, palette, steering, the second-screen pop-out and saving. Skippable, and replayable from the menu.
 - **Let it run:** Auto on, so the show keeps changing with nobody touching it, with a hint that everything can be tuned.
 - **Progressive hints:** small one-time tips when someone first opens a section (for example, what the Shape pad is), linking to Learn for more.
 - **Measure it:** how many first visits grant the mic, finish or skip the tour, and come back.
@@ -97,6 +97,36 @@ An installation at a festival: a room, dome or wall where the visuals run for ho
 - **Exhibit pitch kit:** an artist statement, photos and clips from past shows, the technical needs and a budget, which also feeds the Exhibit and Book pages.
 - **Where to apply:** festival art programs and art grants usually open months ahead, so the pitch kit and a few documented installations are worth having early.
 
+## Hearing the mix
+
+What the app hears decides how good it looks, and a room mic hears the crowd, the PA's echo and the bass of the next stage. Feeding it the mix directly is one of the biggest upgrades available, for shows and exhibits alike.
+
+### Line in
+
+- **Any audio input:** the browser can open a specific input (an audio interface, a USB mixer, the mixer's booth or record output), not only the default mic. Add an input picker that works like the camera picker (`camera-source.ts`: a device list, the choice kept per browser), then measure how much the beat and section detection improve on a line feed.
+- **Raw input:** browsers apply echo cancellation, noise suppression and automatic gain to the mic by default, which flattens drops and eats transients. The app already turns all three off (`MIC_CONSTRAINTS` in beatsense's `audio-source.ts`), so a line feed arrives clean. What is missing is choosing the input: today it takes the default one.
+- **Levels:** a small input meter and gain trim, since a line feed is far hotter or quieter than a mic.
+
+### Channels from the mixer
+
+- **Multichannel input:** DJ mixers with a USB audio interface (Pioneer DJM, Allen & Heath, Rane) send each channel separately, before the faders. With those channels, the app can listen to the deck that is playing and the deck that is coming next, separately.
+- **Know the next song before it plays:** analyze the incoming deck while the DJ cues it in their headphones: its tempo, its key, where its drop is. The show can prepare the next look and land the change exactly when the DJ brings it in.
+- **Per-channel roles:** in a live band setup, a kick or vocal channel gives cleaner beats or vocal moments than the full mix.
+
+### Track data from the DJ setup
+
+- **What is loaded on each deck:** Pioneer CDJs and XDJs share the loaded track's title, artist, beat grid and which deck is on air over Pro DJ Link (readable with Deep Symmetry's open-source Beat Link). VirtualDJ speaks OS2L, Ableton Link shares tempo and phase, and Rekordbox, Serato and Traktor expose now playing through their history or plugins.
+- **A small companion app:** browsers cannot speak these local network protocols, so a small desktop helper on the DJ's laptop (or the exhibit machine) reads them and passes the data to the visualizer over a local WebSocket. The same helper can carry MIDI and the output to Spout, Syphon or NDI.
+
+### Knowing the song ahead
+
+Once the app knows which song is coming, before it plays, it can get ready for it:
+
+- **AI logo generation from the lyrics:** look up the song's lyrics and themes and generate logo art and palettes for it ahead of time, so they are ready the moment the track comes in instead of being generated live. Needs its own plan: the model, the prompt from the lyrics, cost and speed per song, and caching per track.
+- **Synced lyrics:** time-coded lyrics can trigger moments on specific lines (a word on screen, a burst on the hook).
+- **Licensing:** showing lyrics needs a licensed source (Musixmatch, LyricFind or similar). Check the terms for using them to drive generated art too, and keep generated art per track private to the show unless cleared.
+- **Pick the look:** choose a preset, fractal Type or palette that fits the next track's tempo, key and energy.
+
 ## Live performance tools
 
 For people running it at shows, which is also what makes the booking credible.
@@ -104,8 +134,7 @@ For people running it at shows, which is also what makes the booking credible.
 - **MIDI control:** map knobs and pads to sliders, layers and effects, with learn mode.
 - **Output:** a clean full-screen output window without the UI, notes for OBS (browser source or window capture), and a look at Spout/Syphon/NDI through a small desktop wrapper later.
 - **Setlists and cues:** an ordered list of presets to step through, crossfading on a key or on the next drop.
-- **Tap tempo and BPM lock:** for when the mic hears the room badly.
-- **Better audio input:** line in or tab audio capture, so it hears the mix and not the crowd.
+- **Tap tempo and BPM lock:** for when no line feed is available and the mic hears the room badly.
 
 ## Community
 
@@ -123,11 +152,12 @@ For people running it at shows, which is also what makes the booking credible.
 ## Phases
 
 1. **Now, around launch:** onboarding (the intro overlay and walkthrough, the mic explanation, pick a vibe, the demo track), the Learn page v1, the reference pages, and share links.
-2. **Next:** the Library page and visibility, recording clips, the booking page, a "what's new" page, and for exhibits: exhibit mode, the soak test, offline caching and the pitch kit.
-3. **Later:** the creator marketplace with payouts, live performance tools (MIDI, setlists, the output window), the interactive exhibit pieces (camera dream, presence, the hands-on station, phone control, multiple screens), the gallery and challenges, embeds and branded editions.
+2. **Next:** line in (the audio input picker and a level meter), the Library page and visibility, recording clips, the booking page, a "what's new" page, and for exhibits: exhibit mode, the soak test, offline caching, the pitch kit and the interactive pieces (the camera dream, presence and the hands-on station).
+3. **Later:** the mixer channels and the companion app (track data from the DJ setup, knowing the song ahead, AI logo generation from lyrics), the creator marketplace with payouts, live performance tools (MIDI, setlists, the output window), phone control and multiple screens for exhibits, the gallery and challenges, embeds and branded editions.
 
 ## Open questions
 
 - One site or two: the content pages in the same app (it is one webpack SPA today, so this needs a router and Vercel rewrites, as the Library already does) or a separate content site that links to the app.
 - How the booking side is branded: Fractaleyez shows, a personal VJ name, or both.
 - Which phase the demo track and recording need, since both may matter most for first impressions.
+- Whether the companion app is worth building early, since it unlocks the mixer channels, DJ track data, MIDI and video outputs at once.
