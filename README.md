@@ -39,7 +39,7 @@ The Fractal layer shows a Julia set that you fall into forever. The shape of the
   - **Triad**: `z³ + c`, three-fold shapes from trefoils to pinwheels.
   - **Quad**: `z⁴ + c`, four-fold crosses, snowflakes and vortices.
   - **Rings**: McMullen maps, `z³ + c / z³`. Rings and carpets of round holes, each hole another copy of the outside.
-  - **Plumes**: the exponential map, `c·eᶻ`. Plumes, feathers and hairs that reach out forever.
+  - **Bouquet**: the exponential map, `c·eᶻ`. Plumes, feathers and hairs that reach out forever (a "Cantor bouquet").
 - **Tour** slider walks the path of shapes.
 - **Shape pad** shows the Type's map (the Mandelbrot set for Classic). Drag on it to pick any `c` yourself, and double-click to hand control back to the Tour slider. The Julia set for the point you pick is the one the main view shows.
 - **Scale** zooms the whole view. Low values show the full set, higher values dive in.
