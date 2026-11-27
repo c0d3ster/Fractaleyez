@@ -1,4 +1,5 @@
 import { BEAT_NET_MODEL, BeatGrid, BeatMonitor, DrumHits, RiserDetector, RollReader, SectionTracker, SweepDetector, TempoTracker, loadSectionModel } from 'beatsense'
+import { startupTimeline } from './visualization/perf/startup'
 
 /**
  * The app's analysers, one of each. The beatsense package keeps no instances of its own, so they are created here: AudioFeed pushes
@@ -19,8 +20,11 @@ export type AudioAnalysis = {
   sectionModelReady: Promise<void>
 }
 
-/** A fresh set, wired the way the app runs it (tests and replays build their own). */
-export const createAudioAnalysis = (): AudioAnalysis => {
+/**
+ * A fresh set, wired the way the app runs it (tests and replays build their own). The section model is fetched once `loadAfter`
+ * resolves, so the app can keep it off the network until the first frame is drawn.
+ */
+export const createAudioAnalysis = (loadAfter: Promise<void> = Promise.resolve()): AudioAnalysis => {
   const tempoTracker = new TempoTracker()
   const sectionTracker = new SectionTracker()
   return {
@@ -32,11 +36,11 @@ export const createAudioAnalysis = (): AudioAnalysis => {
     riserDetector: new RiserDetector(),
     sweepDetector: new SweepDetector(),
     snareRoll: new RollReader(),
-    sectionModelReady: loadSectionModel().then(sectionTracker.setModel),
+    sectionModelReady: loadAfter.then(loadSectionModel).then(sectionTracker.setModel),
   }
 }
 
-export const audioAnalysis = createAudioAnalysis()
+export const audioAnalysis = createAudioAnalysis(startupTimeline.firstFrame)
 
 /** Tracks whether a getter was called lately: `wrap` returns the getter with a timestamp on each call, `isActive` says if one landed within `windowMs`. */
 export const createReadWatch = (windowMs: number, clock: () => number = () => performance.now()): {

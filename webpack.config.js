@@ -81,7 +81,7 @@ const workletConfig = {
 
 const createConfig = (devPort) => ({
   entry: {
-    app: ['@babel/polyfill', APP_DIR + '/index.tsx'],
+    app: APP_DIR + '/index.tsx',
   },
   output:
   {
