@@ -21,6 +21,9 @@ export class FractalLayer implements Layer {
     this.visualizer.warm(this.renderer)
   }
 
+  /** Compiles one more fractal Type; false once all are ready. See JuliaVisualizer.warmNextFamily. */
+  warmNext = (): boolean => this.visualizer.warmNextFamily(this.renderer)
+
   setMaxIterations = (iterations: number): void => {
     this.visualizer.setMaxIterations(iterations)
   }

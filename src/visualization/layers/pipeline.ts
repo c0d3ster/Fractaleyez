@@ -6,6 +6,7 @@ import { stepDisplayedColor } from '../../config/displayedColor'
 import { perfProbe } from '../perf'
 import { ProfileRamp, RampedValues } from '../profile-ramp'
 import { QualityController } from '../quality-controller'
+import { warmInBackground } from './background-warm'
 import { LayerCompositor } from './compositor'
 import { FractalLayer } from './fractal-layer'
 import { LogoLayer } from './logo-layer'
@@ -46,6 +47,8 @@ export const createLayerPipeline = (quality: QualityController): LayerPipeline =
   // Shaders that would otherwise compile the first time a layer or effect is switched on (a freeze of a few hundred ms) compile now, during startup.
   fractal.warm()
   effects.warm()
+  // The fractal Types not on screen compile one at a time over the next few seconds instead, so startup only pays for the one showing.
+  const stopBackgroundWarm = warmInBackground(fractal.warmNext)
 
   // The tier sets how much each layer and effect spends; it is applied now and again whenever Auto or the user changes it. What would show as
   // a jump (the fractal's and the glow's resolution, the logo's filter) moves toward the new tier over a few tenths of a second instead
@@ -88,6 +91,7 @@ export const createLayerPipeline = (quality: QualityController): LayerPipeline =
       return !orbitMeta.enabled.value && fractalMeta.enabled.value ? fractal.getSteerPosition() : orbit.getCameraTrailPosition()
     },
     dispose: () => {
+      stopBackgroundWarm()
       window.removeEventListener('resize', onResize)
       unsubscribeQuality()
       quality.setVideoDropProvider(null)
