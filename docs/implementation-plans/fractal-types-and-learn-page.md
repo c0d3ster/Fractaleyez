@@ -30,7 +30,9 @@ Candidates that work with the seamless zoom loop. Previews were rendered while p
 - **Magnet**: ((z² + c − 1)/(2z + c − 2))², from magnetism models in physics. Bubbles and blobs packed in a disc with lightning-like seams. Close to Rings in feel but softer.
   - Two exit tests: escaping to infinity, or settling at the attracting fixed point 1. Color by whichever comes first.
   - A rational map, so its fixed points are polynomial roots (Durand-Kerner, as Rings does).
-- Others worth a look later: higher Multibrot degrees (z⁵, z⁶), other trig maps (c·cos z, c·tan z), and rational maps with more symmetry.
+- **Tangent**: c·tan z. Tangent never escapes to infinity, so points are colored by how fast they settle into a cycle: soft color fields with eye-like spirals strung along one line, a stained-glass look unlike the others. Its Julia set is a thin dusty line, so the dive is calmer than the other types; pick tour values where the settling cycle shows clearly (some `c` never settle and draw black). It uses the same "settled" coloring as Nova, so it is cheap to add once Nova is in.
+- Not worth adding: **cosine**, c·cos z. cos z = sin(z + π/2), so it draws the same scalloped band as Ribbon from different `c` values.
+- Others worth a look later: higher Multibrot degrees (z⁵, z⁶) and rational maps with more symmetry.
 - Not possible with the loop: Burning Ship and Tricorn. They are not complex-differentiable, so there is no Koenigs coordinate and the wrap would pop. They could only use the breathing zoom.
 
 ### Adding a type
