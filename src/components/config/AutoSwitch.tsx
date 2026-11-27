@@ -4,7 +4,7 @@ import { useInfo } from './info/info'
 import './AutoSwitch.css'
 
 /**
- * The Auto mode switch, centered under the Effects card. It is not part of any section's config: it decides whether the
+ * The Auto mode switch, centered at the bottom of the Effects card. It is not part of any section's config: it decides whether the
  * visualizer follows the song on its own, and (like Auto itself) turns off when the user takes over.
  */
 export const AutoSwitch = (): React.ReactElement => {

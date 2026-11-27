@@ -166,10 +166,9 @@ const ExternalWindowBridge = ({ context, upgrade }: ExternalWindowBridgeProps): 
                       ) : null}
                       {entry === 'effects' || entry === 'audio' ? (
                         <ConfigCategory name={entry} onChange={updateConfigItem} isOpen={true} toggleOpen={() => null} expanded popup>
-                          {entry === 'audio' ? <><ConnectedFrequencyHud barHeight={AUDIO_HUD_BAR_HEIGHT} /><BeatHud drumRow /><SectionHud /></> : null}
+                          {entry === 'audio' ? <><ConnectedFrequencyHud barHeight={AUDIO_HUD_BAR_HEIGHT} /><BeatHud drumRow /><SectionHud /></> : <AutoSwitch />}
                         </ConfigCategory>
                       ) : null}
-                      {entry === 'effects' ? <AutoSwitch /> : null}
                     </div>
                   ))}
                 </div>
