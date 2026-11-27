@@ -95,7 +95,7 @@ const TOUR: readonly (readonly [number, number])[] = [
 /** The exponential family, c e^z: hair-like Cantor bouquets and plumes, everywhere at once. */
 export const exponentialFamily: FractalFamily = {
   key: 'exponential',
-  label: 'Plumes',
+  label: 'Bouquet',
   mathName: 'Exponential family',
   formula: 'c·eᶻ',
   description: 'Plumes, feathers and hairs that reach out forever.',
