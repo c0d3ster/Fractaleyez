@@ -1,7 +1,7 @@
 .auto-switch {
   display: flex;
   justify-content: center;
-  margin: 1rem 0 1.5rem;
+  margin: 1rem 0 .5rem;
 }
 
 /* A pill that is only ever an outline, with no fill, which sets it apart from the app's solid switches: grey outline and lettering

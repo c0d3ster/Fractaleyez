@@ -61,6 +61,8 @@ const Entry = ({ entry, onChange, isOpen, toggleOpen }: EntryProps): React.React
     return <ConfigCategory {...shared} bare><ConfigVideoBody /></ConfigCategory>
   case 'fractal':
     return <ConfigCategory {...shared}><FractalTypePicker /><ShapePad /></ConfigCategory>
+  case 'effects':
+    return <ConfigCategory {...shared}><AutoSwitch /></ConfigCategory>
   case 'orbit':
     return (
       <ConfigCategory {...shared} bare>
@@ -88,7 +90,6 @@ const ConfigAccordionInner = ({ updateConfigItem, openCategories, toggleOpen }: 
           <div>
             <Entry entry={entry} onChange={updateConfigItem} isOpen={openCategories.includes(entry)} toggleOpen={toggleOpen} />
           </div>
-          {entry === 'effects' && <AutoSwitch />}
         </div>
       ))}
     </>
