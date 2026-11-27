@@ -53,6 +53,11 @@ export type FractalFamily = {
    * c, the Switcheroo hops and the manual glide all scale by it, so they move the shape about as much in every family.
    */
   parameterScale: number
+  /**
+   * Adjusts the slow drift and audio offset (already scaled by parameterScale) added to the shape's c, for a family whose look changes
+   * abruptly with small moves in some places. Without it the offset is used as is.
+   */
+  shapeOffset?: (shape: Complex, offset: Complex) => Complex
   /** Where the widest views center, in the plane. */
   wholeSetCenter: Complex
   /**

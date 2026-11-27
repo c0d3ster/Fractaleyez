@@ -54,7 +54,9 @@ describe('fractal families', () => {
         const fixed = family.fixedPoint(c, null)
         const z0 = complex(fixed.fixedPointX, fixed.fixedPointY)
         expect(cAbs(cSub(applyStep(family, z0, c), z0))).toBeLessThan(1e-6)
-        expect(fixed.lambdaMag).toBeGreaterThan(1.2)
+        // Bouquet's Peacock side zooms on a point that repels only just, on purpose (see spiralFixedPoint in exponential.ts).
+        const peacockSide = family.key === 'exponential' && Math.hypot(z0.re + 1, z0.im) < 0.35
+        expect(fixed.lambdaMag).toBeGreaterThan(peacockSide ? 1.03 : 1.2)
       })
     })
 

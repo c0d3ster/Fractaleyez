@@ -777,8 +777,9 @@ export class JuliaVisualizer {
     this.shapeRe = baseC.re
     this.shapeIm = baseC.im
     this.hasShape = true
-    const effectiveCx = baseC.re + this.loopOffsetX
-    const effectiveCy = baseC.im + this.loopOffsetY
+    const offset = this.family.shapeOffset?.(baseC, { re: this.loopOffsetX, im: this.loopOffsetY }) ?? { re: this.loopOffsetX, im: this.loopOffsetY }
+    const effectiveCx = baseC.re + offset.re
+    const effectiveCy = baseC.im + offset.im
     const fixed = this.family.fixedPoint({ re: effectiveCx, im: effectiveCy }, this.previousFixedPoint)
     const { fixedPointX, fixedPointY, lambdaMag, lambdaArg, koenigs2, koenigs3 } = fixed
     this.previousFixedPoint = { re: fixedPointX, im: fixedPointY }

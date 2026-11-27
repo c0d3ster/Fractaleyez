@@ -68,8 +68,8 @@ const criticalOrbit = (c: Complex, maxIterations: number, escapeSquared: number)
 }
 
 // A spiral from the outer rings in toward the middle of the parameter plane: through Sierpinski-carpet shapes (the critical orbit escapes,
-// so every hole is a copy of the outside) and the dark islands of the small Mandelbrot copies. Each stop's fixed point has a multiplier of
-// 3 to 3.8.
+// so every hole is a copy of the outside) and the dark island of the upper Mandelbrot copy, then on down the left and into the center of
+// the lower copy (DNA, a chain of round black links when zoomed in). Each stop's fixed point has a multiplier of 2 to 3.8.
 const TOUR: readonly (readonly [number, number])[] = [
   [0.24, 0.0], [0.2352, 0.0157], [0.2294, 0.0309], [0.2227, 0.0453],
   [0.2151, 0.0589], [0.2066, 0.0717], [0.1975, 0.0837], [0.1876, 0.0948],
@@ -83,6 +83,10 @@ const TOUR: readonly (readonly [number, number])[] = [
   [-0.0644, 0.0582], [-0.0648, 0.0512], [-0.0646, 0.0443], [-0.0637, 0.0377],
   [-0.0623, 0.0315], [-0.0603, 0.0256], [-0.0579, 0.0201], [-0.055, 0.0151],
   [-0.0517, 0.0105], [-0.0481, 0.0065], [-0.0442, 0.003], [-0.04, 0.0],
+  [-0.0451, -0.0094], [-0.0502, -0.0188], [-0.0536, -0.0289], [-0.056, -0.0393],
+  [-0.0577, -0.0497], [-0.0561, -0.0603], [-0.0545, -0.0709], [-0.0503, -0.0805],
+  [-0.045, -0.0898], [-0.0383, -0.0979], [-0.0298, -0.1045], [-0.0208, -0.1098],
+  [-0.0104, -0.1124], [0.0, -0.115],
 ]
 
 /** McMullen maps, z^3 + a / z^3: rings and carpets of round holes, nested forever. */
@@ -98,6 +102,7 @@ export const mcmullenFamily: FractalFamily = {
     { name: 'Web', re: 0.1313, im: 0.1358, tourStop: 12 },
     { name: 'Islands', re: 0.0147, im: 0.1456, tourStop: 22 },
     { name: 'Bubbles', re: -0.0623, im: 0.0315, tourStop: 40 },
+    { name: 'DNA', re: 0, im: -0.115, tourStop: 61 },
   ],
   mapView: { reMin: -0.33, reMax: 0.33, imMin: -0.22, imMax: 0.22 },
   wholeSetRadius: 1.5,

@@ -31,6 +31,22 @@ const polishFixedPoint = (c: Complex, seed: Complex): Complex | null => {
   return cAbs(cSub(cMul(c, cExp(z)), z)) < 1e-9 ? z : null
 }
 
+// Past -e (in the black region of period 2, Peacock's side) the fixed point near -1, which attracts inside the main black region, repels
+// only just (multiplier 1.05 to 1.1), and zooming on it shows the spiraling feathers that make Peacock. Only c near -e has a fixed point
+// near -1, and inside the main black region it attracts, so this applies nowhere else. It is too weak for the usual
+// choice, so it is taken whenever it repels clearly enough there, and kept while it still repels at all (the gap stops drift and bass from
+// flipping the zoom between it and another point).
+const SPIRAL_ENTER = 1.055
+const SPIRAL_KEEP = 1.03
+const SPIRAL_REACH = 0.35
+
+const spiralFixedPoint = (roots: readonly Complex[], previous: Complex | null): Complex | null => {
+  const spiral = roots.find((root) => Math.hypot(root.re + 1, root.im) < SPIRAL_REACH)
+  if (!spiral) return null
+  const kept = previous !== null && Math.hypot(previous.re - spiral.re, previous.im - spiral.im) < 0.05
+  return cAbs(spiral) >= (kept ? SPIRAL_KEEP : SPIRAL_ENTER) ? spiral : null
+}
+
 /**
  * The fixed points solve c e^z = z, so z = -W(-c) on each branch of the Lambert W function. Each branch is seeded from W's asymptotic
  * form (W_k(x) is about L - log L with L = log x + 2 pi i k) and polished with Newton. At a fixed point the multiplier is c e^z = z itself,
@@ -44,12 +60,12 @@ const fixedPoint = (c: Complex, previous: Complex | null): FixedPointResult => {
     const w = cSub(big, cLog(big))
     return complex(-w.re, -w.im)
   })
-  const roots = [...(previous ? [previous] : []), ...seeds]
+  const roots = [...(previous ? [previous] : []), ...seeds, complex(-1)]
     .map((seed) => polishFixedPoint(safe, seed))
     .filter((root): root is Complex => root !== null)
   const repelling = roots.filter((root) => cAbs(root) > MIN_REPELLING)
   const preference = (z: Complex): number => (cAbs(z) >= PREFERRED_MULTIPLIER ? -cAbs(z) : cAbs(z) - 1000)
-  const z0 = pickFixedPoint(repelling, previous, preference) ?? previous ?? complex(2)
+  const z0 = spiralFixedPoint(roots, previous) ?? pickFixedPoint(repelling, previous, preference) ?? previous ?? complex(2)
   return fixedPointResult(z0, z0, complex(z0.re / 2, z0.im / 2), complex(z0.re / 6, z0.im / 6))
 }
 
@@ -71,25 +87,37 @@ const asymptoticOrbit = (c: Complex, maxIterations: number): { escaped: boolean;
   return { escaped: false, n: maxIterations, re: 0 }
 }
 
+// Right of 1/e on the real axis every point escapes, but just off the axis black islands come and go, so there the drift and audio offset
+// stays on the axis. Everywhere it is a third of the usual size, which keeps Bouquet (0.3) on its side of 1/e at full bass.
+const ONE_OVER_E = 1 / Math.E
+const OFFSET_SCALE = 1 / 3
+const shapeOffset = (shape: Complex, offset: Complex): Complex =>
+  complex(offset.re * OFFSET_SCALE, shape.im === 0 && shape.re > ONE_OVER_E ? 0 : offset.im * OFFSET_SCALE)
+
 const smoothCount = (n: number, re: number): number =>
   n + 1 - Math.max(0, Math.min(1, Math.log(Math.log(re) / LOG_ESCAPE) / Math.log(ESCAPE_REAL / LOG_ESCAPE)))
 
-// Picked offline: from the right of the parameter plane, where every point escapes and the whole plane fills with plumes, up and around
-// through coral and feathered shapes to the spirals at the left. The named shapes are stops, at their exact c values. The zoom stays on the same fixed point along the way (its multiplier runs
-// from 1.3 to 4.5).
+// The point 1/e on the real axis splits the parameter plane's two looks. Right of it along the axis every point escapes and plumes fill the
+// whole picture; inside the big black region left of it (where c e^z has an attracting fixed point) the picture is a solid black area
+// edged with plumes. Around the outside of that region, small black islands and escaping hairs alternate, so a tour through there flashed
+// between the two looks. This one stays clear of that: from far right along the real axis (exactly on it, the only clean way in), across
+// 1/e once, then inside the black region to Coral and along just inside its lower edge to Feathers, out along the axis through -e (where
+// it touches the black region of period 2 without any hairs between) and up to Peacock. The named shapes are stops, at their exact c values.
 const TOUR: readonly (readonly [number, number])[] = [
-  [1.0, 0.0], [1.2036, -0.0321], [1.4091, -0.0426], [1.6, 0],
-  [1.8006, 0.0805], [1.9889, 0.1646], [2.1705, 0.2622], [2.3384, 0.3816],
-  [2.4719, 0.5374], [2.5254, 0.7348], [2.5195, 0.9407], [2.483, 1.1435],
-  [2.4255, 1.3415], [2.35, 1.5333], [2.2, 1.8], [2.1318, 1.8811],
-  [1.9734, 2.0126], [1.7958, 2.1173], [1.61, 2.2068], [1.4218, 2.2912],
-  [1.2361, 2.3807], [1.057, 2.4831], [0.8817, 2.5916], [0.705, 2.698],
-  [0.5223, 2.7937], [0.3302, 2.8682], [0.1287, 2.9108], [-0.077, 2.924],
-  [-0.2831, 2.9177], [-0.4883, 2.8972], [-0.6921, 2.8659], [-0.8943, 2.8251],
-  [-1.0943, 2.7749], [-1.29, 2.7099], [-1.4768, 2.6229], [-1.6514, 2.5133],
-  [-1.815, 2.3877], [-1.9692, 2.2509], [-2.1156, 2.1056], [-2.255, 1.9536],
-  [-2.3874, 1.7955], [-2.5118, 1.631], [-2.6, 1.5], [-2.7189, 1.2752],
-  [-2.7982, 1.0848], [-2.8683, 0.8909], [-2.9332, 0.6951], [-3.0, 0.5],
+  [3.6, 0.0], [3.4, 0.0], [3.2, 0.0], [3.0, 0.0],
+  [2.8, 0.0], [2.6, 0.0], [2.4, 0.0], [2.2, 0.0],
+  [2.0, 0.0], [1.8, 0.0], [1.6, 0.0], [1.4, 0.0],
+  [1.2, 0.0], [1.0, 0.0], [0.8, 0.0], [0.3, 0.0],
+  [0.2, 0.0], [0.3927, -0.1142], [0.6, -0.2], [0.6912, -0.3734],
+  [0.7326, -0.565], [0.7275, -0.7611], [0.6825, -0.9521], [0.6025, -1.1314],
+  [0.4926, -1.294], [0.3576, -1.4366], [0.2022, -1.5568], [0.0309, -1.6528],
+  [-0.1523, -1.7237], [-0.3434, -1.7692], [-0.5917, -1.7829], [-0.695, -1.6518],
+  [-0.8277, -1.4913], [-0.9326, -1.3115], [-1.0056, -1.1166], [-1.0431, -0.9119],
+  [-1.042, -0.7038], [-1.0, -0.5], [-1.2032, -0.517], [-1.407, -0.5131],
+  [-1.6095, -0.4893], [-1.8089, -0.447], [-2.0039, -0.3874], [-2.1933, -0.3117],
+  [-2.3759, -0.2211], [-2.5512, -0.1169], [-2.7183, 0.0], [-2.9248, 0.0],
+  [-3.0, 0.1313], [-3.0, 0.3379], [-3.0, 0.5], [-2.9332, 0.6951],
+  [-2.8683, 0.8909], [-2.7982, 1.0848], [-2.7189, 1.2752], [-2.6, 1.5],
 ]
 
 /** The exponential family, c e^z: hair-like Cantor bouquets and plumes, everywhere at once. */
@@ -101,15 +129,20 @@ export const exponentialFamily: FractalFamily = {
   description: 'Plumes, feathers and hairs that reach out forever.',
   tour: TOUR,
   famousShapes: [
-    { name: 'Fireworks', re: 1.6, im: 0, tourStop: 3 },
-    { name: 'Coral', re: 2.2, im: 1.8, tourStop: 14 },
-    { name: 'Peacock', re: -2.6, im: 1.5, tourStop: 42 },
+    { name: 'Starburst', re: 3.6, im: 0, tourStop: 0 },
+    { name: 'Fireworks', re: 1.6, im: 0, tourStop: 10 },
+    { name: 'Bouquet', re: 0.3, im: 0, tourStop: 15 },
+    { name: 'Coral', re: 0.6, im: -0.2, tourStop: 18 },
+    { name: 'Fans', re: -0.5917, im: -1.7829, tourStop: 30 },
+    { name: 'Feathers', re: -1, im: -0.5, tourStop: 37 },
+    { name: 'Peacock', re: -2.6, im: 1.5, tourStop: 55 },
   ],
   mapHint: 'Bouquet is never fully solid. Dark spots give solid areas edged with plumes, and bright spots fill the picture with plumes. The zoom dives into the plumes, so lower Scale to see the solid areas.',
   mapView: { reMin: -4.75, reMax: 4.25, imMin: -3, imMax: 3 },
   wholeSetRadius: 4,
   parameterScale: 3,
   wholeSetCenter: complex(1, 0),
+  shapeOffset,
   // Where the wrap error matches the classic family's at 0.2.
   seamSafeRadius: 0.25,
   referenceMultiplier: 2.8,
