@@ -32,10 +32,16 @@ Blend modes decide how a layer combines with what is behind it. Pick one per lay
 
 ## The Fractal Layer
 
-The Fractal layer shows a Julia set that you fall into forever. The shape of the set comes from a point `c` on the complex plane, and the tour moves `c` along a hand-built path through famous Julia sets (Airplane, Basilica, Rabbit, Dendrite, Siegel disk and more) so neighboring positions look related.
+The Fractal layer shows a Julia set that you fall into forever. The shape of the set comes from a point `c` on the complex plane, and the tour moves `c` along a path through that type's best shapes (for Classic: Airplane, Basilica, Rabbit, Dendrite, Siegel disk and more) so neighboring positions look related.
 
+- **Type** picks which kind of fractal is drawn. Each has its own tour, shape map and named shapes:
+  - **Classic**: `z² + c`, mapped by the Mandelbrot set. Spirals, seahorses and lightning.
+  - **Triad**: `z³ + c`, three-fold shapes from trefoils to pinwheels.
+  - **Quad**: `z⁴ + c`, four-fold crosses, snowflakes and vortices.
+  - **Rings**: McMullen maps, `z³ + c / z³`. Rings and carpets of round holes, each hole another copy of the outside.
+  - **Plumes**: the exponential map, `c·eᶻ`. Plumes, feathers and hairs that reach out forever.
 - **Tour** slider walks the path of shapes.
-- **Shape pad** shows a map of the Mandelbrot set. Drag on it to pick any `c` yourself, and double-click to hand control back to the Tour slider. The Julia set for the point you pick is the one the main view shows.
+- **Shape pad** shows the Type's map (the Mandelbrot set for Classic). Drag on it to pick any `c` yourself, and double-click to hand control back to the Tour slider. The Julia set for the point you pick is the one the main view shows.
 - **Scale** zooms the whole view. Low values show the full set, higher values dive in.
 - The zoom loops seamlessly, and the spin and zoom speed follow the music.
 

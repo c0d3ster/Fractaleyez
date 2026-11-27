@@ -51,6 +51,7 @@ export type UserConfigSection = {
 
 export type FractalConfigSection = {
   tour: SliderItem
+  family: SliderItem // index into FRACTAL_FAMILIES; picked on the Type row above the Shape pad, not a slider
 }
 
 export type AudioConfigSection = {
@@ -206,13 +207,23 @@ export const configDefaults: AppConfig = {
   fractal: {
     tour: {
       name: 'Tour',
-      description: 'Where the fractal shape sits along its tour through the Mandelbrot set. Drag the Shape pad to pick a shape yourself, and double-click it to return to this slider.',
+      description: 'Where the fractal shape sits along its tour of the Type\'s best shapes. Drag the Shape pad to pick a shape yourself, and double-click it to return to this slider.',
       type: 'slider',
       defaultValue: fractalConfig.tour_DEFAULT,
       value: fractalConfig.tour_DEFAULT,
       min: fractalConfig.tour_MIN,
       max: fractalConfig.tour_MAX,
       step: fractalConfig.tour_STEP_SIZE,
+    },
+    family: {
+      name: 'Type',
+      description: 'Which kind of fractal the layer draws. Each type has its own tour and shape map.',
+      type: 'slider',
+      defaultValue: fractalConfig.family_DEFAULT,
+      value: fractalConfig.family_DEFAULT,
+      min: fractalConfig.family_MIN,
+      max: fractalConfig.family_MAX,
+      step: fractalConfig.family_STEP_SIZE,
     },
   },
   audio: {

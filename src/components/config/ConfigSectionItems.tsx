@@ -59,9 +59,11 @@ const STEPPER_AMOUNTS: Partial<Record<string, string>> = {
 }
 const STEPPER_AMOUNT_ITEMS: readonly string[] = [...Object.values(STEPPER_AMOUNTS).filter((item): item is string => item !== undefined), 'kaleidoscopeMode', 'kaleidoscopeSource']
 
-// Items a pad edits (the logo's position and zoom focus): stored like any slider, but they get no row of their own.
+// Items a pad edits (the logo's position and zoom focus, the fractal's Type above the Shape pad): stored like any slider, but they get
+// no row of their own.
 const PAD_ITEMS: Partial<Record<string, readonly string[]>> = {
   logo: ['positionX', 'positionY', 'focusX', 'focusY'],
+  fractal: ['family'],
 }
 
 // Speed settings that turn something. They are drawn as a dial, not a slider, which also shows and sets which way it points.

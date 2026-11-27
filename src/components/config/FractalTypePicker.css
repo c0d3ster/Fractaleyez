@@ -1,0 +1,67 @@
+/* The fractal Type row above the Shape pad: a little picture of each family over its name. */
+.fractal-types {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 6px;
+}
+
+.fractal-types__row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+}
+
+/* Three per row everywhere, so six types make two even rows; the expanded window spaces them out a little more. */
+.fractal-types--expanded .fractal-types__row {
+  gap: 6px;
+}
+
+.fractal-types--expanded .fractal-type__label {
+  font-size: 12px;
+}
+
+.fractal-type {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  padding: 2px;
+  background: transparent;
+  border: 1px solid #888;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #333;
+}
+
+.fractal-type--active {
+  border-color: #0a8f78;
+  box-shadow: 0 0 0 1px #0a8f78;
+  color: #0a8f78;
+}
+
+/* App.css gives every canvas a black background and hides the cursor; the thumbnail is a button's picture, so it keeps the pointer. */
+.fractal-type__thumb {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 3 / 2;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.fractal-type__label {
+  font-size: 10px;
+  line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+@media (hover: hover) {
+  :where(html:not([data-input='touch'])) .fractal-type:not(.fractal-type--active):hover {
+    border-color: #0a8f78;
+    color: #0a8f78;
+  }
+}
