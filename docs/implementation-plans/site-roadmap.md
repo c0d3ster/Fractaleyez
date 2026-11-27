@@ -115,6 +115,8 @@ What the app hears decides how good it looks, and a room mic hears the crowd, th
 
 ### Track data from the DJ setup
 
+High priority: most booths are Pioneer CDJs and a DJM with no laptop, so this is how the visuals hear a real set. Full plan, including the test plan with a DJM-900NXS2 and CDJ-3000s, in `pioneer-pro-dj-link.md`.
+
 - **What is loaded on each deck:** Pioneer CDJs and XDJs share the loaded track's title, artist, beat grid and which deck is on air over Pro DJ Link (readable with Deep Symmetry's open-source Beat Link). VirtualDJ speaks OS2L, Ableton Link shares tempo and phase, and Rekordbox, Serato and Traktor expose now playing through their history or plugins.
 - **A small companion app:** browsers cannot speak these local network protocols, so a small desktop helper on the DJ's laptop (or the exhibit machine) reads them and passes the data to the visualizer over a local WebSocket. The same helper can carry MIDI and the output to Spout, Syphon or NDI.
 
@@ -122,7 +124,7 @@ What the app hears decides how good it looks, and a room mic hears the crowd, th
 
 Once the app knows which song is coming, before it plays, it can get ready for it:
 
-- **AI logo generation from the lyrics:** look up the song's lyrics and themes and generate logo art and palettes for it ahead of time, so they are ready the moment the track comes in instead of being generated live. Needs its own plan: the model, the prompt from the lyrics, cost and speed per song, and caching per track.
+- **AI logo generation from the lyrics:** look up the song's lyrics and themes and generate logo art and palettes for it ahead of time, so they are ready the moment the track comes in instead of being generated live. The research is in `docs/research/ai-visuals.md` (song match, lyrics, pre-generation and the per-song cache), with the CDJ track identity as the first source of the song.
 - **Synced lyrics:** time-coded lyrics can trigger moments on specific lines (a word on screen, a burst on the hook).
 - **Licensing:** showing lyrics needs a licensed source (Musixmatch, LyricFind or similar). Check the terms for using them to drive generated art too, and keep generated art per track private to the show unless cleared.
 - **Pick the look:** choose a preset, fractal Type or palette that fits the next track's tempo, key and energy.
@@ -152,8 +154,8 @@ For people running it at shows, which is also what makes the booking credible.
 ## Phases
 
 1. **Now, around launch:** onboarding (the intro overlay and walkthrough, the mic explanation, pick a vibe, the demo track), the Learn page v1, the reference pages, and share links.
-2. **Next:** line in (the audio input picker and a level meter), the Library page and visibility, recording clips, the booking page, a "what's new" page, and for exhibits: exhibit mode, the soak test, offline caching, the pitch kit and the interactive pieces (the camera dream, presence and the hands-on station).
-3. **Later:** the mixer channels and the companion app (track data from the DJ setup, knowing the song ahead, AI logo generation from lyrics), the creator marketplace with payouts, live performance tools (MIDI, setlists, the output window), phone control and multiple screens for exhibits, the gallery and challenges, embeds and branded editions.
+2. **Next:** line in (the audio input picker and a level meter), the Pioneer spike and then the companion app's Pro DJ Link support (beat and tempo from the CDJs, knowing the song ahead, see `pioneer-pro-dj-link.md`), the Library page and visibility, recording clips, the booking page, a "what's new" page, and for exhibits: exhibit mode, the soak test, offline caching, the pitch kit and the interactive pieces (the camera dream, presence and the hands-on station).
+3. **Later:** per-channel mixer audio, the companion app for other DJ software (VirtualDJ, Serato, Traktor), AI logo generation from lyrics, the creator marketplace with payouts, live performance tools (MIDI, setlists, the output window), phone control and multiple screens for exhibits, the gallery and challenges, embeds and branded editions.
 
 ## Open questions
 
