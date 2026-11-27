@@ -118,7 +118,7 @@ What the app hears decides how good it looks, and a room mic hears the crowd, th
 High priority: most booths are Pioneer CDJs and a DJM with no laptop, so this is how the visuals hear a real set. Full plan, including the test plan with a DJM-900NXS2 and CDJ-3000s, in `pioneer-pro-dj-link.md`.
 
 - **What is loaded on each deck:** Pioneer CDJs and XDJs share the loaded track's title, artist, beat grid and which deck is on air over Pro DJ Link (readable with Deep Symmetry's open-source Beat Link). VirtualDJ speaks OS2L, Ableton Link shares tempo and phase, and Rekordbox, Serato and Traktor expose now playing through their history or plugins.
-- **A small companion app:** browsers cannot speak these local network protocols, so a small desktop helper on the DJ's laptop (or the exhibit machine) reads them and passes the data to the visualizer over a local WebSocket. The same helper can carry MIDI and the output to Spout, Syphon or NDI.
+- **A small companion app:** browsers cannot speak these local network protocols, so a small desktop helper on the DJ's laptop (or the exhibit machine) reads them and passes the data to the visualizer over a local WebSocket. The same helper grows into the desktop app (Electron) that also opens the visualizer in its own window, for booths and exhibits, with MIDI and the outputs to Spout, Syphon or NDI. See "From helper to desktop app" in `pioneer-pro-dj-link.md`.
 
 ### Knowing the song ahead
 
@@ -134,7 +134,7 @@ Once the app knows which song is coming, before it plays, it can get ready for i
 For people running it at shows, which is also what makes the booking credible.
 
 - **MIDI control:** map knobs and pads to sliders, layers and effects, with learn mode.
-- **Output:** a clean full-screen output window without the UI, notes for OBS (browser source or window capture), and a look at Spout/Syphon/NDI through a small desktop wrapper later.
+- **Output:** a clean full-screen output window without the UI, notes for OBS (browser source or window capture), and Spout/Syphon/NDI through the desktop app.
 - **Setlists and cues:** an ordered list of presets to step through, crossfading on a key or on the next drop.
 - **Tap tempo and BPM lock:** for when no line feed is available and the mic hears the room badly.
 
@@ -148,18 +148,17 @@ For people running it at shows, which is also what makes the booking credible.
 
 - **Embed:** a small embeddable player for musicians' sites or event pages, running a chosen preset.
 - **Branded editions:** event or artist editions with their logo layer, palette and a fixed set of presets, as a paid product for festivals and labels.
-- **Phone:** make the site installable (a PWA) and tune a light mode of the visual for phones.
+- **Phone:** make the site installable (a PWA), tune a light mode of the visual for phones, and a phone control page to drive a booth or exhibit machine. No native mobile app for now (store review and the store's cut of subscriptions); revisit after launch.
 - **Collaborations:** packs made with artists and released with their music.
 
 ## Phases
 
 1. **Now, around launch:** onboarding (the intro overlay and walkthrough, the mic explanation, pick a vibe, the demo track), the Learn page v1, the reference pages, and share links.
 2. **Next:** line in (the audio input picker and a level meter), the Pioneer spike and then the companion app's Pro DJ Link support (beat and tempo from the CDJs, knowing the song ahead, see `pioneer-pro-dj-link.md`), the Library page and visibility, recording clips, the booking page, a "what's new" page, and for exhibits: exhibit mode, the soak test, offline caching, the pitch kit and the interactive pieces (the camera dream, presence and the hands-on station).
-3. **Later:** per-channel mixer audio, the companion app for other DJ software (VirtualDJ, Serato, Traktor), AI logo generation from lyrics, the creator marketplace with payouts, live performance tools (MIDI, setlists, the output window), phone control and multiple screens for exhibits, the gallery and challenges, embeds and branded editions.
+3. **Later:** per-channel mixer audio, the companion app for other DJ software (VirtualDJ, Serato, Traktor), AI logo generation from lyrics, the creator marketplace with payouts, the desktop app's visualizer window, live performance tools (MIDI, setlists, the output window, Spout/Syphon/NDI), phone control and multiple screens for exhibits, the gallery and challenges, embeds and branded editions.
 
 ## Open questions
 
 - One site or two: the content pages in the same app (it is one webpack SPA today, so this needs a router and Vercel rewrites, as the Library already does) or a separate content site that links to the app.
 - How the booking side is branded: Fractaleyez shows, a personal VJ name, or both.
 - Which phase the demo track and recording need, since both may matter most for first impressions.
-- Whether the companion app is worth building early, since it unlocks the mixer channels, DJ track data, MIDI and video outputs at once.
