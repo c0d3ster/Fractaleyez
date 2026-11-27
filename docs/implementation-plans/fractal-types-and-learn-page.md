@@ -14,7 +14,7 @@ Six types are in (`src/visualization/fractal-families/`, PR #355):
 | Triad | z³ + c | three-fold trefoils, pinwheels |
 | Quad | z⁴ + c | four-fold crosses, snowflakes, vortices |
 | Rings | z³ + c/z³ (McMullen) | rings and carpets of round holes |
-| Plumes | c·eᶻ | plumes, feathers and hairs |
+| Bouquet | c·eᶻ | plumes, feathers and hairs (a Cantor bouquet) |
 | Frieze | c·sin z | a band of ferns and spiral flowers repeating forever |
 
 Switching types crossfades over the Crossfade Duration. Every type loops its zoom seamlessly, has named shapes that sit exactly on Tour stops, and is checked by `fractal-families.test.ts` (a repelling fixed point at every stop, the zoom coordinate matching the map, shapes on the pad).
@@ -74,7 +74,7 @@ A possible later addition for precise control: a fine-tune drag on the pad (hold
 - **Julia sets and the parameter plane.** For a family f_c, the Julia set J(f_c) is the boundary between orbits that stay bounded and those that escape. The parameter plane colors each `c` by what its critical orbit does, which tells you whether J(f_c) is connected (Mandelbrot set for z² + c, the Multibrot sets for zᵈ + c, the McMullen and transcendental analogues for the others).
 - **The endless zoom (Koenigs linearization).** The zoom sits on a repelling fixed point z₀ of f (f(z₀) = z₀, |λ| = |f′(z₀)| > 1). Near it, f acts like multiplication by λ in the Koenigs coordinate φ, with φ(f(z)) = λ·φ(z). So zooming in by |λ| and turning by arg λ shows the same picture: that is one loop period. The shader samples the plane through φ⁻¹ to third order, z = z₀ + w + k₂w² + k₃w³, with k₂ and k₃ from f″ and f‴ (`koenigs.ts`), which makes the wrap seamless to well under a pixel up to each type's seam-safe radius.
 - **Smooth coloring.** The escape count is made continuous with the usual log-log formula for polynomials (log base d for degree d). The exponential and sine maps grow like e^z, so they use a double log of the escaping value instead.
-- **Finding the fixed points.** Closed form for z² + c; Durand-Kerner on the polynomial for Triad, Quad and Rings; Newton's method seeded on the Lambert W branches for Plumes and along the real axis for Frieze. While the shape glides, the zoom tracks the same fixed point from frame to frame so the dive never jumps.
+- **Finding the fixed points.** Closed form for z² + c; Durand-Kerner on the polynomial for Triad, Quad and Rings; Newton's method seeded on the Lambert W branches for Bouquet and along the real axis for Frieze. While the shape glides, the zoom tracks the same fixed point from frame to frame so the dive never jumps.
 - **Credits.** The idea of a Julia zoom with a Mandelbrot inset to pick the shape comes from Mandelbrot Maps by jmaio (see README).
 
 ### Interactive demos (ideas)
