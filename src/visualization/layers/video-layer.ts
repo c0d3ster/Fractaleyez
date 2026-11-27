@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 
-import { isLiveClip } from '../../config/video.config'
+import { clipUrl, isLiveClip } from '../../config/video.config'
 import { getParticleCrossfadeDurationMs } from '../../config/visualizer.config'
 import { cameraSource } from '../camera-source'
 import { loadTracker } from '../load-tracker'
@@ -235,7 +235,7 @@ export class VideoLayer implements Layer {
   private createSlot = (src: string, autoplay = true): VideoSlot => {
     const video = document.createElement('video')
     const live = isLiveClip(src)
-    if (!live) video.src = src
+    if (!live) video.src = clipUrl(src)
     video.preload = 'auto'
     // Started with play() rather than the autoplay attribute: Chrome auto-pauses muted autoplay videos that
     // aren't sufficiently in view, and this one is only a 2px dot. Muted so playback is always allowed (and the clip's audio can't feed back into the mic).
@@ -504,7 +504,7 @@ export class VideoLayer implements Layer {
     this.discardPrepared()
     window.config.video.index = (window.config.video.index + 1) % clips.length
     slot.src = clips[window.config.video.index]!
-    slot.video.src = slot.src
+    slot.video.src = clipUrl(slot.src)
     slot.video.play().catch(() => undefined)
   }
 

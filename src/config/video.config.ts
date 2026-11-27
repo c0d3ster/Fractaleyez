@@ -9,6 +9,28 @@ export const isLiveClip = (clip: string): boolean => clip === LIVE_CLIP
  */
 export const normalizeClips = (clips: string[]): string[] => (clips.some(isLiveClip) ? [LIVE_CLIP] : clips)
 
+/**
+ * Lighter encodes served in place of a full-size clip. Presets keep the original name, so this maps at load time.
+ * `?fullres=1` in the address plays the originals, for load testing against the heavy files.
+ */
+const LIGHT_CLIPS: Record<string, string> = {
+  'galaxy.mp4': 'galaxy-1080.mp4',
+}
+
+const wantsFullRes = (): boolean => {
+  try {
+    return new URLSearchParams(window.location.search).get('fullres') === '1'
+  } catch {
+    return false
+  }
+}
+
+/** The file to load for a clip name. */
+export const clipUrl = (clip: string, fullRes: boolean = wantsFullRes()): string => {
+  if (fullRes) return clip
+  return LIGHT_CLIPS[clip] ?? clip
+}
+
 export const videoConfig = {
   clips: ['galaxy.mp4', 'earth.mp4'],
   allClips: ['galaxy.mp4', 'earth.mp4', LIVE_CLIP],

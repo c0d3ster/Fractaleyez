@@ -26,6 +26,12 @@ export class StartupTimeline {
   private frameCount = 0
   private longestMs = 0
   private over50 = 0
+  private resolveFirstFrame: () => void = () => undefined
+
+  /** Resolves when the first frame is drawn, for work that can wait until something is on screen. */
+  readonly firstFrame: Promise<void> = new Promise((resolve) => {
+    this.resolveFirstFrame = resolve
+  })
 
   constructor(private readonly perf: Performance = performance) {}
 
@@ -51,6 +57,7 @@ export class StartupTimeline {
       this.firstFrameAt = now
       this.lastFrameAt = now
       this.mark('first-frame')
+      this.resolveFirstFrame()
       return
     }
     if (now - this.firstFrameAt > STARTUP_WATCH_MS) return
