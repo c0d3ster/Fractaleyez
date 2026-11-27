@@ -79,7 +79,7 @@ const TypeButton = ({ family, index, selected, onPick }: TypeButtonProps): React
       type='button'
       className={`fractal-type${selected ? ' fractal-type--active' : ''}`}
       aria-pressed={selected}
-      {...info(`${family.label}: ${family.description}`)}
+      {...info(`${family.label} · ${family.mathName}, ${family.formula}. ${family.description}`)}
       onClick={() => onPick(index)}
     >
       <canvas ref={canvasRef} className='fractal-type__thumb' width={THUMB_W} height={THUMB_H} />
@@ -95,7 +95,8 @@ type FractalTypePickerProps = {
 
 /**
  * The fractal layer's Type: one button per family, each with a little picture of it, above the Shape pad. Hovering or picking one shows
- * what it is in the info strip (a tooltip in the sidebar, which has none).
+ * what it is in the info strip (a tooltip in the sidebar, which has none): the friendly name, then the math name and the map for anyone
+ * who knows it, then a plain description.
  */
 export const FractalTypePicker = ({ expanded = false }: FractalTypePickerProps): React.ReactElement => {
   const { updateConfigItem } = useConfigContext()

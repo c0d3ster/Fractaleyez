@@ -96,7 +96,9 @@ const TOUR: readonly (readonly [number, number])[] = [
 export const exponentialFamily: FractalFamily = {
   key: 'exponential',
   label: 'Plumes',
-  description: 'Plumes, feathers and hairs of the exponential map, which reach out forever.',
+  mathName: 'Exponential family',
+  formula: 'c·eᶻ',
+  description: 'Plumes, feathers and hairs that reach out forever.',
   tour: TOUR,
   famousShapes: [
     { name: 'Fireworks', re: 1.6, im: 0, tourStop: 3 },

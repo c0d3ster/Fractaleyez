@@ -99,7 +99,9 @@ const TOUR: readonly (readonly [number, number])[] = [
 export const sineFamily: FractalFamily = {
   key: 'sine',
   label: 'Frieze',
-  description: 'A band of ferns and spiral flowers from the sine map, repeating left and right forever.',
+  mathName: 'Sine family',
+  formula: 'c·sin z',
+  description: 'A band of ferns and spiral flowers, repeating left and right forever.',
   tour: TOUR,
   famousShapes: [
     { name: 'Ferns', re: 0.8661, im: 0.4731, tourStop: 0 },

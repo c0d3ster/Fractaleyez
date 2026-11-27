@@ -111,7 +111,9 @@ const mandelbrotIterations = ({ re: cRe, im: cIm }: Complex, maxIterations: numb
 export const quadraticFamily: FractalFamily = {
   key: 'quadratic',
   label: 'Classic',
-  description: 'The classic Julia sets: spirals, seahorses and lightning, mapped by the Mandelbrot set.',
+  mathName: 'Quadratic Julia set',
+  formula: 'z² + c',
+  description: 'Spirals, seahorses and lightning, mapped by the Mandelbrot set.',
   tour: TOUR,
   famousShapes: FAMOUS_SHAPES,
   mapView: { reMin: -2.2, reMax: 0.8, imMin: -1, imMax: 1 },

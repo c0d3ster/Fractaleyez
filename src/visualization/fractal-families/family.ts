@@ -34,8 +34,12 @@ export type FractalFamily = {
   key: string
   /** Name on the Type picker. */
   label: string
-  /** Shown as the picker's hint, in plain words. */
+  /** Shown in the info strip, in plain words. */
   description: string
+  /** The family's proper name, shown in the info strip after the friendly label for anyone who knows the math. */
+  mathName: string
+  /** The map, as text (z² + c), shown with the math name. */
+  formula: string
   /** The Tour slider's path through the parameter plane, as [re, im] stops (interpolated with a spline). */
   tour: readonly (readonly [number, number])[]
   famousShapes: readonly FamousShape[]

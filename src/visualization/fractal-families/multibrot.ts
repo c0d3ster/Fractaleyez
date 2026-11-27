@@ -20,6 +20,8 @@ type MultibrotOptions = {
   key: string
   label: string
   description: string
+  mathName: string
+  formula: string
   tour: readonly (readonly [number, number])[]
   famousShapes: readonly FamousShape[]
   mapView: MapView
@@ -145,7 +147,9 @@ export const cubicFamily = multibrotFamily({
   rotateParameter: true,
   key: 'cubic',
   label: 'Triad',
-  description: 'z cubed: three-fold Julia sets, from trefoils to pinwheels and lightning.',
+  mathName: 'Cubic Julia set (Multibrot 3)',
+  formula: 'z³ + c',
+  description: 'Three-fold shapes, from trefoils to pinwheels and lightning.',
   tour: CUBIC_TOUR,
   famousShapes: [
     { name: 'Trefoil', re: 1.0734, im: 0.0001, tourStop: 0 },
@@ -165,7 +169,9 @@ export const quarticFamily = multibrotFamily({
   rotateParameter: false,
   key: 'quartic',
   label: 'Quad',
-  description: 'z to the fourth: four-fold Julia sets, crosses, snowflakes and vortices.',
+  mathName: 'Quartic Julia set (Multibrot 4)',
+  formula: 'z⁴ + c',
+  description: 'Four-fold crosses, snowflakes and vortices.',
   tour: QUARTIC_TOUR,
   famousShapes: [
     { name: 'Snowflake', re: 0.7399, im: 0.3433, tourStop: 7 },
