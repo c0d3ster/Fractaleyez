@@ -2,7 +2,7 @@
 
 ## Context
 
-Fractaleyez started as the visualizer. This plan is for the site around it: a place where people learn how it works, get started without friction, share and find looks, buy and sell packs, and book a live show. It ties together plans that already exist (`learn-page.md`, `docs/research/monetization.md`, `docs/research/preset-visibility.md`) and adds the rest, so each piece can be built on its own but fits one site.
+Fractaleyez started as the visualizer. This plan is for the site around it: a place where people learn how it works, get started without friction, share and find looks, buy and sell packs, and book a live show. One goal shapes several of these: bringing Fractaleyez to festivals as an **art exhibit**, an installation people walk into, not only visuals behind a DJ. It ties together plans that already exist (`learn-page.md`, `docs/research/monetization.md`, `docs/research/preset-visibility.md`) and adds the rest, so each piece can be built on its own but fits one site.
 
 The guiding rule stays the same as in the app: the visualizer is the product and stays simple; everything that explains, organizes or sells lives around it, never inside the visual.
 
@@ -16,7 +16,8 @@ The guiding rule stays the same as in the app: the visualizer is the product and
 | Library | Your presets and packs: rename, organize, publish | `preset-visibility.md` (UI direction) |
 | Market | Packs and presets to browse, preview and buy; starts as a Browse tab in the Library | Marketplace below, `monetization.md` |
 | Creator pages | A creator's public packs, presets and clips | Marketplace below |
-| Book | Book a live VJ show | Booking below |
+| Book | Book a live VJ show or an exhibit | Booking below, Festival exhibit below |
+| Exhibit | The installation: artist statement, past exhibits, what it needs on site | Festival exhibit below |
 | Gallery | Clips and looks made with Fractaleyez | Community below |
 
 ## Onboarding
@@ -59,7 +60,42 @@ A page to book a live VJ show.
 
 - **First version:** what a show includes, photos and clips from past shows, technical needs (projector or LED wall, a laptop input, the audio feed), and an inquiry form that sends the date, venue, type of event and budget to email or a calendar.
 - **Packages:** a few clear options (for example, a set, a full night, a custom-branded show with the artist's or event's logo), priced or "from" prices.
+- **Exhibits:** the same page books the installation (see Festival exhibit), with its own package and technical needs.
 - **Later:** other creators bookable through the same page, as a directory of VJs who use Fractaleyez, with the site taking a booking fee.
+
+## Festival exhibit
+
+An installation at a festival: a room, dome or wall where the visuals run for hours, react to the music around them and to the people in front of them, and explain themselves to anyone curious. Much of the rest of this plan comes together here.
+
+### Running unattended
+
+- **Exhibit mode:** a full-screen kiosk mode with no UI, Auto running the show (presets, layers, fractal Types and Tours changing with the music), and a hidden key or long press to get back to the controls.
+- **Hours of uptime:** a soak test of 12 hours or more watching memory, GPU resources and frame rate; recover on its own from a lost camera or audio input (the camera already reconnects), a GPU context loss, or a crash (reload into exhibit mode).
+- **Offline:** everything an exhibit uses (presets, sprites, video clips, the demo track) cached locally, since festival internet is unreliable.
+- **Scheduling:** a playlist of looks by time of day (calmer by day, heavier at night), or tied to the stage's set times.
+
+### Interactive
+
+- **See yourself in it:** the camera on the video layer, with the dream effects from `video-dream-effects.md`, so people walking up see themselves melt into the fractals. The strongest hook for an exhibit.
+- **Presence:** the camera's motion or the number of people in front of it drives the visuals too (more movement, more energy), alongside the music.
+- **Hands-on station:** a tablet or MIDI controller with a few big, safe controls (fractal Type, Tour, kaleidoscope, a palette), so visitors can play without breaking the show.
+- **Phones as controllers, later:** scan a QR code to nudge the shape or palette from your phone, with a shared queue so many people can take turns.
+
+### Explaining it
+
+- **Placards:** short "how it works" panels next to the screens, written from the Learn page's plain level (the Shape pad as the parameter plane, the endless zoom, the Hopalong orbit), each with a QR code to the full deep dive.
+- **Take it home:** a QR code on screen that opens the visualizer on the look that is playing, or saves a short clip of it, so the exhibit sends people to the site.
+
+### Scale and setup
+
+- **Multiple screens:** several outputs (one per wall or projector) from one machine, each running a different layer mix or a time offset of the same show.
+- **Projection:** mapping onto domes, sculptures or uneven surfaces through projection mapping software (MadMapper, Resolume) fed by the clean output window.
+- **Hardware list:** what an exhibit needs (a machine with a good GPU, projectors or LED walls, a camera, an audio line from the stage or a room mic) and the power and space.
+
+### Getting in
+
+- **Exhibit pitch kit:** an artist statement, photos and clips from past shows, the technical needs and a budget, which also feeds the Exhibit and Book pages.
+- **Where to apply:** festival art programs and art grants usually open months ahead, so the pitch kit and a few documented installations are worth having early.
 
 ## Live performance tools
 
@@ -87,8 +123,8 @@ For people running it at shows, which is also what makes the booking credible.
 ## Phases
 
 1. **Now, around launch:** onboarding (the intro overlay and walkthrough, the mic explanation, pick a vibe, the demo track), the Learn page v1, the reference pages, and share links.
-2. **Next:** the Library page and visibility, recording clips, the booking page, and a "what's new" page.
-3. **Later:** the creator marketplace with payouts, live performance tools (MIDI, setlists, the output window), the gallery and challenges, embeds and branded editions.
+2. **Next:** the Library page and visibility, recording clips, the booking page, a "what's new" page, and for exhibits: exhibit mode, the soak test, offline caching and the pitch kit.
+3. **Later:** the creator marketplace with payouts, live performance tools (MIDI, setlists, the output window), the interactive exhibit pieces (camera dream, presence, the hands-on station, phone control, multiple screens), the gallery and challenges, embeds and branded editions.
 
 ## Open questions
 
