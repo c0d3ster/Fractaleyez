@@ -105,6 +105,7 @@ export const exponentialFamily: FractalFamily = {
     { name: 'Coral', re: 2.2, im: 1.8, tourStop: 14 },
     { name: 'Peacock', re: -2.6, im: 1.5, tourStop: 42 },
   ],
+  mapHint: 'Bouquet is never fully solid. Dark spots give solid areas edged with plumes, and bright spots fill the picture with plumes. The zoom dives into the plumes, so lower Scale to see the solid areas.',
   mapView: { reMin: -4.75, reMax: 4.25, imMin: -3, imMax: 3 },
   wholeSetRadius: 4,
   parameterScale: 3,

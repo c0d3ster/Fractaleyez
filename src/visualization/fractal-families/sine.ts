@@ -110,6 +110,7 @@ export const sineFamily: FractalFamily = {
     { name: 'Pinwheels', re: -0.5842, im: 0.8192, tourStop: 30 },
     { name: 'Spirals', re: -0.8325, im: 0.5875, tourStop: 35 },
   ],
+  mapHint: 'Ribbon is never fully solid. Dark spots give solid areas edged with ferns, and bright spots fill the picture with ferns. The zoom dives into the ferns, so lower Scale to see the solid areas.',
   mapView: { reMin: -2.4, reMax: 2.4, imMin: -1.6, imMax: 1.6 },
   wholeSetRadius: 4,
   parameterScale: 1,

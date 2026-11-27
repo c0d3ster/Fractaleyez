@@ -44,6 +44,8 @@ export type FractalFamily = {
   tour: readonly (readonly [number, number])[]
   famousShapes: readonly FamousShape[]
   mapView: MapView
+  /** What the pad's colors mean for this family, added to the pad's hint when it differs from the classic reading (dark is a solid shape). */
+  mapHint?: string
   /** Plane radius that fits the whole set at Scale 0.2x. */
   wholeSetRadius: number
   /**
