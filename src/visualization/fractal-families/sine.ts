@@ -98,7 +98,7 @@ const TOUR: readonly (readonly [number, number])[] = [
 /** The sine family, c sin z: a band of ferns and spiral flowers that repeats left and right forever. */
 export const sineFamily: FractalFamily = {
   key: 'sine',
-  label: 'Frieze',
+  label: 'Ribbon',
   mathName: 'Sine family',
   formula: 'c·sin z',
   description: 'A band of ferns and spiral flowers, repeating left and right forever.',
