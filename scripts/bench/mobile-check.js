@@ -67,8 +67,53 @@ const READ = `(() => ({
       bottom: Math.round(box(el).bottom),
       rows: [...el.querySelectorAll('[data-menu-layer]')].map((node) => node.dataset.menuLayer),
       back: !!el.querySelector('.sheet-back'),
+      // The layer page (#365): its sub-tabs, the one-slider section and what the controls show.
+      layerPage: (() => {
+        const pageEl = el.querySelector('[data-layer-page]')
+        if (!pageEl) return null
+        const body = el.querySelector('.bottom-sheet__body')
+        const slider = pageEl.querySelector('.sheet-slider')
+        const grid = pageEl.querySelector('.sprite-picker__grid')
+        const pad = pageEl.querySelector('.pad')
+        return {
+          layer: pageEl.dataset.layerPage,
+          subTab: pageEl.dataset.layerSubtabPage,
+          segments: [...el.querySelectorAll('[data-layer-subtab]')].map((node) => node.dataset.layerSubtab),
+          segment: el.querySelector('[data-layer-subtab][aria-selected="true"]')?.dataset.layerSubtab ?? null,
+          title: el.querySelector('.sheet-page-title')?.textContent ?? null,
+          headerRow: !!pageEl.querySelector('[data-menu-layer-page-row] .layer-header'),
+          buttons: [...pageEl.querySelectorAll('[data-one-slider-item]')].map((node) => node.dataset.oneSliderItem),
+          selected: pageEl.querySelector('[data-one-slider-item][aria-selected="true"]')?.dataset.oneSliderItem ?? null,
+          buttonValue: pageEl.querySelector('[data-one-slider-item][aria-selected="true"] .one-slider__value')?.textContent ?? null,
+          sliderName: slider?.querySelector('.slider-name')?.textContent.trim().replace(/:$/, '') ?? null,
+          sliderValue: slider?.querySelector('.slider-value')?.textContent ?? null,
+          sliderZoned: !!slider?.querySelector('.slider-input')?.style.background.includes('gradient'),
+          dials: pageEl.querySelectorAll('.spin-dial, [class*="spin-dial"]').length,
+          types: pageEl.querySelectorAll('.fractal-type').length,
+          typeColumns: (() => { const row = pageEl.querySelector('.fractal-types__row'); return row ? getComputedStyle(row).gridTemplateColumns.split(' ').length : null })(),
+          chips: pageEl.querySelectorAll('.shape-pad-chip').length,
+          chipColumns: (() => { const chips = pageEl.querySelector('.shape-pad-compact .shape-pad-chips'); return chips ? getComputedStyle(chips).gridTemplateColumns.split(' ').length : null })(),
+          padWidth: pad ? Math.round(pad.getBoundingClientRect().width) : null,
+          spriteColumns: grid ? getComputedStyle(grid).gridTemplateColumns.split(' ').length : null,
+          spriteTile: grid?.querySelector('.sprite-picker__cell') ? Math.round(grid.querySelector('.sprite-picker__cell').getBoundingClientRect().width) : null,
+          pills: [...pageEl.querySelectorAll('.config-checkbox-row input')].map((node) => node.name),
+          camera: pageEl.querySelector('.video-camera')?.dataset.camera ?? null,
+          cameraInfo: pageEl.querySelector('.video-camera__info')?.textContent ?? null,
+          clips: pageEl.querySelectorAll('.video-clips .config-checkbox-container').length,
+          scrolls: body ? body.scrollHeight > body.clientHeight + 1 : null,
+        }
+      })(),
     }
   })(),
+  config: {
+    family: window.config.fractal.family.value,
+    tour: window.config.fractal.tour.value,
+    orbit: Object.fromEntries(['a', 'b', 'c', 'd', 'e'].map((key) => [key, window.config.orbit[key].value])),
+    particle: Object.fromEntries(['particlesPerLayer', 'particleSize', 'layers', 'levels'].map((key) => [key, window.config.particle[key].value])),
+    sprites: window.config.particle.sprites.value.length,
+    logo: Object.fromEntries(['threeD', 'lean', 'zoom', 'size', 'spinSpeed', 'shake'].map((key) => [key, window.config.logo[key].value])),
+    clips: window.config.video.clips,
+  },
 }))()`
 
 // Counts the menu requests (the long-press, the bar's buttons) and the account requests.
@@ -261,6 +306,9 @@ const SCENARIOS = {
   // The menu sheet (`#364`). Compare the screenshots with docs/mobile-design/MenuHalf.html (Layers tab) and MenuLimited.html
   // (opened in Limited, badge back). The Presets and Audio tabs have no design.
   ...sheetScenarios(),
+  // The layer pages (`#365`). Compare the screenshots with docs/mobile-design/MenuLayerDetail.html (Fractal Type), FractalShape.html,
+  // OrbitShape.html, OrbitParticles.html, OrbitSprites.html and LogoLook.html. Logo Motion, Logo Pad and Video have no design.
+  ...layerPageScenarios(),
 }
 
 // Opens the sheet with the bar's menu button and waits for it to slide in.
@@ -270,10 +318,13 @@ const openSheet = async (cdp, page) => {
   await sleep(500)
 }
 
-// A tap on the visible part of an element (a pill can run off either edge of its row).
+// A tap on the visible part of an element (a pill can run off either edge of its row), scrolled into view first when the
+// sheet's body scrolls on a short phone.
 const tapVisible = async (cdp, page, selector) => {
   const [x, y] = await page.evaluate((sel) => {
-    const box = document.querySelector(sel).getBoundingClientRect()
+    const el = document.querySelector(sel)
+    el.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+    const box = el.getBoundingClientRect()
     const left = Math.max(box.left, 2)
     const right = Math.min(box.right, window.innerWidth - 2)
     return [(left + right) / 2, box.top + box.height / 2]
@@ -411,6 +462,261 @@ function sheetScenarios() {
       expect: (before, after, mid) => before.ui.badge === null && isLayersTab(mid.open.sheet) && mid.open.ui.badge === 'shown'
         && mid.open.ui.bar === null && mid.closed.sheet === null && mid.closed.ui.badge === null,
     }
+  }
+  return scenarios
+}
+
+// Opens a layer's page with a long-press on its bar button, as the bar does.
+// Under software GL the long-press timer can fire late and miss (the flake noted for long-press), so a miss is tried once more.
+const openLayerPage = async (cdp, page, layer) => {
+  const wasOn = await page.evaluate((key) => window.config.layers.meta[key].enabled.value, layer)
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const [x, y] = await centerOf(page, `[data-layer="${layer}"]`)
+    await tap(cdp, x, y, 700)
+    await sleep(600)
+    if (await page.evaluate((key) => !!document.querySelector(`[data-layer-page="${key}"]`), layer)) return
+    // A miss may have toggled the layer instead: put it back.
+    await page.evaluate(([key, on]) => { if (!document.querySelector('[data-bottom-sheet]')) window.setLayerEnabled?.(key, on) }, [layer, wasOn])
+  }
+}
+
+// Drags a range input's thumb `fraction` of the track to the right (negative: to the left).
+const slideBy = async (cdp, page, selector, fraction) => {
+  const [x, y, width] = await page.evaluate((sel) => {
+    const input = document.querySelector(sel)
+    const box = input.getBoundingClientRect()
+    const at = (Number(input.value) - Number(input.min)) / (Number(input.max) - Number(input.min))
+    return [box.left + 20 + (box.width - 40) * at, box.top + box.height / 2, box.width - 40]
+  }, selector)
+  await drag(cdp, [[x, y]], [[Math.max(4, Math.min(W - 4, x + width * fraction)), y]], 12, 20)
+  await sleep(400)
+}
+
+function layerPageScenarios() {
+  const scenarios = {}
+  const sheetHeight = () => Math.round(Math.min(374, H * 0.6))
+  const read = (page) => page.evaluate(READ)
+  const fits = (sheet) => sheet?.state === 'open' && sheet.height === sheetHeight() && sheet.bottom === H
+  const sliderSelector = '[data-layer-page] .sheet-slider .slider-input'
+  // The Fractal page opens on Type: back, Type | Shape, the header row, six types three across. A tap picks a type.
+  scenarios['page-fractal-type'] = {
+    changes: [],
+    prepare: wake,
+    run: async (cdp, page) => {
+      await openLayerPage(cdp, page, 'fractal')
+      const shown = await snap(cdp, page, 'page-fractal-type')
+      await tapVisible(cdp, page, '.fractal-type:not(.fractal-type--active)')
+      return { shown, picked: await read(page) }
+    },
+    expect: (before, after, mid) => {
+      const lp = mid.shown.sheet?.layerPage
+      return fits(mid.shown.sheet) && lp?.layer === 'fractal' && lp.subTab === 'type' && lp.segments.join() === 'type,shape' && lp.segment === 'type'
+        && lp.headerRow && lp.types === 6 && lp.typeColumns === 3 && mid.picked.config.family !== before.config.family
+    },
+  }
+  // Shape: the Tour slider on top, the pad about 140px wide beside Tour | Manual, the named shapes two across. A named shape moves the Tour.
+  scenarios['page-fractal-shape'] = {
+    changes: [],
+    prepare: wake,
+    run: async (cdp, page) => {
+      await openLayerPage(cdp, page, 'fractal')
+      await tapVisible(cdp, page, '[data-layer-subtab="shape"]')
+      const shown = await snap(cdp, page, 'page-fractal-shape')
+      await tapVisible(cdp, page, '.shape-pad-compact .shape-pad-chip:nth-child(3)')
+      return { shown, picked: await read(page) }
+    },
+    expect: (before, after, mid) => {
+      const lp = mid.shown.sheet?.layerPage
+      return fits(mid.shown.sheet) && lp?.subTab === 'shape' && lp.segment === 'shape' && lp.sliderName === 'Tour' && Math.abs(lp.padWidth - 140) <= 2
+        && lp.chips > 0 && lp.chipColumns === 2 && mid.picked.config.tour !== before.config.tour
+    },
+  }
+  // Orbit Shape: five setting buttons, the first selected; picking Spread puts its slider below, and the slider moves Spread only.
+  scenarios['page-orbit-shape'] = {
+    changes: [],
+    prepare: wake,
+    run: async (cdp, page) => {
+      await openLayerPage(cdp, page, 'orbit')
+      const first = await read(page)
+      await tapVisible(cdp, page, '[data-one-slider-item="b"]')
+      const shown = await snap(cdp, page, 'page-orbit-shape')
+      await slideBy(cdp, page, sliderSelector, 0.25)
+      return { first, shown, slid: await read(page) }
+    },
+    expect: (before, after, mid) => {
+      const first = mid.first.sheet?.layerPage
+      const lp = mid.shown.sheet?.layerPage
+      const slid = mid.slid.sheet?.layerPage
+      return fits(mid.shown.sheet) && first?.subTab === 'shape' && first.segments.join() === 'shape,particles,sprites' && first.selected === 'a' && first.sliderName === 'Radius'
+        && lp.buttons.join() === 'a,b,c,d,e' && lp.selected === 'b' && lp.sliderName === 'Spread'
+        && mid.slid.config.orbit.b !== before.config.orbit.b && ['a', 'c', 'd', 'e'].every((key) => mid.slid.config.orbit[key] === before.config.orbit[key])
+        && slid.buttonValue === slid.sliderValue
+    },
+  }
+  // Orbit Particles: Count, Size, Layers, Levels, with the load zones painted on the track.
+  scenarios['page-orbit-particles'] = {
+    changes: [],
+    prepare: wake,
+    run: async (cdp, page) => {
+      await openLayerPage(cdp, page, 'orbit')
+      await tapVisible(cdp, page, '[data-layer-subtab="particles"]')
+      const shown = await snap(cdp, page, 'page-orbit-particles')
+      await tapVisible(cdp, page, '[data-one-slider-item="levels"]')
+      return { shown, levels: await read(page) }
+    },
+    expect: (before, after, mid) => {
+      const lp = mid.shown.sheet?.layerPage
+      return fits(mid.shown.sheet) && lp?.subTab === 'particles' && lp.buttons.join() === 'particlesPerLayer,particleSize,layers,levels'
+        && lp.selected === 'particlesPerLayer' && lp.sliderName === 'Count' && lp.sliderZoned
+        && mid.levels.sheet.layerPage.sliderName === 'Levels' && mid.levels.sheet.layerPage.sliderZoned
+    },
+  }
+  // Pushing Levels into the red holds the slider at the edge and asks first, as on the desktop (Count alone can't reach it).
+  scenarios['page-orbit-red-zone'] = {
+    changes: [],
+    prepare: wake,
+    run: async (cdp, page) => {
+      await openLayerPage(cdp, page, 'orbit')
+      await tapVisible(cdp, page, '[data-layer-subtab="particles"]')
+      await tapVisible(cdp, page, '[data-one-slider-item="levels"]')
+      // Twenty layers first (set here, once the page is open: the heavier scene would slow the long-press past its timing).
+      await page.evaluate(() => window.updateConfigItem('particle', 'layers', 20))
+      await sleep(2000)
+      await slideBy(cdp, page, sliderSelector, 1)
+      const asked = await snap(cdp, page, 'page-orbit-red-zone')
+      return { asked, modal: await page.evaluate(() => !!document.querySelector('.confirm-modal-card')) }
+    },
+    expect: (before, after, mid) => mid.modal && mid.asked.config.particle.levels < 20 && mid.asked.config.particle.levels >= before.config.particle.levels,
+  }
+  // Orbit Sprites: the desktop picker, six tiles across in two rows; a tap adds a built-in to the particle list.
+  scenarios['page-orbit-sprites'] = {
+    changes: [],
+    prepare: wake,
+    run: async (cdp, page) => {
+      await openLayerPage(cdp, page, 'orbit')
+      await tapVisible(cdp, page, '[data-layer-subtab="sprites"]')
+      const shown = await snap(cdp, page, 'page-orbit-sprites')
+      await tapVisible(cdp, page, '.sprite-picker__tile:not(.sprite-picker__tile--selected):not(:disabled)')
+      return { shown, picked: await read(page) }
+    },
+    expect: (before, after, mid) => {
+      const lp = mid.shown.sheet?.layerPage
+      return fits(mid.shown.sheet) && lp?.subTab === 'sprites' && lp.spriteColumns === 6 && lp.spriteTile >= 50
+        && (before.config.sprites >= 4 || mid.picked.config.sprites === before.config.sprites + 1)
+    },
+  }
+  // Logo Look: the logo picker (six across) and the 3D, Lean and Zoom pills; a tap on Zoom flips it.
+  scenarios['page-logo-look'] = {
+    changes: [],
+    prepare: wake,
+    run: async (cdp, page) => {
+      await openLayerPage(cdp, page, 'logo')
+      const shown = await snap(cdp, page, 'page-logo-look')
+      await tapVisible(cdp, page, '[data-layer-page] .config-checkbox-row input[name="zoom"] + label')
+      return { shown, flipped: await read(page) }
+    },
+    expect: (before, after, mid) => {
+      const lp = mid.shown.sheet?.layerPage
+      return fits(mid.shown.sheet) && lp?.subTab === 'look' && lp.segments.join() === 'look,motion,pad' && lp.spriteColumns === 6
+        && lp.pills.join() === 'threeD,lean,zoom' && mid.flipped.config.logo.zoom === !before.config.logo.zoom
+    },
+  }
+  // Logo Motion (no design): Size, Spin Speed and Shake as one-slider buttons; Spin Speed is a slider here, not the desktop's dial.
+  scenarios['page-logo-motion'] = {
+    changes: [],
+    prepare: wake,
+    run: async (cdp, page) => {
+      await openLayerPage(cdp, page, 'logo')
+      await tapVisible(cdp, page, '[data-layer-subtab="motion"]')
+      await tapVisible(cdp, page, '[data-one-slider-item="spinSpeed"]')
+      const shown = await snap(cdp, page, 'page-logo-motion')
+      await slideBy(cdp, page, sliderSelector, 0.2)
+      return { shown, slid: await read(page) }
+    },
+    expect: (before, after, mid) => {
+      const lp = mid.shown.sheet?.layerPage
+      return fits(mid.shown.sheet) && lp?.buttons.join() === 'size,spinSpeed,shake' && lp.selected === 'spinSpeed' && lp.sliderName === 'Spin Speed'
+        && lp.dials === 0 && mid.slid.config.logo.spinSpeed !== before.config.logo.spinSpeed
+    },
+  }
+  // Logo Pad (no design): the desktop pad, small enough for the sheet.
+  scenarios['page-logo-pad'] = {
+    changes: [],
+    prepare: wake,
+    run: async (cdp, page) => {
+      await openLayerPage(cdp, page, 'logo')
+      await tapVisible(cdp, page, '[data-layer-subtab="pad"]')
+      return snap(cdp, page, 'page-logo-pad')
+    },
+    expect: (before, after, mid) => fits(mid.sheet) && mid.sheet.layerPage?.subTab === 'pad' && mid.sheet.layerPage.padWidth > 0 && mid.sheet.layerPage.padWidth <= 172,
+  }
+  // Video (no design): one page, no sub-tabs; the camera switch turns the live feed on (the fake camera) and back off, and the clips stay listed.
+  scenarios['page-video'] = {
+    changes: [],
+    init: (ctx) => ctx.grantPermissions(['microphone', 'camera']),
+    prepare: wake,
+    run: async (cdp, page) => {
+      await openLayerPage(cdp, page, 'video')
+      const shown = await snap(cdp, page, 'page-video')
+      await tapVisible(cdp, page, '.video-camera__switch')
+      await sleep(1500)
+      const on = await snap(cdp, page, 'page-video-live')
+      await tapVisible(cdp, page, '.video-camera__switch')
+      return { shown, on, off: await read(page) }
+    },
+    expect: (before, after, mid) => {
+      const lp = mid.shown.sheet?.layerPage
+      return fits(mid.shown.sheet) && lp?.layer === 'video' && lp.segments.length === 0 && lp.title === 'Video' && lp.camera === 'off' && lp.clips > 0
+        && mid.on.config.clips.includes('realtime') && mid.on.sheet.layerPage.camera === 'live'
+        && !mid.off.config.clips.includes('realtime') && mid.off.sheet.layerPage.camera === 'off'
+    },
+  }
+  // A blocked camera turns the switch back off and the info line says why.
+  scenarios['page-video-blocked'] = {
+    changes: [],
+    prepare: async (page) => {
+      await page.evaluate(() => {
+        navigator.mediaDevices.getUserMedia = () => Promise.reject(Object.assign(new Error('denied'), { name: 'NotAllowedError' }))
+      })
+      await wake(page)
+    },
+    run: async (cdp, page) => {
+      await openLayerPage(cdp, page, 'video')
+      await tapVisible(cdp, page, '.video-camera__switch')
+      await sleep(800)
+      return snap(cdp, page, 'page-video-blocked')
+    },
+    expect: (before, after, mid) => !mid.config.clips.includes('realtime') && mid.sheet?.layerPage?.camera === 'error' && mid.sheet.layerPage.cameraInfo === 'Camera access was blocked',
+  }
+  // From the Layers tab's arrow too, and each page opens on its first sub-tab again after going back.
+  scenarios['page-from-layers-tab'] = {
+    changes: [],
+    prepare: wake,
+    run: async (cdp, page) => {
+      await openSheet(cdp, page)
+      await tapVisible(cdp, page, '[data-menu-layer="orbit"] .menu-layer-row__open')
+      await tapVisible(cdp, page, '[data-layer-subtab="sprites"]')
+      const sprites = await read(page)
+      await tapVisible(cdp, page, '.sheet-back')
+      await tapVisible(cdp, page, '[data-menu-layer="orbit"] .menu-layer-row__open')
+      return { sprites, again: await snap(cdp, page, 'page-from-layers-tab') }
+    },
+    expect: (before, after, mid) => mid.sprites.sheet?.layerPage?.subTab === 'sprites' && mid.again.sheet?.layerPage?.subTab === 'shape',
+  }
+  // Without the fractal Types (a production build without FEATURE_FLAGS=fractalTypes; a dev build turns every flag on) the Fractal
+  // page is Shape alone: the title, no sub-tabs. Skipped (passes) where the flag is on.
+  scenarios['page-fractal-flag-off'] = {
+    changes: [],
+    prepare: wake,
+    run: async (cdp, page) => {
+      await openLayerPage(cdp, page, 'fractal')
+      return snap(cdp, page, 'page-fractal-flag-off')
+    },
+    expect: (before, after, mid) => {
+      const lp = mid.sheet?.layerPage
+      if (lp?.segments.length === 2) return true
+      return fits(mid.sheet) && lp?.subTab === 'shape' && lp.segments.length === 0 && lp.title === 'Fractal' && lp.types === 0 && lp.sliderName === 'Tour'
+    },
   }
   return scenarios
 }

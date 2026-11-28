@@ -8,6 +8,7 @@ import { useUpgrade } from '../upgrade/UpgradeProvider'
 import { hasRoomFor, quotaMessage } from '../../config/plans.config'
 import { presetSpriteSrc } from '../../utils/presetSpriteSrc'
 import { USER_REFERENCE } from '../../utils/userReference'
+import { useMobileShell } from '../../utils/useMobileShell'
 import { useSpriteUpload } from './useSpriteUpload'
 import { uploadLibrary, useUploadLibrary } from './uploadLibrary'
 import {
@@ -17,6 +18,8 @@ import {
   SPRITE_SOURCES,
   SpriteSource,
   SpriteTile,
+  TILE_TARGET_PX,
+  TOUCH_TILE_TARGET_PX,
   builtinTiles,
   clampPage,
   columnsFor,
@@ -57,19 +60,19 @@ const NOTICE_DISPLAY_MS = 6000
  * Columns that fit the grid's width, re-measured when it changes. The observer comes from the grid's own window: in the
  * popped-out config window the element belongs to that document, which the main window's ResizeObserver doesn't watch.
  */
-const useGridColumns = (ref: React.RefObject<HTMLElement>): number => {
+const useGridColumns = (ref: React.RefObject<HTMLElement>, target: number): number => {
   const [columns, setColumns] = useState(GRID_MIN_COLUMNS)
   useLayoutEffect(() => {
     const element = ref.current
     if (!element) return undefined
-    const measure = (): void => setColumns(columnsFor(element.clientWidth))
+    const measure = (): void => setColumns(columnsFor(element.clientWidth, target))
     measure()
     const Observer = element.ownerDocument.defaultView?.ResizeObserver
     if (!Observer) return undefined
     const observer = new Observer(measure)
     observer.observe(element)
     return () => observer.disconnect()
-  }, [ref])
+  }, [ref, target])
   return columns
 }
 
@@ -113,7 +116,8 @@ export const SpritePicker = ({
   const [notice, setNotice] = useState<Notice | null>(null)
   const [uploadErrorDismissed, setUploadErrorDismissed] = useState(false)
   const gridRef = useRef<HTMLDivElement>(null)
-  const columns = useGridColumns(gridRef)
+  // Bigger tiles in the mobile shell only; touch laptops keep the desktop grid.
+  const columns = useGridColumns(gridRef, useMobileShell() ? TOUCH_TILE_TARGET_PX : TILE_TARGET_PX)
   const pageSize = columns * GRID_ROWS
 
   useEffect(() => {

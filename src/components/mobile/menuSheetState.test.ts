@@ -16,39 +16,52 @@ const opened = (page?: string): MenuSheetState => menuSheetReducer(CLOSED_MENU, 
 
 describe('menu sheet reducer', () => {
   it('opens on the Layers tab with no page given', () => {
-    expect(opened()).toEqual({ open: true, tab: 'layers', layerPage: null })
+    expect(opened()).toEqual({ open: true, tab: 'layers', layerPage: null, subTab: null })
   })
 
   it('opens straight onto a layer page for a layer key', () => {
-    expect(opened('orbit')).toEqual({ open: true, tab: 'layers', layerPage: 'orbit' })
+    expect(opened('orbit')).toEqual({ open: true, tab: 'layers', layerPage: 'orbit', subTab: null })
   })
 
   it('opens on a named tab, and on Layers for an unknown page', () => {
-    expect(opened('camera')).toEqual({ open: true, tab: 'camera', layerPage: null })
-    expect(opened('nowhere')).toEqual({ open: true, tab: 'layers', layerPage: null })
+    expect(opened('camera')).toEqual({ open: true, tab: 'camera', layerPage: null, subTab: null })
+    expect(opened('nowhere')).toEqual({ open: true, tab: 'layers', layerPage: null, subTab: null })
   })
 
   it('starts fresh on Layers each time it opens', () => {
     let state = menuSheetReducer(opened(), { type: 'tab', tab: 'audio' })
     state = menuSheetReducer(state, { type: 'close' })
     expect(state.open).toBe(false)
-    expect(menuSheetReducer(state, { type: 'open' })).toEqual({ open: true, tab: 'layers', layerPage: null })
+    expect(menuSheetReducer(state, { type: 'open' })).toEqual({ open: true, tab: 'layers', layerPage: null, subTab: null })
   })
 
   it('opening again while open lands on the new page', () => {
     const state = menuSheetReducer(opened('fractal'), { type: 'open', page: 'video' })
-    expect(state).toEqual({ open: true, tab: 'layers', layerPage: 'video' })
+    expect(state).toEqual({ open: true, tab: 'layers', layerPage: 'video', subTab: null })
   })
 
   it('a tab switch leaves any layer page', () => {
     const state = menuSheetReducer(opened('logo'), { type: 'tab', tab: 'color' })
-    expect(state).toEqual({ open: true, tab: 'color', layerPage: null })
+    expect(state).toEqual({ open: true, tab: 'color', layerPage: null, subTab: null })
   })
 
   it('opens a layer page from the Layers tab, and back returns to the rows', () => {
     const page = menuSheetReducer(opened(), { type: 'layerPage', layer: 'fractal' })
-    expect(page).toEqual({ open: true, tab: 'layers', layerPage: 'fractal' })
-    expect(menuSheetReducer(page, { type: 'back' })).toEqual({ open: true, tab: 'layers', layerPage: null })
+    expect(page).toEqual({ open: true, tab: 'layers', layerPage: 'fractal', subTab: null })
+    expect(menuSheetReducer(page, { type: 'back' })).toEqual({ open: true, tab: 'layers', layerPage: null, subTab: null })
+  })
+
+  it('picks a sub-tab on a layer page, and every new page starts on its first', () => {
+    const page = menuSheetReducer(opened('orbit'), { type: 'subTab', subTab: 'sprites' })
+    expect(page.subTab).toBe('sprites')
+    expect(menuSheetReducer(page, { type: 'layerPage', layer: 'logo' }).subTab).toBeNull()
+    expect(menuSheetReducer(page, { type: 'back' }).subTab).toBeNull()
+    expect(menuSheetReducer(page, { type: 'open', page: 'orbit' }).subTab).toBeNull()
+  })
+
+  it('ignores a sub-tab with no layer page open', () => {
+    const state = opened()
+    expect(menuSheetReducer(state, { type: 'subTab', subTab: 'shape' })).toBe(state)
   })
 
   it('keeps the same state object for no-op actions', () => {

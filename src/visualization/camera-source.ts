@@ -1,4 +1,5 @@
 const DEVICE_STORAGE_KEY = 'cameraDeviceId'
+const FACING_STORAGE_KEY = 'cameraFacing'
 // Asked for, not required: the browser picks the closest mode the camera has. The quality tier caps how often frames are uploaded.
 const IDEAL_WIDTH = 1920
 const IDEAL_HEIGHT = 1080
@@ -12,12 +13,23 @@ export type CameraStatus = 'idle' | 'starting' | 'live' | 'error'
 
 export type CameraDevice = { deviceId: string; label: string }
 
+/** A phone's front (selfie) or rear camera, as `getUserMedia`'s `facingMode` names them. */
+export type CameraFacing = 'user' | 'environment'
+
+/**
+ * Whether to offer the front | rear choice. Before the page may use a camera the browser hides which way each one faces, so a
+ * phone with more than one camera gets the choice; `facingMode` then asks the phone for the one that faces that way.
+ */
+export const canChooseFacing = (devices: readonly CameraDevice[]): boolean => devices.length > 1
+
 export type CameraState = {
   status: CameraStatus
   error: string | null
   devices: CameraDevice[]
   /** The camera chosen in the UI (null: the browser's default). Kept per browser, not in presets: device ids are per machine. */
   deviceId: string | null
+  /** The way the camera should face (the mobile Video page's Front | Rear), used when no camera is chosen by id. Kept per browser. */
+  facing: CameraFacing | null
 }
 
 type StreamListener = (stream: MediaStream) => void
@@ -30,10 +42,19 @@ const readStoredDevice = (): string | null => {
   }
 }
 
-const storeDevice = (deviceId: string | null): void => {
+const readStoredFacing = (): CameraFacing | null => {
   try {
-    if (deviceId === null) localStorage.removeItem(DEVICE_STORAGE_KEY)
-    else localStorage.setItem(DEVICE_STORAGE_KEY, deviceId)
+    const stored = localStorage.getItem(FACING_STORAGE_KEY)
+    return stored === 'user' || stored === 'environment' ? stored : null
+  } catch {
+    return null
+  }
+}
+
+const store = (key: string, value: string | null): void => {
+  try {
+    if (value === null) localStorage.removeItem(key)
+    else localStorage.setItem(key, value)
   } catch {
     // Private mode or blocked storage: the choice just lasts for this page.
   }
@@ -61,7 +82,7 @@ export class CameraSource {
   private generation = 0
   private readonly streamListeners = new Set<StreamListener>()
   private readonly stateListeners = new Set<() => void>()
-  private state: CameraState = { status: 'idle', error: null, devices: [], deviceId: readStoredDevice() }
+  private state: CameraState = { status: 'idle', error: null, devices: [], deviceId: readStoredDevice(), facing: readStoredFacing() }
   private watchingDevices = false
   private reconnectTimer: ReturnType<typeof setTimeout> | undefined
 
@@ -99,8 +120,22 @@ export class CameraSource {
   /** Switches to another camera; a running feed moves to it right away. */
   setDevice = (deviceId: string | null): void => {
     if (deviceId === this.state.deviceId) return
-    storeDevice(deviceId)
-    this.setState({ deviceId })
+    store(DEVICE_STORAGE_KEY, deviceId)
+    store(FACING_STORAGE_KEY, null)
+    this.setState({ deviceId, facing: null })
+    this.restartIfRunning()
+  }
+
+  /** Switches to the camera facing that way (a phone's front or rear), in place of one chosen by id; a running feed moves to it right away. */
+  setFacing = (facing: CameraFacing): void => {
+    if (facing === this.state.facing && this.state.deviceId === null) return
+    store(FACING_STORAGE_KEY, facing)
+    store(DEVICE_STORAGE_KEY, null)
+    this.setState({ facing, deviceId: null })
+    this.restartIfRunning()
+  }
+
+  private restartIfRunning = (): void => {
     if (!this.streamListeners.size) return
     this.stop()
     this.restart()
@@ -182,7 +217,7 @@ export class CameraSource {
       width: { ideal: IDEAL_WIDTH },
       height: { ideal: IDEAL_HEIGHT },
       frameRate: { ideal: IDEAL_FPS },
-      ...(id && { deviceId: { exact: id } }),
+      ...(id ? { deviceId: { exact: id } } : this.state.facing && { facingMode: { ideal: this.state.facing } }),
     })
     try {
       return await navigator.mediaDevices.getUserMedia({ video: video(deviceId), audio: false })
