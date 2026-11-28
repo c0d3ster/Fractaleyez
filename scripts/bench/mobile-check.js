@@ -170,6 +170,27 @@ const READ = `(() => ({
       })(),
     }
   })(),
+  // The account sheet (#367), read on its own: while one sheet slides away the other can already be up.
+  account: (() => {
+    const el = document.querySelector('.account-sheet')
+    if (!el) return null
+    const body = el.querySelector('[data-account-sheet]')
+    const box = el.getBoundingClientRect()
+    return {
+      state: el.dataset.bottomSheet,
+      account: body?.dataset.accountSheet ?? null,
+      view: body?.dataset.accountView ?? null,
+      height: Math.round(box.height),
+      bottom: Math.round(box.bottom),
+      rows: [...el.querySelectorAll('[data-account-row]')].map((node) => node.dataset.accountRow),
+      controlsValue: el.querySelector('[data-account-row="controls"] .account-row__value')?.textContent ?? null,
+      modes: Object.fromEntries([...el.querySelectorAll('[data-controls-mode]')].map((node) => [node.dataset.controlsMode, node.getAttribute('aria-checked') === 'true'])),
+      signIn: !!el.querySelector('.account-signin'),
+      title: el.querySelector('.sheet-page-title')?.textContent ?? null,
+    }
+  })(),
+  menuSheet: document.querySelector('.menu-sheet')?.dataset.bottomSheet ?? null,
+  storedMode: localStorage.getItem('onScreenControls'),
   config: {
     family: window.config.fractal.family.value,
     tour: window.config.fractal.tour.value,
@@ -266,7 +287,8 @@ const snap = async (cdp, page, name) => {
   return mid
 }
 
-const storedMode = (mode) => (ctx) => ctx.addInitScript((m) => localStorage.setItem('onScreenControls', m), mode)
+// Top frame only: an init script also runs in each same-origin iframe the page adds later, which would put the mode back.
+const storedMode = (mode) => (ctx) => ctx.addInitScript((m) => { if (window === window.top) localStorage.setItem('onScreenControls', m) }, mode)
 
 const W = DEVICE.viewport.width
 const H = DEVICE.viewport.height
@@ -382,6 +404,9 @@ const SCENARIOS = {
   // The Effects, Color and Camera tabs (`#366`). Compare the screenshots with docs/mobile-design/MenuFull.html (Effects),
   // ColorTab.html and CameraTab.html.
   ...menuTabScenarios(),
+  // The account sheet (`#367`). Compare the screenshots with docs/mobile-design/AccountGuest.html (signed out),
+  // AccountSheet.html (signed in, which needs a real Clerk key) and UIMode.html (the picker).
+  ...accountScenarios(),
 }
 
 // Opens the sheet with the bar's menu button and waits for it to slide in.
@@ -1093,6 +1118,152 @@ function shellScenarios() {
       run: async (cdp, page) => snap(cdp, page, `shell-${mode}`),
       expect: (before, after, mid) => !mid.ui.sidebar && !mid.ui.topbar && mid.ui.bar === null && mid.ui.badge === null,
     }
+  }
+  return scenarios
+}
+
+// Opens the account sheet with the badge and waits for it to slide in.
+const openAccountSheet = async (cdp, page) => {
+  const [x, y] = await centerOf(page, '[data-mobile-badge]')
+  await tap(cdp, x, y)
+  await sleep(500)
+}
+
+function accountScenarios() {
+  const scenarios = {}
+  const sheetHeight = () => Math.round(Math.min(374, H * 0.6))
+  const read = (page) => page.evaluate(READ)
+  const fits = (account) => account?.state === 'open' && account.height === sheetHeight() && account.bottom === H
+  // Signed out (a placeholder Clerk key) or before Clerk loads: the sheet still has the On-screen controls row.
+  const guestOrLoading = (account) => (account?.account === 'guest' && account.signIn && account.rows.join() === 'controls')
+    || (account?.account === 'loading' && !account.signIn && account.rows.join() === 'controls')
+  const MODE_TITLES = { full: 'Full', limited: 'Limited', none: 'None' }
+
+  // The badge opens the sheet at the menu's height on the root view; the gestures pause meanwhile, so a drag does not steer.
+  scenarios['account-open'] = {
+    changes: [],
+    prepare: wake,
+    run: async (cdp, page) => {
+      await openAccountSheet(cdp, page)
+      const mid = await snap(cdp, page, 'account-open')
+      await drag(cdp, [[W * 0.5, H * 0.3]], [[W * 0.8, H * 0.35]])
+      return mid
+    },
+    expect: (before, after, mid) => before.account === null && fits(mid.account) && mid.account.view === 'root'
+      && guestOrLoading(mid.account) && mid.account.controlsValue === MODE_TITLES[before.controlsMode] && mid.menuSheet === null,
+  }
+  // The row opens the picker (UIMode.html) with the current mode checked; a pick applies it at once and saves it in the browser,
+  // and back shows it on the row.
+  for (const [from, to] of [['full', 'limited'], ['full', 'none'], ['limited', 'full']]) {
+    scenarios[`account-picker-${from}-${to}`] = {
+      changes: [],
+      init: storedMode(from),
+      prepare: wake,
+      run: async (cdp, page) => {
+        // Limited shows no badge at rest: it comes back while the menu is open (MenuLimited.html), and the account sheet takes over.
+        if (from !== 'full') {
+          await tap(cdp, W * 0.5, H * 0.2, 700)
+          await sleep(500)
+        }
+        await openAccountSheet(cdp, page)
+        const opened = await read(page)
+        await tapVisible(cdp, page, '[data-account-row="controls"]')
+        const picker = await snap(cdp, page, `account-picker-${from}-${to}`)
+        await tapVisible(cdp, page, `[data-controls-mode="${to}"]`)
+        const picked = await snap(cdp, page, `account-picker-${from}-${to}-picked`)
+        await tapVisible(cdp, page, '.account-sheet .sheet-back')
+        return { opened, picker, picked, back: await read(page) }
+      },
+      expect: (before, after, mid) => {
+        const { opened, picker, picked, back } = mid
+        // From the menu the sheet may still be sliding in at the first read, so its place is checked on the last.
+        return before.controlsMode === from && opened.account?.state === 'open' && opened.account.view === 'root' && opened.menuSheet !== 'open'
+          && picker.account?.view === 'controls' && picker.account.title === 'On-screen controls'
+          && Object.keys(picker.account.modes).join() === 'full,limited,none' && picker.account.modes[from] && !picker.account.modes[to]
+          && picked.controlsMode === to && picked.storedMode === to && picked.account.modes[to] && !picked.account.modes[from]
+          && picked.account.state === 'open'
+          && fits(back.account) && back.account.view === 'root' && back.account.controlsValue === MODE_TITLES[to]
+          && after.controlsMode === to
+      },
+    }
+  }
+  // Signed out with Clerk loaded (AccountGuest.html): the pitch, the sign-in button and the controls row. Needs a real Clerk
+  // development key: with a placeholder Clerk never loads and the sheet stays on its loading state.
+  scenarios['account-guest'] = {
+    changes: [],
+    prepare: wake,
+    run: async (cdp, page) => { await openAccountSheet(cdp, page); return snap(cdp, page, 'account-guest') },
+    expect: (before, after, mid) => fits(mid.account) && mid.account.account === 'guest' && mid.account.signIn
+      && mid.account.rows.join() === 'controls',
+  }
+  // The sign-in button opens Clerk's modal above the sheet (the point in the sheet's middle is the modal's). Real key only, as above.
+  scenarios['account-guest-sign-in'] = {
+    changes: [],
+    prepare: wake,
+    run: async (cdp, page) => {
+      await openAccountSheet(cdp, page)
+      await tapVisible(cdp, page, '.account-signin')
+      await sleep(1500)
+      const mid = await snap(cdp, page, 'account-guest-sign-in')
+      const modalOnTop = await page.evaluate(() => {
+        const sheet = document.querySelector('.account-sheet').getBoundingClientRect()
+        const top = document.elementFromPoint(sheet.left + sheet.width / 2, sheet.top + sheet.height / 2)
+        return !!top && !top.closest('.account-sheet') && !!top.closest('[class*="cl-"]')
+      })
+      return { ...mid, modalOnTop }
+    },
+    expect: (before, after, mid) => mid.account?.state === 'open' && mid.modalOnTop,
+  }
+  // A tap on the visual closes it, without steering.
+  scenarios['account-close-visual'] = {
+    changes: [],
+    prepare: wake,
+    run: async (cdp, page) => {
+      await openAccountSheet(cdp, page)
+      await tap(cdp, W * 0.5, H * 0.25)
+      await sleep(500)
+      return read(page)
+    },
+    expect: (before, after, mid) => (mid.account === null || mid.account.state === 'closing') && after.account === null,
+  }
+  // A drag down on its head closes it.
+  scenarios['account-drag-close'] = {
+    changes: [],
+    prepare: wake,
+    run: async (cdp, page) => {
+      await openAccountSheet(cdp, page)
+      const top = H - sheetHeight() + 8
+      await drag(cdp, [[W * 0.5, top]], [[W * 0.5, top + 200]])
+      await sleep(500)
+      return read(page)
+    },
+    expect: (before, after) => after.account === null,
+  }
+  // The sheet starts on its root view every time, even when it closed on the picker.
+  scenarios['account-reopen-root'] = {
+    changes: [],
+    prepare: wake,
+    run: async (cdp, page) => {
+      await openAccountSheet(cdp, page)
+      await tapVisible(cdp, page, '[data-account-row="controls"]')
+      await tap(cdp, W * 0.5, H * 0.25)
+      await sleep(600)
+      await openAccountSheet(cdp, page)
+      return read(page)
+    },
+    expect: (before, after, mid) => mid.account?.state === 'open' && mid.account.view === 'root',
+  }
+  // The long-press does not open the menu over the account sheet.
+  scenarios['account-long-press'] = {
+    changes: [],
+    prepare: async (page) => { await countMenuOpens(page); await wake(page) },
+    run: async (cdp, page) => {
+      await openAccountSheet(cdp, page)
+      await tap(cdp, W * 0.5, H * 0.2, 700)
+      await sleep(500)
+      return read(page)
+    },
+    expect: (before, after, mid) => mid.menuOpens === 0 && mid.menuSheet === null,
   }
   return scenarios
 }
