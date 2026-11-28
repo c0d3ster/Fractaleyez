@@ -46,7 +46,6 @@ const MANUAL_HOP_DISTANCE_PER_TOUR_POINT = 0.06
 const CYCLONE_HALF_LIFE_SECONDS = 0.4
 
 const ZOOM_PULL_HALF_LIFE_SECONDS = 15
-const SPIN_PULL_HALF_LIFE_SECONDS = 10
 const ORIENT_HALF_LIFE_SECONDS = 0.6
 
 const C_DRIFT_RADIUS = 0.015
@@ -237,6 +236,8 @@ export class JuliaVisualizer {
   private loopProgress = 0
   private lastWrapIndex = 0
   private loopT = 0
+  // The view's turn at the loop wrap: zooming one self-similarity period deeper shows the same picture turned by arg(lambda), so each wrap
+  // turns the view by a loop's worth to match, and between wraps it does not turn at all.
   private spinAngle = 0
   private logZoom = 0
   private orientAngle = 0
@@ -786,22 +787,20 @@ export class JuliaVisualizer {
     this.previousFixedPoint = { re: fixedPointX, im: fixedPointY }
     this.lastLambdaMag = lambdaMag
 
-    // Spin and zoom are carried as running totals instead of being recomputed from the current shape.
-    // Recomputing (angle = -t * arg(lambda), radius = |lambda|^-t) made the whole view swing and the zoom
-    // lurch whenever c changed mid-loop, since lambda depends on c. Integrating means a shape change only
-    // alters the future rate. At a wrap we add back exactly one loop's worth with the current lambda, which
-    // keeps the picture continuous there (self-similarity makes t = 1 and t = 0 the same view) and leaves any
-    // spin accumulated from earlier shape changes in place.
+    // The zoom is carried as a running total instead of being recomputed from the current shape. Recomputing
+    // (radius = |lambda|^-t) made the zoom lurch whenever c changed mid-loop, since lambda depends on c. Integrating
+    // means a shape change only alters the future rate. At a wrap we add back exactly one loop's worth with the
+    // current lambda, which keeps the picture continuous there (self-similarity makes t = 1 and t = 0 the same view).
+    // The view does not turn while it zooms: the picture one period deeper is the same one turned by arg(lambda),
+    // and turning the view along with the zoom to follow that made every Type spin (Bouquet and Ribbon fastest,
+    // where arg(lambda) is largest) even at a Rotation speed of 0. Zoomed straight in, the shapes stream straight
+    // out from the center instead, and the turn a seamless wrap needs happens all at once at the wrap, where
+    // self-similarity hides it. In the wide views (blend) the zoom breathes without wrapping, so nothing turns there.
     const spinPerLoop = lambdaArg * LOOP_PERIODS
     const logZoomPerLoop = Math.log(lambdaMag) * LOOP_PERIODS
-    this.spinAngle += -spinPerLoop * progressDelta + wrapSteps * spinPerLoop
+    this.spinAngle = (this.spinAngle + wrapSteps * spinPerLoop * (1 - this.wideBlend)) % (Math.PI * 2)
     this.logZoom += -logZoomPerLoop * progressDelta + wrapSteps * logZoomPerLoop
-    this.spinAngle %= Math.PI * 2
-    // Likewise ease any spin left over from earlier shape changes back to what an unchanged shape would have,
-    // so the shape's orientation (see uOrient) is the same wherever on the slider you are.
-    const canonicalSpin = -spinPerLoop * this.loopT
-    const spinError = Math.atan2(Math.sin(canonicalSpin - this.spinAngle), Math.cos(canonicalSpin - this.spinAngle))
-    this.spinAngle += spinError * (1 - Math.pow(0.5, dt / SPIN_PULL_HALF_LIFE_SECONDS))    // A gentle pull back toward where an unchanged shape would have the zoom, so repeated shape changes
+    // A gentle pull back toward where an unchanged shape would have the zoom, so repeated shape changes
     // can't walk the zoom depth away from the range where the zoom coordinate is accurate.
     this.logZoom += (-logZoomPerLoop * this.loopT - this.logZoom) * (1 - Math.pow(0.5, dt / ZOOM_PULL_HALF_LIFE_SECONDS))
 
@@ -840,8 +839,7 @@ export class JuliaVisualizer {
     const uniforms = this.material.uniforms
     uniforms.uCenterOffset!.value.set(this.steerX, this.steerY)
     // Breathing zoom for wide views: dive in and back out over one loop (seamless without self-similarity),
-    // never past the radius where the shader's series blend begins. The spin follows the zoom the way the
-    // sawtooth's does (arg(lambda) per ln|lambda|), and the iteration offset tracks the zoom depth.
+    // never past the radius where the shader's series blend begins. The iteration offset tracks the zoom depth.
     const lnLambda = Math.log(lambdaMag)
     // The dive and the orient turn both settle to nothing as the view widens from the seam-safe radius to the
     // whole set, so the widest Scale is a fixed full-frame picture of the Julia set.
@@ -850,7 +848,6 @@ export class JuliaVisualizer {
     const settle = 1 - wideFraction * wideFraction * (3 - 2 * wideFraction)
     const breathDepth = settle * Math.min(logZoomPerLoop, Math.max(0, Math.log(this.viewRadius / Math.max(seamSafeRadius * WIDE_DIVE_FLOOR_FACTOR, SERIES_BLEND_START_RADIUS))))
     const breathZoom = -breathDepth * 0.5 * (1 - Math.cos(Math.PI * 2 * this.loopT))
-    const breathSpin = (lambdaArg / lnLambda) * breathZoom
     const breathIterOffset = -breathZoom / lnLambda
     const blend = this.wideBlend
     uniforms.uWStart!.value = this.viewRadius
@@ -873,7 +870,7 @@ export class JuliaVisualizer {
       this.orientAngle += orientError * (1 - Math.pow(0.5, dt / ORIENT_HALF_LIFE_SECONDS))
     }
     uniforms.uOrient!.value = this.orientAngle * settle
-    uniforms.uSpin!.value = this.spinAngle * (1 - blend) + breathSpin * blend
+    uniforms.uSpin!.value = this.spinAngle
     uniforms.uLogZoom!.value = this.logZoom * (1 - blend) + breathZoom * blend
     uniforms.uHuePhase!.value = this.huePhase
     this.cycloneAmount += ((effects.cyclone.value ? 1 : 0) - this.cycloneAmount) * (1 - Math.pow(0.5, dt / CYCLONE_HALF_LIFE_SECONDS))
