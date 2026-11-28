@@ -52,9 +52,26 @@ const READ = `(() => ({
       shaking: [...document.querySelectorAll('.mobile-bar__button--shake')].map((el) => el.dataset.layer),
     }
   })(),
+  sheet: (() => {
+    const el = document.querySelector('[data-bottom-sheet]')
+    if (!el) return null
+    const row = el.querySelector('.sheet-pills')
+    const pill = el.querySelector('.sheet-pill[aria-selected="true"]')
+    const box = (node) => node.getBoundingClientRect()
+    return {
+      state: el.dataset.bottomSheet,
+      page: el.querySelector('[data-menu-page]')?.dataset.menuPage ?? null,
+      tab: pill ? pill.dataset.menuTab : null,
+      pillInView: row && pill ? box(pill).left >= box(row).left - 1 && box(pill).right <= window.innerWidth + 1 : null,
+      height: Math.round(box(el).height),
+      bottom: Math.round(box(el).bottom),
+      rows: [...el.querySelectorAll('[data-menu-layer]')].map((node) => node.dataset.menuLayer),
+      back: !!el.querySelector('.sheet-back'),
+    }
+  })(),
 }))()`
 
-// Counts the long-press's menu requests (there is no menu sheet yet to show them).
+// Counts the menu requests (the long-press, the bar's buttons) and the account requests.
 const countMenuOpens = (page) => page.evaluate(() => {
   window.__menuOpens = 0
   window.subscribeOpenMenu?.((menuPage) => { window.__menuOpens += 1; window.__menuPage = menuPage ?? null })
@@ -241,6 +258,161 @@ const SCENARIOS = {
   // The shell's bar and badge (`#363`). Compare the screenshots with docs/mobile-design/TopC.html (at rest), EffectIcons.html (the
   // icons on and off) and TopCGesture.html (bar away, badge dimmed, mid-gesture).
   ...shellScenarios(),
+  // The menu sheet (`#364`). Compare the screenshots with docs/mobile-design/MenuHalf.html (Layers tab) and MenuLimited.html
+  // (opened in Limited, badge back). The Presets and Audio tabs have no design.
+  ...sheetScenarios(),
+}
+
+// Opens the sheet with the bar's menu button and waits for it to slide in.
+const openSheet = async (cdp, page) => {
+  const [x, y] = await centerOf(page, '[aria-label="Open menu"]')
+  await tap(cdp, x, y)
+  await sleep(500)
+}
+
+// A tap on the visible part of an element (a pill can run off either edge of its row).
+const tapVisible = async (cdp, page, selector) => {
+  const [x, y] = await page.evaluate((sel) => {
+    const box = document.querySelector(sel).getBoundingClientRect()
+    const left = Math.max(box.left, 2)
+    const right = Math.min(box.right, window.innerWidth - 2)
+    return [(left + right) / 2, box.top + box.height / 2]
+  }, selector)
+  await tap(cdp, x, y)
+  await sleep(500)
+}
+
+function sheetScenarios() {
+  const scenarios = {}
+  const sheetHeight = () => Math.round(Math.min(374, H * 0.6))
+  const isLayersTab = (sheet) => sheet?.state === 'open' && sheet.page === 'layers' && sheet.tab === 'layers' && sheet.rows.join() === 'fractal,orbit,logo,video'
+  // The menu button opens the sheet on Layers, at the fixed height, on the screen's bottom edge; the gestures pause meanwhile.
+  scenarios['sheet-open-button'] = {
+    changes: [],
+    prepare: wake,
+    run: async (cdp, page) => { await openSheet(cdp, page); return snap(cdp, page, 'sheet-open-button') },
+    expect: (before, after, mid) => before.sheet === null && isLayersTab(mid.sheet) && mid.sheet.height === sheetHeight()
+      && mid.sheet.bottom === H && mid.sheet.pillInView && after.sheet?.state === 'open',
+  }
+  // The long-press on the visual opens it on Layers too.
+  scenarios['sheet-open-long-press'] = {
+    changes: [],
+    run: async (cdp, page) => { await tap(cdp, W * 0.5, H * 0.2, 700); await sleep(500); return snap(cdp, page, 'sheet-open-long-press') },
+    expect: (before, after, mid) => isLayersTab(mid.sheet),
+  }
+  // A layer button's long-press lands on that layer's page; the back button returns to the Layers tab.
+  scenarios['sheet-open-layer-page'] = {
+    changes: [],
+    prepare: wake,
+    run: async (cdp, page) => {
+      const [x, y] = await centerOf(page, '[data-layer="orbit"]')
+      await tap(cdp, x, y, 700)
+      await sleep(500)
+      const onPage = await snap(cdp, page, 'sheet-open-layer-page')
+      await tapVisible(cdp, page, '.sheet-back')
+      return { onPage, back: await page.evaluate(READ) }
+    },
+    expect: (before, after, mid) => mid.onPage.sheet?.page === 'orbit' && mid.onPage.sheet.back && mid.onPage.sheet.tab === null
+      && mid.onPage.ui.layers.orbit === before.ui.layers.orbit && isLayersTab(mid.back.sheet),
+  }
+  // Each pill switches the tab and ends fully in view, the last one too (it starts cut off by the screen's edge).
+  scenarios['sheet-tabs'] = {
+    changes: [],
+    prepare: wake,
+    run: async (cdp, page) => {
+      await openSheet(cdp, page)
+      const seen = []
+      for (const tab of ['presets', 'color', 'effects', 'audio', 'camera', 'layers']) {
+        await tapVisible(cdp, page, `[data-menu-tab="${tab}"]`)
+        const read = tab === 'presets' || tab === 'audio' || tab === 'camera' ? await snap(cdp, page, `sheet-tab-${tab}`) : await page.evaluate(READ)
+        seen.push({ tab, sheet: read.sheet })
+      }
+      return seen
+    },
+    expect: (before, after, mid) => mid.every(({ tab, sheet }) => sheet?.tab === tab && sheet.page === tab && sheet.pillInView && sheet.height === sheetHeight()),
+  }
+  // The power button in a row toggles its layer, like the bar's button.
+  scenarios['sheet-layer-toggle'] = {
+    changes: [],
+    prepare: wake,
+    run: async (cdp, page) => {
+      await openSheet(cdp, page)
+      await tapVisible(cdp, page, '[data-menu-layer="logo"] .layer-header__power')
+      return snap(cdp, page, 'sheet-layer-toggle')
+    },
+    expect: (before, after, mid) => mid.ui.layers.logo === !before.ui.layers.logo
+      && Object.keys(before.ui.layers).every((key) => key === 'logo' || mid.ui.layers[key] === before.ui.layers[key]) && mid.sheet?.state === 'open',
+  }
+  // The row's arrow opens the layer's page.
+  scenarios['sheet-layer-arrow'] = {
+    changes: [],
+    prepare: wake,
+    run: async (cdp, page) => {
+      await openSheet(cdp, page)
+      await tapVisible(cdp, page, '[data-menu-layer="fractal"] .menu-layer-row__open')
+      return snap(cdp, page, 'sheet-layer-arrow')
+    },
+    expect: (before, after, mid) => mid.sheet?.page === 'fractal' && mid.sheet.back && mid.ui.layers.fractal === before.ui.layers.fractal,
+  }
+  // A drag down on the sheet's top past 80px closes it; a shorter one lets it spring back.
+  for (const [name, distance, closes] of [['sheet-drag-close', 150, true], ['sheet-drag-short', 40, false]]) {
+    scenarios[name] = {
+      changes: [],
+      prepare: wake,
+      run: async (cdp, page) => {
+        await openSheet(cdp, page)
+        const [x, y] = await page.evaluate(() => {
+          const box = document.querySelector('.bottom-sheet__handle').getBoundingClientRect()
+          return [box.left + box.width / 2, box.top + box.height / 2]
+        })
+        await drag(cdp, [[x, y]], [[x, y + distance]])
+        await sleep(500)
+        return page.evaluate(READ)
+      },
+      // Under software GL the slide-away timer can still be running at the mid read.
+      expect: (before, after, mid) => (closes ? (mid.sheet === null || mid.sheet.state === 'closing') && after.sheet === null : mid.sheet?.state === 'open' && mid.sheet.bottom === H),
+    }
+  }
+  // A tap on the visual closes the sheet without steering (the camera stays put).
+  scenarios['sheet-tap-visual'] = {
+    changes: [],
+    prepare: wake,
+    run: async (cdp, page) => {
+      await openSheet(cdp, page)
+      await tap(cdp, W * 0.2, H * 0.15)
+      await sleep(500)
+      return page.evaluate(READ)
+    },
+    expect: (before, after, mid) => (mid.sheet === null || mid.sheet.state === 'closing') && after.sheet === null,
+  }
+  // While the sheet is open the gestures are paused: two fingers on the visual change no speed.
+  scenarios['sheet-gestures-paused'] = {
+    changes: [],
+    prepare: wake,
+    run: async (cdp, page) => {
+      await openSheet(cdp, page)
+      await drag(cdp, [[C[0] - 60, H * 0.4], [C[0] + 60, H * 0.4]], [[C[0] - 60, H * 0.1], [C[0] + 60, H * 0.1]])
+    },
+    expect: (before, after) => after.speed === before.speed,
+  }
+  // In Limited and None there is no bar, so the long-press opens the sheet; the badge comes back while it is open.
+  for (const mode of ['limited', 'none']) {
+    scenarios[`sheet-${mode}`] = {
+      changes: [],
+      init: storedMode(mode),
+      run: async (cdp, page) => {
+        await tap(cdp, W * 0.5, H * 0.2, 700)
+        await sleep(500)
+        const open = await snap(cdp, page, `sheet-${mode}`)
+        await tap(cdp, W * 0.2, H * 0.15)
+        await sleep(600)
+        return { open, closed: await page.evaluate(READ) }
+      },
+      expect: (before, after, mid) => before.ui.badge === null && isLayersTab(mid.open.sheet) && mid.open.ui.badge === 'shown'
+        && mid.open.ui.bar === null && mid.closed.sheet === null && mid.closed.ui.badge === null,
+    }
+  }
+  return scenarios
 }
 
 function shellScenarios() {

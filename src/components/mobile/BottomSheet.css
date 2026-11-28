@@ -1,0 +1,144 @@
+/* The mobile bottom sheet (docs/mobile-design/MenuHalf.html) and the pieces every sheet tab shares: the pill tab row, the back
+   button and the dark restyle of the desktop controls. Above the gesture readout (900), under the long-press ring (1000). */
+
+.bottom-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 950;
+  box-sizing: border-box;
+  /* The same height on every tab and phone; the safe area is added under it, not taken from it. */
+  height: calc(min(374px, 60dvh) + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 10px 16px calc(24px + env(safe-area-inset-bottom, 0px));
+  border-radius: 22px 22px 0 0;
+  background: rgba(14, 14, 14, 0.96);
+  border-top: 1px solid #333;
+  color: #EDEDED;
+  font: 400 14px Inter, sans-serif;
+  transition: transform 0.22s ease;
+  animation: bottom-sheet-in 0.22s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.bottom-sheet[data-bottom-sheet='closing'] {
+  transform: translateY(100%);
+  pointer-events: none;
+}
+
+.bottom-sheet--dragging {
+  transition: none;
+}
+
+@keyframes bottom-sheet-in {
+  from { transform: translateY(100%); }
+}
+
+.bottom-sheet__head {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  /* The head is the drag area; its tab row still scrolls sideways (pan-x below). */
+  touch-action: none;
+}
+
+.bottom-sheet__handle {
+  align-self: center;
+  width: 40px;
+  height: 4px;
+  border-radius: 2px;
+  background: #555;
+}
+
+.bottom-sheet__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.bottom-sheet__body::-webkit-scrollbar {
+  display: none;
+}
+
+/* Tabs as pills in a row that scrolls sideways, running out under the sheet's right edge. */
+.sheet-pills {
+  position: relative;
+  display: flex;
+  gap: 8px;
+  margin-right: -16px;
+  padding-right: 16px;
+  overflow-x: auto;
+  touch-action: pan-x;
+  scrollbar-width: none;
+}
+
+.sheet-pills::-webkit-scrollbar {
+  display: none;
+}
+
+.sheet-pill {
+  flex: none;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 18px;
+  border: 1px solid #333;
+  background: transparent;
+  color: #C4C4C4;
+  font: 500 14px Inter, sans-serif;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.sheet-pill[aria-selected='true'] {
+  border-color: #EDEDED;
+  background: #EDEDED;
+  color: #111;
+}
+
+/* A page's top row: the back button and what the page puts beside it (`#365`'s sub-tabs). */
+.sheet-page-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sheet-back {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 10px;
+  border: 1px solid #2A2A2A;
+  background: #181818;
+  color: #93c5fd;
+}
+
+.sheet-page-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.sheet-placeholder {
+  padding: 24px 0;
+  text-align: center;
+  color: #777;
+  font-size: 13px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bottom-sheet {
+    transition: none;
+    animation: none;
+  }
+}

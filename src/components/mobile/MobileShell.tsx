@@ -4,10 +4,11 @@ import { AccountBadge } from './AccountBadge'
 import { BottomBar } from './BottomBar'
 import { GestureReadout } from './GestureReadout'
 import { LongPressRing } from './LongPressRing'
+import { MenuSheet } from './MenuSheet'
 import { useShellChrome } from './useShellChrome'
 import './MobileShell.css'
 
-/** The phone UI over the visual, in place of the desktop sidebar and top bar: the account badge, the bottom bar, the gesture readout and the long-press ring. */
+/** The phone UI over the visual, in place of the desktop sidebar and top bar: the account badge, the bottom bar, the gesture readout, the long-press ring and the menu sheet. */
 export const MobileShell = (): React.ReactElement => {
   const { bar, badge } = useShellChrome()
   return (
@@ -16,6 +17,7 @@ export const MobileShell = (): React.ReactElement => {
       {bar !== 'off' && <BottomBar state={bar} />}
       <GestureReadout />
       <LongPressRing />
+      <MenuSheet />
     </div>
   )
 }

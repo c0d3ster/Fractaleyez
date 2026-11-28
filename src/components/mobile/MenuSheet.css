@@ -1,0 +1,198 @@
+/* The menu sheet's tabs. The desktop controls are reused as they are and restyled here, scoped under .menu-sheet, so the sidebar
+   and the pop-out stay unchanged. */
+
+/* Layers tab (docs/mobile-design/MenuHalf.html): one row per layer, the layer header and an arrow to the layer's page. */
+.menu-layers {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.menu-layer-row {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  height: 48px;
+  overflow: hidden;
+  border-radius: 10px;
+  background: #1A1A1A;
+  border: 1px solid #93c5fd;
+  transition: opacity 0.15s ease, border-color 0.15s ease;
+}
+
+.menu-layer-row--off {
+  border-color: #2A2A2A;
+  opacity: 0.6;
+}
+
+.menu-sheet .layer-header {
+  flex: 1;
+  min-width: 0;
+  gap: 4px;
+  margin: 0;
+  /* Room for the arrow, which sits over the header's right end so the opacity fill spans the whole row. */
+  padding: 0 44px 0 6px;
+  border-radius: 0;
+  background: transparent;
+  color: #fff;
+  font-weight: 400;
+}
+
+.menu-sheet .layer-header:active,
+.menu-sheet .layer-header:focus-visible {
+  background: transparent;
+  color: #fff;
+}
+
+.menu-sheet .layer-header__power {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 16px;
+  color: #777;
+}
+
+.menu-sheet .layer-header__power--on {
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+}
+
+.menu-sheet .layer-header__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.menu-sheet .layer-header--off .layer-header__name,
+.menu-sheet .layer-header--off .layer-header__percent {
+  opacity: 1;
+}
+
+.menu-sheet .layer-blend--inline .layer-blend__select {
+  /* A select is as wide as its longest option; size it to the chosen one where the browser can, and cap it where it can't. */
+  field-sizing: content;
+  max-width: 72px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 3px 16px 3px 7px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.45);
+  color: #EDEDED;
+  font-size: 12px;
+}
+
+.menu-sheet .layer-blend--inline .layer-blend__caret {
+  right: 5px;
+}
+
+.menu-sheet .layer-blend--off {
+  opacity: 1;
+}
+
+.menu-sheet .layer-header__percent {
+  flex: none;
+  width: 34px;
+  text-align: right;
+  font-size: 13px;
+}
+
+.menu-sheet .layer-header__stepper {
+  flex: none;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.menu-sheet .layer-header__stepper button {
+  width: 24px;
+  height: 30px;
+  padding: 0;
+  color: #DDD;
+  font: 600 14px Inter, sans-serif;
+}
+
+.menu-sheet .layer-header__stepper .layer-header__badge {
+  width: 22px;
+  min-width: 0;
+  border-radius: 0;
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  font: 600 13px Inter, sans-serif;
+}
+
+.menu-sheet .layer-header__reset {
+  flex: none;
+  width: 28px;
+  height: 30px;
+  padding: 0;
+  color: #DDD;
+  opacity: 1;
+}
+
+/* A 44px touch target on the row's right edge, over the header (not in it) so a press there never drags the opacity. */
+.menu-layer-row__open {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #CFCFCF;
+}
+
+/* Presets tab (no design yet): the sidebar's list, which is already dark, without its side margins. */
+.menu-presets__head {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.menu-presets .presets-container {
+  margin: 0;
+}
+
+/* Audio tab (no design yet): the sidebar's section rows, which are drawn for its light panel, recolored for the dark sheet. */
+.menu-config-items .slider-info {
+  padding: 0 4px;
+}
+
+.menu-config-items .slider-name,
+.menu-config-items .slider-value {
+  color: #DDD;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.menu-config-items .slider-zone-tag {
+  color: #999;
+}
+
+.menu-config-items .slider-input {
+  width: 100%;
+  background: #2A2A2A;
+  box-shadow: none;
+}
+
+.menu-config-items .slider-input::-webkit-slider-thumb {
+  background: #EDEDED;
+}
+
+.menu-config-items .config-checkbox-container,
+.menu-config-items .stepper-toggle {
+  margin-left: 0;
+  margin-right: 0;
+}
+
+.menu-config-items .config-checkbox-container input:not(:checked) + label,
+.menu-config-items .stepper-toggle:not(.stepper-toggle--on) {
+  background: #1A1A1A;
+  border-color: #333;
+  color: #C4C4C4;
+}
