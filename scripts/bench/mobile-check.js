@@ -1140,6 +1140,68 @@ function shellScenarios() {
     },
     expect: (before, after) => after.accountOpens === 1 && after.menuOpens === 0,
   }
+  // A touch on the faded bar or badge only brings them back: no layer or effect toggles, the camera does not steer, no menu or
+  // account sheet opens, and a hold does not open the menu either. The next touch, with them shown, works as usual.
+  const where = (page, selector) => page.evaluate((sel) => {
+    const box = document.querySelector(sel).getBoundingClientRect()
+    return [box.left + box.width / 2, box.top + box.height / 2]
+  }, selector)
+  for (const [name, selector, holdMs] of [['layer', '[data-layer="fractal"]', 60], ['effect', '[data-effect="glow"]', 60], ['menu', '[aria-label="Open menu"]', 60], ['hold', '[data-layer="orbit"]', 700]]) {
+    scenarios[`bar-faded-tap-${name}`] = {
+      changes: [],
+      prepare: async (page) => { await countMenuOpens(page); await wake(page) },
+      run: async (cdp, page) => {
+        const [x, y] = await where(page, selector)
+        await sleep(3600)
+        const faded = await page.evaluate(READ)
+        await tap(cdp, x, y, holdMs)
+        await sleep(400)
+        const woken = await page.evaluate(READ)
+        if (name !== 'layer') return { faded, woken }
+        // Shown now: the same spot is the layer button again.
+        await tap(cdp, x, y)
+        await sleep(400)
+        return { faded, woken, again: await page.evaluate(READ) }
+      },
+      expect: (before, after, mid) => mid.faded.ui.bar === 'faded' && mid.woken.ui.bar === 'shown' && mid.woken.ui.badge === 'shown'
+        && same(mid.woken.ui.layers, before.ui.layers) && same(mid.woken.ui.effects, before.ui.effects)
+        && mid.woken.menuOpens === 0 && mid.woken.sheet === null && mid.woken.gesture === null
+        && (name !== 'layer' || mid.again.ui.layers.fractal === !before.ui.layers.fractal),
+    }
+  }
+  scenarios['badge-faded-tap'] = {
+    changes: [],
+    prepare: async (page) => { await countMenuOpens(page); await wake(page) },
+    run: async (cdp, page) => {
+      const [x, y] = await where(page, '[data-mobile-badge]')
+      await sleep(3600)
+      const faded = await page.evaluate(READ)
+      await tap(cdp, x, y)
+      await sleep(400)
+      const woken = await page.evaluate(READ)
+      await tap(cdp, x, y)
+      await sleep(500)
+      return { faded, woken, again: await page.evaluate(READ) }
+    },
+    expect: (before, after, mid) => mid.faded.ui.badge === 'faded' && mid.woken.ui.badge === 'shown' && mid.woken.accountOpens === 0
+      && mid.woken.account === null && mid.again.accountOpens === 1,
+  }
+  // In Full the bar is hidden, not faint, while the menu or the account sheet is open, and back when it closes.
+  scenarios['bar-hidden-under-sheets'] = {
+    changes: [],
+    prepare: wake,
+    run: async (cdp, page) => {
+      await openSheet(cdp, page)
+      const menu = await page.evaluate(READ)
+      await openAccountSheet(cdp, page)
+      const account = await page.evaluate(READ)
+      await tap(cdp, W * 0.5, H * 0.2)
+      await sleep(600)
+      return { menu, account, closed: await page.evaluate(READ) }
+    },
+    expect: (before, after, mid) => before.ui.bar === 'shown' && mid.menu.sheet?.state === 'open' && mid.menu.ui.bar === null && mid.menu.ui.badge === 'shown'
+      && mid.account.account?.state === 'open' && mid.account.ui.bar === null && mid.closed.account === null && mid.closed.ui.bar === 'shown',
+  }
   // Limited and None show no bar and no badge at rest.
   for (const mode of ['limited', 'none']) {
     scenarios[`shell-${mode}`] = {
