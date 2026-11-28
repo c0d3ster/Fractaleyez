@@ -133,11 +133,14 @@
 .sheet-slider .slider-input {
   display: block;
   width: 100%;
-  /* The zone tag (when there is one) sits in the margin under the track. */
-  margin-bottom: 2rem;
+  margin: 0;
 }
 
+/* Under the track, not pulled up into a margin the sheet does not keep. */
 .sheet-slider .slider-zone-tag {
+  margin-top: 4px;
+  height: auto;
+  line-height: 1.4;
   color: #999;
 }
 
@@ -189,7 +192,7 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .shape-pad-compact .shape-mode-switch {
@@ -224,7 +227,7 @@
 }
 
 .shape-pad-compact .shape-pad-chip {
-  height: 32px;
+  height: 30px;
   min-width: 0;
   padding: 0 6px;
   overflow: hidden;
@@ -250,6 +253,11 @@
 
 .menu-layer-page .sprite-picker__switch-btn--active {
   color: #ddd;
+}
+
+/* The sheet's body scrolls when it must, so a pager with one page takes no room here (the desktop keeps it to hold its height). */
+.menu-layer-page .sprite-picker__pager.sprite-picker__hidden {
+  display: none;
 }
 
 .menu-layer-page .sprite-picker__arrow {
