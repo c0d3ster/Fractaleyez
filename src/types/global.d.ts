@@ -51,6 +51,8 @@ declare global {
     getControlsMode?: () => ControlsMode
     /** Calls `listener` on every request for the menu sheet (components/mobile/menuBus.ts); for scripts/bench/mobile-check.js. */
     subscribeOpenMenu?: (listener: (page?: string) => void) => () => void
+    /** The same for the account sheet; for scripts/bench/mobile-check.js. */
+    subscribeOpenAccount?: (listener: () => void) => () => void
     toggleLiveVideo?: () => void
     getCameraSteer?: () => { x: number; y: number } | null
     getBeatTimeline?: () => BeatTimeline

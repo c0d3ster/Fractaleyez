@@ -33,13 +33,45 @@ const READ = `(() => ({
     const el = document.querySelector('[data-gesture-info="on"]')
     return el ? el.textContent : null
   })(),
+  menuPage: window.__menuPage ?? null,
+  accountOpens: window.__accountOpens ?? 0,
+  ui: (() => {
+    const bar = document.querySelector('[data-mobile-bar]')
+    const badge = document.querySelector('[data-mobile-badge]')
+    const pressed = (selector, attr) => Object.fromEntries([...document.querySelectorAll(selector)].map((el) => [el.dataset[attr], el.getAttribute('aria-pressed') === 'true']))
+    return {
+      sidebar: !!document.querySelector('.sidebar-container'),
+      topbar: !!document.querySelector('.topbar-container'),
+      bar: bar ? bar.dataset.mobileBar : null,
+      badge: badge ? badge.dataset.mobileBadge : null,
+      signedIn: badge ? badge.dataset.signedIn : null,
+      layerButtons: pressed('[data-layer]', 'layer'),
+      effectButtons: pressed('[data-effect]', 'effect'),
+      layers: Object.fromEntries(Object.entries(window.config.layers.meta).map(([key, meta]) => [key, meta.enabled.value])),
+      effects: Object.fromEntries(['cyclone', 'wobWob', 'switcheroo', 'colorShift', 'glow', 'shockwave', 'kaleidoscope'].map((key) => [key, window.config.effects[key].value])),
+      shaking: [...document.querySelectorAll('.mobile-bar__button--shake')].map((el) => el.dataset.layer),
+    }
+  })(),
 }))()`
 
 // Counts the long-press's menu requests (there is no menu sheet yet to show them).
 const countMenuOpens = (page) => page.evaluate(() => {
   window.__menuOpens = 0
-  window.subscribeOpenMenu?.(() => { window.__menuOpens += 1 })
+  window.subscribeOpenMenu?.((menuPage) => { window.__menuOpens += 1; window.__menuPage = menuPage ?? null })
+  window.__accountOpens = 0
+  window.subscribeOpenAccount?.(() => { window.__accountOpens += 1 })
 })
+
+// A pointerdown on the document (not the canvas, so nothing steers) brings the bar and badge back from their idle fade.
+const wake = (page) => page.evaluate(() => document.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })))
+
+// The center of the first element matching `selector`, for a touch on it.
+const centerOf = (page, selector) => page.evaluate((sel) => {
+  // The before screenshot can take longer than the idle fade under software GL, and a faded button takes no touches.
+  document.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))
+  const box = document.querySelector(sel).getBoundingClientRect()
+  return [box.left + box.width / 2, box.top + box.height / 2]
+}, selector)
 
 // Each touch event carries its own timestamp on a clock the scenario advances, so the page sees the intended timing (a 60ms tap,
 // 120ms between double-tap taps) even when software GL keeps its main thread busy and the events arrive late. The clock starts
@@ -206,6 +238,140 @@ const SCENARIOS = {
   // Gesture readouts (`#362`): `run` returns the reading taken mid-gesture, and `expect` gets it as `mid`. Compare the `-mid.png`
   // screenshots with docs/mobile-design (Speed, Pinch, Spin, Steer, Reset for Full; LimitedSpeed, LimitedSpin for Limited).
   ...readoutScenarios(),
+  // The shell's bar and badge (`#363`). Compare the screenshots with docs/mobile-design/TopC.html (at rest), EffectIcons.html (the
+  // icons on and off) and TopCGesture.html (bar away, badge dimmed, mid-gesture).
+  ...shellScenarios(),
+}
+
+function shellScenarios() {
+  const scenarios = {}
+  // The bar and badge replace the sidebar and top bar; signed out the badge is the person outline.
+  scenarios['shell-resting'] = {
+    changes: [],
+    run: async (cdp, page) => { await wake(page); return snap(cdp, page, 'shell-resting') },
+    expect: (before, after, mid) => !mid.ui.sidebar && !mid.ui.topbar && mid.ui.bar === 'shown' && mid.ui.badge === 'shown'
+      && Object.keys(mid.ui.layerButtons).join() === 'fractal,orbit,logo,video'
+      && Object.keys(mid.ui.effectButtons).join() === 'cyclone,wobWob,switcheroo,colorShift,glow,shockwave,kaleidoscope'
+      && Object.entries(mid.ui.layerButtons).every(([key, on]) => on === mid.ui.layers[key])
+      && Object.entries(mid.ui.effectButtons).every(([key, on]) => on === mid.ui.effects[key]),
+  }
+  // A tap on a layer button toggles the layer like its hotkey, and the button follows (blue on, grey off).
+  for (const layer of ['fractal', 'orbit', 'logo', 'video']) {
+    scenarios[`bar-layer-${layer}`] = {
+      changes: [],
+      prepare: async (page) => { await countMenuOpens(page); await wake(page) },
+      run: async (cdp, page) => {
+        const [x, y] = await centerOf(page, `[data-layer="${layer}"]`)
+        await tap(cdp, x, y)
+        return snap(cdp, page, `bar-layer-${layer}`)
+      },
+      expect: (before, after, mid) => mid.ui.layers[layer] === !before.ui.layers[layer] && mid.ui.layerButtons[layer] === mid.ui.layers[layer]
+        && Object.keys(before.ui.layers).every((key) => key === layer || mid.ui.layers[key] === before.ui.layers[key]) && after.menuOpens === 0,
+    }
+  }
+  // A tap on an effect button toggles that effect, and the button follows (green on).
+  for (const effect of ['cyclone', 'wobWob', 'switcheroo', 'colorShift', 'glow', 'shockwave', 'kaleidoscope']) {
+    scenarios[`bar-effect-${effect}`] = {
+      changes: [],
+      prepare: wake,
+      run: async (cdp, page) => {
+        const [x, y] = await centerOf(page, `[data-effect="${effect}"]`)
+        await tap(cdp, x, y)
+        return snap(cdp, page, `bar-effect-${effect}`)
+      },
+      expect: (before, after, mid) => mid.ui.effects[effect] === !before.ui.effects[effect] && mid.ui.effectButtons[effect] === mid.ui.effects[effect]
+        && Object.keys(before.ui.effects).every((key) => key === effect || mid.ui.effects[key] === before.ui.effects[key]),
+    }
+  }
+  // Beat-driven effects that are on flash with the beat, the ones off do not (the fake microphone's beeps set off beats); Cyclone never does.
+  scenarios['bar-beat-pulse'] = {
+    changes: [],
+    prepare: async (page) => {
+      await page.evaluate(() => {
+        ;['cyclone', 'glow', 'wobWob', 'shockwave'].forEach((key) => window.updateConfigItem('effects', key, true))
+        ;['colorShift', 'switcheroo'].forEach((key) => window.updateConfigItem('effects', key, false))
+        window.__pulsed = new Set()
+        window.subscribeBeat?.(() => requestAnimationFrame(() => document.querySelectorAll('[data-effect]').forEach((el) => {
+          // Only the flash (a background-color transition is an animation too).
+          if (el.getAnimations().some((a) => a.playState === 'running' && !(a instanceof CSSTransition))) window.__pulsed.add(el.dataset.effect)
+        })))
+      })
+      await wake(page)
+    },
+    run: async (cdp, page) => {
+      // Counted from here, after the toggles above have rendered.
+      await page.evaluate(() => window.__pulsed.clear())
+      // Keep the bar awake while the beats come in.
+      for (let i = 0; i < 8; i++) { await wake(page); await sleep(1000) }
+      return page.evaluate(() => [...(window.__pulsed ?? [])].sort())
+    },
+    expect: (before, after, mid) => ['glow', 'shockwave', 'wobWob'].every((key) => mid.includes(key)) && !['cyclone', 'colorShift', 'switcheroo', 'kaleidoscope'].some((key) => mid.includes(key)),
+  }
+  // 3s without a touch fades the bar and badge; a tap anywhere brings them back.
+  scenarios['bar-idle-fade'] = {
+    changes: ['camera'],
+    prepare: wake,
+    run: async (cdp, page) => {
+      await sleep(3600)
+      const faded = await snap(cdp, page, 'bar-idle-fade')
+      await tap(cdp, W * 0.2, H * 0.25)
+      await sleep(400)
+      return { faded, back: await page.evaluate(READ) }
+    },
+    expect: (before, after, mid) => before.ui.bar === 'shown' && mid.faded.ui.bar === 'faded' && mid.faded.ui.badge === 'faded'
+      && mid.back.ui.bar === 'shown' && mid.back.ui.badge === 'shown',
+  }
+  // During a gesture the bar slides away and the badge dims; Full's info line then holds the bar's place.
+  scenarios['bar-gesture-away'] = {
+    changes: ['speed'],
+    prepare: wake,
+    run: async (cdp, page) => {
+      await press(cdp, [[C[0] - 60, H * 0.6], [C[0] + 60, H * 0.6]], [[C[0] - 60, H * 0.3], [C[0] + 60, H * 0.3]])
+      const mid = await snap(cdp, page, 'bar-gesture-away')
+      await lift(cdp)
+      return mid
+    },
+    expect: (before, after, mid) => before.ui.bar === 'shown' && mid.ui.bar === 'away' && mid.ui.badge === 'dim',
+  }
+  // A long-press on a layer button opens the menu on that layer's page and does not toggle the layer.
+  scenarios['bar-layer-long-press'] = {
+    changes: [],
+    prepare: async (page) => { await countMenuOpens(page); await wake(page) },
+    run: async (cdp, page) => {
+      const [x, y] = await centerOf(page, '[data-layer="orbit"]')
+      await tap(cdp, x, y, 700)
+    },
+    expect: (before, after) => after.menuOpens === 1 && after.menuPage === 'orbit' && after.ui.layers.orbit === before.ui.layers.orbit,
+  }
+  scenarios['bar-menu-button'] = {
+    changes: [],
+    prepare: async (page) => { await countMenuOpens(page); await wake(page) },
+    run: async (cdp, page) => {
+      const [x, y] = await centerOf(page, '[aria-label="Open menu"]')
+      await tap(cdp, x, y)
+    },
+    expect: (before, after) => after.menuOpens === 1 && after.menuPage === null,
+  }
+  scenarios['badge-tap'] = {
+    changes: [],
+    prepare: async (page) => { await countMenuOpens(page); await wake(page) },
+    run: async (cdp, page) => {
+      const [x, y] = await centerOf(page, '[data-mobile-badge]')
+      await tap(cdp, x, y)
+    },
+    expect: (before, after) => after.accountOpens === 1 && after.menuOpens === 0,
+  }
+  // Limited and None show no bar and no badge at rest.
+  for (const mode of ['limited', 'none']) {
+    scenarios[`shell-${mode}`] = {
+      changes: [],
+      init: storedMode(mode),
+      prepare: wake,
+      run: async (cdp, page) => snap(cdp, page, `shell-${mode}`),
+      expect: (before, after, mid) => !mid.ui.sidebar && !mid.ui.topbar && mid.ui.bar === null && mid.ui.badge === null,
+    }
+  }
+  return scenarios
 }
 
 function readoutScenarios() {

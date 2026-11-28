@@ -18,7 +18,7 @@ import { previewLock } from './components/presets/previewLock'
 import { setGesturesPaused, startTouchController } from './input/touchController'
 import { startLongPressMenu } from './input/longPressMenu'
 import { getControlsMode } from './components/mobile/controlsMode'
-import { isMenuOpen, subscribeMenuOpen, subscribeOpenMenu } from './components/mobile/menuBus'
+import { isMenuOpen, subscribeMenuOpen, subscribeOpenAccount, subscribeOpenMenu } from './components/mobile/menuBus'
 import { isMobileShell, subscribeMobileShell } from './utils/useMobileShell'
 
 // Size of the fft transform performed on audio stream
@@ -172,6 +172,7 @@ const init = (microphone: MediaStreamAudioSourceNode | null): void => {
   startTouchGesturesOnShell(pipeline.canvas)
   window.getControlsMode = getControlsMode
   window.subscribeOpenMenu = subscribeOpenMenu
+  window.subscribeOpenAccount = subscribeOpenAccount
   // Owned here (not by a visualizer) so the frequency HUD keeps working in every layer combination.
   window.getBeatTimeline = beatMonitor.getTimeline
   window.getLastBeatTime = beatMonitor.getLastBeatTime
