@@ -37,11 +37,43 @@ const DESCRIPTIONS: Readonly<Record<EffectKey, string>> = {
 const KALEIDOSCOPE_DESCRIPTION = 'Mirrors the picture around the center. Drag the dial to choose how many mirrors.'
 
 // The kaleidoscope's modes, in the order of the stored value: each button's icon is a dotted line (or circle) for the mirror axis.
-const MODES: readonly { label: string, description: string, icon: React.ReactElement }[] = [
+export const KALEIDOSCOPE_MODES: readonly { label: string, description: string, icon: React.ReactElement }[] = [
   { label: 'Radial', description: 'Mirrors around the center in wedges.', icon: <circle cx='12' cy='12' r='8' /> },
   { label: 'Horizontal', description: 'Stacks mirrored strips, each flipped over the last.', icon: <line x1='3' y1='12' x2='21' y2='12' /> },
   { label: 'Vertical', description: 'Puts mirrored strips side by side, each flipped over the last.', icon: <line x1='12' y1='3' x2='12' y2='21' /> },
 ]
+
+type KaleidoscopeModesProps = {
+  mode: number
+  onModeChange: (mode: number) => void
+  /** Classes added to the group (the mobile Effects tab draws it as a segmented control). */
+  className?: string
+}
+
+/** The kaleidoscope's Radial / Horizontal / Vertical buttons: above the chips on desktop, beside the dial on mobile. */
+export const KaleidoscopeModes = ({ mode, onModeChange, className }: KaleidoscopeModesProps): React.ReactElement => {
+  const info = useInfo()
+  return (
+    <div className={`kaleidoscope-modes${className ? ` ${className}` : ''}`} role='group' aria-label='Kaleidoscope mode'>
+      {KALEIDOSCOPE_MODES.map(({ label, description, icon }, index) => (
+        <button
+          key={label}
+          type='button'
+          className={`kaleidoscope-mode${mode === index ? ' kaleidoscope-mode--on' : ''}`}
+          {...info(`${label}: ${description}`)}
+          aria-label={label}
+          aria-pressed={mode === index}
+          data-kaleidoscope-mode={index}
+          onClick={() => onModeChange(index)}
+        >
+          <svg viewBox='0 0 24 24' aria-hidden='true' fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeDasharray='0.1 4'>
+            {icon}
+          </svg>
+        </button>
+      ))}
+    </div>
+  )
+}
 
 /**
  * The Effects as a set of switches, the kaleidoscope first on a row of its own: each lights up when its effect is on,
@@ -72,23 +104,7 @@ export const EffectChips = React.memo(forwardRef<EffectChipsHandle, EffectChipsP
 
   return (
     <div className='effect-chips-box'>
-      <div className='kaleidoscope-modes' role='group' aria-label='Kaleidoscope mode'>
-        {MODES.map(({ label, description, icon }, index) => (
-          <button
-            key={label}
-            type='button'
-            className={`kaleidoscope-mode${mode === index ? ' kaleidoscope-mode--on' : ''}`}
-            {...info(`${label}: ${description}`)}
-            aria-label={label}
-            aria-pressed={mode === index}
-            onClick={() => onModeChange(index)}
-          >
-            <svg viewBox='0 0 24 24' aria-hidden='true' fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeDasharray='0.1 4'>
-              {icon}
-            </svg>
-          </button>
-        ))}
-      </div>
+      <KaleidoscopeModes mode={mode} onModeChange={onModeChange} />
       <div className='effect-chips' role='group' aria-label='Effects'>
         <button
           type='button'

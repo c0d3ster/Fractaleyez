@@ -10,6 +10,8 @@ import { CUSTOM_PALETTE, PALETTES, RAINBOW_PALETTE } from '../../config/palettes
 
 type PalettePickerProps = {
   updateColorList: ConfigContextValue['updateColorList']
+  /** Every palette at once as a sideways row of tiles, with no collapse or pages (the mobile Color tab). */
+  row?: boolean
 }
 
 type Choice = {
@@ -31,7 +33,7 @@ const PAGE_COUNT = Math.ceil(PALETTE_IDS.length / PALETTES_PER_PAGE)
 // Only the palette choice and the custom colors: a saturation or phase change does not redraw the picker.
 const selectPalette = (config: AppConfig): Pick<AppConfig['color'], 'palette' | 'customStops'> => ({ palette: config.color.palette, customStops: config.color.customStops })
 
-const PalettePickerInner = ({ updateColorList }: PalettePickerProps): React.ReactElement => {
+const PalettePickerInner = ({ updateColorList, row = false }: PalettePickerProps): React.ReactElement => {
   const { palette, customStops } = useConfigSelector(selectPalette, shallowEqual)
   const selected = palette.value[0] ?? RAINBOW_PALETTE
   const stops = customStops.value
@@ -66,6 +68,52 @@ const PalettePickerInner = ({ updateColorList }: PalettePickerProps): React.Reac
     updateColorList('customStops', [...stops, stops[stops.length - 1] ?? '#ffffff'])
   }, [stops, updateColorList])
 
+  // The custom palette's colors, under whichever layout the palettes are in.
+  const stopEditor = selected === CUSTOM_PALETTE && (
+    <div className='palette-picker__stops'>
+      {stops.map((stop, index) => (
+        // Stops are positional, so the index is their identity.
+        <span className='palette-picker__stop' key={index}>
+          <input
+            type='color'
+            value={stop}
+            aria-label={`Color ${index + 1}`}
+            onChange={(event) => changeStop(index, event.target.value)}
+          />
+          {stops.length > colorConfig.customStops_MIN && (
+            <button type='button' className='palette-picker__stop-remove' aria-label={`Remove color ${index + 1}`} onClick={() => removeStop(index)}>×</button>
+          )}
+        </span>
+      ))}
+      {stops.length < colorConfig.customStops_MAX && (
+        <button type='button' className='palette-picker__stop-add' aria-label='Add color' onClick={addStop}>+</button>
+      )}
+    </div>
+  )
+
+  if (row) {
+    return (
+      <div className='palette-picker palette-picker--row'>
+        <div className='palette-row' role='group' aria-label='Palettes'>
+          {choices.map(({ id, label, gradient }) => (
+            <button
+              key={id}
+              type='button'
+              className='palette-row__tile'
+              aria-pressed={id === selected}
+              data-palette={id}
+              onClick={() => choose(id)}
+            >
+              <span className='palette-row__swatch' style={{ background: gradient }} />
+              <span className='palette-row__name'>{label}</span>
+            </button>
+          ))}
+        </div>
+        {stopEditor}
+      </div>
+    )
+  }
+
   return (
     <div className='palette-picker'>
       <button type='button' className='palette-picker__current' aria-expanded={open} onClick={toggleOpen}>
@@ -96,27 +144,7 @@ const PalettePickerInner = ({ updateColorList }: PalettePickerProps): React.Reac
           <button type='button' aria-label='Next palettes' disabled={page === PAGE_COUNT - 1} onClick={nextPage}>→</button>
         </div>
       )}
-      {selected === CUSTOM_PALETTE && (
-        <div className='palette-picker__stops'>
-          {stops.map((stop, index) => (
-            // Stops are positional, so the index is their identity.
-            <span className='palette-picker__stop' key={index}>
-              <input
-                type='color'
-                value={stop}
-                aria-label={`Color ${index + 1}`}
-                onChange={(event) => changeStop(index, event.target.value)}
-              />
-              {stops.length > colorConfig.customStops_MIN && (
-                <button type='button' className='palette-picker__stop-remove' aria-label={`Remove color ${index + 1}`} onClick={() => removeStop(index)}>×</button>
-              )}
-            </span>
-          ))}
-          {stops.length < colorConfig.customStops_MAX && (
-            <button type='button' className='palette-picker__stop-add' aria-label='Add color' onClick={addStop}>+</button>
-          )}
-        </div>
-      )}
+      {stopEditor}
     </div>
   )
 }

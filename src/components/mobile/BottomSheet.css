@@ -129,13 +129,6 @@
   color: #fff;
 }
 
-.sheet-placeholder {
-  padding: 24px 0;
-  text-align: center;
-  color: #777;
-  font-size: 13px;
-}
-
 @media (prefers-reduced-motion: reduce) {
   .bottom-sheet {
     transition: none;

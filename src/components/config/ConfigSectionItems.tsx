@@ -8,11 +8,11 @@ import { ConfigStepperToggle } from './ConfigStepperToggle'
 import { SpinDial } from './SpinDial'
 import { KaleidoscopeDial } from './KaleidoscopeDial'
 import { Heading, logoHeading, userHeading } from '../../config/heading'
-import { EFFECT_KEYS, EffectKey, MotionEffects } from './useGalaxyMotion'
+import { EFFECT_KEYS } from './useGalaxyMotion'
+import { useKaleidoscopeDial } from './useKaleidoscopeDial'
 import { connectConfigActions, ConfigContextValue, ConfigSectionKey } from './context/ConfigProvider'
 import { shallowEqual } from './context/configStore'
 import { useConfigSelector } from './context/useConfigSelector'
-import { resolveColorState } from '../../config/colorState'
 import { AppConfig, ConfigItem, SliderItem } from '../../config/configDefaults'
 import { SCALE_ZONES, SliderZone } from '../../config/juliaScale.config'
 import { ghostKey } from '../../utils/ghostStore'
@@ -104,16 +104,11 @@ const NO_ITEMS: Record<string, ConfigItem> = {}
 /** The parts of the config one list of items reads. Anything a list does not draw is left out (null or 0), so a change there does not re-render it. */
 type SectionView = {
   section: Record<string, ConfigItem>
-  /** The particle sliders, for the Particle list's red-zone check; the Effects list's dial only reads the size. */
+  /** The particle sliders, for the Particle list's red-zone check. */
   particlesPerLayer: number
   layers: number
   levels: number
   particleSize: number
-  /** The Effects list's dial. */
-  effects: AppConfig['effects'] | null
-  color: AppConfig['color'] | null
-  scaleFactor: number
-  rotationSpeed: number
   /** Whether the fractal layer is on (its sliders show their zones only then). */
   fractalOn: boolean
 }
@@ -122,22 +117,17 @@ const ConfigSectionItemsInner = ({ name, only, noDials = false, onChange, resetC
   // Reads only what this list draws, so a slider moved in another section does not render this one again.
   const selectView = useCallback((config: AppConfig): SectionView => {
     const isParticle = name === 'particle'
-    const isEffects = name === 'effects'
     const { particle } = config
     return {
       section: (config as unknown as Record<string, Record<string, ConfigItem>>)[name] ?? NO_ITEMS,
       particlesPerLayer: isParticle ? particle.particlesPerLayer.value : 0,
       layers: isParticle ? particle.layers.value : 0,
       levels: isParticle ? particle.levels.value : 0,
-      particleSize: isParticle || isEffects ? particle.particleSize.value : 0,
-      effects: isEffects ? config.effects : null,
-      color: isEffects ? config.color : null,
-      scaleFactor: isEffects ? config.user.scaleFactor.value : 0,
-      rotationSpeed: isEffects ? config.user.rotationSpeed.value : 0,
+      particleSize: isParticle ? particle.particleSize.value : 0,
       fractalOn: config.layers.meta.fractal.enabled.value,
     }
   }, [name])
-  const { section: categoryConfig, particlesPerLayer, layers, levels, particleSize, effects, color, scaleFactor, rotationSpeed, fractalOn } = useConfigSelector(selectView, shallowEqual)
+  const { section: categoryConfig, particlesPerLayer, layers, levels, particleSize, fractalOn } = useConfigSelector(selectView, shallowEqual)
 
   // Load comes from the count, layers, levels and size sliders together, not any one in isolation.
   const loadInputs = useMemo<ParticleLoadInputs>(() => ({ particlesPerLayer, layers, levels, particleSize }), [particlesPerLayer, layers, levels, particleSize])
@@ -195,21 +185,8 @@ const ConfigSectionItemsInner = ({ name, only, noDials = false, onChange, resetC
     if (isResettableSection(name)) resetConfigItem(name, event.currentTarget.name)
   }, [name, resetConfigItem])
 
-  // The dial is expensive to redraw, so what it is given is kept stable: it only re-renders when something it shows has actually changed.
-  const dialEffects = useMemo<MotionEffects | null>(
-    () => (effects ? { cyclone: effects.cyclone.value, wobWob: effects.wobWob.value, switcheroo: effects.switcheroo.value, colorShift: effects.colorShift.value, shockwave: effects.shockwave.value, glow: effects.glow.value } : null),
-    [effects?.cyclone.value, effects?.wobWob.value, effects?.switcheroo.value, effects?.colorShift.value, effects?.shockwave.value, effects?.glow.value],
-  )
-  const dialEffectLabels = useMemo<Readonly<Record<EffectKey, string>> | null>(
-    () => (effects ? { cyclone: effects.cyclone.name, wobWob: effects.wobWob.name, switcheroo: effects.switcheroo.name, colorShift: effects.colorShift.name, shockwave: effects.shockwave.name, glow: effects.glow.name } : null),
-    [effects?.cyclone.name, effects?.wobWob.name, effects?.switcheroo.name, effects?.colorShift.name, effects?.shockwave.name, effects?.glow.name],
-  )
-  const handleToggleEffect = useCallback((key: EffectKey, enabled: boolean) => onChange('effects', key, enabled), [onChange])
-  const handleKaleidoscopeMode = useCallback((mode: number) => onChange('effects', 'kaleidoscopeMode', String(mode)), [onChange])
-  const handleKaleidoscopeSource = useCallback((source: number) => onChange('effects', 'kaleidoscopeSource', String(source)), [onChange])
-  const handleKaleidoscopeCount = useCallback((count: number) => onChange('effects', 'kaleidoscopeCount', String(count)), [onChange])
-  const handleToggleKaleidoscope = useCallback((enabled: boolean) => onChange('effects', 'kaleidoscope', enabled), [onChange])
-  const handleResetKaleidoscopeCount = useCallback(() => resetConfigItem('effects', 'kaleidoscopeCount'), [resetConfigItem])
+  // The Effects list leads with the dial (which also holds the effect switches); only the full list draws it.
+  const dial = useKaleidoscopeDial(name === 'effects' && !only, onChange, resetConfigItem)
 
   return (
     <>
@@ -226,30 +203,7 @@ const ConfigSectionItemsInner = ({ name, only, noDials = false, onChange, resetC
           That can freeze or crash your browser, and swapping presets will stutter.
         </ConfirmModal>
       )}
-      {name === 'effects' && !only && effects && color && dialEffects && dialEffectLabels && (
-        <KaleidoscopeDial
-          count={effects.kaleidoscopeCount.value}
-          min={effects.kaleidoscopeCount.min}
-          max={effects.kaleidoscopeCount.max}
-          step={effects.kaleidoscopeCount.step}
-          kaleidoscope={effects.kaleidoscope.value}
-          mode={effects.kaleidoscopeMode.value}
-          source={effects.kaleidoscopeSource.value}
-          onSourceChange={handleKaleidoscopeSource}
-          onModeChange={handleKaleidoscopeMode}
-          palette={resolveColorState(color)}
-          scale={scaleFactor}
-          particleSize={particleSize}
-          rotationSpeed={rotationSpeed}
-          effects={dialEffects}
-          effectLabels={dialEffectLabels}
-          onToggleEffect={handleToggleEffect}
-          kaleidoscopeLabel={effects.kaleidoscope.name}
-          onToggleKaleidoscope={handleToggleKaleidoscope}
-          onChange={handleKaleidoscopeCount}
-          onReset={handleResetKaleidoscopeCount}
-        />
-      )}
+      {dial && <KaleidoscopeDial {...dial} />}
       {Object.keys(categoryConfig).filter((configItem) => !only || only.includes(configItem)).map((configItem) => {
         if (STEPPER_AMOUNT_ITEMS.includes(configItem)) return null
         if (PAD_ITEMS[name]?.includes(configItem)) return null

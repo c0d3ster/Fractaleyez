@@ -41,13 +41,15 @@ export const showsSubTabs = (tabs: readonly LayerSubTab[]): boolean => tabs.leng
 export const resolveSubTab = (tabs: readonly LayerSubTab[], picked: LayerSubTab | null): LayerSubTab | null =>
   (picked !== null && tabs.includes(picked) ? picked : tabs[0] ?? null)
 
-export type OneSliderSet = { section: 'orbit' | 'particle' | 'logo'; items: readonly string[]; label: string }
+export type OneSliderSet = { section: 'orbit' | 'particle' | 'logo' | 'color'; items: readonly string[]; label: string }
 
 /** The settings of each one-slider section, in button order (the first is selected when it opens). */
 export const ONE_SLIDER_SETS = {
   orbitShape: { section: 'orbit', items: ['a', 'b', 'c', 'd', 'e'], label: 'Orbit shape' },
   orbitParticles: { section: 'particle', items: ['particlesPerLayer', 'particleSize', 'layers', 'levels'], label: 'Particles' },
   logoMotion: { section: 'logo', items: ['size', 'spinSpeed', 'shake'], label: 'Logo motion' },
+  // The Color tab (ColorTab.html), under the palettes and the range bar.
+  color: { section: 'color', items: ['paletteCycles', 'palettePhase', 'saturation'], label: 'Color' },
 } as const satisfies Record<string, OneSliderSet>
 
 /** The selected setting of a one-slider section: the one picked if the section has it, otherwise its first. */

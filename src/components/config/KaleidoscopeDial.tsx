@@ -77,6 +77,12 @@ type KaleidoscopeDialProps = {
   onChange: (count: number) => void
   /** Double-clicking the dial puts the mirror count back to its default. */
   onReset: () => void
+  /** The dial's width and height in pixels. Unset, it keeps the desktop's size (10rem). */
+  size?: number
+  /** Whether the effect switches and the mode buttons show under the dial (the mobile Effects tab draws its own). Default true. */
+  chips?: boolean
+  /** Called on every beat the dial reacts to, for switches drawn outside it to flash with it. */
+  onBeat?: () => void
 }
 
 /** Where the pointer is in the dial's own drawing units, with the center at 0. */
@@ -122,7 +128,7 @@ const glowWidthFor = (armCount: number, dotScale: number): number => Math.max(1.
  * It is built as a stack of separate layers (the sky, the haze, the stars, and the ring, core and
  * handle) so that turning and pulling back are transforms the browser can do without repainting the blurred galaxy.
  */
-export const KaleidoscopeDial = React.memo(({ count, min, max, step, kaleidoscope, mode, source, onSourceChange, onModeChange, palette, scale, particleSize, rotationSpeed, effects, effectLabels, onToggleEffect, kaleidoscopeLabel, onToggleKaleidoscope, onChange, onReset }: KaleidoscopeDialProps): React.ReactElement => {
+export const KaleidoscopeDial = React.memo(({ count, min, max, step, kaleidoscope, mode, source, onSourceChange, onModeChange, palette, scale, particleSize, rotationSpeed, effects, effectLabels, onToggleEffect, kaleidoscopeLabel, onToggleKaleidoscope, onChange, onReset, size, chips: showChips = true, onBeat }: KaleidoscopeDialProps): React.ReactElement => {
   const info = useInfo()
   // Unique per dial, since the filter, clip and gradient are referenced by id.
   const uid = useId().replace(/:/g, '')
@@ -131,7 +137,14 @@ export const KaleidoscopeDial = React.memo(({ count, min, max, step, kaleidoscop
   const starScale = starScaleOf(particleSize)
   const chips = useRef<EffectChipsHandle>(null)
   const stripped = mode === HORIZONTAL || mode === VERTICAL
-  const motion = useGalaxyMotion({ rotationSpeed, effects, onBeat: () => chips.current?.pulse() })
+  const motion = useGalaxyMotion({
+    rotationSpeed,
+    effects,
+    onBeat: () => {
+      chips.current?.pulse()
+      onBeat?.()
+    },
+  })
   const swapped = motion.beats % 2 === 1
   const variant: ShapeVariant = effects.switcheroo && swapped ? 1 : 0
   // The radial mirror is one arm per wedge; the strip modes mirror the plain galaxy instead.
@@ -314,6 +327,7 @@ export const KaleidoscopeDial = React.memo(({ count, min, max, step, kaleidoscop
       <div
         ref={motion.root}
         className={`kaleidoscope-dial${kaleidoscope ? ' kaleidoscope-dial--on' : ''}`}
+        style={size === undefined ? undefined : { width: size, height: size }}
         role='slider'
         aria-label='Kaleidoscope mirrors'
         aria-valuemin={min}
@@ -388,18 +402,20 @@ export const KaleidoscopeDial = React.memo(({ count, min, max, step, kaleidoscop
           <circle className='kaleidoscope-dial-handle' cx={handle.x} cy={handle.y} r={HANDLE_RADIUS} />
         </svg>
       </div>
-      <EffectChips
-        ref={chips}
-        effects={effects}
-        labels={effectLabels}
-        onToggle={onToggleEffect}
-        kaleidoscope={kaleidoscope}
-        kaleidoscopeLabel={kaleidoscopeLabel}
-        kaleidoscopeCount={count}
-        mode={mode}
-        onModeChange={onModeChange}
-        onToggleKaleidoscope={onToggleKaleidoscope}
-      />
+      {showChips && (
+        <EffectChips
+          ref={chips}
+          effects={effects}
+          labels={effectLabels}
+          onToggle={onToggleEffect}
+          kaleidoscope={kaleidoscope}
+          kaleidoscopeLabel={kaleidoscopeLabel}
+          kaleidoscopeCount={count}
+          mode={mode}
+          onModeChange={onModeChange}
+          onToggleKaleidoscope={onToggleKaleidoscope}
+        />
+      )}
     </div>
   )
 })
