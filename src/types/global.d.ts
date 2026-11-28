@@ -1,6 +1,7 @@
 import type { AppConfig, LayerKey } from '../config/configDefaults'
 import type { ConfigSectionKey } from '../components/config/context/ConfigProvider'
 import type { ActiveGesture } from '../input/touchController'
+import type { ControlsMode } from '../config/mobileControls.config'
 import type { BeatTimeline, DrumKind, GridState, SectionSlot, SectionState, TempoReading, RhythmLabel, RhythmPattern, RollLevel } from 'beatsense'
 import type { LagEstimate } from '../audioanalysis/lag-estimate'
 import type { LagMeasurement } from '../audioanalysis/lag-probe'
@@ -46,6 +47,10 @@ declare global {
     getGesture?: () => ActiveGesture | null
     /** Calls `listener` whenever the gesture or its value changes; returns the unsubscribe. */
     subscribeGesture?: (listener: () => void) => () => void
+    /** The active on-screen controls mode (components/mobile/controlsMode.ts), for code outside React. */
+    getControlsMode?: () => ControlsMode
+    /** Calls `listener` on every request for the menu sheet (components/mobile/menuBus.ts); for scripts/bench/mobile-check.js. */
+    subscribeOpenMenu?: (listener: (page?: string) => void) => () => void
     toggleLiveVideo?: () => void
     getCameraSteer?: () => { x: number; y: number } | null
     getBeatTimeline?: () => BeatTimeline

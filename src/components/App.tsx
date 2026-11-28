@@ -8,9 +8,12 @@ import { ConfigWindow } from './config/ConfigWindow'
 import { Sidebar } from './sidebar/Sidebar'
 import { TopBar } from './topbar/TopBar'
 import { UpgradeProvider } from './upgrade/UpgradeProvider'
+import { LongPressRing } from './mobile/LongPressRing'
+import { useMobileShell } from '../utils/useMobileShell'
 
 const AppInner = (): React.ReactElement => {
   const [configWindowVisible, setConfigWindowVisible] = useState(false)
+  const mobileShell = useMobileShell()
 
   useEffect(() => {
     initWithMicrophone()
@@ -28,6 +31,7 @@ const AppInner = (): React.ReactElement => {
           setConfigWindow={toggleConfigWindow}
           configWindowVisible={configWindowVisible} />
         <TopBar />
+        {mobileShell && <LongPressRing />}
       </div>
     </UpgradeProvider>
   )

@@ -12,6 +12,8 @@ const CROSSFADE_DURATION_MAX_MS = 5000
 const MAX_LOGO_PARTICLE_URL_LENGTH = 2048
 // Mirrors src/config/quality.config.ts's QUALITY_SETTINGS.
 const QUALITY_SETTINGS = ['auto', 'saver', 'balanced', 'quality', 'ultra']
+// Mirrors src/config/mobileControls.config.ts's CONTROLS_MODES.
+const CONTROLS_MODES = ['full', 'limited', 'none']
 // Mirrors FrequencyHud.tsx's VISIBLE_BANDS plus headroom for hidden high bands.
 const MAX_HUD_FREQ_BANDS = 16
 
@@ -112,6 +114,15 @@ export const updateMeHandler = async (req: Request, res: Response): Promise<void
       return
     }
     patch.quality = quality
+  }
+
+  if ('onScreenControls' in body) {
+    const { onScreenControls } = body
+    if (typeof onScreenControls !== 'string' || !CONTROLS_MODES.includes(onScreenControls)) {
+      res.status(400).json({ error: `onScreenControls must be one of: ${CONTROLS_MODES.join(', ')}` })
+      return
+    }
+    patch.onScreenControls = onScreenControls
   }
 
   if ('hud' in body) {

@@ -177,6 +177,20 @@ describe('updateMeHandler', () => {
     expect(userService.updateSettings).not.toHaveBeenCalled()
   })
 
+  it.each(['full', 'limited', 'none'])('persists a %s onScreenControls patch', async (onScreenControls) => {
+    const res = makeRes()
+    await updateMeHandler(makeReq(undefined, { onScreenControls }), res)
+    expect(userService.updateSettings).toHaveBeenCalledWith('user_123', { onScreenControls })
+    expect(res.statusCode).toBe(200)
+  })
+
+  it.each(['Full', 'minimal', '', 1, null])('rejects the onScreenControls value %s', async (onScreenControls) => {
+    const res = makeRes()
+    await updateMeHandler(makeReq(undefined, { onScreenControls }), res)
+    expect(res.statusCode).toBe(400)
+    expect(userService.updateSettings).not.toHaveBeenCalled()
+  })
+
   it('rejects a non-boolean skipRedZoneWarning', async () => {
     const res = makeRes()
     await updateMeHandler(makeReq(undefined, { skipRedZoneWarning: 'yes' }), res)

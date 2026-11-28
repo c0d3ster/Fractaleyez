@@ -30,6 +30,8 @@ import { setParticleCrossfadeDurationMs } from '../../../config/visualizer.confi
 import { UserSettings, USER_SETTINGS_SAVE_DEBOUNCE_MS } from '../../../config/userSettings.config'
 import { isValidBandSelection } from 'beatsense'
 import { QUALITY_SETTING_DEFAULT } from '../../../config/quality.config'
+import { CONTROLS_MODE_DEFAULT } from '../../../config/mobileControls.config'
+import { getControlsMode, setControlsMode } from '../../mobile/controlsMode'
 import { Entitlements, Usage } from '../../../config/plans.config'
 import { qualityController } from '../../../visualization/quality-controller'
 import { startupTimeline } from '../../../visualization/perf/startup'
@@ -71,13 +73,16 @@ type ApiMeResponse = {
 /** Set on the return from Stripe Checkout (BillingService's success and cancel URLs). */
 const BILLING_RETURN_PARAM = 'billing'
 
-/** Applies a loaded/patched settings value to the systems that poll it live outside React (crossfade duration, quality tier, frequency-band HUD). */
+/** Applies a loaded/patched settings value to the systems that poll it live outside React (crossfade duration, quality tier, on-screen controls, frequency-band HUD). */
 const applyUserSettingsSideEffects = (settings: Partial<UserSettings>): void => {
   if (typeof settings.crossfadeDurationMs === 'number') {
     setParticleCrossfadeDurationMs(settings.crossfadeDurationMs)
   }
   if (settings.quality !== undefined) {
     qualityController.setSetting(settings.quality)
+  }
+  if (settings.onScreenControls !== undefined) {
+    setControlsMode(settings.onScreenControls)
   }
   if (settings.hud?.enabledFreqBands && isValidBandSelection(settings.hud.enabledFreqBands)) {
     window.enabledFreqBands = [...settings.hud.enabledFreqBands]
@@ -436,8 +441,11 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
 
   // Signed out, the quality setting a guest picked in this browser applies (see guestQuality). Signed in, the account's setting (or Auto)
   // is applied when /api/me loads below, so it takes precedence.
+  // The on-screen controls mode is already applied from this browser's last mode (see storedControlsMode); a guest's settings show it.
   useEffect(() => {
     if (!isLoaded || isSignedIn) return
+    const onScreenControls = getControlsMode()
+    setUserSettings(prev => ({ ...prev, onScreenControls }))
     const quality = readGuestQuality()
     if (!quality) return
     setUserSettings(prev => ({ ...prev, quality }))
@@ -460,8 +468,13 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
         setIsAdmin(data.isAdmin === true)
         setEntitlements(data.entitlements ?? null)
         setUsage(data.usage ?? null)
-        // A full load without a saved quality is Auto, so a new account does not inherit the tier the last one fixed.
-        applyUserSettingsSideEffects({ ...data.settings, quality: data.settings.quality ?? QUALITY_SETTING_DEFAULT })
+        // A full load without a saved quality is Auto (and without a saved controls mode, Full), so a new account does not inherit
+        // what the last one set.
+        applyUserSettingsSideEffects({
+          ...data.settings,
+          quality: data.settings.quality ?? QUALITY_SETTING_DEFAULT,
+          onScreenControls: data.settings.onScreenControls ?? CONTROLS_MODE_DEFAULT,
+        })
 
         // Only when no logo is set yet: persist a sprite-processed copy of the Clerk social photo as the
         // user's logoParticle, so the `@user` resolver's per-user-settings rung already covers it.
@@ -547,7 +560,8 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
     }))
     applyUserSettingsSideEffects(patch)
 
-    // Signed out there is no account to save to; the quality setting is remembered in this browser instead.
+    // Signed out there is no account to save to; the quality setting is remembered in this browser instead (the controls mode
+    // always is, by applyUserSettingsSideEffects).
     if (!isSignedIn) {
       if (patch.quality) writeGuestQuality(patch.quality)
       return

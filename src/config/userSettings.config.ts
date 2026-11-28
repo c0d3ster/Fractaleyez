@@ -1,4 +1,5 @@
 import type { QualitySetting } from './quality.config'
+import type { ControlsMode } from './mobileControls.config'
 
 /** Mirrors server/models/User.ts's UserSettings shape -- the client-side view of what's persisted per-user. */
 export type UserHudSettings = {
@@ -10,6 +11,8 @@ export type UserSettings = {
   logoParticle?: string
   skipRedZoneWarning?: boolean
   quality?: QualitySetting
+  /** The mobile shell's on-screen controls (Full, Limited, None). */
+  onScreenControls?: ControlsMode
   hud?: UserHudSettings
 }
 

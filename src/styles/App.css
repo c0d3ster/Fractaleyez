@@ -194,3 +194,55 @@ html.mobile-shell body > canvas {
   -webkit-touch-callout: none;
   -webkit-user-select: none;
 }
+
+/* Long-press ring (components/mobile/LongPressRing.tsx): centered on the finger, it appears after a short delay and fills until the menu opens. */
+.long-press-ring {
+  position: fixed;
+  width: 96px;
+  height: 96px;
+  margin: -48px 0 0 -48px;
+  pointer-events: none;
+  z-index: 1000;
+  opacity: 0;
+  animation: long-press-ring-show 1ms linear var(--long-press-delay) forwards;
+}
+
+.long-press-ring svg {
+  position: absolute;
+  inset: 0;
+}
+
+.long-press-ring__track {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.18);
+  stroke-width: 4;
+}
+
+.long-press-ring__fill {
+  fill: none;
+  stroke: #FFA032;
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-dashoffset: var(--long-press-circumference);
+  animation: long-press-ring-fill var(--long-press-fill) linear var(--long-press-delay) forwards;
+}
+
+.long-press-ring__finger {
+  position: absolute;
+  left: 24px;
+  top: 24px;
+  width: 48px;
+  height: 48px;
+  box-sizing: border-box;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.22);
+  border: 2px solid rgba(255, 255, 255, 0.75);
+}
+
+@keyframes long-press-ring-show {
+  to { opacity: 1; }
+}
+
+@keyframes long-press-ring-fill {
+  to { stroke-dashoffset: 0; }
+}
