@@ -1,6 +1,8 @@
 import { AudioSource, DEFAULT_ENABLED_BANDS, nameRhythm, RhythmLabel, RhythmLabeler, RhythmPattern, RollLevel } from 'beatsense'
 import { audioAnalysis, createReadWatch } from './audio'
 import { AudioFeed } from './audioanalysis/audio-feed'
+import { AudioLifecycle, isMobileShell, MicPermission } from './audioanalysis/audio-lifecycle'
+import { soundHint } from './audioanalysis/sound-hint'
 import { VisualTap } from './audioanalysis/visual-tap'
 import { exportSectionLog } from './audioanalysis/section-export'
 import { DEFAULT_DETECTOR_MS, detectorCalibration, estimateLag, LagEstimate, median } from './audioanalysis/lag-estimate'
@@ -132,8 +134,67 @@ let idleMouseTimer: ReturnType<typeof setTimeout> | number = 0
 let forceMouseHide = false
 let idleSoundTimer = 0
 
+// The mobile shell (touch first, at most 820px wide) starts the sound on the first tap instead of at load; decided once, at load.
+const mobileShell = isMobileShell(window)
+
+// The draw loop's next frame, so a locked phone or a background tab can stop it (mobile only) and its return start it once.
+let frameRequest: number | null = null
+let drawingPaused = false
+
+const pauseDrawing = (): void => {
+  drawingPaused = true
+  if (frameRequest !== null) window.cancelAnimationFrame(frameRequest)
+  frameRequest = null
+}
+
+const resumeDrawing = (): void => {
+  if (!drawingPaused) return
+  drawingPaused = false
+  // The frame clocks restart now, so the first frame back is not one huge step.
+  lastFrameTime = performance.now()
+  lastDisplayFrameTime = lastFrameTime
+  frameRequest = window.requestAnimationFrame(analyze)
+}
+
+const queryMicPermission = async (): Promise<MicPermission | null> => {
+  try {
+    return await navigator.permissions?.query({ name: 'microphone' as PermissionName }) ?? null
+  } catch {
+    // Firefox has no `microphone` permission name.
+    return null
+  }
+}
+
+// Mobile: the visual starts at load on silence, and the first tap starts the context and opens the microphone (see AudioLifecycle).
+const initForFirstTap = (): void => {
+  const captureReady = capture.start().then(() => true, (err: unknown) => {
+    console.error('Audio capture setup failed:', err)
+    return false
+  })
+  const lifecycle = new AudioLifecycle({
+    context: audioContext,
+    connectMicrophone: capture.connectMicrophone,
+    onMicrophone: (microphone) => {
+      void captureReady.then((ready) => {
+        if (ready) visualTap.connect(microphone, capture.input)
+      })
+    },
+    queryMicPermission,
+    pauseDrawing,
+    resumeDrawing,
+    onContextResumed: audioFeed.resetClock,
+    setHint: soundHint.set,
+  })
+  lifecycle.attach(document, window)
+  init(null)
+}
+
 // Intiatialize Mic input stream & then set up Audio Analysis
 export const initWithMicrophone = (): void => {
+  if (mobileShell) {
+    initForFirstTap()
+    return
+  }
   capture.start()
     .then(() => capture.connectMicrophone())
     .then(init)
@@ -227,7 +288,7 @@ const hideCursorOnInactivity = (): void => {
 
 // This function will be called in a loop for each frame
 const analyze = (): void => {
-  window.requestAnimationFrame(analyze)
+  frameRequest = window.requestAnimationFrame(analyze)
 
   const now = performance.now()
   const displayGap = now - lastDisplayFrameTime
@@ -262,7 +323,8 @@ const analyze = (): void => {
   const visualizationData = audioFeed.tick(deltaTime)
   perfProbe.end('audio')
 
-  if (audioFeed.isSilent()) { // if the user hasnt clicked the page, the audio context wont be allowed to start automatically
+  // If the user hasnt clicked the page, the audio context wont be allowed to start automatically. On mobile the first tap starts it instead.
+  if (!mobileShell && audioFeed.isSilent()) {
     idleSoundTimer++
     if (idleSoundTimer > 100) {
       console.info('retrying sound')

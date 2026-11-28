@@ -26,4 +26,12 @@ describe('FrameClock', () => {
     for (let n = 0; n < 6000; n++) last = clock.toPageMs(n * HOP, 1000 + n * HOP * 1.0001)
     expect(Math.abs(last - (1000 + 5999 * HOP * 1.0001))).toBeLessThan(0.05)
   })
+
+  it('starts afresh after a reset, when the audio clock stood still while the page clock ran on', () => {
+    const clock = new FrameClock()
+    for (let n = 0; n < 60; n++) clock.toPageMs(n * HOP, 1000 + n * HOP)
+    // The context was suspended for 30 s: the next frame's audio time follows straight on, the page's does not.
+    clock.reset()
+    expect(clock.toPageMs(60 * HOP, 31000 + 60 * HOP)).toBeCloseTo(31000 + 60 * HOP, 6)
+  })
 })

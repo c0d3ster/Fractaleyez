@@ -17,4 +17,12 @@ export class FrameClock {
     else this.offsetMs = Math.min(observed, this.offsetMs + CREEP_MS_PER_FRAME)
     return frameMs + this.offsetMs
   }
+
+  /**
+   * Forget the offset, so the next frame sets it afresh. Call after the audio context was suspended (a locked phone, a background tab):
+   * its clock stood still while the page's ran on, and the offset would otherwise only creep up to the new one.
+   */
+  reset = (): void => {
+    this.offsetMs = null
+  }
 }

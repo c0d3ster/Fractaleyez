@@ -26,6 +26,7 @@ export type FrameListener = (frame: CaptureFrame) => void
  */
 export class AudioSource {
   private node: AudioWorkletNode | null = null
+  private stream: MediaStream | null = null
   private readonly listeners = new Set<FrameListener>()
   private spectrum = true
 
@@ -59,11 +60,23 @@ export class AudioSource {
     this.sendSpectrum()
   }
 
-  /** Open the microphone and return its source node, for the caller to route (through a volume, an analyser) into `input`. */
+  /**
+   * Open the microphone and return its source node, for the caller to route (through a volume, an analyser) into `input`. Calling it
+   * again (a denied microphone allowed later, a track the system ended) first stops the tracks it opened before, so only one is live.
+   * `getUserMedia` is called before anything is awaited, so a call from a tap handler still counts as that tap.
+   */
   connectMicrophone = async (): Promise<MediaStreamAudioSourceNode> => {
+    this.stopMicrophone()
     const getUserMedia = this.options.getUserMedia ?? ((constraints: MediaStreamConstraints): Promise<MediaStream> => navigator.mediaDevices.getUserMedia(constraints))
     const stream = await getUserMedia({ audio: MIC_CONSTRAINTS })
+    this.stream = stream
     return this.options.context.createMediaStreamSource(stream)
+  }
+
+  /** Stop the microphone's tracks, if it is open. */
+  stopMicrophone = (): void => {
+    this.stream?.getTracks().forEach((track) => track.stop())
+    this.stream = null
   }
 
   onFrame = (listener: FrameListener): (() => void) => {
@@ -79,6 +92,7 @@ export class AudioSource {
   }
 
   stop = (): void => {
+    this.stopMicrophone()
     this.node?.disconnect()
     if (this.node) this.node.port.onmessage = null
     this.node = null

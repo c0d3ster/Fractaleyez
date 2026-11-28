@@ -28,7 +28,7 @@ const setup = (): Setup => {
     createGain: (): Mute => mute,
     createMediaStreamSource: vi.fn().mockReturnValue(mic),
   }
-  const getUserMedia = vi.fn().mockResolvedValue({})
+  const getUserMedia = vi.fn().mockResolvedValue({ getTracks: () => [] })
   const source = new AudioSource({ context: context as never, workletUrl: '/worklet.js', getUserMedia })
   return { source, port, nodes, context, getUserMedia, mute, mic }
 }
@@ -54,6 +54,25 @@ describe('AudioSource', () => {
     expect(await source.connectMicrophone()).toBe(mic)
     expect(getUserMedia).toHaveBeenCalledWith({ audio: MIC_CONSTRAINTS })
     expect(MIC_CONSTRAINTS).toEqual({ autoGainControl: false, noiseSuppression: false, echoCancellation: false })
+  })
+
+  it('stops the tracks it opened before when it opens the microphone again', async () => {
+    const { source, getUserMedia } = setup()
+    const first = { stop: vi.fn() }
+    const second = { stop: vi.fn() }
+    getUserMedia.mockResolvedValueOnce({ getTracks: () => [first] }).mockResolvedValueOnce({ getTracks: () => [second] })
+    await source.connectMicrophone()
+    await source.connectMicrophone()
+    expect(first.stop).toHaveBeenCalledOnce()
+    expect(second.stop).not.toHaveBeenCalled()
+    source.stop()
+    expect(second.stop).toHaveBeenCalledOnce()
+  })
+
+  it('asks for the microphone before awaiting anything, so a tap handler\'s call counts as the tap', () => {
+    const { source, getUserMedia } = setup()
+    void source.connectMicrophone()
+    expect(getUserMedia).toHaveBeenCalledOnce()
   })
 
   it('hands every frame the worklet posts to the listeners, and stops after unsubscribing', async () => {
