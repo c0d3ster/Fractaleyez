@@ -1161,7 +1161,8 @@ function accountScenarios() {
       prepare: wake,
       run: async (cdp, page) => {
         // Limited shows no badge at rest: it comes back while the menu is open (MenuLimited.html), and the account sheet takes over.
-        if (from !== 'full') {
+        // The long-press can miss its timer under software GL (the known flake), so it is tried up to three times.
+        for (let i = 0; from !== 'full' && i < 3 && !(await page.$('[data-mobile-badge]')); i++) {
           await tap(cdp, W * 0.5, H * 0.2, 700)
           await sleep(500)
         }
@@ -1202,6 +1203,8 @@ function accountScenarios() {
     prepare: wake,
     run: async (cdp, page) => {
       await openAccountSheet(cdp, page)
+      // Clerk never loaded (a placeholder key): fail here rather than stop the whole run.
+      if (!(await page.$('.account-signin'))) return { ...(await read(page)), modalOnTop: false }
       await tapVisible(cdp, page, '.account-signin')
       await sleep(1500)
       const mid = await snap(cdp, page, 'account-guest-sign-in')
