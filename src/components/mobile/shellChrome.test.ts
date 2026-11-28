@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { CONTROLS_FADE_MS, controlsVisibility } from '../../config/mobileControls.config'
 import type { Schedule } from './longPress'
-import { badgeState, barState, ChromeInputs, createIdleFade } from './shellChrome'
+import { badgeState, barState, ChromeInputs, type ChromeTarget, createIdleFade, createWakeGuard, wakesOnly } from './shellChrome'
 
 const fakeClock = (): { schedule: Schedule; advance: (ms: number) => void } => {
   let now = 0
@@ -49,8 +49,9 @@ describe('barState', () => {
     }
   })
 
-  it('does not fade while the menu is open', () => {
-    expect(barState(inputs({ visibility: controlsVisibility('full', true), idle: true }))).toBe('shown')
+  it('is off in Full while a sheet is open', () => {
+    expect(barState(inputs({ visibility: controlsVisibility('full', true) }))).toBe('off')
+    expect(barState(inputs({ visibility: controlsVisibility('full', true), idle: true }))).toBe('off')
   })
 })
 
@@ -113,5 +114,68 @@ describe('createIdleFade', () => {
     fade.stop()
     clock.advance(CONTROLS_FADE_MS)
     expect(fade.isIdle()).toBe(false)
+  })
+})
+
+const BAR_RECT = { left: 0, top: 700, right: 390, bottom: 844 }
+const BADGE_RECT = { left: 330, top: 20, right: 374, bottom: 64 }
+const chrome = (bar: ChromeTarget['state'], badge: ChromeTarget['state']): ChromeTarget[] => [
+  { state: bar, rect: BAR_RECT },
+  { state: badge, rect: BADGE_RECT },
+]
+
+describe('wakesOnly', () => {
+  it('takes a touch on the faded bar or the faded badge', () => {
+    expect(wakesOnly({ x: 100, y: 760 }, chrome('faded', 'faded'))).toBe(true)
+    expect(wakesOnly({ x: 350, y: 40 }, chrome('faded', 'faded'))).toBe(true)
+  })
+
+  it('leaves a touch on the open visual to steer, faded or not', () => {
+    expect(wakesOnly({ x: 200, y: 400 }, chrome('faded', 'faded'))).toBe(false)
+    expect(wakesOnly({ x: 200, y: 400 }, chrome('shown', 'shown'))).toBe(false)
+  })
+
+  it('leaves a touch on a shown bar or badge to the controls, as before', () => {
+    expect(wakesOnly({ x: 100, y: 760 }, chrome('shown', 'shown'))).toBe(false)
+    expect(wakesOnly({ x: 350, y: 40 }, chrome('shown', 'shown'))).toBe(false)
+  })
+
+  it('does not take a touch where the bar slid away or the badge is dimmed for a gesture', () => {
+    expect(wakesOnly({ x: 100, y: 760 }, chrome('away', 'dim'))).toBe(false)
+    expect(wakesOnly({ x: 350, y: 40 }, chrome('away', 'dim'))).toBe(false)
+  })
+
+  it('judges each element by its own state', () => {
+    expect(wakesOnly({ x: 100, y: 760 }, chrome('shown', 'faded'))).toBe(false)
+    expect(wakesOnly({ x: 350, y: 40 }, chrome('shown', 'faded'))).toBe(true)
+  })
+
+  it('takes nothing when neither is drawn', () => {
+    expect(wakesOnly({ x: 100, y: 760 }, [])).toBe(false)
+  })
+})
+
+describe('createWakeGuard', () => {
+  it('owns a taken touch from the press to the lift', () => {
+    const guard = createWakeGuard()
+    expect(guard.down(1, { x: 100, y: 760 }, chrome('faded', 'faded'))).toBe(true)
+    expect(guard.owns(1)).toBe(true)
+    guard.end(1)
+    expect(guard.owns(1)).toBe(false)
+  })
+
+  it('keeps owning the taken touch after the chrome comes back, so its lift does not tap the button now under it', () => {
+    const guard = createWakeGuard()
+    guard.down(1, { x: 100, y: 760 }, chrome('faded', 'faded'))
+    expect(guard.owns(1)).toBe(true)
+    // The next touch, with the bar shown, reaches the bar.
+    expect(guard.down(2, { x: 100, y: 760 }, chrome('shown', 'shown'))).toBe(false)
+    expect(guard.owns(2)).toBe(false)
+  })
+
+  it('does not own a touch it left alone', () => {
+    const guard = createWakeGuard()
+    expect(guard.down(3, { x: 200, y: 400 }, chrome('faded', 'faded'))).toBe(false)
+    expect(guard.owns(3)).toBe(false)
   })
 })
