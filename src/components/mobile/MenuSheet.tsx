@@ -14,7 +14,7 @@ import { BAR_LAYERS } from './BottomBar'
 import type { LayerSubTab } from './layerPages'
 import { LayerPage, LayerPageHead } from './LayerPage'
 import { ConfigMenuTabBody } from './MenuTabs'
-import { setMenuOpen, subscribeOpenMenu } from './menuBus'
+import { setMenuOpen, subscribeOpenAccount, subscribeOpenMenu } from './menuBus'
 import { CLOSED_MENU, MENU_TAB_LABELS, MENU_TABS, type MenuTab, menuSheetReducer, scrollLeftToShow } from './menuSheetState'
 import { useLayerReset } from './useLayerReset'
 import './MenuSheet.css'
@@ -136,6 +136,8 @@ export const MenuSheet = (): React.ReactElement | null => {
   const { open, tab, layerPage, subTab } = state
 
   useEffect(() => subscribeOpenMenu((page) => dispatch({ type: 'open', page })), [])
+  // One sheet at a time: the badge's account sheet takes over from this one.
+  useEffect(() => subscribeOpenAccount(() => dispatch({ type: 'close' })), [])
 
   // The menu bus pauses the gestures while this is true (main.ts), so the sheet does not pause them itself.
   useEffect(() => setMenuOpen(open), [open])
