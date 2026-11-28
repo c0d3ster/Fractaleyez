@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Account sheet, signed out</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Acme&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#000}
+a{color:#FFA032}a:hover{color:#FFC27A}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; overflow: hidden; background: #000; font-family: Inter, sans-serif; color: #EDEDED">
+  <div aria-hidden="true" style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; opacity: 0.6">
+    <div style="position: absolute; width: 760px; height: 760px; border-radius: 50%; border: 3px solid #FF3B1F"></div>
+    <div style="position: absolute; width: 560px; height: 560px; border-radius: 50%; border: 3px solid #FFA032"></div>
+    <div style="position: absolute; width: 400px; height: 400px; border-radius: 50%; border: 3px solid #E8E22A"></div>
+    <div style="position: absolute; width: 280px; height: 280px; border-radius: 50%; border: 3px solid #3FD14A"></div>
+    <div style="position: absolute; width: 190px; height: 190px; border-radius: 50%; border: 3px solid #2A6BFF"></div>
+  </div>
+  <div style="position: absolute; top: 20px; left: 16px; right: 16px; display: flex; justify-content: space-between; align-items: center; opacity: 1">
+    <div style="display: flex; gap: 6px"></div>
+    <div style="display: flex; gap: 6px"><button aria-label="Account" style="width: 44px; height: 44px; border-radius: 22px; background: rgba(0,0,0,0.6); border: 1.5px solid #3A3A3A; display: flex; align-items: center; justify-content: center"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#EDEDED" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"></circle><path d="M4 21a8 8 0 0 1 16 0"></path></svg></button></div>
+  </div>
+<div aria-hidden="true" style="position: absolute; top: 14px; right: 10px; width: 56px; height: 56px; border-radius: 28px; border: 2px solid rgba(255,160,50,0.7)"></div>
+  <div style="position: absolute; left: 16px; right: 72px; top: 84px; padding: 12px 14px; border-radius: 14px; background: rgba(12,12,12,0.9); border: 1px solid #2E2E2E">
+    <div style="font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase; color: #FFA032; margin-bottom: 4px">Signed out</div>
+    <div style="font-size: 13px; line-height: 1.45; color: #C9C9C9">The badge is a plain person icon. The sheet leads with sign-in, but On-screen controls still works, saved to this browser.</div>
+  </div>
+  <div role="dialog" aria-label="Menu" style="position: absolute; left: 0; right: 0; top: 470px; bottom: 0; padding: 10px 16px 24px; border-radius: 22px 22px 0 0; background: rgba(14,14,14,0.96); border-top: 1px solid #333; display: flex; flex-direction: column; gap: 12px; overflow: hidden">
+    <div aria-hidden="true" style="align-self: center; width: 40px; height: 4px; border-radius: 2px; background: #555"></div>
+    <div style="display: flex; flex-direction: column; gap: 6px">
+      <span style="font-family: Acme, sans-serif; font-size: 24px; color: #fff">Save what you make</span>
+      <span style="font-size: 14px; line-height: 1.45; color: #B4B4B4">Sign in to save presets and upload your own logos and sprites.</span>
+    </div>
+    <button style="height: 48px; border-radius: 24px; border: 0; background: #FFA032; color: #111; font: 600 15px Inter, sans-serif">Sign in or create an account</button>
+    <div style="display: flex; flex-direction: column; gap: 8px">
+<button style="display: flex; align-items: center; justify-content: space-between; height: 48px; padding: 0 14px; border-radius: 12px; border: 1px solid #2A2A2A; background: #181818; color: #EDEDED; font: 500 15px Inter, sans-serif"><span>On-screen controls</span><span style="display: flex; align-items: center; gap: 6px; color: #9A9A9A; font-size: 14px">Full<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#CFCFCF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg></span></button>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>
