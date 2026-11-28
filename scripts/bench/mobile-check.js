@@ -103,6 +103,71 @@ const READ = `(() => ({
           scrolls: body ? body.scrollHeight > body.clientHeight + 1 : null,
         }
       })(),
+      // The Effects, Color and Camera tabs (#366).
+      menuTab: (() => {
+        const box = (node) => node.getBoundingClientRect()
+        const pressedOf = (node) => node.getAttribute('aria-pressed') === 'true'
+        const slider = (root) => root.querySelector('.sheet-slider')
+        const sliderName = (root) => slider(root)?.querySelector('.slider-name')?.textContent.trim().replace(/:$/, '') ?? null
+        const fx = el.querySelector('.mobile-effects')
+        const color = el.querySelector('.mobile-color')
+        const cam = el.querySelector('.mobile-camera')
+        const effects = fx && (() => {
+          const buttons = [...fx.querySelectorAll('[data-menu-effect]')]
+          const grid = fx.querySelector('.mobile-effects__grid')
+          const auto = fx.querySelector('.auto-switch-button')
+          return {
+            dial: Math.round(box(fx.querySelector('.kaleidoscope-dial')).width),
+            dialChips: fx.querySelectorAll('.effect-chip').length,
+            count: fx.querySelector('[data-kaleidoscope-count]')?.textContent ?? null,
+            modes: [...fx.querySelectorAll('[data-kaleidoscope-mode]')].map(pressedOf),
+            modeHeight: Math.round(Math.min(...[...fx.querySelectorAll('[data-kaleidoscope-mode]')].map((node) => box(node).height))),
+            buttons: buttons.map((node) => node.dataset.menuEffect),
+            pressed: Object.fromEntries(buttons.map((node) => [node.dataset.menuEffect, pressedOf(node)])),
+            looks: Object.fromEntries(buttons.map((node) => [node.dataset.menuEffect, node.dataset.look])),
+            columns: getComputedStyle(grid).gridTemplateColumns.split(' ').length,
+            // offsetTop, not the box: a beat's pulse scales a button for a moment.
+            rows: new Set(buttons.map((node) => node.offsetTop)).size,
+            minTarget: Math.round(Math.min(...buttons.map((node) => Math.min(box(node).width, box(node).height)))),
+            labelSize: getComputedStyle(fx.querySelector('.mobile-effect__name')).fontSize,
+            labelsOneLine: [...fx.querySelectorAll('.mobile-effect__name')].every((node) => box(node).height <= 14),
+            autoOn: auto ? pressedOf(auto) : null,
+            autoWide: auto ? box(auto).width >= box(fx).width - 2 : null,
+            autoHeight: auto ? Math.round(box(auto).height) : null,
+            autoLast: auto ? box(auto).top > box(grid).bottom : null,
+          }
+        })()
+        const colorTab = color && (() => {
+          const row = color.querySelector('.palette-row')
+          return {
+            tiles: [...color.querySelectorAll('[data-palette]')].map((node) => node.dataset.palette),
+            tile: color.querySelector('[data-palette][aria-pressed="true"]')?.dataset.palette ?? null,
+            tileHeight: Math.round(box(color.querySelector('[data-palette]')).height),
+            rowScrolls: row.scrollWidth > row.clientWidth,
+            range: !!color.querySelector('.palette-range__track'),
+            buttons: [...color.querySelectorAll('[data-one-slider-item]')].map((node) => node.dataset.oneSliderItem),
+            selected: color.querySelector('[data-one-slider-item][aria-selected="true"]')?.dataset.oneSliderItem ?? null,
+            sliderName: sliderName(color),
+            pills: [...color.querySelectorAll('.mobile-color__pills input')].map((node) => node.name),
+            pillHeight: Math.round(Math.min(...[...color.querySelectorAll('.mobile-color__pills label')].map((node) => box(node).height))),
+            order: [...color.children].map((node) => node.className.split(' ')[0]),
+          }
+        })()
+        const camera = cam && (() => {
+          const pad = cam.querySelector('.pad')
+          return {
+            sway: cam.dataset.sway,
+            sliders: cam.querySelectorAll('.slider-input').length,
+            sliderName: sliderName(cam),
+            dials: cam.querySelectorAll('[class*="spin-dial"]').length,
+            checkboxes: cam.querySelectorAll('input[type="checkbox"]').length,
+            padWidth: pad ? Math.round(box(pad).width) : null,
+            padOpacity: Number(getComputedStyle(cam.querySelector('.pad-wrapper')).opacity),
+            infoOpacity: Number(getComputedStyle(cam.querySelector('.mobile-camera__info')).opacity),
+          }
+        })()
+        return { effects, color: colorTab, camera }
+      })(),
     }
   })(),
   config: {
@@ -113,6 +178,11 @@ const READ = `(() => ({
     sprites: window.config.particle.sprites.value.length,
     logo: Object.fromEntries(['threeD', 'lean', 'zoom', 'size', 'spinSpeed', 'shake'].map((key) => [key, window.config.logo[key].value])),
     clips: window.config.video.clips,
+    kaleidoscopeCount: window.config.effects.kaleidoscopeCount.value,
+    kaleidoscopeMode: window.config.effects.kaleidoscopeMode.value,
+    palette: window.config.color.palette.value[0] ?? null,
+    color: Object.fromEntries(['paletteCycles', 'palettePhase', 'saturation', 'paletteReverse', 'paletteHardEdge'].map((key) => [key, window.config.color[key].value])),
+    sway: window.config.user.sway.value,
   },
 }))()`
 
@@ -309,6 +379,9 @@ const SCENARIOS = {
   // The layer pages (`#365`). Compare the screenshots with docs/mobile-design/MenuLayerDetail.html (Fractal Type), FractalShape.html,
   // OrbitShape.html, OrbitParticles.html, OrbitSprites.html and LogoLook.html. Logo Motion, Logo Pad and Video have no design.
   ...layerPageScenarios(),
+  // The Effects, Color and Camera tabs (`#366`). Compare the screenshots with docs/mobile-design/MenuFull.html (Effects),
+  // ColorTab.html and CameraTab.html.
+  ...menuTabScenarios(),
 }
 
 // Opens the sheet with the bar's menu button and waits for it to slide in.
@@ -716,6 +789,178 @@ function layerPageScenarios() {
       const lp = mid.sheet?.layerPage
       if (lp?.segments.length === 2) return true
       return fits(mid.sheet) && lp?.subTab === 'shape' && lp.segments.length === 0 && lp.title === 'Fractal' && lp.types === 0 && lp.sliderName === 'Tour'
+    },
+  }
+  return scenarios
+}
+
+// Opens the sheet on one of its tabs with the tab's pill.
+const openTab = async (cdp, page, tab) => {
+  await openSheet(cdp, page)
+  await tapVisible(cdp, page, `[data-menu-tab="${tab}"]`)
+}
+
+function menuTabScenarios() {
+  const scenarios = {}
+  const sheetHeight = () => Math.round(Math.min(374, H * 0.6))
+  const read = (page) => page.evaluate(READ)
+  const fits = (sheet) => sheet?.state === 'open' && sheet.height === sheetHeight() && sheet.bottom === H
+  const tabOf = (state, tab) => (state.sheet?.tab === tab ? state.sheet.menuTab[tab] : null)
+  const EFFECTS = ['kaleidoscope', 'cyclone', 'wobWob', 'switcheroo', 'colorShift', 'glow', 'shockwave']
+  // Effects: the 100px dial (no desktop chips under it) with the mirror count and three mode buttons beside it, then every effect,
+  // the kaleidoscope first, six to a row with 44px targets and one-line 10px names, and Auto full width under them.
+  scenarios['tab-effects'] = {
+    changes: [],
+    prepare: wake,
+    run: async (cdp, page) => {
+      await openTab(cdp, page, 'effects')
+      return snap(cdp, page, 'tab-effects')
+    },
+    expect: (before, after, mid) => {
+      const fx = tabOf(mid, 'effects')
+      return fits(mid.sheet) && fx?.dial === 100 && fx.dialChips === 0 && fx.count === String(before.config.kaleidoscopeCount)
+        && fx.modes.length === 3 && fx.modes[before.config.kaleidoscopeMode] === true && fx.modeHeight >= 44
+        && fx.buttons.join() === EFFECTS.join() && fx.columns === 6 && fx.rows === 2 && fx.minTarget >= 44
+        && fx.labelSize === '10px' && fx.labelsOneLine && fx.autoWide && fx.autoHeight >= 44 && fx.autoLast
+        && EFFECTS.every((key) => fx.pressed[key] === before.ui.effects[key])
+    },
+  }
+  // A tap on an effect switches it in the config, and its button and the bar's button follow; the kaleidoscope's too.
+  scenarios['tab-effects-toggle'] = {
+    changes: [],
+    prepare: wake,
+    run: async (cdp, page) => {
+      await openTab(cdp, page, 'effects')
+      await tapVisible(cdp, page, '[data-menu-effect="switcheroo"]')
+      const one = await read(page)
+      await tapVisible(cdp, page, '[data-menu-effect="kaleidoscope"]')
+      return { one, two: await snap(cdp, page, 'tab-effects-toggle') }
+    },
+    expect: (before, after, mid) => {
+      const one = tabOf(mid.one, 'effects')
+      const two = tabOf(mid.two, 'effects')
+      return mid.one.ui.effects.switcheroo === !before.ui.effects.switcheroo && one?.pressed.switcheroo === mid.one.ui.effects.switcheroo
+        && mid.one.ui.effects.kaleidoscope === before.ui.effects.kaleidoscope
+        && mid.two.ui.effects.kaleidoscope === !before.ui.effects.kaleidoscope && two?.pressed.kaleidoscope === mid.two.ui.effects.kaleidoscope
+        && mid.two.ui.effectButtons.kaleidoscope === mid.two.ui.effects.kaleidoscope
+        && ['cyclone', 'wobWob', 'colorShift', 'glow', 'shockwave'].every((key) => mid.two.ui.effects[key] === before.ui.effects[key])
+    },
+  }
+  // The mode buttons pick the mirror mode; a drag round the dial changes the mirror count, and the count beside it follows.
+  scenarios['tab-effects-dial'] = {
+    changes: [],
+    prepare: wake,
+    run: async (cdp, page) => {
+      await openTab(cdp, page, 'effects')
+      await tapVisible(cdp, page, '[data-kaleidoscope-mode="1"]')
+      const moded = await read(page)
+      const [cx, cy, r] = await page.evaluate(() => {
+        const box = document.querySelector('.mobile-effects .kaleidoscope-dial').getBoundingClientRect()
+        return [box.left + box.width / 2, box.top + box.height / 2, box.width * 0.4]
+      })
+      // From the top (the fewest mirrors) a quarter of the way round, clockwise.
+      await drag(cdp, [[cx, cy - r]], [[cx + r, cy]], 12, 20)
+      await sleep(400)
+      return { moded, turned: await snap(cdp, page, 'tab-effects-dial') }
+    },
+    expect: (before, after, mid) => {
+      const turned = tabOf(mid.turned, 'effects')
+      return mid.moded.config.kaleidoscopeMode === 1 && tabOf(mid.moded, 'effects')?.modes.join() === 'false,true,false'
+        && mid.turned.config.kaleidoscopeCount > before.config.kaleidoscopeCount && turned?.count === String(mid.turned.config.kaleidoscopeCount)
+    },
+  }
+  // Auto turns on and off from the bottom of the tab.
+  scenarios['tab-effects-auto'] = {
+    changes: [],
+    prepare: wake,
+    run: async (cdp, page) => {
+      await openTab(cdp, page, 'effects')
+      const first = await read(page)
+      await tapVisible(cdp, page, '.mobile-effects .auto-switch-button')
+      const flipped = await read(page)
+      await tapVisible(cdp, page, '.mobile-effects .auto-switch-button')
+      return { first, flipped, back: await read(page) }
+    },
+    expect: (before, after, mid) => {
+      const first = tabOf(mid.first, 'effects')?.autoOn
+      return typeof first === 'boolean' && tabOf(mid.flipped, 'effects')?.autoOn === !first && tabOf(mid.back, 'effects')?.autoOn === first
+    },
+  }
+  // Color: the palettes as a sideways row of tiles (it scrolls), the range bar, Cycles, Phase and Saturation as one slider
+  // (Cycles first), then Reverse and Hard Edge as pills, in that order.
+  scenarios['tab-color'] = {
+    changes: [],
+    prepare: wake,
+    run: async (cdp, page) => {
+      await openTab(cdp, page, 'color')
+      return snap(cdp, page, 'tab-color')
+    },
+    expect: (before, after, mid) => {
+      const color = tabOf(mid, 'color')
+      return fits(mid.sheet) && color?.tiles.length > 6 && color.tile === (before.config.palette ?? color.tiles[0]) && color.rowScrolls && color.tileHeight >= 44
+        && color.range && color.buttons.join() === 'paletteCycles,palettePhase,saturation' && color.selected === 'paletteCycles' && color.sliderName === 'Cycles'
+        && color.pills.join() === 'paletteReverse,paletteHardEdge' && color.pillHeight >= 44
+        && color.order.join() === 'palette-picker,palette-range,one-slider,config-checkbox-row'
+    },
+  }
+  // A palette tile picks the palette; Phase's button puts its slider below and the slider moves Phase only; Reverse flips.
+  scenarios['tab-color-change'] = {
+    changes: [],
+    prepare: wake,
+    run: async (cdp, page) => {
+      await openTab(cdp, page, 'color')
+      await tapVisible(cdp, page, '[data-palette]:not([aria-pressed="true"])')
+      const picked = await read(page)
+      await tapVisible(cdp, page, '[data-one-slider-item="palettePhase"]')
+      await slideBy(cdp, page, '.mobile-color .sheet-slider .slider-input', 0.3)
+      const slid = await read(page)
+      await tapVisible(cdp, page, '.mobile-color__pills input[name="paletteReverse"] + label')
+      return { picked, slid, reversed: await snap(cdp, page, 'tab-color-change') }
+    },
+    expect: (before, after, mid) => {
+      const slid = tabOf(mid.slid, 'color')
+      const { color } = before.config
+      return mid.picked.config.palette !== before.config.palette && tabOf(mid.picked, 'color')?.tile === mid.picked.config.palette
+        && slid?.sliderName === 'Phase' && mid.slid.config.color.palettePhase !== color.palettePhase
+        && mid.slid.config.color.paletteCycles === color.paletteCycles && mid.slid.config.color.saturation === color.saturation
+        && mid.reversed.config.color.paletteReverse === !color.paletteReverse && mid.reversed.config.color.paletteHardEdge === color.paletteHardEdge
+    },
+  }
+  // Camera: Sway as the large slider and the 140px camera pad, nothing else (Speed, Rotation and Scale are gestures, no Reverse
+  // Lean). At Sway 0 (the default) the pad and its caption are faded.
+  scenarios['tab-camera'] = {
+    changes: [],
+    prepare: wake,
+    run: async (cdp, page) => {
+      await openTab(cdp, page, 'camera')
+      return snap(cdp, page, 'tab-camera')
+    },
+    expect: (before, after, mid) => {
+      const cam = tabOf(mid, 'camera')
+      const off = before.config.sway === 0
+      return fits(mid.sheet) && cam?.sliders === 1 && cam.sliderName === 'Sway' && cam.dials === 0 && cam.checkboxes === 0 && Math.abs(cam.padWidth - 140) <= 2
+        && cam.sway === (off ? 'off' : 'on') && (off ? cam.padOpacity < 0.5 && cam.infoOpacity < 0.5 : cam.padOpacity === 1 && cam.infoOpacity === 1)
+    },
+  }
+  // Raising Sway lights the pad up, and a drag on the pad moves the camera.
+  scenarios['tab-camera-pad'] = {
+    changes: ['camera'],
+    prepare: wake,
+    run: async (cdp, page) => {
+      await openTab(cdp, page, 'camera')
+      await slideBy(cdp, page, '.mobile-camera .sheet-slider .slider-input', 0.4)
+      const swayed = await read(page)
+      const [x, y, w] = await page.evaluate(() => {
+        const box = document.querySelector('.mobile-camera .pad').getBoundingClientRect()
+        return [box.left + box.width / 2, box.top + box.height / 2, box.width]
+      })
+      await drag(cdp, [[x, y]], [[x + w * 0.35, y - w * 0.3]], 12, 20)
+      await sleep(300)
+      return { swayed, dragged: await snap(cdp, page, 'tab-camera-pad') }
+    },
+    expect: (before, after, mid) => {
+      const cam = tabOf(mid.swayed, 'camera')
+      return mid.swayed.config.sway > 0 && cam?.sway === 'on' && cam.padOpacity === 1 && cam.infoOpacity === 1
     },
   }
   return scenarios
