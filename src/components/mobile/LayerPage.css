@@ -287,16 +287,40 @@
   font: 500 15px Inter, sans-serif;
 }
 
-/* Logo Pad (no design): the desktop pad, kept small enough to fit the sheet with its readouts. */
+/* Logo Pad (no design): the desktop pad at 160px with its label and readouts beside it, as the Camera tab sets its pad, so the
+   page fits the sheet without scrolling. */
 .layer-page__pad .pad-wrapper {
-  width: min(100%, 170px);
-  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 160px minmax(0, 1fr);
+  grid-template-rows: 1fr 1fr;
+  gap: 6px 16px;
+  margin: 0;
   padding: 0;
+}
+
+.layer-page__pad .pad {
+  grid-column: 1;
+  grid-row: 1 / 3;
 }
 
 .layer-page__pad .pad-label,
 .layer-page__pad .pad-values {
+  grid-column: 2;
+  justify-content: flex-start;
+  flex-wrap: wrap;
   color: #999;
+  text-align: left;
+}
+
+.layer-page__pad .pad-label {
+  grid-row: 1;
+  align-self: end;
+}
+
+.layer-page__pad .pad-values {
+  grid-row: 2;
+  align-self: start;
+  gap: 4px 14px;
 }
 
 /* Video (no design): the camera switch with its info line, then the clips. */

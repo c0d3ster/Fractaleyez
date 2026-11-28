@@ -132,11 +132,15 @@
   gap: 12px;
 }
 
+/* The intro line is read out with the choices but not drawn: with it the cards would not fit the sheet's fixed height. */
 .account-controls__intro {
-  margin: 0;
-  font-size: 14px;
-  line-height: 1.45;
-  color: #B4B4B4;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .account-controls__options {
@@ -149,7 +153,7 @@
   display: flex;
   align-items: flex-start;
   gap: 14px;
-  padding: 14px 16px;
+  padding: 12px 16px;
   border-radius: 12px;
   background: #181818;
   border: 1.5px solid #2E2E2E;
@@ -190,19 +194,125 @@
   background: #FFA032;
 }
 
+/* The title runs into its description (UIMode.html stacks them, on a sheet taller than the menu's), at the screen's sizes, so the
+   three cards and the intro fit the sheet's fixed height without scrolling. */
 .account-mode__text {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+  display: block;
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 .account-mode__title {
+  margin-right: 6px;
   font-size: 16px;
   font-weight: 600;
+  line-height: 1;
 }
 
 .account-mode__description {
-  font-size: 13px;
+  color: #B4B4B4;
+}
+
+/* Plan (no design): the desktop Plan page, laid out to fit the sheet without scrolling. The view's head already says Plan, so the
+   section title goes; the current plan sits on the first row with Manage billing beside it (for a subscriber); the tiers are cards
+   in a sideways row that runs out under the sheet's right edge, like the palettes; the notes and links follow on full rows. */
+.account-plan .plan-page {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 0;
+}
+
+.account-plan .plan-page > * {
+  grid-column: 1 / -1;
+}
+
+.account-plan .plan-page__section-title {
+  display: none;
+}
+
+.account-plan .plan-page__current {
+  grid-column: 1;
+  grid-row: 1;
+  gap: 2px;
+}
+
+.account-plan .plan-page__current-name {
+  font: 600 18px Inter, sans-serif;
+  color: #EDEDED;
+}
+
+.account-plan .plan-page__hint {
+  font-size: 12px;
+  color: #9A9A9A;
+}
+
+.account-plan .plan-page__row {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.account-plan .plan-page__row .plan-page__hint {
+  display: none;
+}
+
+.account-plan .plan-page__tiers {
+  display: flex;
+  gap: 8px;
+  margin-right: -16px;
+  padding-right: 16px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  touch-action: pan-x;
+  scrollbar-width: none;
+}
+
+.account-plan .plan-page__tiers::-webkit-scrollbar {
+  display: none;
+}
+
+.account-plan .plan-page__tier {
+  flex: none;
+  width: 78%;
+  box-sizing: border-box;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 12px;
+  border-color: #2A2A2A;
+  background: #181818;
+  scroll-snap-align: start;
+}
+
+.account-plan .plan-page__tier--current {
+  border-color: #FFA032;
+}
+
+.account-plan .plan-page__tier-name {
+  font: 600 15px Inter, sans-serif;
+  color: #EDEDED;
+}
+
+.account-plan .plan-page__tier-price {
+  color: #B4B4B4;
+}
+
+.account-plan .plan-page__perks {
   line-height: 1.45;
   color: #B4B4B4;
+}
+
+.account-plan .plan-page__button {
+  min-height: 33px;
+}
+
+/* The buttons are 33px; each one's hit area reaches 6px past it into the padding around it (::before), a 45px target. */
+.account-plan .plan-page__button {
+  position: relative;
+}
+
+.account-plan .plan-page__button::before {
+  content: '';
+  position: absolute;
+  inset: -6px 0;
 }
