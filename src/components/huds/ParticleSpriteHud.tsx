@@ -17,6 +17,11 @@ const spriteLabel = (src: string): string => {
 }
 
 type ParticleSpriteHudProps = {
+  /**
+   * The mobile Orbit page (docs/mobile-design/OrbitSprites.html): only the picker, without the title and the Active row. A tap on a
+   * picked tile still takes it out of the list.
+   */
+  pickerOnly?: boolean
   updateParticleSprites: (sprites: string[]) => Promise<void>
   applyUserReference: ConfigContextValue['applyUserReference']
   releaseUserReference: ConfigContextValue['releaseUserReference']
@@ -26,7 +31,7 @@ type ParticleSpriteHudProps = {
 
 const selectSprites = (config: AppConfig): string[] => config.particle.sprites.value
 
-const ParticleSpriteHudInner = ({ updateParticleSprites, applyUserReference, releaseUserReference, userReferenceStandIn, userSettings }: ParticleSpriteHudProps): React.ReactElement => {
+const ParticleSpriteHudInner = ({ pickerOnly = false, updateParticleSprites, applyUserReference, releaseUserReference, userReferenceStandIn, userSettings }: ParticleSpriteHudProps): React.ReactElement => {
   const info = useInfo()
   const sprites = useConfigSelector(selectSprites)
   const spritesRef = useRef(sprites)
@@ -72,6 +77,24 @@ const ParticleSpriteHudInner = ({ updateParticleSprites, applyUserReference, rel
   const isTileDisabled = useCallback((): boolean => atCapacity, [atCapacity])
   const logoUrl = userSettings?.logoParticle
 
+  const picker = (
+    <SpritePicker
+      builtins={BUILTIN_PARTICLE_SPRITES}
+      isSelected={isSelected}
+      onPick={toggleSprite}
+      onUploaded={onUploaded}
+      logoSelected={logoUrl !== undefined && sprites.includes(logoUrl) && userReferenceStandIn.particle === null}
+      // With @user active the logo is already in the list, so picking the plain tile turns that into a concrete sprite instead of removing it.
+      onPickLogo={(url) => void (userReferenceStandIn.particle !== null ? releaseUserReference('particle') : Promise.resolve(toggleSprite(url)))}
+      referenceSelected={userReferenceStandIn.particle !== null}
+      onPickReference={() => void (userReferenceStandIn.particle !== null ? releaseUserReference('particle', { remove: true }) : applyUserReference('particle'))}
+      isTileDisabled={isTileDisabled}
+      addBlockedReason={atCapacity ? `Max ${maxN} particles reached` : undefined}
+      noun='particle'
+    />
+  )
+  if (pickerOnly) return picker
+
   return (
     <div className='particle-sprite-hud'>
       <span className='particle-sprite-hud__label'>Particles</span>
@@ -110,20 +133,7 @@ const ParticleSpriteHudInner = ({ updateParticleSprites, applyUserReference, rel
             ))}
           </div>
         </div>
-        <SpritePicker
-          builtins={BUILTIN_PARTICLE_SPRITES}
-          isSelected={isSelected}
-          onPick={toggleSprite}
-          onUploaded={onUploaded}
-          logoSelected={logoUrl !== undefined && sprites.includes(logoUrl) && userReferenceStandIn.particle === null}
-          // With @user active the logo is already in the list, so picking the plain tile turns that into a concrete sprite instead of removing it.
-          onPickLogo={(url) => void (userReferenceStandIn.particle !== null ? releaseUserReference('particle') : Promise.resolve(toggleSprite(url)))}
-          referenceSelected={userReferenceStandIn.particle !== null}
-          onPickReference={() => void (userReferenceStandIn.particle !== null ? releaseUserReference('particle', { remove: true }) : applyUserReference('particle'))}
-          isTileDisabled={isTileDisabled}
-          addBlockedReason={atCapacity ? `Max ${maxN} particles reached` : undefined}
-          noun='particle'
-        />
+        {picker}
       </div>
     </div>
   )

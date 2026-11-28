@@ -19,7 +19,7 @@ const formatDuration = (seconds: number): string => {
   return `${m}:${s.toString().padStart(2, '0')}`
 }
 
-const useCameraState = (): CameraState => useSyncExternalStore(cameraSource.subscribe, cameraSource.getState)
+export const useCameraState = (): CameraState => useSyncExternalStore(cameraSource.subscribe, cameraSource.getState)
 
 const ClipRow = ({ clip, active, onToggle }: ClipRowProps): React.ReactElement => {
   const [duration, setDuration] = useState<string | null>(null)
@@ -103,13 +103,15 @@ const LiveRow = ({ active, onToggle }: Omit<ClipRowProps, 'clip'>): React.ReactE
 }
 
 type ConfigVideoBodyProps = {
+  /** Leave out the camera entry (the mobile Video page draws its own camera switch). */
+  hideLive?: boolean
   updateVideoClips: (clips: string[]) => void
   toggleLiveVideo: () => void
 }
 
 const selectVideo = (config: AppConfig): AppConfig['video'] => config.video
 
-const ConfigVideoBodyInner = ({ updateVideoClips, toggleLiveVideo }: ConfigVideoBodyProps): React.ReactElement => {
+const ConfigVideoBodyInner = ({ hideLive = false, updateVideoClips, toggleLiveVideo }: ConfigVideoBodyProps): React.ReactElement => {
   const { clips, allClips = clips } = useConfigSelector(selectVideo)
 
   const toggle = (clip: string): void => {
@@ -125,7 +127,7 @@ const ConfigVideoBodyInner = ({ updateVideoClips, toggleLiveVideo }: ConfigVideo
 
   return (
     <>
-      {allClips.map((clip) => (isLiveClip(clip) ? (
+      {allClips.filter((clip) => !hideLive || !isLiveClip(clip)).map((clip) => (isLiveClip(clip) ? (
         <LiveRow key={clip} active={clips.includes(clip)} onToggle={() => toggle(clip)} />
       ) : (
         <ClipRow key={clip} clip={clip} active={clips.includes(clip)} onToggle={() => toggle(clip)} />

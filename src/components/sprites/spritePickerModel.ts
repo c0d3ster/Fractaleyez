@@ -21,10 +21,12 @@ export const GRID_ROWS = 2
 export const GRID_MIN_COLUMNS = 4
 export const TILE_TARGET_PX = 40
 export const TILE_GAP_PX = 4
+/** The mobile shell's tiles are bigger for a finger: six across a phone's sheet (about 54px each on a 375px wide phone). */
+export const TOUCH_TILE_TARGET_PX = 52
 
-/** How many columns the grid gets at `width`: as many ~40px tiles as fit, never fewer than four. */
-export const columnsFor = (width: number): number =>
-  Math.max(GRID_MIN_COLUMNS, Math.floor((width + TILE_GAP_PX) / (TILE_TARGET_PX + TILE_GAP_PX)))
+/** How many columns the grid gets at `width`: as many tiles of about `target` px as fit, never fewer than four. */
+export const columnsFor = (width: number, target = TILE_TARGET_PX): number =>
+  Math.max(GRID_MIN_COLUMNS, Math.floor((width + TILE_GAP_PX) / (target + TILE_GAP_PX)))
 
 /** Beyond this many pages the pager shows `3 / 13` instead of a dot per page, which would no longer fit. */
 export const MAX_PAGE_DOTS = 7

@@ -1,0 +1,349 @@
+/* The layer pages in the menu sheet (docs/mobile-design/MenuLayerDetail.html, FractalShape.html, OrbitShape.html,
+   OrbitParticles.html, OrbitSprites.html, LogoLook.html). The desktop controls are reused and restyled here, scoped under
+   .menu-layer-page (or the sheet), so the sidebar and the pop-out stay unchanged. */
+
+.menu-layer-page {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* The sub-tabs: a segmented control filling the row beside the back button. */
+.sheet-segments {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 10px;
+  background: #181818;
+  border: 1px solid #2A2A2A;
+}
+
+.sheet-segment {
+  flex: 1;
+  min-width: 0;
+  height: 36px;
+  padding: 0 4px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #B4B4B4;
+  font: 500 14px Inter, sans-serif;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.sheet-segment[aria-selected='true'],
+.sheet-segment[aria-pressed='true'] {
+  background: #EDEDED;
+  color: #111;
+}
+
+/* The layer's header row: the Layers tab's row without the arrow, so no room is kept for it. */
+.menu-layer-row--page {
+  flex: none;
+}
+
+.menu-sheet .menu-layer-row--page .layer-header {
+  padding-right: 6px;
+}
+
+/* One-slider sections: the sideways row of setting buttons. */
+.one-slider {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.one-slider__row {
+  display: flex;
+  gap: 8px;
+  margin-right: -16px;
+  padding-right: 16px;
+  overflow-x: auto;
+  touch-action: pan-x;
+  scrollbar-width: none;
+}
+
+.one-slider__row::-webkit-scrollbar {
+  display: none;
+}
+
+.one-slider__button {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-width: 76px;
+  height: 56px;
+  padding: 0 12px;
+  box-sizing: border-box;
+  border-radius: 12px;
+  border: 1px solid #2A2A2A;
+  background: #181818;
+  font-family: Inter, sans-serif;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.one-slider__button[aria-selected='true'] {
+  border: 1.5px solid #93c5fd;
+  background: rgba(59, 130, 246, 0.35);
+}
+
+.one-slider__name {
+  font-size: 12px;
+  color: #9A9A9A;
+}
+
+.one-slider__button[aria-selected='true'] .one-slider__name {
+  color: #fff;
+}
+
+.one-slider__value {
+  font-size: 15px;
+  font-weight: 600;
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The large slider: the desktop ConfigSlider (28px #555 track, 40x23 pill thumb, zones painted on the track), its labels
+   recolored for the dark sheet. */
+.sheet-slider .slider-info {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 10px;
+  margin-bottom: 6px;
+}
+
+.sheet-slider .slider-name,
+.sheet-slider .slider-value {
+  float: none;
+  margin: 0;
+  color: #E6E6E6;
+  font: 600 16px Inter, sans-serif;
+}
+
+.sheet-slider .slider-input {
+  display: block;
+  width: 100%;
+  /* The zone tag (when there is one) sits in the margin under the track. */
+  margin-bottom: 2rem;
+}
+
+.sheet-slider .slider-zone-tag {
+  color: #999;
+}
+
+/* Fractal Type: the picker's thumbnails, three per row, recolored for the dark sheet. */
+.menu-layer-page .fractal-types {
+  margin: 0;
+}
+
+.menu-layer-page .fractal-types__row {
+  gap: 8px;
+}
+
+.menu-layer-page .fractal-type {
+  padding: 3px;
+  color: #DDD;
+}
+
+.menu-layer-page .fractal-type--active {
+  color: #46e6c8;
+}
+
+.menu-layer-page .fractal-type__label {
+  font: 500 12px Inter, sans-serif;
+  line-height: 1.2;
+}
+
+/* Fractal Shape: the pad (about 140px) beside Tour | Manual and the named shapes in two even columns. */
+.shape-pad-compact {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.shape-pad-compact__pad {
+  flex: none;
+  width: 140px;
+}
+
+.shape-pad-compact .pad-wrapper {
+  padding: 0;
+}
+
+.shape-pad-compact .pad-label {
+  display: none;
+}
+
+.shape-pad-compact__side {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.shape-pad-compact .shape-mode-switch {
+  gap: 6px;
+  margin: 0;
+}
+
+.shape-pad-compact .shape-mode-option {
+  flex: 1;
+  height: 30px;
+  padding: 0 6px;
+  border-color: #888;
+  color: #DDD;
+  font: 500 12px Inter, sans-serif;
+}
+
+.shape-pad-compact .shape-mode-option--active {
+  background: #0a8f78;
+  border-color: #0a8f78;
+  color: #fff;
+}
+
+.shape-pad-compact .shape-mode-option--premium:not(.shape-mode-option--active) {
+  border-color: #FFA032;
+  color: #FFD3A0;
+}
+
+.shape-pad-compact .shape-pad-chips {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.shape-pad-compact .shape-pad-chip {
+  height: 32px;
+  min-width: 0;
+  padding: 0 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #DDD;
+  font: 500 13px Inter, sans-serif;
+}
+
+/* Sprites (Orbit) and the logo picker (Logo Look): the desktop picker without its black panel, bigger type for a finger. */
+.menu-layer-page .particle-sprite-hud__panel {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.menu-layer-page .sprite-picker__switch-btn {
+  padding: 6px 4px;
+  color: #888;
+  font: 500 11px Inter, sans-serif;
+  letter-spacing: 0.06em;
+}
+
+.menu-layer-page .sprite-picker__switch-btn--active {
+  color: #ddd;
+}
+
+.menu-layer-page .sprite-picker__arrow {
+  padding: 2px 12px;
+  font-size: 16px;
+}
+
+.menu-layer-page .sprite-picker__dot {
+  width: 8px;
+  height: 8px;
+}
+
+/* A finger can't hover, so the trash button is always shown on touch; give it a bigger target. */
+.menu-layer-page .sprite-picker__trash {
+  width: 20px;
+  height: 20px;
+}
+
+/* 3D, Lean and Zoom: the desktop's pills, one row across the sheet. */
+.menu-layer-page .config-checkbox-row {
+  gap: 12px;
+  margin: 0;
+}
+
+.menu-layer-page .config-checkbox-row .config-checkbox-container label {
+  padding: 10px 4px;
+  font: 500 15px Inter, sans-serif;
+}
+
+/* Logo Pad (no design): the desktop pad, kept small enough to fit the sheet with its readouts. */
+.layer-page__pad .pad-wrapper {
+  width: min(100%, 170px);
+  margin: 0 auto;
+  padding: 0;
+}
+
+.layer-page__pad .pad-label,
+.layer-page__pad .pad-values {
+  color: #999;
+}
+
+/* Video (no design): the camera switch with its info line, then the clips. */
+.video-camera {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.video-camera__switch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 48px;
+  padding: 0 16px;
+  border-radius: 10px;
+  border: 1px solid #2A2A2A;
+  background: #181818;
+  color: #EDEDED;
+  font: 600 15px Inter, sans-serif;
+}
+
+.video-camera__switch[aria-pressed='true'] {
+  border-color: #005500;
+  background: #005500;
+  color: #fff;
+}
+
+.video-camera__state {
+  font-weight: 500;
+  font-size: 13px;
+}
+
+.video-camera__facing {
+  flex: none;
+}
+
+.video-camera__info {
+  margin: 0;
+  padding: 0 4px;
+  color: #9A9A9A;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.video-camera[data-camera='error'] .video-camera__info {
+  color: #e08080;
+}
+
+.video-clips .config-checkbox-container {
+  margin: 0 0 8px;
+}
+
+.video-clips .clip-label {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 16px;
+}

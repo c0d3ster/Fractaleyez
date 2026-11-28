@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { AppConfig } from '../../config/configDefaults'
 import { LibraryUpload } from './uploadLibrary'
-import { SpriteTile, builtinTiles, clampPage, columnsFor, pageCount, pageItems, uploadCountLabel, usedByLiveConfig, yoursTiles } from './spritePickerModel'
+import { SpriteTile, builtinTiles, clampPage, columnsFor, pageCount, TOUCH_TILE_TARGET_PX, pageItems, uploadCountLabel, usedByLiveConfig, yoursTiles } from './spritePickerModel'
 
 const upload = (id: string, url: string, kind: LibraryUpload['kind'] = 'sprite'): LibraryUpload => ({ id, url, kind, createdAt: '2026-11-01T00:00:00.000Z' })
 
@@ -35,6 +35,13 @@ describe('columnsFor', () => {
     expect(columnsFor(172)).toBe(4)
     expect(columnsFor(380)).toBe(8)
     expect(columnsFor(0)).toBe(4)
+  })
+
+  it('fits six of the bigger touch tiles across a phone\'s sheet', () => {
+    // The sheet's content is the phone's width less 16px each side: 343px on a 375px phone, 358px on a 390px one.
+    expect(columnsFor(343, TOUCH_TILE_TARGET_PX)).toBe(6)
+    expect(columnsFor(358, TOUCH_TILE_TARGET_PX)).toBe(6)
+    expect(columnsFor(100, TOUCH_TILE_TARGET_PX)).toBe(4)
   })
 })
 

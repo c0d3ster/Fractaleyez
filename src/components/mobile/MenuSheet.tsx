@@ -4,15 +4,18 @@ import type { LayerKey } from '../../config/configDefaults'
 import { LAYER_REGISTRY } from '../../config/layers'
 import { useConfigContext } from '../config/context/ConfigProvider'
 import { useConfigSelector } from '../config/context/useConfigSelector'
-import { ConfigSectionItems, isResettableSection } from '../config/ConfigSectionItems'
+import { ConfigSectionItems } from '../config/ConfigSectionItems'
 import { LayerHeader } from '../config/LayerHeader'
 import { PreviewLockFrame } from '../presets/PreviewLockFrame'
 import { Presets, type PresetSelection } from '../presets/Presets'
 import { SavePreset } from '../presets/SavePreset'
 import { BottomSheet } from './BottomSheet'
 import { BAR_LAYERS } from './BottomBar'
+import type { LayerSubTab } from './layerPages'
+import { LayerPage, LayerPageHead } from './LayerPage'
 import { setMenuOpen, subscribeOpenMenu } from './menuBus'
 import { CLOSED_MENU, MENU_TAB_LABELS, MENU_TABS, type MenuTab, menuSheetReducer, scrollLeftToShow } from './menuSheetState'
+import { useLayerReset } from './useLayerReset'
 import './MenuSheet.css'
 
 // The mobile menu (docs/mobile-design/MenuHalf.html): a bottom sheet with a tab per part of the config. Opened through the menu
@@ -21,9 +24,9 @@ import './MenuSheet.css'
 
 const PILL_MARGIN_PX = 16
 
-const Chevron = ({ back = false }: { back?: boolean }): React.ReactElement => (
-  <svg aria-hidden='true' width={back ? 18 : 16} height={back ? 18 : 16} viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round'>
-    <path d={back ? 'M15 6l-6 6 6 6' : 'M9 6l6 6-6 6'} />
+const Chevron = (): React.ReactElement => (
+  <svg aria-hidden='true' width={16} height={16} viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round'>
+    <path d='M9 6l6 6-6 6' />
   </svg>
 )
 
@@ -66,18 +69,9 @@ type LayerRowProps = { layerKey: LayerKey; onOpen: (layer: LayerKey) => void }
 
 /** The desktop layer header (power, name, blend, opacity, order, reset; drag across for opacity) and an arrow to the layer's page. */
 const LayerRow = ({ layerKey, onOpen }: LayerRowProps): React.ReactElement => {
-  const { resetConfigSection, resetVideoClips } = useConfigContext()
   const enabled = useConfigSelector((config) => config.layers.meta[layerKey].enabled.value)
-  const { label, popupColumn } = LAYER_REGISTRY[layerKey]
-
-  // As in the sidebar: Video restores the preset's clips, the others every section the layer owns.
-  const reset = useCallback(() => {
-    if (layerKey === 'video') {
-      resetVideoClips()
-      return
-    }
-    popupColumn.filter(isResettableSection).forEach((section) => { void resetConfigSection(section) })
-  }, [layerKey, popupColumn, resetConfigSection, resetVideoClips])
+  const { label } = LAYER_REGISTRY[layerKey]
+  const reset = useLayerReset(layerKey)
 
   return (
     <div className={`menu-layer-row${enabled ? '' : ' menu-layer-row--off'}`} data-menu-layer={layerKey}>
@@ -127,11 +121,6 @@ const Placeholder = ({ tab }: { tab: MenuTab }): React.ReactElement => (
   <div className='sheet-placeholder' data-menu-slot={tab}>{MENU_TAB_LABELS[tab]} controls are on their way.</div>
 )
 
-/** A layer's page. `#365` fills the slot. */
-const LayerPage = ({ layerKey }: { layerKey: LayerKey }): React.ReactElement => (
-  <div className='menu-layer-page' data-layer-page={layerKey} />
-)
-
 const TabBody = ({ tab, onOpenLayer }: { tab: MenuTab; onOpenLayer: (layer: LayerKey) => void }): React.ReactElement => {
   switch (tab) {
   case 'layers':
@@ -145,7 +134,7 @@ const TabBody = ({ tab, onOpenLayer }: { tab: MenuTab; onOpenLayer: (layer: Laye
 
 export const MenuSheet = (): React.ReactElement | null => {
   const [state, dispatch] = useReducer(menuSheetReducer, CLOSED_MENU)
-  const { open, tab, layerPage } = state
+  const { open, tab, layerPage, subTab } = state
 
   useEffect(() => subscribeOpenMenu((page) => dispatch({ type: 'open', page })), [])
 
@@ -156,16 +145,11 @@ export const MenuSheet = (): React.ReactElement | null => {
   const close = useCallback(() => dispatch({ type: 'close' }), [])
   const selectTab = useCallback((next: MenuTab) => dispatch({ type: 'tab', tab: next }), [])
   const openLayer = useCallback((layer: LayerKey) => dispatch({ type: 'layerPage', layer }), [])
+  const selectSubTab = useCallback((next: LayerSubTab) => dispatch({ type: 'subTab', subTab: next }), [])
+  const back = useCallback(() => dispatch({ type: 'back' }), [])
 
   const head = layerPage
-    ? (
-      <div className='sheet-page-head'>
-        <button type='button' className='sheet-back' aria-label='Back to Layers' onClick={() => dispatch({ type: 'back' })}>
-          <Chevron back />
-        </button>
-        <span className='sheet-page-title'>{LAYER_REGISTRY[layerPage].label}</span>
-      </div>
-    )
+    ? <LayerPageHead layer={layerPage} subTab={subTab} onSubTab={selectSubTab} onBack={back} />
     : <TabPills tab={tab} onTab={selectTab} />
 
   return (
@@ -176,7 +160,7 @@ export const MenuSheet = (): React.ReactElement | null => {
           ? <PresetsTab />
           : (
             <PreviewLockFrame>
-              {layerPage ? <LayerPage layerKey={layerPage} /> : <TabBody tab={tab} onOpenLayer={openLayer} />}
+              {layerPage ? <LayerPage layer={layerPage} subTab={subTab} /> : <TabBody tab={tab} onOpenLayer={openLayer} />}
             </PreviewLockFrame>
           )}
       </div>

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { LIVE_CLIP, normalizeClips } from '../config/video.config'
-import { CameraSource } from './camera-source'
+import { canChooseFacing, CameraSource } from './camera-source'
 
 type FakeTrack = { stop: ReturnType<typeof vi.fn>; addEventListener: () => void }
 
@@ -76,6 +76,41 @@ describe('CameraSource', () => {
     await flush()
     expect(onError).toHaveBeenCalledWith('Camera access was blocked')
     expect(source.getState()).toMatchObject({ status: 'error', error: 'Camera access was blocked' })
+  })
+})
+
+describe('CameraSource facing', () => {
+  const constraintsOf = (call: number): MediaTrackConstraints =>
+    (vi.mocked(navigator.mediaDevices.getUserMedia).mock.calls[call]?.[0] as MediaStreamConstraints).video as MediaTrackConstraints
+
+  it('asks for the camera facing the chosen way and moves a running feed to it', async () => {
+    stubDevices(async () => fakeStream().stream)
+    const source = new CameraSource()
+    source.acquire(() => undefined, () => undefined)
+    await flush()
+    expect(constraintsOf(0).facingMode).toBeUndefined()
+    source.setFacing('environment')
+    await flush()
+    expect(source.getState()).toMatchObject({ facing: 'environment', deviceId: null, status: 'live' })
+    expect(constraintsOf(1).facingMode).toEqual({ ideal: 'environment' })
+  })
+
+  it('lets a camera chosen by id take over from the facing', async () => {
+    stubDevices(async () => fakeStream().stream)
+    const source = new CameraSource()
+    source.setFacing('user')
+    source.setDevice('cam-2')
+    expect(source.getState()).toMatchObject({ facing: null, deviceId: 'cam-2' })
+    source.acquire(() => undefined, () => undefined)
+    await flush()
+    expect(constraintsOf(0)).toMatchObject({ deviceId: { exact: 'cam-2' } })
+    expect(constraintsOf(0).facingMode).toBeUndefined()
+  })
+
+  it('offers the choice only with more than one camera', () => {
+    expect(canChooseFacing([])).toBe(false)
+    expect(canChooseFacing([{ deviceId: 'a', label: 'Camera 1' }])).toBe(false)
+    expect(canChooseFacing([{ deviceId: 'a', label: 'Front' }, { deviceId: 'b', label: 'Back' }])).toBe(true)
   })
 })
 

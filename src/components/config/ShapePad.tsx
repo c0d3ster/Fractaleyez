@@ -135,7 +135,15 @@ const ShapeModeSwitch = ({ manual, manualLocked, onTour, onManual }: ShapeModeSw
 
 const formatCoordinate = (value: number): string => `${value < 0 ? '−' : ''}${Math.abs(value).toFixed(3)}`
 
-export const ShapePad = (): React.ReactElement => {
+type ShapePadProps = {
+  /**
+   * The mobile Fractal page (docs/mobile-design/FractalShape.html): a small pad without a title or readouts, with the Tour | Manual
+   * switch and the named shapes in a column beside it.
+   */
+  compact?: boolean
+}
+
+export const ShapePad = ({ compact = false }: ShapePadProps): React.ReactElement => {
   const mandelbrotRef = useRef<HTMLCanvasElement>(null)
   const overlayRef = useRef<HTMLCanvasElement>(null)
   const lastDrawnKey = useRef('')
@@ -229,33 +237,23 @@ export const ShapePad = (): React.ReactElement => {
     updateConfigItem('fractal', 'tour', min + (tourStop / (family.tour.length - 1)) * (max - min))
   }, [family, updateConfigItem])
 
-  return (
-    <Pad
-      label={(
-        <>
-          Shape
-          <ShapeModeSwitch manual={readout.manual} manualLocked={manualLocked} onTour={handleReset} onManual={handleManual} />
-        </>
-      )}
-      onPick={handlePick}
-      onReset={handleReset}
-      readouts={[`Re ${formatCoordinate(readout.re)}`, `Im ${formatCoordinate(readout.im)}`]}
-      hint={[manualLocked ? LOCKED_HINT : HINT, family.mapHint].filter(Boolean).join(' ')}
-      footer={(
-        <div className='shape-pad-chips'>
-          {family.famousShapes.map(({ name, tourStop }) => (
-            <button
-              key={name}
-              type='button'
-              className='shape-pad-chip'
-              onClick={() => pickNamedShape(tourStop)}
-            >
-              {name}
-            </button>
-          ))}
-        </div>
-      )}
-    >
+  const modeSwitch = <ShapeModeSwitch manual={readout.manual} manualLocked={manualLocked} onTour={handleReset} onManual={handleManual} />
+  const chips = (
+    <div className='shape-pad-chips'>
+      {family.famousShapes.map(({ name, tourStop }) => (
+        <button
+          key={name}
+          type='button'
+          className='shape-pad-chip'
+          onClick={() => pickNamedShape(tourStop)}
+        >
+          {name}
+        </button>
+      ))}
+    </div>
+  )
+  const canvases = (
+    <>
       <canvas
         ref={mandelbrotRef}
         className='shape-pad-canvas'
@@ -268,6 +266,39 @@ export const ShapePad = (): React.ReactElement => {
         width={PAD_W * BACKING}
         height={PAD_H * BACKING}
       />
+    </>
+  )
+  const hint = [manualLocked ? LOCKED_HINT : HINT, family.mapHint].filter(Boolean).join(' ')
+
+  if (compact) {
+    return (
+      <div className='shape-pad-compact'>
+        <div className='shape-pad-compact__pad'>
+          <Pad label={null} onPick={handlePick} onReset={handleReset} hint={hint}>{canvases}</Pad>
+        </div>
+        <div className='shape-pad-compact__side'>
+          {modeSwitch}
+          {chips}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <Pad
+      label={(
+        <>
+          Shape
+          {modeSwitch}
+        </>
+      )}
+      onPick={handlePick}
+      onReset={handleReset}
+      readouts={[`Re ${formatCoordinate(readout.re)}`, `Im ${formatCoordinate(readout.im)}`]}
+      hint={hint}
+      footer={chips}
+    >
+      {canvases}
     </Pad>
   )
 }

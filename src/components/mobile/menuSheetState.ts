@@ -1,5 +1,6 @@
 import type { LayerKey } from '../../config/configDefaults'
 import { LAYER_REGISTRY } from '../../config/layers'
+import type { LayerSubTab } from './layerPages'
 
 // The menu sheet's state (docs/mobile-design/MenuHalf.html): open or not, the active tab, and the layer page open inside the
 // Layers tab. Pure, so the reducer and the sheet's geometry are tested without a DOM.
@@ -21,6 +22,8 @@ export type MenuSheetState = {
   tab: MenuTab
   /** A layer's page, shown in place of the Layers tab's rows; null on every other tab. */
   layerPage: LayerKey | null
+  /** The layer page's sub-tab picked by the user; null shows the page's first (`resolveSubTab`). */
+  subTab: LayerSubTab | null
 }
 
 export type MenuSheetAction =
@@ -30,8 +33,9 @@ export type MenuSheetAction =
   | { type: 'tab'; tab: MenuTab }
   | { type: 'layerPage'; layer: LayerKey }
   | { type: 'back' }
+  | { type: 'subTab'; subTab: LayerSubTab }
 
-export const CLOSED_MENU: MenuSheetState = { open: false, tab: 'layers', layerPage: null }
+export const CLOSED_MENU: MenuSheetState = { open: false, tab: 'layers', layerPage: null, subTab: null }
 
 export const isLayerPage = (page: string | undefined): page is LayerKey => page !== undefined && Object.prototype.hasOwnProperty.call(LAYER_REGISTRY, page)
 
@@ -41,16 +45,19 @@ export const menuSheetReducer = (state: MenuSheetState, action: MenuSheetAction)
   switch (action.type) {
   case 'open':
     // Each opening starts fresh: the Layers tab unless the request names a layer or a tab.
-    if (isLayerPage(action.page)) return { open: true, tab: 'layers', layerPage: action.page }
-    return { open: true, tab: isMenuTab(action.page) ? action.page : 'layers', layerPage: null }
+    if (isLayerPage(action.page)) return { open: true, tab: 'layers', layerPage: action.page, subTab: null }
+    return { open: true, tab: isMenuTab(action.page) ? action.page : 'layers', layerPage: null, subTab: null }
   case 'close':
     return state.open ? { ...state, open: false } : state
   case 'tab':
-    return state.tab === action.tab && state.layerPage === null ? state : { ...state, tab: action.tab, layerPage: null }
+    return state.tab === action.tab && state.layerPage === null ? state : { ...state, tab: action.tab, layerPage: null, subTab: null }
   case 'layerPage':
-    return { ...state, tab: 'layers', layerPage: action.layer }
+    // A page always opens on its first sub-tab.
+    return { ...state, tab: 'layers', layerPage: action.layer, subTab: null }
   case 'back':
-    return state.layerPage === null ? state : { ...state, layerPage: null }
+    return state.layerPage === null ? state : { ...state, layerPage: null, subTab: null }
+  case 'subTab':
+    return state.layerPage === null || state.subTab === action.subTab ? state : { ...state, subTab: action.subTab }
   default:
     return state
   }
