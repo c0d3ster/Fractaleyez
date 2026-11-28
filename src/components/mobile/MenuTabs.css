@@ -331,7 +331,8 @@
 
 .mobile-color__pills .config-checkbox-container label {
   position: relative;
-  padding: 10px 4px;
+  /* The screen's 10px padding, less the desktop pill's 1px border. */
+  padding: 9px 4px;
   font: 500 15px Inter, sans-serif;
   line-height: 18px;
 }
