@@ -3,10 +3,7 @@ import classNames from 'classnames'
 import { SignInButton, UserButton, useUser } from '@clerk/clerk-react'
 import './TopBar.css'
 
-import { UserSettingsPage } from '../settings/UserSettingsPage'
-import { VisualizerTabIcon } from '../settings/VisualizerTabIcon'
-import { PlanPage } from '../settings/PlanPage'
-import { PlanTabIcon } from '../settings/PlanTabIcon'
+import { PROFILE_PAGES } from '../settings/profilePages'
 
 const TRIGGER_Y_PX = 100
 const HIDE_AFTER_Y_PX = 120
@@ -64,20 +61,11 @@ export const TopBar = (): React.ReactElement => {
         {isLoaded && (
           isSignedIn
             ? <UserButton appearance={{ elements: { avatarBox: { width: 56, height: 56 } } }}>
-              <UserButton.UserProfilePage
-                label='Visualizer'
-                url='visualizer'
-                labelIcon={<VisualizerTabIcon />}
-              >
-                <UserSettingsPage />
-              </UserButton.UserProfilePage>
-              <UserButton.UserProfilePage
-                label='Plan'
-                url='plan'
-                labelIcon={<PlanTabIcon />}
-              >
-                <PlanPage />
-              </UserButton.UserProfilePage>
+              {PROFILE_PAGES.map(({ label, url, Icon, Page }) => (
+                <UserButton.UserProfilePage key={url} label={label} url={url} labelIcon={<Icon />}>
+                  <Page />
+                </UserButton.UserProfilePage>
+              ))}
             </UserButton>
             : <SignInButton mode='modal'>
               <button className='topbar-signin-btn'>Sign In</button>
