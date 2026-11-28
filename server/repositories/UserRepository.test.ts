@@ -86,6 +86,14 @@ describe('UserRepository.updateSettings', () => {
     expect(updated.settings.hud).toEqual({ enabledFreqBands: [true, false, true] })
   })
 
+  it('persists the on-screen controls mode alongside other fields', async () => {
+    await userRepository.updateSettings('user_settings_5', { quality: 'saver' })
+    const updated = await userRepository.updateSettings('user_settings_5', { onScreenControls: 'none' })
+    expect(updated.settings.onScreenControls).toBe('none')
+    expect(updated.settings.quality).toBe('saver')
+    expect((await User.findOne({ clerkId: 'user_settings_5' }))?.settings.onScreenControls).toBe('none')
+  })
+
   it('is idempotent when the same patch is applied twice', async () => {
     await userRepository.updateSettings('user_settings_4', { crossfadeDurationMs: 750 })
     await userRepository.updateSettings('user_settings_4', { crossfadeDurationMs: 750 })

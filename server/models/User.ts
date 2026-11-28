@@ -29,6 +29,8 @@ export type UserSettings = {
   skipRedZoneWarning?: boolean
   /** 'auto' or a fixed quality tier; mirrors src/config/quality.config.ts's QualitySetting. */
   quality?: string
+  /** The mobile shell's on-screen controls; mirrors src/config/mobileControls.config.ts's ControlsMode. */
+  onScreenControls?: string
   hud?: Record<string, unknown>
 }
 
@@ -50,6 +52,7 @@ const userSettingsSchema = new Schema<UserSettings>({
   logoParticle: { type: String },
   skipRedZoneWarning: { type: Boolean },
   quality: { type: String },
+  onScreenControls: { type: String },
   hud: { type: Schema.Types.Mixed },
 }, { _id: false })
 
