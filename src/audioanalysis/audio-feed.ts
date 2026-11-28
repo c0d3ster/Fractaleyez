@@ -60,6 +60,9 @@ export class AudioFeed {
     this.beat = this.beat?.fresh && !onset.beat.fresh ? { ...onset.beat, fresh: true } : onset.beat
   }
 
+  /** Put the next measured frame on the page clock afresh, after the audio context was suspended (see FrameClock.reset). */
+  resetClock = (): void => this.clock.reset()
+
   /** The visuals' side of one drawn frame. Call once per animation frame; the returned object is reused, so read it within the frame. */
   tick = (deltaTime: number): AudioSnapshot => {
     const { timeDomain, frequency } = this.source.read()

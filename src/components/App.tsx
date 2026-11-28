@@ -6,6 +6,7 @@ import '../styles/App.css'
 import { initWithMicrophone } from '../main'
 import { ConfigWindow } from './config/ConfigWindow'
 import { Sidebar } from './sidebar/Sidebar'
+import { SoundHint } from './SoundHint'
 import { TopBar } from './topbar/TopBar'
 import { UpgradeProvider } from './upgrade/UpgradeProvider'
 
@@ -28,6 +29,7 @@ const AppInner = (): React.ReactElement => {
           setConfigWindow={toggleConfigWindow}
           configWindowVisible={configWindowVisible} />
         <TopBar />
+        <SoundHint />
       </div>
     </UpgradeProvider>
   )

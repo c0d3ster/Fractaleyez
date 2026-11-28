@@ -41,6 +41,7 @@ export class VisualTap implements ByteSource {
   private readonly analyser: AnalyserNode
   private readonly frame: ByteFrame
   private clickBuffer: AudioBuffer | null = null
+  private source: AudioNode | null = null
 
   constructor(private readonly context: AudioContext, fftSize: number) {
     this.sampleRate = context.sampleRate
@@ -53,12 +54,17 @@ export class VisualTap implements ByteSource {
     this.frame = { timeDomain: new Uint8Array(this.binCount), frequency: new Uint8Array(this.binCount) }
   }
 
-  /** Route `source` (the microphone) through the volume into the analyser and into `capture`, the worklet that measures for the detectors. */
+  /**
+   * Route `source` (the microphone) through the volume into the analyser and into `capture`, the worklet that measures for the detectors.
+   * A second call (the microphone opened again) unplugs the previous source first.
+   */
   connect = (source: AudioNode | null, capture: AudioNode): void => {
     if (!source) {
       if (UserConfig.showerrors) console.error('Couldn\'t connect the audio tap: there is no audio source.')
       return
     }
+    if (this.source && this.source !== source) this.source.disconnect()
+    this.source = source
     source.connect(this.gain)
     this.gain.connect(this.analyser)
     this.gain.connect(capture)
