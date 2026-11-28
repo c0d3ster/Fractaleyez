@@ -1,0 +1,191 @@
+/* The mobile shell's gesture readouts (docs/mobile-design: Steer, Speed, Pinch, Spin, Reset, TopCGesture, LimitedSpeed,
+   LimitedSpin). Shown at once, faded out on release. Above the visual and the long-press ring's layer, under the menu sheet. */
+.gesture-panel,
+.gesture-chip,
+.gesture-info {
+  position: fixed;
+  z-index: 900;
+  pointer-events: none;
+  user-select: none;
+  color: #EDEDED;
+  font-family: Inter, sans-serif;
+}
+
+.gesture-readout--hidden {
+  opacity: 0;
+  transition: opacity 200ms ease;
+}
+
+/* Full: the desktop control, centered near the top. */
+.gesture-panel {
+  top: calc(92px + env(safe-area-inset-top, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  border-radius: 16px;
+  background: rgba(12, 12, 12, 0.85);
+  border: 1px solid #3A3A3A;
+  white-space: nowrap;
+}
+
+.gesture-panel__text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.gesture-panel__label {
+  font-size: 12px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #9A9A9A;
+}
+
+.gesture-panel__value {
+  font-family: 'Acme', sans-serif;
+  font-size: 34px;
+  line-height: 1;
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+}
+
+.gesture-panel__value--small {
+  font-size: 28px;
+}
+
+.gesture-panel__hint {
+  font-size: 12px;
+  color: #9A9A9A;
+}
+
+.gesture-panel__line {
+  font-size: 15px;
+  color: #fff;
+}
+
+.gesture-panel__vbar {
+  position: relative;
+  width: 12px;
+  height: 88px;
+  border-radius: 6px;
+  background: #222;
+}
+
+.gesture-panel__vbar-fill {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 6px;
+  background: #FFA032;
+}
+
+.gesture-panel__slider {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 180px;
+}
+
+.gesture-panel__slider-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.gesture-panel__hbar {
+  position: relative;
+  height: 12px;
+  border-radius: 6px;
+  background: #222;
+}
+
+.gesture-panel__hbar-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: 6px;
+  background: #FFA032;
+}
+
+/* The desktop camera pad, square and without its title and X/Y row. */
+.gesture-panel__pad {
+  width: 88px;
+}
+
+.gesture-panel__pad .pad-wrapper {
+  padding: 0;
+}
+
+.gesture-panel__pad .pad-label,
+.gesture-panel__pad .pad-values {
+  display: none;
+}
+
+.gesture-panel__pad .pad {
+  background: #0B0B0B;
+  border-color: #333;
+  border-radius: 10px;
+}
+
+.gesture-panel__pad .camera-touchpad-crosshair {
+  background: #2A2A2A;
+}
+
+/* The desktop spin dial at the panel's size. */
+.gesture-panel__dial .spin-dial-wrapper {
+  margin: 0;
+}
+
+.gesture-panel__dial .spin-dial {
+  width: 96px;
+  height: 96px;
+}
+
+/* Limited: label and number, top-right. */
+.gesture-chip {
+  top: calc(20px + env(safe-area-inset-top, 0px));
+  right: 16px;
+  height: 44px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.gesture-chip__label {
+  font-size: 11px;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: #A8A8A8;
+}
+
+.gesture-chip__value {
+  font-family: 'Acme', sans-serif;
+  font-size: 20px;
+  line-height: 1;
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Full: the one-line description in the bottom bar's place. */
+.gesture-info {
+  left: 16px;
+  right: 16px;
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: rgba(12, 12, 12, 0.88);
+  border: 1px solid #2E2E2E;
+  font-size: 14px;
+  line-height: 1.45;
+  color: #C9C9C9;
+}

@@ -25,6 +25,14 @@ const READ = `(() => ({
   shell: document.documentElement.classList.contains('mobile-shell'),
   menuOpens: window.__menuOpens ?? 0,
   controlsMode: window.getControlsMode ? window.getControlsMode() : null,
+  readout: (() => {
+    const el = document.querySelector('[data-gesture-readout]')
+    return el ? { style: el.dataset.gestureReadout, kind: el.dataset.kind, visible: el.dataset.visible === 'on', text: el.textContent } : null
+  })(),
+  info: (() => {
+    const el = document.querySelector('[data-gesture-info="on"]')
+    return el ? el.textContent : null
+  })(),
 }))()`
 
 // Counts the long-press's menu requests (there is no menu sheet yet to show them).
@@ -73,12 +81,36 @@ const twist = async (cdp, center, radius, fromRad, toRad, steps = 16) => {
   await touch(cdp, 'touchEnd', [], 16)
 }
 
+// Puts 1 or 2 fingers down and moves them from `from` to `to`, then leaves them on the glass (lift with `lift`).
+const press = async (cdp, from, to, steps = 12, stepMs = 16) => {
+  await touch(cdp, 'touchStart', from)
+  for (let i = 1; i <= steps; i++) {
+    const t = i / steps
+    await touch(cdp, 'touchMove', from.map(([x, y], k) => [x + (to[k][0] - x) * t, y + (to[k][1] - y) * t]), stepMs)
+    await sleep(stepMs)
+  }
+}
+const lift = (cdp) => touch(cdp, 'touchEnd', [], 16)
+
+// Reads the page and saves a screenshot while the gesture is still on (straight through CDP: a Playwright capture waits for a
+// quiet frame, which software GL may not give before the readout fades).
+const snap = async (cdp, page, name) => {
+  await sleep(250)
+  const mid = await page.evaluate(READ)
+  const { data } = await cdp.send('Page.captureScreenshot', { format: 'png' })
+  fs.writeFileSync(path.join(outDir, `${name}-mid.png`), Buffer.from(data, 'base64'))
+  return mid
+}
+
+const storedMode = (mode) => (ctx) => ctx.addInitScript((m) => localStorage.setItem('onScreenControls', m), mode)
+
 const W = DEVICE.viewport.width
 const H = DEVICE.viewport.height
 const C = [W / 2, H / 2]
 
 // Each scenario: what it does, and which of the read values it may change (the rest must stay put). `init(ctx)` runs before the
-// page loads (an init script), `prepare(page)` after, and `run(cdp, page)` does the touches.
+// page loads (an init script), `prepare(page)` after, and `run(cdp, page)` does the touches; whatever it returns is passed to
+// `expect(before, after, mid)` as `mid` (the readout scenarios read the page while the fingers are still down).
 const SCENARIOS = {
   steer: {
     changes: ['camera'],
@@ -171,6 +203,74 @@ const SCENARIOS = {
     run: async (cdp) => { await tap(cdp, C[0], C[1]); clockMs += 120; await tap(cdp, C[0], C[1]) },
     expect: (before, after) => after.speed !== 9 && after.rotationSpeed !== -6,
   },
+  // Gesture readouts (`#362`): `run` returns the reading taken mid-gesture, and `expect` gets it as `mid`. Compare the `-mid.png`
+  // screenshots with docs/mobile-design (Speed, Pinch, Spin, Steer, Reset for Full; LimitedSpeed, LimitedSpin for Limited).
+  ...readoutScenarios(),
+}
+
+function readoutScenarios() {
+  const GESTURES = {
+    speed: { changes: ['speed'], from: [[C[0] - 60, H * 0.7], [C[0] + 60, H * 0.7]], to: [[C[0] - 60, H * 0.35], [C[0] + 60, H * 0.35]], info: 'Speed: two fingers up or down. Up is faster.' },
+    scale: { changes: ['scaleFactor'], from: [[C[0] - 40, C[1]], [C[0] + 40, C[1]]], to: [[C[0] - 140, C[1]], [C[0] + 140, C[1]]], info: 'Scale: pinch in or out.' },
+    rotation: { changes: ['rotationSpeed'], twist: true, info: 'Rotation: twist two fingers.' },
+    // Sway defaults to 0, which greys out the camera pad (as on desktop), so the steer scenarios give it room first.
+    steer: { changes: ['camera'], prepare: (page) => page.evaluate(() => window.updateConfigItem('user', 'sway', 200)), from: [[W * 0.5, H * 0.5]], to: [[W * 0.85, H * 0.8]], info: 'Steer: drag one finger. Tap to point the camera there.' },
+  }
+  const twistAt = (rad) => [[C[0] - 90 * Math.cos(rad), C[1] - 90 * Math.sin(rad)], [C[0] + 90 * Math.cos(rad), C[1] + 90 * Math.sin(rad)]]
+  const hold = async (cdp, page, name, g) => {
+    if (g.twist) await press(cdp, twistAt(0), twistAt(0.9))
+    else await press(cdp, g.from, g.to)
+    const mid = await snap(cdp, page, name)
+    await lift(cdp)
+    return mid
+  }
+  // What each mode shows mid-gesture: Full the panel and the info line, Limited the chip (nothing for steering), None nothing.
+  const expected = {
+    full: (kind) => ({ style: 'full', kind, info: true }),
+    limited: (kind) => (kind === 'steer' ? null : { style: 'chip', kind, info: false }),
+    none: () => null,
+  }
+  const scenarios = {}
+  for (const mode of ['full', 'limited', 'none']) {
+    for (const [kind, g] of Object.entries(GESTURES)) {
+      if (mode === 'none' && kind !== 'speed') continue
+      const name = `readout-${kind}-${mode}`
+      scenarios[name] = {
+        changes: g.changes,
+        init: storedMode(mode),
+        prepare: g.prepare,
+        run: (cdp, page) => hold(cdp, page, name, g),
+        // After the fade the readout is gone (Full's info line may still be held, so only the panel and chip are checked).
+        expect: (before, after, mid) => {
+          const want = expected[mode](kind)
+          if (!want) return !mid.readout && !mid.info && !after.readout
+          return mid.readout?.style === want.style && mid.readout.kind === kind && mid.readout.visible
+            && (want.info ? mid.info === g.info : !mid.info) && !after.readout?.visible
+        },
+      }
+    }
+  }
+  scenarios['readout-reset-full'] = {
+    changes: ['speed', 'rotationSpeed'],
+    init: storedMode('full'),
+    prepare: async (page) => { await page.evaluate(() => { window.updateConfigItem('user', 'speed', 9); window.updateConfigItem('user', 'rotationSpeed', -6) }) },
+    run: async (cdp, page) => {
+      await tap(cdp, C[0], C[1]); clockMs += 120; await tap(cdp, C[0], C[1])
+      return snap(cdp, page, 'readout-reset-full')
+    },
+    expect: (before, after, mid) => mid.readout?.kind === 'reset' && mid.readout.visible && mid.info === 'Double-tap resets speed and rotation.',
+  }
+  scenarios['readout-replace'] = {
+    // A new gesture while the last readout is fading replaces it at once.
+    changes: ['speed', 'scaleFactor'],
+    init: storedMode('limited'),
+    run: async (cdp, page) => {
+      await hold(cdp, page, 'readout-replace-first', GESTURES.speed)
+      return hold(cdp, page, 'readout-replace', GESTURES.scale)
+    },
+    expect: (before, after, mid) => mid.readout?.kind === 'scale' && mid.readout.visible,
+  }
+  return scenarios
 }
 
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b)
@@ -210,7 +310,7 @@ const main = async () => {
     const before = await page.evaluate(READ)
     await page.screenshot({ path: path.join(outDir, `${name}-0-before.png`) })
     clockMs = Date.now() - 2000
-    await scenario.run(cdp, page)
+    const mid = await scenario.run(cdp, page)
     // The camera eases toward its target; give it time to travel before the screenshot.
     await sleep(1500)
     const after = await page.evaluate(READ)
@@ -219,8 +319,8 @@ const main = async () => {
     const changed = ['speed', 'scaleFactor', 'rotationSpeed', 'camera'].filter((key) => (key === 'camera' ? !close(before.camera, after.camera) : !same(before[key], after[key])))
     const unexpected = changed.filter((key) => !scenario.changes.includes(key))
     const missing = scenario.changes.filter((key) => !changed.includes(key))
-    const ok = before.shell && unexpected.length === 0 && missing.length === 0 && (!scenario.expect || scenario.expect(before, after))
-    results.push({ name, ok, changed, unexpected, missing, before, after })
+    const ok = before.shell && unexpected.length === 0 && missing.length === 0 && (!scenario.expect || scenario.expect(before, after, mid))
+    results.push({ name, ok, changed, unexpected, missing, before, after, mid })
     console.log(`${ok ? 'PASS' : 'FAIL'} ${name}: changed [${changed.join(', ')}]${before.shell ? '' : ' (mobile shell not active)'}`)
     await ctx.close()
   }

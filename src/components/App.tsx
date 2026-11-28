@@ -8,6 +8,7 @@ import { ConfigWindow } from './config/ConfigWindow'
 import { Sidebar } from './sidebar/Sidebar'
 import { TopBar } from './topbar/TopBar'
 import { UpgradeProvider } from './upgrade/UpgradeProvider'
+import { GestureReadout } from './mobile/GestureReadout'
 import { LongPressRing } from './mobile/LongPressRing'
 import { useMobileShell } from '../utils/useMobileShell'
 
@@ -31,6 +32,7 @@ const AppInner = (): React.ReactElement => {
           setConfigWindow={toggleConfigWindow}
           configWindowVisible={configWindowVisible} />
         <TopBar />
+        {mobileShell && <GestureReadout />}
         {mobileShell && <LongPressRing />}
       </div>
     </UpgradeProvider>
