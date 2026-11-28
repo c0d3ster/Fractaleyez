@@ -60,6 +60,21 @@ any other copy of the app first or it will share the GPU and skew the numbers.
 
 Runs vary by about ±100 ms/s between browser launches, so compare averages of several runs, not single ones.
 
+## Startup
+
+```sh
+pnpm exec webpack --mode production --devtool source-map    # the source map lets --cpu name the modules
+node scripts/bench/serve.js public 4100                     # gzips text like a CDN
+node scripts/bench/startup.js <label> [--runs=3] [--throttle] [--fullres] [--cpu] [--filmstrip] [--query=a=b]
+```
+
+Cold loads in a fresh browser each, with `?perf=1`. Each run keeps `window.perfProbe.startup()` plus what the page cannot see itself: every request
+with its size and timing, a Chrome trace (script compile and evaluation per file), every WebGL shader compile and texture upload, and with
+`--cpu` a sampled CPU profile, its self time per module in each phase (the phases end at the page's marks, in the order they were reached).
+`--throttle` is Chrome's Fast 4G preset plus a 4x CPU slowdown, `--fullres` loads the 4K clips. `--filmstrip` saves a screencast frame every
+250 ms as `film-<label>-<ms>.jpg` (to see what shows when; it costs a little, so judge numbers from runs without it). The table prints medians:
+`first layer shown` (the first layer joining, which is what a visitor first sees), `meaningful` (every enabled layer in, the video showing), `ui mounted`.
+
 ## Event hitches, GPU time per pass, and the config window
 
 `bench.js` measures steady state. A hitch is one bad frame when something happens, which an average hides, so `hitch.js` measures those.
