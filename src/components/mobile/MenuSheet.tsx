@@ -13,6 +13,7 @@ import { BottomSheet } from './BottomSheet'
 import { BAR_LAYERS } from './BottomBar'
 import type { LayerSubTab } from './layerPages'
 import { LayerPage, LayerPageHead } from './LayerPage'
+import { ConfigMenuTabBody } from './MenuTabs'
 import { setMenuOpen, subscribeOpenMenu } from './menuBus'
 import { CLOSED_MENU, MENU_TAB_LABELS, MENU_TABS, type MenuTab, menuSheetReducer, scrollLeftToShow } from './menuSheetState'
 import { useLayerReset } from './useLayerReset'
@@ -116,19 +117,17 @@ const AudioTab = (): React.ReactElement => {
   )
 }
 
-/** Filled by `#366`. */
-const Placeholder = ({ tab }: { tab: MenuTab }): React.ReactElement => (
-  <div className='sheet-placeholder' data-menu-slot={tab}>{MENU_TAB_LABELS[tab]} controls are on their way.</div>
-)
-
 const TabBody = ({ tab, onOpenLayer }: { tab: MenuTab; onOpenLayer: (layer: LayerKey) => void }): React.ReactElement => {
   switch (tab) {
   case 'layers':
     return <LayersTab onOpen={onOpenLayer} />
   case 'audio':
     return <AudioTab />
+  case 'presets':
+    // Drawn outside the preview lock by MenuSheet.
+    return <PresetsTab />
   default:
-    return <Placeholder tab={tab} />
+    return <ConfigMenuTabBody tab={tab} />
   }
 }
 
