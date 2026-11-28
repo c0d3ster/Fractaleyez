@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Long-press to open menu</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Acme&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#000}
+a{color:#FFA032}a:hover{color:#FFC27A}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; overflow: hidden; background: #000; font-family: Inter, sans-serif; color: #EDEDED">
+  <div aria-hidden="true" style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; opacity: 0.6">
+    <div style="position: absolute; width: 760px; height: 760px; border-radius: 50%; border: 3px solid #FF3B1F"></div>
+    <div style="position: absolute; width: 560px; height: 560px; border-radius: 50%; border: 3px solid #FFA032"></div>
+    <div style="position: absolute; width: 400px; height: 400px; border-radius: 50%; border: 3px solid #E8E22A"></div>
+    <div style="position: absolute; width: 280px; height: 280px; border-radius: 50%; border: 3px solid #3FD14A"></div>
+    <div style="position: absolute; width: 190px; height: 190px; border-radius: 50%; border: 3px solid #2A6BFF"></div>
+  </div>
+  <svg aria-hidden="true" width="96" height="96" viewBox="0 0 96 96" style="position: absolute; left: 147px; top: 377px">
+    <circle cx="48" cy="48" r="42" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="4"></circle>
+    <path d="M48 6 A42 42 0 1 1 6 48" fill="none" stroke="#FFA032" stroke-width="4" stroke-linecap="round"></path>
+  </svg>
+  <div aria-hidden="true" style="position: absolute; left: 171px; top: 401px; width: 48px; height: 48px; border-radius: 24px; background: rgba(255,255,255,0.22); border: 2px solid rgba(255,255,255,0.75)"></div>
+  <div style="position: absolute; top: 300px; left: 0; right: 0; text-align: center; font-size: 14px; color: #EDEDED">Hold to open the menu</div>
+  <div style="position: absolute; left: 16px; right: 16px; bottom: 24px; padding: 14px 16px; border-radius: 14px; background: rgba(12,12,12,0.88); border: 1px solid #2E2E2E">
+    <div style="font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase; color: #FFA032; margin-bottom: 4px">Limited and None: long-press</div>
+    <div style="font-size: 14px; line-height: 1.45; color: #C9C9C9">Hold anywhere for half a second and a ring fills, then the menu opens. Works the same in every mode, so Full can use it too. Where the menu opens from is still undecided.</div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

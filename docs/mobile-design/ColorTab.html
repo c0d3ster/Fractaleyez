@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Menu: Color tab</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Acme&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#000}
+a{color:#FFA032}a:hover{color:#FFC27A}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; overflow: hidden; background: #000; font-family: Inter, sans-serif; color: #EDEDED">
+  <div aria-hidden="true" style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; opacity: 0.6">
+    <div style="position: absolute; width: 760px; height: 760px; border-radius: 50%; border: 3px solid #FF3B1F"></div>
+    <div style="position: absolute; width: 560px; height: 560px; border-radius: 50%; border: 3px solid #FFA032"></div>
+    <div style="position: absolute; width: 400px; height: 400px; border-radius: 50%; border: 3px solid #E8E22A"></div>
+    <div style="position: absolute; width: 280px; height: 280px; border-radius: 50%; border: 3px solid #3FD14A"></div>
+    <div style="position: absolute; width: 190px; height: 190px; border-radius: 50%; border: 3px solid #2A6BFF"></div>
+  </div>
+  <div style="position: absolute; top: 20px; left: 16px; right: 16px; display: flex; justify-content: space-between; align-items: center; opacity: 1">
+    <div style="display: flex; gap: 6px"></div>
+    <div style="display: flex; gap: 6px"><button aria-label="Account" style="width: 44px; height: 44px; border-radius: 22px; background: #FFA032; border: 2px solid rgba(255,255,255,0.85); color: #111; font: 700 17px Inter, sans-serif">D</button></div>
+  </div>
+  <div style="position: absolute; left: 16px; right: 72px; top: 84px; padding: 12px 14px; border-radius: 14px; background: rgba(12,12,12,0.9); border: 1px solid #2E2E2E">
+    <div style="font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase; color: #FFA032; margin-bottom: 4px">Color tab</div>
+    <div style="font-size: 13px; line-height: 1.45; color: #C9C9C9">Palettes scroll sideways, then the range bar, then Cycles, Phase and Saturation with one slider. Reverse and Hard Edge are switches.</div>
+  </div>
+  <div role="dialog" aria-label="Menu" style="position: absolute; left: 0; right: 0; top: 470px; bottom: 0; padding: 10px 16px 24px; border-radius: 22px 22px 0 0; background: rgba(14,14,14,0.96); border-top: 1px solid #333; display: flex; flex-direction: column; gap: 12px; overflow: hidden">
+    <div aria-hidden="true" style="align-self: center; width: 40px; height: 4px; border-radius: 2px; background: #555"></div>
+    <div role="tablist" style="display: flex; gap: 8px; overflow: hidden; margin-right: -16px"><button style="flex: none; height: 36px; padding: 0 14px; border-radius: 18px; border: 1px solid #333; background: transparent; color: #C4C4C4; font: 500 14px Inter, sans-serif">Presets</button><button style="flex: none; height: 36px; padding: 0 14px; border-radius: 18px; border: 1px solid #333; background: transparent; color: #C4C4C4; font: 500 14px Inter, sans-serif">Layers</button><button style="flex: none; height: 36px; padding: 0 14px; border-radius: 18px; border: 1px solid #EDEDED; background: #EDEDED; color: #111; font: 500 14px Inter, sans-serif">Color</button><button style="flex: none; height: 36px; padding: 0 14px; border-radius: 18px; border: 1px solid #333; background: transparent; color: #C4C4C4; font: 500 14px Inter, sans-serif">Effects</button><button style="flex: none; height: 36px; padding: 0 14px; border-radius: 18px; border: 1px solid #333; background: transparent; color: #C4C4C4; font: 500 14px Inter, sans-serif">Audio</button><button style="flex: none; height: 36px; padding: 0 14px; border-radius: 18px; border: 1px solid #333; background: transparent; color: #C4C4C4; font: 500 14px Inter, sans-serif">Camera</button></div>
+    <div style="display: flex; gap: 8px; overflow: hidden; margin-right: -16px"><button aria-pressed="false" style="flex: none; display: flex; flex-direction: column; gap: 4px; width: 80px; padding: 5px; border-radius: 10px; background: #181818; border: 1px solid #2A2A2A"><span aria-hidden="true" style="height: 20px; border-radius: 5px; background: linear-gradient(90deg, #ff0000,#ffa500,#ffff00,#00c000,#0080ff,#8000ff,#ff0000)"></span><span style="font-size: 11.5px; color: #D6D6D6">Rainbow</span></button><button aria-pressed="true" style="flex: none; display: flex; flex-direction: column; gap: 4px; width: 80px; padding: 5px; border-radius: 10px; background: #181818; border: 2px solid #fff"><span aria-hidden="true" style="height: 20px; border-radius: 5px; background: linear-gradient(90deg, #2f1437,#701f57,#b43e55,#d9805f,#dcae9e,#e2d9e2,#a9c2d0,#6f95b8,#5f68ad,#5a3b8c,#2f1437)"></span><span style="font-size: 11.5px; color: #D6D6D6">Twilight</span></button><button aria-pressed="false" style="flex: none; display: flex; flex-direction: column; gap: 4px; width: 80px; padding: 5px; border-radius: 10px; background: #181818; border: 1px solid #2A2A2A"><span aria-hidden="true" style="height: 20px; border-radius: 5px; background: linear-gradient(90deg, #ff00c8,#7a00ff,#00e5ff,#00ff9c,#ff00c8)"></span><span style="font-size: 11.5px; color: #D6D6D6">Neon</span></button><button aria-pressed="false" style="flex: none; display: flex; flex-direction: column; gap: 4px; width: 80px; padding: 5px; border-radius: 10px; background: #181818; border: 1px solid #2A2A2A"><span aria-hidden="true" style="height: 20px; border-radius: 5px; background: linear-gradient(90deg, #4a0d0d,#9b1c0a,#e8590c,#ffb703,#fff3b0)"></span><span style="font-size: 11.5px; color: #D6D6D6">Ember</span></button><button aria-pressed="false" style="flex: none; display: flex; flex-direction: column; gap: 4px; width: 80px; padding: 5px; border-radius: 10px; background: #181818; border: 1px solid #2A2A2A"><span aria-hidden="true" style="height: 20px; border-radius: 5px; background: linear-gradient(90deg, #03045e,#0077b6,#00b4d8,#90e0ef,#caf0f8)"></span><span style="font-size: 11.5px; color: #D6D6D6">Ocean</span></button><button aria-pressed="false" style="flex: none; display: flex; flex-direction: column; gap: 4px; width: 80px; padding: 5px; border-radius: 10px; background: #181818; border: 1px solid #2A2A2A"><span aria-hidden="true" style="height: 20px; border-radius: 5px; background: linear-gradient(90deg, #ffd24d,#ff9d1f,#ff5f1f,#e5322d,#c92a5e)"></span><span style="font-size: 11.5px; color: #D6D6D6">Sunset</span></button></div>
+    <div aria-hidden="true" style="position: relative; height: 12px; border-radius: 6px; background: linear-gradient(90deg, #2f1437,#701f57,#b43e55,#d9805f,#dcae9e,#e2d9e2,#a9c2d0,#6f95b8,#5f68ad,#5a3b8c,#2f1437)"><div style="position: absolute; left: 12%; top: -5px; width: 6px; height: 22px; border-radius: 3px; background: #fff"></div><div style="position: absolute; left: 78%; top: -5px; width: 6px; height: 22px; border-radius: 3px; background: #fff"></div></div>
+    <div style="display: flex; gap: 8px; align-items: center"><div style="display: flex; gap: 8px; overflow: hidden; flex: 1"><button style="flex: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-width: 76px; height: 56px; padding: 0 12px; border-radius: 12px; font-family: Inter, sans-serif; background: rgba(59,130,246,0.35); border: 1.5px solid #93c5fd"><span style="font-size: 12px; color: #fff">Cycles</span><span style="font-size: 15px; font-weight: 600; color: #fff">1</span></button><button style="flex: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-width: 76px; height: 56px; padding: 0 12px; border-radius: 12px; font-family: Inter, sans-serif; background: #181818; border: 1px solid #2A2A2A"><span style="font-size: 12px; color: #9A9A9A">Phase</span><span style="font-size: 15px; font-weight: 600; color: #fff">0</span></button><button style="flex: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-width: 76px; height: 56px; padding: 0 12px; border-radius: 12px; font-family: Inter, sans-serif; background: #181818; border: 1px solid #2A2A2A"><span style="font-size: 12px; color: #9A9A9A">Saturation</span><span style="font-size: 15px; font-weight: 600; color: #fff">0.5</span></button></div></div>
+    <div style="display: flex; flex-direction: column; gap: 6px">
+      <div style="display: flex; justify-content: space-between; padding: 0 10px; font: 600 16px Inter, sans-serif; color: #E6E6E6"><span>Cycles:</span><span>1</span></div>
+      <div aria-hidden="true" style="position: relative; height: 28px; border-radius: 20px; background: #555; box-shadow: 0 1px 0 rgba(0,0,0,0.75)"><div style="position: absolute; top: 2.5px; left: calc((100% - 40px) * 0.20); width: 40px; height: 23px; border-radius: 20px; background: rgba(220,220,220,0.9)"></div></div>
+    </div>
+    <div style="display: flex; gap: 12px"><label style="flex: 1 1 0; min-width: 0; display: block; text-align: center; padding: 10px 4px; border-radius: 999px; font: 500 15px Inter, sans-serif; background: #EEE; color: #555">Reverse</label><label style="flex: 1 1 0; min-width: 0; display: block; text-align: center; padding: 10px 4px; border-radius: 999px; font: 500 15px Inter, sans-serif; background: #EEE; color: #555">Hard Edge</label></div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>
