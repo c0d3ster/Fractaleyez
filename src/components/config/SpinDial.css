@@ -95,3 +95,9 @@
 .spin-dial--aiming .spin-dial-degrees {
   display: inline;
 }
+
+/* Shown, not used: the mobile gesture readout. */
+.spin-dial--readonly {
+  cursor: default;
+  pointer-events: none;
+}
