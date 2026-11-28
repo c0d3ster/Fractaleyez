@@ -3,6 +3,7 @@ import { useInfo } from './info/info'
 import { EFFECT_KEYS, EffectKey, MotionEffects } from './useGalaxyMotion'
 import { ghostKey, switchGhost } from '../../utils/ghostStore'
 import { useGhost } from './context/useGhost'
+import { createPulse, pulsingEffects } from './effectPulse'
 import './EffectChips.css'
 
 export type EffectChipsHandle = {
@@ -23,9 +24,6 @@ type EffectChipsProps = {
   onToggleKaleidoscope: (enabled: boolean) => void
 }
 
-// Cyclone just turns, so it only lights up; the rest act on a beat, so they flash with it.
-const BEAT_DRIVEN: ReadonlySet<EffectKey> = new Set<EffectKey>(['wobWob', 'switcheroo', 'colorShift', 'glow', 'shockwave'])
-
 // Shown on hover with the effect's name, since the chips replace checkboxes that had nothing but a name to go on.
 const DESCRIPTIONS: Readonly<Record<EffectKey, string>> = {
   cyclone: 'Particle layers spin in alternating directions.',
@@ -45,21 +43,6 @@ const MODES: readonly { label: string, description: string, icon: React.ReactEle
   { label: 'Vertical', description: 'Puts mirrored strips side by side, each flipped over the last.', icon: <line x1='12' y1='3' x2='12' y2='21' /> },
 ]
 
-const PULSE_MS = 280
-// In a few steps, so the popup only has a new frame to draw when one changes.
-const PULSE_EASING = 'steps(4)'
-const PULSE_SCALE_KEYFRAMES: Keyframe[] = [
-  { transform: 'scale(1)' },
-  { transform: 'scale(1.1)', offset: 0.25 },
-  { transform: 'scale(1)' },
-]
-// The brightening is a white overlay (the chip's ::after) fading in and out.
-const PULSE_FLASH_KEYFRAMES: Keyframe[] = [
-  { opacity: 0 },
-  { opacity: 0.3, offset: 0.25 },
-  { opacity: 0 },
-]
-
 /**
  * The Effects as a set of switches, the kaleidoscope first on a row of its own: each lights up when its effect is on,
  * and flashes on a beat when it is acting.
@@ -70,8 +53,7 @@ export const EffectChips = React.memo(forwardRef<EffectChipsHandle, EffectChipsP
   // What Auto mode wants the kaleidoscope to be, shown on its chip without changing the stored switch.
   const kaleidoscopeGhost = switchGhost(useGhost(ghostKey('effects', 'kaleidoscope')), kaleidoscope)
   const chips = useRef<Partial<Record<EffectKey, HTMLButtonElement | null>>>({})
-  // Built the first time a chip flashes and replayed after that; making new animations on every beat is what costs.
-  const flashes = useRef<Partial<Record<EffectKey, Animation[]>>>({})
+  const flash = useRef(createPulse())
   // The flash reads the latest settings from here, so a beat never has to wait for a re-render.
   const latest = useRef(effects)
 
@@ -81,19 +63,9 @@ export const EffectChips = React.memo(forwardRef<EffectChipsHandle, EffectChipsP
 
   useImperativeHandle(ref, () => ({
     pulse: (): void => {
-      EFFECT_KEYS.forEach((key) => {
-        if (!latest.current[key] || !BEAT_DRIVEN.has(key)) return
+      pulsingEffects(latest.current, EFFECT_KEYS).forEach((key) => {
         const chip = chips.current[key]
-        if (!chip) return
-        const animations = flashes.current[key] ?? [
-          chip.animate(PULSE_SCALE_KEYFRAMES, { duration: PULSE_MS, easing: PULSE_EASING }),
-          chip.animate(PULSE_FLASH_KEYFRAMES, { duration: PULSE_MS, easing: PULSE_EASING, pseudoElement: '::after' }),
-        ]
-        flashes.current[key] = animations
-        animations.forEach((animation) => {
-          animation.currentTime = 0
-          animation.play()
-        })
+        if (chip) flash.current(chip)
       })
     },
   }), [])
