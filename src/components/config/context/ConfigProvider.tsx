@@ -854,10 +854,18 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
     }
   }, [toggleLiveVideo])
 
+  // Set once a preset load starts, so a shared link never replaces a choice the viewer has made (see the link effect below).
+  const presetLinkHandledRef = useRef(false)
+  // Each load takes the next token; a load that finds a newer one after an await was overtaken and writes nothing.
+  const presetLoadTokenRef = useRef(0)
+
   const retrieveConfigPreset = useCallback(async (event: PresetRetrieveEvent) => {
     const name = event.currentTarget?.dataset?.name
     const id = event.currentTarget?.dataset?.id
     if (!name) return
+    presetLinkHandledRef.current = true
+    const token = ++presetLoadTokenRef.current
+    const overtaken = (): boolean => token !== presetLoadTokenRef.current
     // Picking a preset is a deliberate choice, so Auto steps back.
     autoMode.takeOver()
 
@@ -889,18 +897,22 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
       }
     }
 
+    if (overtaken()) return
+
     // Effective clips: a disabled video layer has no plane, same as an empty clip list.
     const prevClips = window.config.layers.meta.video.enabled.value ? window.config.video.clips : []
     const loaded = keepDisabledLayerSections(normalizeLoadedPreset(cfg), cfg, window.config)
     const { config: resolved, active } = resolveUserReferenceIn(loaded, userContextRef.current)
     // A stored focus belongs to the image it was set on, and an `@user` logo is a different image for every viewer.
     const next = active.logo ? await withSuggestedLogoFocus(resolved) : resolved
-    activeUserReferenceRef.current = active
-    baselineRef.current = next
-    activePresetIdRef.current = id || null
+    if (overtaken()) return
     // Same reasoning as updateParticleSprites: warm the cache before the config write triggers
     // a rebuild, so a preset's not-yet-cached sprites don't race a cold cross-origin load.
     await warmSpriteCache([...next.particle.sprites.value, ...next.logo.sprite.value])
+    if (overtaken()) return
+    activeUserReferenceRef.current = active
+    baselineRef.current = next
+    activePresetIdRef.current = id || null
     setConfig(next)
     window.config = next
     // A shape picked on the Shape pad is not part of a preset, so loading one hands the shape back to its tour.
@@ -918,12 +930,11 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
   }, [])
 
   // A shared link (`?preset=<pack slug>/<preset name>`) loads its preset once, as soon as the lists can resolve it: the cached
-  // lists first, then the live ones. A preset the viewer picks before then wins, and the link is dropped.
-  const presetLinkHandledRef = useRef(false)
+  // lists first, then the live ones. Any preset load the viewer starts before then (default included) wins, and the link is dropped.
   useEffect(() => {
     if (presetLinkHandledRef.current) return
     const value = new URLSearchParams(window.location.search).get(PRESET_LINK_PARAM)
-    if (!value || activePresetIdRef.current) {
+    if (!value) {
       presetLinkHandledRef.current = true
       return
     }

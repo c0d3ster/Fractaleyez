@@ -27,7 +27,7 @@ export const parsePresetLink = (value: string | null): { packSlug: string; prese
 /**
  * The preset a shared link names: the pack is found by its slug, then the preset among that pack's presets whose name slugifies to
  * the link's. Both halves are case-insensitive. Null when either is missing, or when the preset is only in premium packs the viewer
- * can't use (a link never opens a preset the presets list wouldn't).
+ * can't use, or in packs the list doesn't have (a link never opens a preset the presets list wouldn't).
  */
 export const resolvePresetLink = (value: string | null, presets: PresetMeta[], packs: PackMeta[]): PresetMeta | null => {
   const link = parsePresetLink(value)
@@ -39,7 +39,7 @@ export const resolvePresetLink = (value: string | null, presets: PresetMeta[], p
   const packByName = new Map(packs.map(p => [p.name, p]))
   const usable = packsOf(preset).some(name => {
     const listed = packByName.get(name)
-    return !listed?.isPremium || listed.isEntitled
+    return listed !== undefined && (!listed.isPremium || listed.isEntitled)
   })
   return usable ? preset : null
 }
