@@ -30,6 +30,8 @@ type SpinDialProps = SpinRange & {
   onChange: (value: number) => void
   /** Puts the speed back to its default. */
   onReset: () => void
+  /** Only shows the value and bearing: no pointer capture, keys or hover text (the mobile gesture readout). */
+  readOnly?: boolean
 }
 
 const SNAP_STEP = (15 * Math.PI) / 180
@@ -66,7 +68,7 @@ const unitsAt = (event: React.PointerEvent<HTMLDivElement> | React.MouseEvent<HT
  * The bearing arrow is moved straight on its element every frame, never through React, so it can spin without
  * re-rendering the config UI.
  */
-export const SpinDial = React.memo(({ label, description, value, min, max, step, heading, onChange, onReset }: SpinDialProps): React.ReactElement => {
+export const SpinDial = React.memo(({ label, description, value, min, max, step, heading, onChange, onReset, readOnly = false }: SpinDialProps): React.ReactElement => {
   const info = useInfo()
   const root = useRef<HTMLDivElement>(null)
   const arrow = useRef<SVGGElement>(null)
@@ -157,22 +159,25 @@ export const SpinDial = React.memo(({ label, description, value, min, max, step,
   const hint = [description ? `${label}: ${description}` : label, 'Drag the arrow on the ring to point it somewhere else, or across the arc to set the speed.', 'Double-click the ring to point it up, or the arc to reset the speed.'].filter(Boolean).join('\n')
 
   return (
-    <div className='spin-dial-wrapper' {...info(hint)}>
+    <div className='spin-dial-wrapper' {...(readOnly ? {} : info(hint))}>
       <div
         ref={root}
-        className='spin-dial'
+        className={readOnly ? 'spin-dial spin-dial--readonly' : 'spin-dial'}
         role='slider'
         aria-label={label}
         aria-valuemin={min}
         aria-valuemax={max}
         aria-valuenow={value}
-        tabIndex={0}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerEnd}
-        onLostPointerCapture={handlePointerEnd}
-        onDoubleClick={handleDoubleClick}
-        onKeyDown={handleKeyDown}
+        aria-readonly={readOnly || undefined}
+        {...(readOnly ? {} : {
+          tabIndex: 0,
+          onPointerDown: handlePointerDown,
+          onPointerMove: handlePointerMove,
+          onPointerUp: handlePointerEnd,
+          onLostPointerCapture: handlePointerEnd,
+          onDoubleClick: handleDoubleClick,
+          onKeyDown: handleKeyDown,
+        })}
       >
         <svg className='spin-dial-pane' viewBox={`${-HALF} ${-HALF} ${VIEW} ${VIEW}`}>
           <circle className='spin-dial-face' r={HALF - 1} />
