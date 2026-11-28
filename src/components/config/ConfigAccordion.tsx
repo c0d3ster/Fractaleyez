@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react'
+import React from 'react'
 
 import { ConfigCategory } from '../config/ConfigCategory'
 import { ConfigSectionItems } from './ConfigSectionItems'
@@ -12,37 +12,10 @@ import { AutoSwitch } from './AutoSwitch'
 import { ParticleSpriteHud } from '../huds'
 import { connectConfigActions } from './context/ConfigProvider'
 import { DISPLAY_ORDER, DisplayKey } from '../../config/layers'
-
-type OpenCategories = {
-  openCategories: string[]
-  toggleOpen: (id: string) => void
-}
+import type { OpenCategories } from './useOpenCategories'
 
 type ConfigAccordionProps = OpenCategories & {
   updateConfigItem: (category: string, item: string, value: string | boolean | number) => void
-}
-
-/**
- * Which categories are open. It lives with the owner of the accordion, not in it, so the open categories survive the accordion being taken
- * out of the page and put back (the sidebar does that while the expanded config window is open).
- */
-export const useOpenCategories = (canOpenMultiple: boolean): OpenCategories => {
-  const [openCategories, setOpenCategories] = useState(['user'])
-
-  const toggleOpen = useCallback((id: string) => {
-    setOpenCategories((prev) => {
-      const index = prev.indexOf(id)
-      if (canOpenMultiple && index === -1) {
-        return [...prev, id]
-      } else if (index === -1) {
-        return [id]
-      } else {
-        return prev.filter((c) => c !== id)
-      }
-    })
-  }, [canOpenMultiple])
-
-  return { openCategories, toggleOpen }
 }
 
 type EntryProps = {

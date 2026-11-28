@@ -3,7 +3,7 @@ import { BloomEffect, EffectComposer, EffectPass, Pass, RenderPass, ShockWaveEff
 
 import type { AudioSnapshot } from '../../audioanalysis/audio-snapshot'
 import { CAMERA_STEER_SCREEN_FRACTION_PER_PAD_UNIT } from '../../config/visualizer.config'
-import { perfProbe } from '../perf'
+import { perfProbe, startupTimeline } from '../perf'
 import { KaleidoscopeEffect } from './kaleidoscope-effect'
 import { autoMode } from '../../automode'
 import { audioAnalysis } from '../../audio'
@@ -78,6 +78,9 @@ export class PostEffects {
     timePass(this.plainPass, 'post.effects')
   }
 
+  // The Glow settings the effect passes have drawn with, so their shaders are compiled (see warmNext).
+  private readonly warmedGlow = new Set<boolean>()
+
   private syncGlow = (glow: boolean): void => {
     this.glowPass.enabled = glow
     this.plainPass.enabled = !glow
@@ -137,7 +140,10 @@ export class PostEffects {
     // starts after a long idle stretch must not get all of that time in its first frame and finish at once.
     const deltaTime = this.clock.getDelta()
     if (!glow && this.isIdle()) this.drawCompositeDirect()
-    else this.composer.render(deltaTime)
+    else {
+      this.composer.render(deltaTime)
+      this.warmedGlow.add(glow)
+    }
   }
 
   /** With nothing to add, the effect pass would copy the composite to the screen unchanged, at the cost of a second full-screen pass and its buffer. */
@@ -151,16 +157,21 @@ export class PostEffects {
   }
 
   /**
-   * Draws one frame through each effect pass (with and without Glow) so their shaders compile now, behind the startup load, instead of the
-   * first time Glow is switched. Nothing shows: the composite is black until a layer has drawn.
+   * Draws one frame through the effect passes, with Glow as it is set and then the other way, so their shaders compile in the background
+   * after startup instead of the first time Glow is switched or a shockwave fires. One variant per call; false once both are ready.
+   * The next drawn frame covers it.
    */
-  warm = (): void => {
-    const glow = this.glowPass.enabled
-    ;[true, false].forEach((withGlow) => {
-      this.syncGlow(withGlow)
+  warmNext = (): boolean => {
+    const glow = window.config.effects.glow.value
+    const next = [glow, !glow].find((withGlow) => !this.warmedGlow.has(withGlow))
+    if (next === undefined) return false
+    startupTimeline.span(`effects-glow:${next ? 'on' : 'off'}`, () => {
+      this.syncGlow(next)
       this.composer.render(0)
+      this.syncGlow(glow)
     })
-    this.syncGlow(glow)
+    this.warmedGlow.add(next)
+    return this.warmedGlow.size < 2
   }
 
   /** The glow's blur runs at this fraction of the screen size. */

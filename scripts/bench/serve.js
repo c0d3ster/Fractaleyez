@@ -4,6 +4,7 @@
 const http = require('http')
 const fs = require('fs')
 const path = require('path')
+const zlib = require('zlib')
 
 const [dir, port] = [process.argv[2], Number(process.argv[3])]
 if (!dir || !port) { console.log('usage: node serve.js <dir> <port>'); process.exit(1) }
@@ -26,6 +27,14 @@ http.createServer((request, response) => {
     response.writeHead(206, { 'Content-Type': type + charset, 'Content-Range': `bytes ${start}-${end}/${size}`, 'Accept-Ranges': 'bytes', 'Content-Length': end - start + 1 })
     fs.createReadStream(file, { start, end }).pipe(response)
     return
+  }
+  // Text is gzipped when the browser accepts it, as a CDN would, so a throttled run downloads what a visitor would.
+  if (charset || type === 'text/javascript') {
+    if (/\bgzip\b/.test(request.headers['accept-encoding'] || '')) {
+      response.writeHead(200, { 'Content-Type': type + charset, 'Content-Encoding': 'gzip', Vary: 'Accept-Encoding' })
+      fs.createReadStream(file).pipe(zlib.createGzip({ level: 9 })).pipe(response)
+      return
+    }
   }
   response.writeHead(200, { 'Content-Type': type + charset, 'Content-Length': size, 'Accept-Ranges': 'bytes' })
   fs.createReadStream(file).pipe(response)

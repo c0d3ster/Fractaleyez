@@ -1,56 +1,16 @@
-import React from 'react'
-import { createRoot } from 'react-dom/client'
-import { ClerkProvider } from '@clerk/clerk-react'
-import { Analytics } from '@vercel/analytics/react'
+// The entry: the visuals start as this bundle loads (main.ts). The UI is a chunk of its own, fetched and mounted once the look is complete
+// (the layers join one by one, the video last), so neither its download nor mounting it, which holds the main thread for a moment,
+// competes with the visuals for the network or the main thread. It does not wait longer than UI_WAIT_MS (a slow clip, no WebGL).
+import './main'
+import { startupTimeline } from './visualization/perf/startup'
 
-import { ConfigProvider } from './components/config/context/ConfigProvider'
-import { App } from './components/App'
-import { watchInputType } from './components/config/inputType'
+const UI_WAIT_MS = 4000
 
-const publishableKey = process.env.CLERK_PUBLISHABLE_KEY?.trim()
-if (!publishableKey || !/^pk_(test|live)_/.test(publishableKey)) {
-  throw new Error(
-    'CLERK_PUBLISHABLE_KEY must be set to a valid Clerk publishable key (pk_test_... or pk_live_...).'
-  )
-}
+const lookComplete = Promise.race([
+  startupTimeline.reached('meaningful'),
+  new Promise<void>((resolve) => window.setTimeout(resolve, UI_WAIT_MS)),
+])
 
-watchInputType()
-
-window.onload = () => {
-  const rootEl = document.getElementById('root')
-  if (!rootEl) return
-  const root = createRoot(rootEl)
-  root.render(
-    <ClerkProvider
-      publishableKey={publishableKey}
-      appearance={{
-        variables: {
-          colorBackground: '#0a0a0a',
-          colorText: 'rgba(220, 220, 220, 0.9)',
-          colorTextSecondary: 'rgba(160, 160, 160, 0.9)',
-          colorInputBackground: '#1a1a1a',
-          colorInputText: 'rgba(220, 220, 220, 0.9)',
-          colorPrimary: '#ffffff',
-          colorTextOnPrimaryBackground: '#0a0a0a',
-          colorNeutral: 'rgba(220, 220, 220, 0.9)',
-          // fontSize is Clerk's "md" text-scale base; spacing drives button/input padding and
-          // gaps and is a separate lever (default 1rem) -- bumping only fontSize left buttons
-          // cramped since their padding wasn't scaling with the enlarged text.
-          fontSize: '1.35rem',
-          spacing: '1.15rem',
-        },
-        elements: {
-          card: {
-            border: '1px solid rgba(40, 40, 40, 0.9)',
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.8)',
-          },
-        },
-      }}
-    >
-      <ConfigProvider>
-        <App />
-      </ConfigProvider>
-      <Analytics />
-    </ClerkProvider>
-  )
-}
+void lookComplete
+  .then(() => import(/* webpackChunkName: "ui" */ './ui'))
+  .then(({ mountUi }) => mountUi())

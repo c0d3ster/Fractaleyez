@@ -3,6 +3,7 @@ import { getFractalFamily, type FractalFamily } from '../../visualization/fracta
 import './ShapePad.css'
 import '../upgrade/premiumOutline.css'
 import { mainWindow, Pad, PadPoint } from './Pad'
+import { useAfterStartup } from '../../utils/afterStartup'
 import { subscribeUiTick } from '../../utils/uiTicker'
 import { colorConfig } from '../../config/color.config'
 import { resolveColorState } from '../../config/colorState'
@@ -152,17 +153,18 @@ export const ShapePad = (): React.ReactElement => {
   const { requestUpgrade } = useUpgrade()
   const [readout, setReadout] = useState<ShapeReadout>({ re: -0.75, im: 0, manual: false, hue: 0, saturation: colorConfig.saturation_DEFAULT, targetRe: -0.75, targetIm: 0 })
 
-  // The map is the family's own parameter plane, so a new Type redraws it and the overlay.
+  // The map is the family's own parameter plane, so a new Type redraws it and the overlay. The first one waits until startup has settled.
+  const ready = useAfterStartup()
   useEffect(() => {
     const canvas = mandelbrotRef.current
-    if (!canvas) return
+    if (!canvas || !ready) return
     iterationsRef.current = computeIterations(family, canvas.width, canvas.height)
     drawnHueRef.current = 0
     const color = resolveColorState(mainWindow().config.color)
     drawnColorKeyRef.current = color.key
     drawEscapeCounts(canvas, iterationsRef.current, 0, color)
     lastDrawnKey.current = ''
-  }, [family])
+  }, [family, ready])
 
   // Poll the visualizer's current shape on the shared UI tick so the dot follows the Tour slider, glides, and
   // Switcheroo hops, the same way the camera pad stays in sync with the real mouse.

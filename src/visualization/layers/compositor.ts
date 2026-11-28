@@ -13,6 +13,11 @@ import { planLayers, targetOpacity } from './plan'
 export type LayerCompositorOptions = {
   /** Per-layer render target scale against the drawing buffer (default 1). Soft layers can go below 1. */
   resolutionScale?: Partial<Record<LayerKey, number>>
+  /**
+   * Whether a layer has joined yet (see LayerJoin): one that has not is skipped like an inactive one. With it, a layer seen for the first
+   * time fades in from black instead of starting at full opacity, since the layers come in one by one.
+   */
+  isJoined?: (key: LayerKey) => boolean
 }
 
 /**
@@ -23,6 +28,7 @@ export type LayerCompositorOptions = {
 export class LayerCompositor {
   private readonly targets = new Map<LayerKey, THREE.WebGLRenderTarget>()
   private readonly resolutionScale: Partial<Record<LayerKey, number>>
+  private readonly isJoined: ((key: LayerKey) => boolean) | undefined
   private readonly effectiveOpacity: Partial<Record<LayerKey, number>> = {}
   private readonly wasActive: Partial<Record<LayerKey, boolean>> = {}
   private readonly blank: THREE.DataTexture
@@ -37,6 +43,7 @@ export class LayerCompositor {
     options: LayerCompositorOptions = {},
   ) {
     this.resolutionScale = { ...options.resolutionScale }
+    this.isJoined = options.isJoined
     this.blank = new THREE.DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1)
     this.blank.needsUpdate = true
     const uniforms: Record<string, THREE.IUniform> = {
@@ -63,7 +70,7 @@ export class LayerCompositor {
   /** Draws every planned layer into its target and points the composite pass at them. */
   renderLayers = (deltaTime: number, audio: AudioSnapshot, config: LayersConfigSection): void => {
     perfProbe.begin('layers.plan')
-    const planned = planLayers(config, this.stepOpacities(deltaTime, config)).filter(({ key }) => this.layers[key]?.isActive?.() ?? Boolean(this.layers[key]))
+    const planned = planLayers(config, this.stepOpacities(deltaTime, config)).filter(({ key }) => this.isActive(key))
     perfProbe.end('layers.plan')
     const opacities: number[] = this.material.uniforms.uOpacity!.value
     const blends: number[] = this.material.uniforms.uBlend!.value
@@ -84,9 +91,15 @@ export class LayerCompositor {
     this.material.uniforms.uCount!.value = planned.length
   }
 
+  private isActive = (key: LayerKey): boolean => {
+    const layer = this.layers[key]
+    if (!layer || this.isJoined?.(key) === false) return false
+    return layer.isActive?.() ?? true
+  }
+
   /**
    * Eases each layer's effective opacity toward its target over the shared particle crossfade duration. A layer seen
-   * for the first time starts at its target, so nothing fades in on load.
+   * for the first time starts at its target, so nothing fades in on load, unless the layers join one by one (isJoined), when it fades in too.
    */
   private stepOpacities = (
     deltaTime: number,
@@ -96,9 +109,11 @@ export class LayerCompositor {
     order.forEach((key) => {
       const layer = this.layers[key]
       const target = layer?.isFadingOut?.() ? 0 : targetOpacity(meta, key)
-      const active = layer?.isActive?.() ?? Boolean(layer)
-      // A layer that just became active (e.g. the first video clip was selected) fades in from 0. Not on first sight, so nothing fades in on load.
-      const startsFromZero = this.wasActive[key] === false && active
+      const active = this.isActive(key)
+      // A layer that just became active (e.g. the first video clip was selected, or it just joined) fades in from 0. Not on first sight
+      // without isJoined, so nothing fades in on load there.
+      const seenBefore = this.wasActive[key] !== undefined || this.isJoined !== undefined
+      const startsFromZero = seenBefore && this.wasActive[key] !== true && active
       this.wasActive[key] = active
       const current = startsFromZero ? 0 : this.effectiveOpacity[key]
       const next = current === undefined ? target : stepOpacity(current, target, deltaTime, durationMs)

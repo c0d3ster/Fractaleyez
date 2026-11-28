@@ -8,6 +8,8 @@ export type Layer = {
   /** Called with the drawing buffer size in pixels; the layer's own target is sized by the compositor. */
   resize: (width: number, height: number) => void
   dispose: () => void
+  /** False while what the layer shows is still loading (its image, its clip), so at startup it joins once there is something to see. Omitted means ready. */
+  isReady?: () => boolean
   /** When it returns false the layer is skipped this frame, same as a disabled one. Omitted means always active. */
   isActive?: () => boolean
   /** When it returns true the layer fades out even though it is enabled (e.g. video with every clip unselected). */

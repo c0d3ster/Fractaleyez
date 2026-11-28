@@ -5,9 +5,10 @@ import { VisualTap } from './audioanalysis/visual-tap'
 import { exportSectionLog } from './audioanalysis/section-export'
 import { DEFAULT_DETECTOR_MS, detectorCalibration, estimateLag, LagEstimate, median } from './audioanalysis/lag-estimate'
 import { LagProbe } from './audioanalysis/lag-probe'
-import { LayerKey } from './config/configDefaults'
 import { LAYER_REGISTRY } from './config/layers'
-import { createLayerPipeline, LayerPipeline } from './visualization/layers'
+import { bootConfig } from './config/bootConfig'
+import { configDefaults, LayerKey } from './config/configDefaults'
+import { createLayerPipeline, LayerPipeline, prefetchClip } from './visualization/layers'
 import { shouldDrawForVideoFrame, shouldDrawUnderCap } from './visualization/frame-cap'
 import { loadTracker } from './visualization/load-tracker'
 import { logStartupReport, perfProbe, STARTUP_WATCH_MS, startupTimeline } from './visualization/perf'
@@ -16,9 +17,13 @@ import { displayStutters, videoStutters } from './visualization/stutter-monitor'
 import { videoFrameSignal } from './visualization/video-frame-signal'
 import { previewLock } from './components/presets/previewLock'
 
-// Size of the fft transform performed on audio stream
 startupTimeline.mark('main')
 
+// The page boots on the default look, so its first clip can start downloading now rather than when the pipeline is built.
+const [bootClip] = configDefaults.video.clips
+if (bootClip !== undefined && configDefaults.layers.meta.video.enabled.value) prefetchClip(bootClip)
+
+// Size of the fft transform performed on audio stream
 const FFT_SIZE = 512
 
 // Create the audio components required for analysis
@@ -110,6 +115,12 @@ const STARTUP_FRAMES = 45
 let endStartupLoad: (() => void) | null = null
 let startupFramesLeft = 0
 let loggedStartup = false
+// The first frame with everything the look shows: every enabled layer drawn and, when the video layer is on, its clip's first frame.
+const noteMeaningfulFrame = (layersReady: boolean): void => {
+  if (startupTimeline.at('meaningful') !== null || !layersReady) return
+  const videoShown = !window.config.layers.meta.video.enabled.value || startupTimeline.at('video-ready') !== null
+  if (videoShown) startupTimeline.mark('meaningful')
+}
 
 // Counts the first frames for the startup timeline, and with the perf probe on logs the timeline once its watch is over.
 const noteStartupFrame = (now: number): void => {
@@ -132,21 +143,18 @@ let idleMouseTimer: ReturnType<typeof setTimeout> | number = 0
 let forceMouseHide = false
 let idleSoundTimer = 0
 
-// Intiatialize Mic input stream & then set up Audio Analysis
-export const initWithMicrophone = (): void => {
+// Starts the capture worklet and asks for the microphone, right after the visuals start (they run on silence until it connects).
+const initWithMicrophone = (): void => {
   capture.start()
     .then(() => capture.connectMicrophone())
-    .then(init)
+    .then(connectAudio)
     .catch((err: unknown) => {
       console.error('Audio capture setup failed:', err)
-      init(null)
+      connectAudio(null)
     })
 }
 
-// Set up the Audio Analysis, Visualization manager
-const init = (microphone: MediaStreamAudioSourceNode | null): void => {
-  hideCursorOnInactivity()
-
+const connectAudio = (microphone: MediaStreamAudioSourceNode | null): void => {
   // Without a microphone (denied, or the capture worklet failed to load) the visuals still run, on silence.
   if (microphone) visualTap.connect(microphone, capture.input)
   // Every frame the worklet measures goes to the detectors, whatever the display is doing (a slow tier, a hidden tab): they run off its sample clock, not the drawn frames.
@@ -154,10 +162,17 @@ const init = (microphone: MediaStreamAudioSourceNode | null): void => {
     audioFeed.push(frame)
     capture.setSpectrum(audioFeed.wantsSpectrum())
   })
+  startupTimeline.mark('audio-ready')
+}
+
+// The visuals start as soon as this code has run, before the UI mounts (index.tsx waits for the first frame) and before the microphone
+// is asked for, so the logo is on screen while the rest loads. They start on the default look, the same config ConfigProvider boots with.
+const startVisuals = (): void => {
+  window.config = bootConfig()
+  hideCursorOnInactivity()
   lastFrameTime = performance.now()
   lastDisplayFrameTime = lastFrameTime
 
-  startupTimeline.mark('audio-ready')
   startupFramesLeft = STARTUP_FRAMES
   endStartupLoad = loadTracker.begin('startup')
   pipeline = startupTimeline.span('pipeline', () => createLayerPipeline(qualityController))
@@ -273,7 +288,10 @@ const analyze = (): void => {
 
   pipeline?.render(deltaTime, visualizationData)
   perfProbe.frameEnd()
-  if (pipeline) noteStartupFrame(now)
+  if (pipeline) {
+    noteStartupFrame(now)
+    noteMeaningfulFrame(pipeline.allLayersShown())
+  }
   const submittedAt = performance.now()
   lagProbe.frameSubmitted(submittedAt)
   frameWorkMs.push(submittedAt - now)
@@ -284,3 +302,15 @@ const analyze = (): void => {
     endStartupLoad = null
   }
 }
+
+// In a task of its own, so the requests this bundle has started (the first clip, the logo) go out before building the pipeline holds the
+// main thread. The microphone and the capture worklet are asked for first, so they load while the pipeline is built. A page without WebGL
+// still gets its UI and its audio: the error is logged and nothing else stops.
+window.setTimeout(() => {
+  initWithMicrophone()
+  try {
+    startVisuals()
+  } catch (err: unknown) {
+    console.error('The visuals could not start:', err)
+  }
+}, 0)

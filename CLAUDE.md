@@ -69,7 +69,9 @@ Stripe subscriptions for the paid tiers (Dream is free, Lucid is `tier1`, Third 
 
 ### Visualization pipeline (`src/main.ts`)
 
-Runs independently of the React tree (`src/index.tsx` mounts the config UI/HUDs; `main.ts` drives the canvas):
+Runs independently of the React tree (`main.ts` drives the canvas; the UI is `src/ui.tsx`, a chunk of its own):
+
+Startup order (`window.perfProbe.startup()` and `scripts/bench/startup.js` measure it): `src/index.tsx` (the entry) imports `main.ts`, which starts the first clip downloading (`video-prefetch.ts`), then in the next task asks for the microphone and builds the pipeline on the boot config (`config/bootConfig.ts`, the same object `ConfigProvider` starts from), so the visuals run before any UI exists. The layers join one per frame through `LayerJoin` (`layers/layer-join.ts`): logo first (its image is preloaded in `index.html`), then fractal, orbit and the video once its clip has a frame, each fading in; a layer whose `isReady()` is false holds back the ones after it for up to 2 s. The `meaningful` mark is the first frame with every enabled layer in. Only then does `index.tsx` fetch and mount the UI chunk (4 s cap), and the sidebar's config controls and the expanded config window are lazy chunks loaded in idle time after startup (`utils/afterStartup.ts`, which also defers the Type thumbnails and the Shape pad map). Shaders not on screen (the effect passes with and without Glow, the other fractal Types) compile in the background (`layers/background-warm.ts`).
 
 ```text
 AudioSource (mic capture) → AudioStream (FFT, fixed 512 size, five onset band levels) → AudioFeed (AudioAnalyser energy + the beatsense analysers)
