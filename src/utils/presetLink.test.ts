@@ -74,6 +74,11 @@ describe('resolvePresetLink', () => {
     expect(resolvePresetLink('deep-space/nebula-free', presets, packs)).toBe(presets[3])
   })
 
+  it('does not count a membership in a pack the list does not have', () => {
+    const stale = preset('Ghost', ['Deep Space', 'Removed'])
+    expect(resolvePresetLink('deep-space/ghost', [stale], packs)).toBeNull()
+  })
+
   it('reads the legacy pack field when packs is empty', () => {
     const legacy = preset('Old One', [], { pack: 'Reddit', packs: [] })
     expect(resolvePresetLink('reddit/old-one', [legacy], packs)).toBe(legacy)
