@@ -82,3 +82,40 @@ export const createIdleFade = (schedule: Schedule = defaultSchedule, ms = CONTRO
     },
   }
 }
+
+export type ChromeRect = { left: number; top: number; right: number; bottom: number }
+
+/** A bar or badge as the wake guard sees it: its state and where it is on screen. */
+export type ChromeTarget = { state: BarState | BadgeState; rect: ChromeRect }
+
+const inside = (point: { x: number; y: number }, rect: ChromeRect): boolean =>
+  point.x >= rect.left && point.x <= rect.right && point.y >= rect.top && point.y <= rect.bottom
+
+/** Whether a touch at `point` only wakes the chrome: it lands on a bar or badge that has faded while idle. Such a touch brings them back and does nothing else (no steering, no toggle, no gesture). A touch on a shown, dimmed or slid-away element, or on the open visual, is not taken. */
+export const wakesOnly = (point: { x: number; y: number }, targets: readonly ChromeTarget[]): boolean =>
+  targets.some((target) => target.state === 'faded' && inside(point, target.rect))
+
+export type WakeGuard = {
+  /** A finger landed. Returns true when the touch is taken: the caller stops it reaching the visual and the controls. */
+  down: (id: number, point: { x: number; y: number }, targets: readonly ChromeTarget[]) => boolean
+  /** Whether a later event of pointer `id` (move, up, cancel) belongs to a taken touch, so it is stopped too. */
+  owns: (id: number) => boolean
+  /** The finger lifted or was cancelled. */
+  end: (id: number) => void
+}
+
+/** Tracks the touches `wakesOnly` takes, from the press to the lift. */
+export const createWakeGuard = (): WakeGuard => {
+  const taken = new Set<number>()
+  return {
+    down: (id, point, targets) => {
+      if (!wakesOnly(point, targets)) return false
+      taken.add(id)
+      return true
+    },
+    owns: (id) => taken.has(id),
+    end: (id) => {
+      taken.delete(id)
+    },
+  }
+}

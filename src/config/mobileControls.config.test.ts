@@ -26,8 +26,8 @@ describe('controlsVisibility', () => {
     expect(controlsVisibility('full', false)).toEqual({ bar: true, badge: true, fadeWhenIdle: true, readout: 'full' })
   })
 
-  it('does not fade in Full while the menu is open', () => {
-    expect(controlsVisibility('full', true)).toEqual({ bar: true, badge: true, fadeWhenIdle: false, readout: 'full' })
+  it('hides the bar and keeps the badge, unfaded, in Full while a sheet is open', () => {
+    expect(controlsVisibility('full', true)).toEqual({ bar: false, badge: true, fadeWhenIdle: false, readout: 'full' })
   })
 
   it.each([['limited', 'chip'], ['none', 'none']] as const)('shows nothing at rest in %s', (mode, readout) => {

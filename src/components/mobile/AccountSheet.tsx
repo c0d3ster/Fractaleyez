@@ -56,8 +56,8 @@ const ControlsPicker = (): React.ReactElement => {
   }
   return (
     <div className='account-controls'>
-      <p className='account-controls__intro'>How much shows up while you play. Gestures work the same in every mode.</p>
-      <div className='account-controls__options' role='radiogroup' aria-label='On-screen controls'>
+      <p id='account-controls-intro' className='account-controls__intro'>How much shows up while you play. Gestures work the same in every mode.</p>
+      <div className='account-controls__options' role='radiogroup' aria-label='On-screen controls' aria-describedby='account-controls-intro'>
         {CONTROLS_MODE_OPTIONS.map((option) => (
           <button
             key={option.mode}

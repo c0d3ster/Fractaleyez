@@ -148,14 +148,109 @@
   color: #CFCFCF;
 }
 
-/* Presets tab (no design yet): the sidebar's list, which is already dark, without its side margins. */
-.menu-presets__head {
+/* Presets tab (no design yet): the sidebar's packs and presets, already dark, filling the sheet's body. The packs are one sideways
+   row of pills on top; the presets scroll in their own box under them, with a fade over the bottom edge while more is below (and a
+   thin scrollbar where the browser draws one); the save form stays at the bottom. */
+.menu-sheet [data-menu-page='presets'] {
+  height: 100%;
+}
+
+.menu-presets {
   display: flex;
-  justify-content: flex-end;
+  flex-direction: column;
+  gap: 12px;
+  height: 100%;
+}
+
+.menu-presets > .flow-root {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .menu-presets .presets-container {
+  flex: 1;
+  min-height: 0;
   margin: 0;
+}
+
+.menu-presets .pack-tabs-row {
+  flex: none;
+  margin: 0 -16px 8px 0;
+}
+
+.menu-presets .pack-tabs {
+  flex-wrap: nowrap;
+  gap: 8px;
+  margin: 0;
+  padding-right: 16px;
+  overflow-x: auto;
+  touch-action: pan-x;
+  scrollbar-width: none;
+}
+
+.menu-presets .pack-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.menu-presets .pack-tab {
+  flex: none;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 18px;
+  border-color: #333;
+  color: #C4C4C4;
+  font: 500 14px Inter, sans-serif;
+  white-space: nowrap;
+}
+
+.menu-presets .pack-tab.active {
+  border-color: #EDEDED;
+  color: #EDEDED;
+}
+
+.menu-presets .presets-grid-wrap {
+  flex: 1;
+  min-height: 0;
+}
+
+.menu-presets .presets-grid--list {
+  height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: #555 transparent;
+}
+
+.menu-presets .presets-grid--list[data-more='yes'] {
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 40px), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 40px), transparent);
+}
+
+.menu-presets .presets-grid--list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.menu-presets .presets-grid--list::-webkit-scrollbar-thumb {
+  border-radius: 2px;
+  background: #555;
+}
+
+.menu-presets .preset-item {
+  min-height: 44px;
+  box-sizing: border-box;
+  margin: 4px 6px 4px 0 !important;
+}
+
+/* Number keys pick a preset on a keyboard; a phone has none. */
+.menu-presets .preset-hotkey-badge {
+  display: none;
+}
+
+.menu-presets__save {
+  flex: none;
 }
 
 /* Audio tab (no design yet): the sidebar's section rows, which are drawn for its light panel, recolored for the dark sheet. */

@@ -22,7 +22,7 @@ export const CONTROLS_FADE_MS = 3000
 export type GestureReadout = 'full' | 'chip' | 'none'
 
 export type ControlsVisibility = {
-  /** The bottom bar with the menu, layer and effect buttons. */
+  /** The bottom bar with the menu, layer and effect buttons (never while a sheet is open: the sheet covers its place). */
   bar: boolean
   /** The account badge, top-right. */
   badge: boolean
@@ -34,11 +34,11 @@ export type ControlsVisibility = {
 
 const READOUT: Record<ControlsMode, GestureReadout> = { full: 'full', limited: 'chip', none: 'none' }
 
-/** What the shell shows in `mode`. In Limited and None nothing shows at rest, and the badge comes back while the menu is open so the setting stays reachable. */
+/** What the shell shows in `mode`. In Limited and None nothing shows at rest, and the badge comes back while the menu is open so the setting stays reachable. The bar is hidden while a sheet (the menu or the account sheet) is open in every mode, so it never shows faintly through the sheet. */
 export const controlsVisibility = (mode: ControlsMode, menuOpen: boolean): ControlsVisibility => {
   const full = mode === 'full'
   return {
-    bar: full,
+    bar: full && !menuOpen,
     badge: full || menuOpen,
     fadeWhenIdle: full && !menuOpen,
     readout: READOUT[mode],

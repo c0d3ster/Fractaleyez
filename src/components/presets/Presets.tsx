@@ -9,6 +9,7 @@ import { resolveUserName } from '../../utils/userReference'
 import { usePremiumTrial } from './usePremiumTrial'
 import { PremiumTrialModal } from './PremiumTrialModal'
 import { useUpgrade } from '../upgrade/UpgradeProvider'
+import { useMoreBelow } from '../../utils/moreBelow'
 
 export type PresetSelection = { name: string; label: string; pack: string; isOwn: boolean }
 
@@ -27,18 +28,22 @@ type PresetsProps = {
   userSprite?: string
   userName?: string | null
   expanded?: boolean
+  /** Every preset of the pack in one list that scrolls on its own (the mobile menu sheet), instead of pages of nine. */
+  list?: boolean
   onSelect?: (preset: PresetSelection) => void
   onPackSelect?: (pack: string) => void
   headerActions?: React.ReactNode
 }
 
-const PresetsInner = ({ retrieveConfigPreset, snapshotConfig, revertConfig, presets, packs = [], userSprite, userName = null, expanded = false, onSelect, onPackSelect, headerActions }: PresetsProps): React.ReactElement => {
+const PresetsInner = ({ retrieveConfigPreset, snapshotConfig, revertConfig, presets, packs = [], userSprite, userName = null, expanded = false, list = false, onSelect, onPackSelect, headerActions }: PresetsProps): React.ReactElement => {
   const [activePack, setActivePack] = useState('All')
   const [page, setPage] = useState(0)
   const [paging, setPaging] = useState(false)
   const [previewMode, setPreviewMode] = useState(false)
   const [trialPresetKey, setTrialPresetKey] = useState<string | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const gridRef = useRef<HTMLDivElement>(null)
+  const moreBelow = useMoreBelow(gridRef, list)
 
   const packMap = useMemo(() => new Map(packs.map(p => [p.name, p])), [packs])
   const { requestUpgrade } = useUpgrade()
@@ -66,7 +71,7 @@ const PresetsInner = ({ retrieveConfigPreset, snapshotConfig, revertConfig, pres
   const itemsPerPage = expanded ? 18 : 9
   const filtered = activePack === 'All' ? presets : presets.filter(p => packsOf(p).includes(activePack))
   const totalPages = Math.ceil(filtered.length / itemsPerPage)
-  const visible = filtered.slice(page * itemsPerPage, (page + 1) * itemsPerPage)
+  const visible = list ? filtered : filtered.slice(page * itemsPerPage, (page + 1) * itemsPerPage)
 
   const changePage = useCallback((next: number) => {
     setPaging(true)
@@ -159,7 +164,11 @@ const PresetsInner = ({ retrieveConfigPreset, snapshotConfig, revertConfig, pres
                 </div>
               ) : null
             })()}
-            <div className={`presets-grid${expanded ? ' presets-grid--expanded' : ''}${paging ? ' paging' : ''}`}>
+            <div
+              ref={gridRef}
+              className={`presets-grid${expanded ? ' presets-grid--expanded' : ''}${list ? ' presets-grid--list' : ''}${paging ? ' paging' : ''}`}
+              {...(list ? { 'data-sheet-scroll': 'list', 'data-more': moreBelow ? 'yes' : 'no' } : {})}
+            >
               {visible.map((preset, index) => {
                 const { id, name, label, sprite } = preset
                 const event: PresetRetrieveEvent = {
@@ -190,21 +199,23 @@ const PresetsInner = ({ retrieveConfigPreset, snapshotConfig, revertConfig, pres
               })}
             </div>
           </div>
-          <div className={`presets-pagination${totalPages > 1 ? '' : ' presets-pagination--hidden'}`}>
-            <button
-              className='pagination-arrow'
-              onClick={() => changePage(page === 0 ? totalPages - 1 : page - 1)}
-            >
-              &#8592;
-            </button>
-            <span className='pagination-label'>{page + 1} / {totalPages}</span>
-            <button
-              className='pagination-arrow'
-              onClick={() => changePage(page === totalPages - 1 ? 0 : page + 1)}
-            >
-              &#8594;
-            </button>
-          </div>
+          {!list && (
+            <div className={`presets-pagination${totalPages > 1 ? '' : ' presets-pagination--hidden'}`}>
+              <button
+                className='pagination-arrow'
+                onClick={() => changePage(page === 0 ? totalPages - 1 : page - 1)}
+              >
+                &#8592;
+              </button>
+              <span className='pagination-label'>{page + 1} / {totalPages}</span>
+              <button
+                className='pagination-arrow'
+                onClick={() => changePage(page === totalPages - 1 ? 0 : page + 1)}
+              >
+                &#8594;
+              </button>
+            </div>
+          )}
         </div>
       </div>
       {modalVisible && (

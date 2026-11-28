@@ -91,18 +91,22 @@ const LayersTab = ({ onOpen }: { onOpen: (layer: LayerKey) => void }): React.Rea
   </div>
 )
 
-/** The sidebar's preset list and save button. No design yet. */
+/**
+ * The sidebar's packs and presets (no design yet): the packs on top, then every preset of the pack in a list that scrolls on its
+ * own (a user can have any number) and fades at its bottom edge while there is more below, then the save form under it.
+ */
 const PresetsTab = (): React.ReactElement => {
   const [prefill, setPrefill] = useState<PresetSelection | null>(null)
   return (
     <div className='menu-presets'>
-      <div className='menu-presets__head'>
-        <SavePreset prefill={prefill} onSaved={() => setPrefill(null)} />
-      </div>
       <Presets
+        list
         onSelect={setPrefill}
         onPackSelect={(pack: string) => setPrefill((prev) => (prev ? { ...prev, pack } : { name: '', label: '', pack, isOwn: false }))}
       />
+      <div className='menu-presets__save'>
+        <SavePreset prefill={prefill} onSaved={() => setPrefill(null)} />
+      </div>
     </div>
   )
 }

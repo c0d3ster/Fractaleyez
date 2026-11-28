@@ -11,7 +11,7 @@ import { scrollLeftToShow } from './menuSheetState'
 // The one-slider pattern (docs/mobile-design/OrbitShape.html, OrbitParticles.html): a sideways row of buttons, each a setting's name
 // and value, and one large slider under them for the selected one. The slider is the section's own row from ConfigSectionItems
 // (`only` the selected item), so the particle load zones, the red-zone confirmation, the ghost thumb and the double-tap reset
-// are the desktop's, not a copy of them.
+// are the desktop's, not a copy of them. A setting the desktop draws as a dial (the logo's Spin Speed) is that dial here too.
 
 const BUTTON_MARGIN_PX = 16
 
@@ -64,7 +64,7 @@ export const OneSliderSection = ({ section, items, label }: OneSliderSectionProp
         ))}
       </div>
       <div className='sheet-slider' role='tabpanel'>
-        <ConfigSectionItems name={section} only={[selected]} noDials onChange={updateConfigItem} />
+        <ConfigSectionItems name={section} only={[selected]} onChange={updateConfigItem} />
       </div>
     </div>
   )

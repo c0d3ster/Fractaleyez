@@ -50,7 +50,8 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* The desktop's three mode buttons as one segmented control, each a 44px-tall target. */
+/* The desktop's three mode buttons as one segmented control, 30px tall as on the screen; each button's hit area reaches 7px above
+   and below it (::before), so it is still a 44px target without making the row taller. */
 .mobile-effects__modes.kaleidoscope-modes {
   justify-content: stretch;
   gap: 2px;
@@ -63,11 +64,18 @@
 .mobile-effects__modes .kaleidoscope-mode {
   flex: 1;
   width: auto;
-  height: 44px;
+  position: relative;
+  height: 30px;
   border: 0;
   border-radius: 8px;
   background: transparent;
   color: #B4B4B4;
+}
+
+.mobile-effects__modes .kaleidoscope-mode::before {
+  content: '';
+  position: absolute;
+  inset: -7px 0;
 }
 
 .mobile-effects__modes .kaleidoscope-mode svg {
@@ -80,22 +88,14 @@
   color: #fff;
 }
 
-/* Every effect, six to a row; past two rows the grid scrolls on its own. */
+/* Every effect, six to a row: today's seven take two rows, which fit the sheet with the dial and Auto. */
 .mobile-effects__grid {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 6px 2px;
   justify-items: center;
-  /* Room for the first and last names, which reach past their columns, inside the grid's own scroll box. */
+  /* Room for the first and last names, which reach past their columns. */
   padding: 0 4px;
-  max-height: calc(2 * 60px + 6px);
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  scrollbar-width: none;
-}
-
-.mobile-effects__grid::-webkit-scrollbar {
-  display: none;
 }
 
 .mobile-effect {
@@ -159,20 +159,53 @@
   color: #C4C4C4;
 }
 
-/* Auto, full width at the bottom: the desktop's outline pill with what it does written beside the name. */
+/* Auto at the bottom (MenuFull.html): its name and what it does on the left, a 40x24 switch on the right, 24px tall. The button's
+   hit area reaches 20px up over the gap and the effect names (::before), not down, since it is the sheet's last row: 44px to tap. */
 .mobile-effects__auto .auto-switch {
+  display: block;
   margin: 0;
 }
 
-.mobile-effects__auto .auto-switch-button {
+.mobile-effects__auto .auto-switch-button,
+.mobile-effects__auto .auto-switch-button--on {
+  position: relative;
   display: flex;
-  align-items: baseline;
-  justify-content: center;
-  gap: 8px;
+  align-items: center;
+  gap: 6px;
   width: 100%;
-  min-height: 44px;
-  padding: 0 16px;
-  font-size: 14px;
+  height: 24px;
+  padding: 0 4px;
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+  color: #EDEDED;
+  font: 400 14px Inter, sans-serif;
+  letter-spacing: 0;
+  text-transform: none;
+  text-align: left;
+}
+
+.mobile-effects__auto .auto-switch-button::before {
+  content: '';
+  position: absolute;
+  inset: -20px 0 0;
+}
+
+/* The switch: the track, then the knob over it. */
+.mobile-effects__auto .auto-switch-button::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 4px;
+  width: 40px;
+  height: 24px;
+  border-radius: 12px;
+  background: #333 radial-gradient(circle at 12px 12px, #fff 8.5px, transparent 9.5px);
+  transition: background 0.15s ease;
+}
+
+.mobile-effects__auto .auto-switch-button--on::after {
+  background: #005500 radial-gradient(circle at 28px 12px, #fff 8.5px, transparent 9.5px);
 }
 
 .auto-switch-caption {
@@ -252,28 +285,62 @@
   color: #DDD;
 }
 
-/* The range bar: the desktop's, thinner, without its name row (the screen has none). */
+/* The range bar (ColorTab.html): a 12px bar with the handles standing over it, 5px past each edge, and no name row. Its hit area
+   reaches 16px above and below the bar (::before), so it is a 44px target while the row stays 12px tall. */
 .mobile-color .palette-range .slider-info {
   display: none;
 }
 
 .mobile-color .palette-range__track {
+  position: relative;
   margin: 0;
 }
 
-.mobile-color .palette-range__strip {
-  height: 28px;
+.mobile-color .palette-range__track::before {
+  content: '';
+  position: absolute;
+  inset: -16px 0;
 }
 
-/* Reverse and Hard Edge: the desktop's pills, side by side. */
+.mobile-color .palette-range__strip {
+  height: 12px;
+  border-radius: 6px;
+}
+
+.mobile-color .palette-range__handles {
+  position: absolute;
+  top: -5px;
+  left: 0;
+  right: 0;
+  height: 22px;
+  margin: 0;
+  pointer-events: none;
+}
+
+.mobile-color .palette-range__handle {
+  clip-path: none;
+  border-radius: 3px;
+}
+
+/* Reverse and Hard Edge: the desktop's pills, side by side, 38px tall as on the screen. They are the tab's last row, so each
+   pill's hit area reaches 6px up over the gap (::before) to make 44px, not down past the sheet's content. */
 .mobile-color__pills.config-checkbox-row {
   gap: 12px;
   margin: 0;
 }
 
 .mobile-color__pills .config-checkbox-container label {
-  padding: 12px 4px;
+  position: relative;
+  /* The screen's 10px padding, less the desktop pill's 1px border. */
+  padding: 9px 4px;
   font: 500 15px Inter, sans-serif;
+  line-height: 18px;
+}
+
+.mobile-color__pills .config-checkbox-container label::before {
+  content: '';
+  position: absolute;
+  inset: -6px 0 0;
 }
 
 /* Camera: the pad (140px) with its caption beside it. */

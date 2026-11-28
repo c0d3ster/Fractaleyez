@@ -88,7 +88,7 @@ const READ = `(() => ({
           sliderName: slider?.querySelector('.slider-name')?.textContent.trim().replace(/:$/, '') ?? null,
           sliderValue: slider?.querySelector('.slider-value')?.textContent ?? null,
           sliderZoned: !!slider?.querySelector('.slider-input')?.style.background.includes('gradient'),
-          dials: pageEl.querySelectorAll('.spin-dial, [class*="spin-dial"]').length,
+          dials: pageEl.querySelectorAll('.spin-dial').length,
           types: pageEl.querySelectorAll('.fractal-type').length,
           typeColumns: (() => { const row = pageEl.querySelector('.fractal-types__row'); return row ? getComputedStyle(row).gridTemplateColumns.split(' ').length : null })(),
           chips: pageEl.querySelectorAll('.shape-pad-chip').length,
@@ -106,6 +106,12 @@ const READ = `(() => ({
       // The Effects, Color and Camera tabs (#366).
       menuTab: (() => {
         const box = (node) => node.getBoundingClientRect()
+        // How tall a control is to the finger: its box plus what its ::before hit area adds above and below it.
+        const hitHeight = (node) => {
+          const before = getComputedStyle(node, '::before')
+          const reach = (side) => (before.content !== 'none' && before.position === 'absolute' ? Math.max(0, -parseFloat(before[side]) || 0) : 0)
+          return box(node).height + reach('top') + reach('bottom')
+        }
         const pressedOf = (node) => node.getAttribute('aria-pressed') === 'true'
         const slider = (root) => root.querySelector('.sheet-slider')
         const sliderName = (root) => slider(root)?.querySelector('.slider-name')?.textContent.trim().replace(/:$/, '') ?? null
@@ -122,6 +128,7 @@ const READ = `(() => ({
             count: fx.querySelector('[data-kaleidoscope-count]')?.textContent ?? null,
             modes: [...fx.querySelectorAll('[data-kaleidoscope-mode]')].map(pressedOf),
             modeHeight: Math.round(Math.min(...[...fx.querySelectorAll('[data-kaleidoscope-mode]')].map((node) => box(node).height))),
+            modeTarget: Math.round(Math.min(...[...fx.querySelectorAll('[data-kaleidoscope-mode]')].map(hitHeight))),
             buttons: buttons.map((node) => node.dataset.menuEffect),
             pressed: Object.fromEntries(buttons.map((node) => [node.dataset.menuEffect, pressedOf(node)])),
             looks: Object.fromEntries(buttons.map((node) => [node.dataset.menuEffect, node.dataset.look])),
@@ -134,6 +141,7 @@ const READ = `(() => ({
             autoOn: auto ? pressedOf(auto) : null,
             autoWide: auto ? box(auto).width >= box(fx).width - 2 : null,
             autoHeight: auto ? Math.round(box(auto).height) : null,
+            autoTarget: auto ? Math.round(hitHeight(auto)) : null,
             autoLast: auto ? box(auto).top > box(grid).bottom : null,
           }
         })()
@@ -150,6 +158,9 @@ const READ = `(() => ({
             sliderName: sliderName(color),
             pills: [...color.querySelectorAll('.mobile-color__pills input')].map((node) => node.name),
             pillHeight: Math.round(Math.min(...[...color.querySelectorAll('.mobile-color__pills label')].map((node) => box(node).height))),
+            pillTarget: Math.round(Math.min(...[...color.querySelectorAll('.mobile-color__pills label')].map(hitHeight))),
+            rangeHeight: Math.round(box(color.querySelector('.palette-range__track')).height),
+            rangeTarget: Math.round(hitHeight(color.querySelector('.palette-range__track'))),
             order: [...color.children].map((node) => node.className.split(' ')[0]),
           }
         })()
@@ -407,6 +418,21 @@ const SCENARIOS = {
   // The account sheet (`#367`). Compare the screenshots with docs/mobile-design/AccountGuest.html (signed out),
   // AccountSheet.html (signed in, which needs a real Clerk key) and UIMode.html (the picker).
   ...accountScenarios(),
+  // No screen of the menu or the account sheet scrolls on an iPhone 13 (the sheet is 374px): every tab, layer page, sub-tab and
+  // one-slider setting, and the account views. A preset list may scroll (it shows a fade while more is below); nothing else may.
+  'sheet-fit': {
+    changes: [],
+    init: async (ctx) => { await fakeClerk(true)(ctx); await mockApi(true)(ctx) },
+    run: async (cdp, page) => ({ screens: await sheetFitScreens(page) }),
+    expect: (before, after, mid) => sheetFits(mid.screens),
+  },
+  // Signed out: the account sheet's pitch, sign-in button and controls row.
+  'sheet-fit-guest': {
+    changes: [],
+    init: async (ctx) => { await fakeClerk(false)(ctx); await mockApi(false)(ctx) },
+    run: async (cdp, page) => ({ screens: await sheetFitScreens(page, { menu: false }) }),
+    expect: (before, after, mid) => sheetFits(mid.screens) && 'account:guest' in mid.screens,
+  },
 }
 
 // Opens the sheet with the bar's menu button and waits for it to slide in.
@@ -719,7 +745,8 @@ function layerPageScenarios() {
         && lp.pills.join() === 'threeD,lean,zoom' && mid.flipped.config.logo.zoom === !before.config.logo.zoom
     },
   }
-  // Logo Motion (no design): Size, Spin Speed and Shake as one-slider buttons; Spin Speed is a slider here, not the desktop's dial.
+  // Logo Motion (no design): Size, Spin Speed and Shake as one-slider buttons; Spin Speed is the desktop's dial, which a drag turns
+  // without pulling the sheet down.
   scenarios['page-logo-motion'] = {
     changes: [],
     prepare: wake,
@@ -728,13 +755,16 @@ function layerPageScenarios() {
       await tapVisible(cdp, page, '[data-layer-subtab="motion"]')
       await tapVisible(cdp, page, '[data-one-slider-item="spinSpeed"]')
       const shown = await snap(cdp, page, 'page-logo-motion')
-      await slideBy(cdp, page, sliderSelector, 0.2)
-      return { shown, slid: await read(page) }
+      // A drag across the dial that also runs downward turns the speed and leaves the sheet where it is.
+      const [x, y] = await centerOf(page, '.sheet-slider .spin-dial')
+      await drag(cdp, [[x, y - 22]], [[x + 22, y + 30]], 12, 20)
+      await sleep(400)
+      return { shown, turned: await read(page) }
     },
     expect: (before, after, mid) => {
       const lp = mid.shown.sheet?.layerPage
-      return fits(mid.shown.sheet) && lp?.buttons.join() === 'size,spinSpeed,shake' && lp.selected === 'spinSpeed' && lp.sliderName === 'Spin Speed'
-        && lp.dials === 0 && mid.slid.config.logo.spinSpeed !== before.config.logo.spinSpeed
+      return fits(mid.shown.sheet) && lp?.buttons.join() === 'size,spinSpeed,shake' && lp.selected === 'spinSpeed' && lp.sliderName === null
+        && lp.dials === 1 && mid.turned.config.logo.spinSpeed !== before.config.logo.spinSpeed && mid.turned.sheet?.state === 'open'
     },
   }
   // Logo Pad (no design): the desktop pad, small enough for the sheet.
@@ -832,8 +862,9 @@ function menuTabScenarios() {
   const fits = (sheet) => sheet?.state === 'open' && sheet.height === sheetHeight() && sheet.bottom === H
   const tabOf = (state, tab) => (state.sheet?.tab === tab ? state.sheet.menuTab[tab] : null)
   const EFFECTS = ['kaleidoscope', 'cyclone', 'wobWob', 'switcheroo', 'colorShift', 'glow', 'shockwave']
-  // Effects: the 100px dial (no desktop chips under it) with the mirror count and three mode buttons beside it, then every effect,
-  // the kaleidoscope first, six to a row with 44px targets and one-line 10px names, and Auto full width under them.
+  // Effects: the 100px dial (no desktop chips under it) with the mirror count and three 30px mode buttons (44px targets) beside it,
+  // then every effect, the kaleidoscope first, six to a row with 44px targets and one-line 10px names, and Auto full width under
+  // them as a 24px row with a switch (a 44px target).
   scenarios['tab-effects'] = {
     changes: [],
     prepare: wake,
@@ -844,9 +875,9 @@ function menuTabScenarios() {
     expect: (before, after, mid) => {
       const fx = tabOf(mid, 'effects')
       return fits(mid.sheet) && fx?.dial === 100 && fx.dialChips === 0 && fx.count === String(before.config.kaleidoscopeCount)
-        && fx.modes.length === 3 && fx.modes[before.config.kaleidoscopeMode] === true && fx.modeHeight >= 44
+        && fx.modes.length === 3 && fx.modes[before.config.kaleidoscopeMode] === true && fx.modeHeight === 30 && fx.modeTarget >= 44
         && fx.buttons.join() === EFFECTS.join() && fx.columns === 6 && fx.rows === 2 && fx.minTarget >= 44
-        && fx.labelSize === '10px' && fx.labelsOneLine && fx.autoWide && fx.autoHeight >= 44 && fx.autoLast
+        && fx.labelSize === '10px' && fx.labelsOneLine && fx.autoWide && fx.autoHeight === 24 && fx.autoTarget >= 44 && fx.autoLast
         && EFFECTS.every((key) => fx.pressed[key] === before.ui.effects[key])
     },
   }
@@ -859,7 +890,11 @@ function menuTabScenarios() {
       await tapVisible(cdp, page, '[data-menu-effect="switcheroo"]')
       const one = await read(page)
       await tapVisible(cdp, page, '[data-menu-effect="kaleidoscope"]')
-      return { one, two: await snap(cdp, page, 'tab-effects-toggle') }
+      const two = await snap(cdp, page, 'tab-effects-toggle')
+      // The bar is hidden under the sheet: close it to see the bar's button.
+      await tap(cdp, W * 0.5, H * 0.2)
+      await sleep(600)
+      return { one, two, closed: await read(page) }
     },
     expect: (before, after, mid) => {
       const one = tabOf(mid.one, 'effects')
@@ -867,7 +902,7 @@ function menuTabScenarios() {
       return mid.one.ui.effects.switcheroo === !before.ui.effects.switcheroo && one?.pressed.switcheroo === mid.one.ui.effects.switcheroo
         && mid.one.ui.effects.kaleidoscope === before.ui.effects.kaleidoscope
         && mid.two.ui.effects.kaleidoscope === !before.ui.effects.kaleidoscope && two?.pressed.kaleidoscope === mid.two.ui.effects.kaleidoscope
-        && mid.two.ui.effectButtons.kaleidoscope === mid.two.ui.effects.kaleidoscope
+        && mid.closed.sheet === null && mid.closed.ui.effectButtons.kaleidoscope === mid.two.ui.effects.kaleidoscope
         && ['cyclone', 'wobWob', 'colorShift', 'glow', 'shockwave'].every((key) => mid.two.ui.effects[key] === before.ui.effects[key])
     },
   }
@@ -911,8 +946,8 @@ function menuTabScenarios() {
       return typeof first === 'boolean' && tabOf(mid.flipped, 'effects')?.autoOn === !first && tabOf(mid.back, 'effects')?.autoOn === first
     },
   }
-  // Color: the palettes as a sideways row of tiles (it scrolls), the range bar, Cycles, Phase and Saturation as one slider
-  // (Cycles first), then Reverse and Hard Edge as pills, in that order.
+  // Color: the palettes as a sideways row of tiles (it scrolls), the 12px range bar, Cycles, Phase and Saturation as one slider
+  // (Cycles first), then Reverse and Hard Edge as 38px pills, in that order; the bar and the pills are 44px targets.
   scenarios['tab-color'] = {
     changes: [],
     prepare: wake,
@@ -924,7 +959,7 @@ function menuTabScenarios() {
       const color = tabOf(mid, 'color')
       return fits(mid.sheet) && color?.tiles.length > 6 && color.tile === (before.config.palette ?? color.tiles[0]) && color.rowScrolls && color.tileHeight >= 44
         && color.range && color.buttons.join() === 'paletteCycles,palettePhase,saturation' && color.selected === 'paletteCycles' && color.sliderName === 'Cycles'
-        && color.pills.join() === 'paletteReverse,paletteHardEdge' && color.pillHeight >= 44
+        && color.pills.join() === 'paletteReverse,paletteHardEdge' && color.pillHeight === 38 && color.pillTarget >= 44 && color.rangeHeight === 12 && color.rangeTarget >= 44
         && color.order.join() === 'palette-picker,palette-range,one-slider,config-checkbox-row'
     },
   }
@@ -1108,6 +1143,68 @@ function shellScenarios() {
       await tap(cdp, x, y)
     },
     expect: (before, after) => after.accountOpens === 1 && after.menuOpens === 0,
+  }
+  // A touch on the faded bar or badge only brings them back: no layer or effect toggles, the camera does not steer, no menu or
+  // account sheet opens, and a hold does not open the menu either. The next touch, with them shown, works as usual.
+  const where = (page, selector) => page.evaluate((sel) => {
+    const box = document.querySelector(sel).getBoundingClientRect()
+    return [box.left + box.width / 2, box.top + box.height / 2]
+  }, selector)
+  for (const [name, selector, holdMs] of [['layer', '[data-layer="fractal"]', 60], ['effect', '[data-effect="glow"]', 60], ['menu', '[aria-label="Open menu"]', 60], ['hold', '[data-layer="orbit"]', 700]]) {
+    scenarios[`bar-faded-tap-${name}`] = {
+      changes: [],
+      prepare: async (page) => { await countMenuOpens(page); await wake(page) },
+      run: async (cdp, page) => {
+        const [x, y] = await where(page, selector)
+        await sleep(3600)
+        const faded = await page.evaluate(READ)
+        await tap(cdp, x, y, holdMs)
+        await sleep(400)
+        const woken = await page.evaluate(READ)
+        if (name !== 'layer') return { faded, woken }
+        // Shown now: the same spot is the layer button again.
+        await tap(cdp, x, y)
+        await sleep(400)
+        return { faded, woken, again: await page.evaluate(READ) }
+      },
+      expect: (before, after, mid) => mid.faded.ui.bar === 'faded' && mid.woken.ui.bar === 'shown' && mid.woken.ui.badge === 'shown'
+        && same(mid.woken.ui.layers, before.ui.layers) && same(mid.woken.ui.effects, before.ui.effects)
+        && mid.woken.menuOpens === 0 && mid.woken.sheet === null && mid.woken.gesture === null
+        && (name !== 'layer' || mid.again.ui.layers.fractal === !before.ui.layers.fractal),
+    }
+  }
+  scenarios['badge-faded-tap'] = {
+    changes: [],
+    prepare: async (page) => { await countMenuOpens(page); await wake(page) },
+    run: async (cdp, page) => {
+      const [x, y] = await where(page, '[data-mobile-badge]')
+      await sleep(3600)
+      const faded = await page.evaluate(READ)
+      await tap(cdp, x, y)
+      await sleep(400)
+      const woken = await page.evaluate(READ)
+      await tap(cdp, x, y)
+      await sleep(500)
+      return { faded, woken, again: await page.evaluate(READ) }
+    },
+    expect: (before, after, mid) => mid.faded.ui.badge === 'faded' && mid.woken.ui.badge === 'shown' && mid.woken.accountOpens === 0
+      && mid.woken.account === null && mid.again.accountOpens === 1,
+  }
+  // In Full the bar is hidden, not faint, while the menu or the account sheet is open, and back when it closes.
+  scenarios['bar-hidden-under-sheets'] = {
+    changes: [],
+    prepare: wake,
+    run: async (cdp, page) => {
+      await openSheet(cdp, page)
+      const menu = await page.evaluate(READ)
+      await openAccountSheet(cdp, page)
+      const account = await page.evaluate(READ)
+      await tap(cdp, W * 0.5, H * 0.2)
+      await sleep(600)
+      return { menu, account, closed: await page.evaluate(READ) }
+    },
+    expect: (before, after, mid) => before.ui.bar === 'shown' && mid.menu.sheet?.state === 'open' && mid.menu.ui.bar === null && mid.menu.ui.badge === 'shown'
+      && mid.account.account?.state === 'open' && mid.account.ui.bar === null && mid.closed.account === null && mid.closed.ui.bar === 'shown',
   }
   // Limited and None show no bar and no badge at rest.
   for (const mode of ['limited', 'none']) {
@@ -1334,6 +1431,180 @@ function readoutScenarios() {
     expect: (before, after, mid) => mid.readout?.kind === 'scale' && mid.readout.visible,
   }
   return scenarios
+}
+
+// A stand-in for ClerkJS, set on `window.Clerk` before the app loads so clerk-react uses it instead of downloading the real one
+// (a placeholder key cannot load). Signed out, or signed in as a sample user, with a token the mocked API below accepts. Only the
+// layout checks use it: it is enough for the account sheet's views and the preset lists, not for Clerk's own modals.
+const fakeClerk = (signedIn) => (ctx) => ctx.addInitScript((signed) => {
+  const user = signed ? {
+    id: 'user_bench', fullName: 'Sample Person', firstName: 'Sample', lastName: 'Person', username: 'sample',
+    primaryEmailAddress: { emailAddress: 'sample@example.com' }, emailAddresses: [], imageUrl: '', hasImage: false,
+    publicMetadata: {}, unsafeMetadata: {}, externalAccounts: [], organizationMemberships: [],
+  } : null
+  const session = signed ? { id: 'sess_bench', status: 'active', user, getToken: async () => 'bench-token', lastActiveToken: { jwt: { claims: { sub: 'user_bench', sid: 'sess_bench' } } } } : null
+  const listeners = new Set()
+  const state = () => ({ client: { sessions: session ? [session] : [], signedInSessions: session ? [session] : [] }, session, user, organization: null })
+  const noop = () => {}
+  const clerk = {
+    loaded: false,
+    version: 'bench',
+    status: 'loading',
+    isSignedIn: !!signed,
+    load: async () => { clerk.loaded = true; clerk.status = 'ready' },
+    addListener: (listener) => { listeners.add(listener); listener(state()); return () => listeners.delete(listener) },
+    on: (event, handler, options) => { if (event === 'status' && options?.notify) handler(clerk.status) },
+    off: noop,
+    get client() { return state().client },
+    session, user, organization: null,
+    openSignIn: noop, openSignUp: noop, openUserProfile: noop, closeUserProfile: noop, signOut: async () => {},
+    telemetry: { record: noop },
+    __internal_state: {},
+  }
+  window.Clerk = new Proxy(clerk, { get: (target, key) => (key in target ? target[key] : noop) })
+}, signedIn)
+
+// What the mocked /api/billing answers; sheet-fit switches it to measure the Plan view for each kind of account.
+const BILLING_STATES = {
+  free: { plan: 'free', status: null, currentPeriodEnd: null, cancelAtPeriodEnd: false, canManageBilling: false, available: true },
+  subscriber: { plan: 'tier1', status: 'active', currentPeriodEnd: '2026-12-28T00:00:00.000Z', cancelAtPeriodEnd: false, canManageBilling: true, available: true },
+  unavailable: { plan: 'free', status: null, currentPeriodEnd: null, cancelAtPeriodEnd: false, canManageBilling: false, available: false },
+}
+let billingState = BILLING_STATES.free
+
+// The API the preset tab and the Plan view read, mocked: built-in and premium packs, an own pack, and more presets than fit.
+const mockApi = (signedIn) => (ctx) => {
+  const packs = [
+    { id: 'p1', name: 'Classics', slug: 'classics', isPremium: false, isOwn: false, isEntitled: true },
+    { id: 'p2', name: 'Festival', slug: 'festival', isPremium: true, isOwn: false, isEntitled: false },
+    { id: 'p3', name: 'Ambient', slug: 'ambient', isPremium: false, isOwn: false, isEntitled: true },
+    ...(signedIn ? [{ id: 'p4', name: '@sample', slug: 'sample', isPremium: false, isOwn: true, isEntitled: true }] : []),
+  ]
+  const words = ['Aurora', 'Nebula', 'Pulse', 'Drift', 'Ember', 'Prism', 'Vortex', 'Bloom', 'Echo', 'Halo', 'Tide', 'Flux']
+  const presets = Array.from({ length: 24 }, (_, i) => {
+    const pack = packs[i % packs.length].name
+    return { id: `id${i}`, name: `bench${i}`, label: `${words[i % words.length]} ${Math.floor(i / words.length) + 1}`, pack, packs: [pack], sprite: '', isOwn: pack === '@sample', updatedAt: null }
+  })
+  const json = (body) => ({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
+  return Promise.all([
+    ctx.route('**/api/presets*', (route) => route.fulfill(json(presets))),
+    ctx.route('**/api/packs*', (route) => route.fulfill(json(packs))),
+    ctx.route('**/api/me*', (route) => (signedIn
+      ? route.fulfill(json({ clerkId: 'user_bench', displayName: 'Sample Person', settings: {}, entitlements: { plan: 'free', quotas: { savedPresets: 10, particleUploads: 10, privatePacks: 1, publicPacks: 0 }, features: { builtInPremiumPacks: false, allPacks: false, customFractalPath: false } }, usage: { savedPresets: 3, particleUploads: 0, privatePacks: 1, publicPacks: 0 } }))
+      : route.fulfill({ status: 401, body: '{}' }))),
+    ctx.route('**/api/billing*', (route) => route.fulfill(json(billingState))),
+  ])
+}
+
+// Runs in the page: how far the open sheet's content runs past its height. `over` is the body's scrollHeight minus its clientHeight
+// (0 when it fits); `inner` lists any element inside the body that scrolls up and down on its own. A scroller marked
+// `data-sheet-scroll="list"` (the preset grid: a user can have any number of presets) is reported apart and not counted as fixed content.
+const MEASURE_SHEET = () => {
+  const sheet = document.querySelector('[data-bottom-sheet="open"]')
+  const body = sheet?.querySelector('.bottom-sheet__body')
+  if (!sheet || !body) return null
+  const scrolls = (el) => {
+    const style = getComputedStyle(el)
+    return (style.overflowY === 'auto' || style.overflowY === 'scroll') && el.scrollHeight > el.clientHeight + 1
+  }
+  const name = (el) => (el.className && typeof el.className === 'string' ? `.${el.className.trim().split(/\s+/)[0]}` : el.tagName.toLowerCase())
+  const inner = [...body.querySelectorAll('*')].filter(scrolls).map((el) => ({
+    el: name(el), list: el.closest('[data-sheet-scroll="list"]') !== null, over: el.scrollHeight - el.clientHeight,
+  }))
+  const list = body.querySelector('[data-sheet-scroll="list"]')
+  const top = (selector) => body.querySelector(selector)?.getBoundingClientRect().top ?? null
+  const presets = body.querySelector('.menu-presets')
+  return {
+    height: Math.round(sheet.getBoundingClientRect().height),
+    bodyHeight: body.clientHeight,
+    over: Math.max(0, body.scrollHeight - body.clientHeight),
+    inner,
+    list: list ? { over: Math.max(0, list.scrollHeight - list.clientHeight), fade: list.dataset.more ?? null } : null,
+    // The Presets tab's order, top to bottom: the packs, the presets, the save form.
+    presetsOrder: presets ? top('.pack-tabs') < top('.presets-grid') && top('.presets-grid') < top('.menu-presets__save') : null,
+  }
+}
+
+// Every screen of the menu and account sheets, opened in turn through the DOM (the layout is what is checked, not the touches): the
+// tabs, each layer page with each sub-tab and each one-slider setting, and the account sheet's root and picker (and Plan when signed in).
+const sheetFitScreens = async (page, { menu = true } = {}) => {
+  const click = async (selector) => {
+    const found = await page.evaluate((sel) => {
+      const el = document.querySelector(sel)
+      if (!el) return false
+      el.click()
+      return true
+    }, selector)
+    await sleep(250)
+    return found
+  }
+  const shots = path.join(outDir, 'sheet-fit')
+  fs.mkdirSync(shots, { recursive: true })
+  let shot = 0
+  const measure = async (key) => {
+    await page.screenshot({ path: path.join(shots, `${String(shot++).padStart(2, '0')}-${key.replace(/[^a-z0-9-]+/gi, '_')}.png`) })
+    return page.evaluate(MEASURE_SHEET)
+  }
+  const screens = {}
+  const oneSliderItems = async (key) => {
+    const items = await page.evaluate(() => [...document.querySelectorAll('[data-one-slider-item]')].map((el) => el.dataset.oneSliderItem))
+    if (items.length < 2) { screens[key] = await measure(key); return }
+    for (const item of items) {
+      await click(`[data-one-slider-item="${item}"]`)
+      screens[`${key}:${item}`] = await measure(`${key}:${item}`)
+    }
+  }
+  await wake(page)
+  if (menu) await click('[aria-label="Open menu"]')
+  await sleep(300)
+  for (const tab of menu ? ['presets', 'layers', 'color', 'effects', 'audio', 'camera'] : []) {
+    await click(`[data-menu-tab="${tab}"]`)
+    if (tab === 'color') await oneSliderItems('tab:color')
+    else screens[`tab:${tab}`] = await measure(`tab:${tab}`)
+  }
+  for (const layer of menu ? ['fractal', 'orbit', 'logo', 'video'] : []) {
+    await click('[data-menu-tab="layers"]')
+    await click(`[data-menu-layer="${layer}"] .menu-layer-row__open`)
+    const subTabs = await page.evaluate(() => [...document.querySelectorAll('[data-layer-subtab]')].map((el) => el.dataset.layerSubtab))
+    for (const sub of subTabs.length ? subTabs : [null]) {
+      if (sub) await click(`[data-layer-subtab="${sub}"]`)
+      await oneSliderItems(`page:${layer}${sub ? `/${sub}` : ''}`)
+    }
+    await click('.sheet-back')
+  }
+  // The account sheet: the badge closes the menu and opens it.
+  await click('[data-mobile-badge]')
+  await sleep(300)
+  const account = await page.evaluate(() => document.querySelector('[data-account-sheet]')?.dataset.accountSheet ?? null)
+  screens[`account:${account}`] = await measure(`account:${account}`)
+  await click('[data-account-row="controls"]')
+  screens['account:controls'] = await measure('account:controls')
+  await click('.sheet-back')
+  for (const [name, state] of Object.entries(BILLING_STATES)) {
+    billingState = state
+    if (!await click('[data-account-row="plan"]')) break
+    await sleep(1500)
+    screens[`account:plan:${name}`] = await measure(`account:plan:${name}`)
+    await click('.sheet-back')
+  }
+  billingState = BILLING_STATES.free
+  return screens
+}
+
+// The screens whose fixed content runs past the sheet: anything but a preset list may not scroll, and a preset list that does
+// scroll shows its fade.
+const overflowing = (screens) => Object.entries(screens).filter(([, m]) => !m || m.over > 0 || m.inner.some((i) => !i.list)
+  || (m.list && m.list.over > 0 && m.list.fade !== 'yes') || m.presetsOrder === false)
+
+// Logs each screen's overflow and passes when none overflows.
+const sheetFits = (screens) => {
+  for (const [key, m] of Object.entries(screens)) {
+    const inner = m?.inner.length ? ` inner ${JSON.stringify(m.inner)}` : ''
+    const list = m?.list ? ` list ${JSON.stringify(m.list)}` : ''
+    const order = m?.presetsOrder === null || m?.presetsOrder === undefined ? '' : ` packs-first ${m.presetsOrder}`
+    console.log(`  ${key.padEnd(40)} ${m ? `over ${String(m.over).padStart(4)}px${inner}${list}${order}` : 'not shown'}`)
+  }
+  return Object.keys(screens).length > 0 && overflowing(screens).length === 0
 }
 
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b)
