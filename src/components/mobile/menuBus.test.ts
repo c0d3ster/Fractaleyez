@@ -33,4 +33,17 @@ describe('menu bus', () => {
     expect(listener).toHaveBeenCalledTimes(2)
     stop()
   })
+
+  it('stays open while either sheet is open', () => {
+    const listener = vi.fn()
+    const stop = subscribeMenuOpen(listener)
+    setMenuOpen(true)
+    setMenuOpen(true, 'account')
+    setMenuOpen(false)
+    expect(isMenuOpen()).toBe(true)
+    setMenuOpen(false, 'account')
+    expect(isMenuOpen()).toBe(false)
+    expect(listener).toHaveBeenCalledTimes(2)
+    stop()
+  })
 })
