@@ -183,3 +183,14 @@ button:focus {
     color: #ccc;
   }
 }
+
+/* Mobile shell gesture lock (input/touchController.ts adds the class): touches on the visual never scroll, zoom, bounce or refresh the page. */
+html.mobile-shell body {
+  overscroll-behavior: none;
+}
+
+html.mobile-shell body > canvas {
+  touch-action: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+}

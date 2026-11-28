@@ -18,6 +18,8 @@ export type LayerPipeline = {
   render: (deltaTime: number, audio: AudioSnapshot) => void
   /** Where the camera pad's trailing dot sits: the fractal's steering when it is the only camera-driven layer, else the orbit camera. */
   getCameraSteer: () => { x: number; y: number }
+  /** The one canvas everything draws to (the mobile shell's touch gestures listen on it). */
+  canvas: HTMLCanvasElement
   dispose: () => void
 }
 
@@ -86,6 +88,7 @@ export const createLayerPipeline = (quality: QualityController): LayerPipeline =
       perfProbe.end('camera')
       effects.render(audio)
     },
+    canvas: renderer.domElement,
     getCameraSteer: () => {
       const { orbit: orbitMeta, fractal: fractalMeta } = window.config.layers.meta
       return !orbitMeta.enabled.value && fractalMeta.enabled.value ? fractal.getSteerPosition() : orbit.getCameraTrailPosition()

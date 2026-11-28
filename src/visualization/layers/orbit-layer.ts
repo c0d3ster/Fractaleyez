@@ -2,6 +2,7 @@ import * as THREE from 'three'
 
 import type { AudioSnapshot } from '../../audioanalysis/audio-snapshot'
 import { DEFAULT_ENABLED_BANDS } from 'beatsense'
+import { isMobileShell } from '../../utils/useMobileShell'
 import { getParticleCrossfadeDurationMs, MAX_CROSSFADE_GENERATIONS } from '../../config/visualizer.config'
 import { CameraManager, cameraFollowSign } from '../camera-manager'
 import { HopalongVisualizer } from '../hopalong-visualizer'
@@ -31,6 +32,8 @@ export class OrbitLayer implements Layer {
     this.visualizer.init()
     window.setVirtualCameraPosition = (x: number, y: number) => this.cameraManager.setVirtualMousePosition(x, y)
     window.getVirtualCameraPosition = () => ({ x: this.cameraManager.mouseX, y: this.cameraManager.mouseY })
+    // The mobile shell's touch steering (input/touchController.ts) goes through the same path as the mouse.
+    window.steerCameraTo = (point: { clientX: number; clientY: number }) => this.cameraManager.updateMousePosition(point)
     // Which bands can set off a beat; the Frequency HUD changes it (and a saved selection replaces it).
     window.enabledFreqBands = [...DEFAULT_ENABLED_BANDS]
     window.setCameraMouseTracking = this.setMouseTracking
@@ -68,6 +71,7 @@ export class OrbitLayer implements Layer {
     delete window.setCameraMouseTracking
     delete window.setVirtualCameraPosition
     delete window.getVirtualCameraPosition
+    delete window.steerCameraTo
     this.crossfades.forEach(this.finalizeOutgoing)
     this.crossfades = []
     this.visualizer.destroyVisualization()
@@ -172,6 +176,9 @@ export class OrbitLayer implements Layer {
   }
 
   private onDocumentMouseMove = (event: MouseEvent): void => {
+    // On the mobile shell touches steer through the touch controller, which commits a tap on release; the mouse events a
+    // browser makes up from a touch would otherwise steer on press, so a long-press would move the camera.
+    if (isMobileShell()) return
     this.cameraManager.updateMousePosition(event)
   }
 
