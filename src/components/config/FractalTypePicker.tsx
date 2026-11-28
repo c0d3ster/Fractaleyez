@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef } from 'react'
 
 import { FRACTAL_FAMILIES, type FractalFamily } from '../../visualization/fractal-families'
 import { resolveColorState } from '../../config/colorState'
+import { useAfterStartup } from '../../utils/afterStartup'
 import { subscribeUiTick } from '../../utils/uiTicker'
 import { useConfigContext } from './context/ConfigProvider'
 import { useConfigSelector } from './context/useConfigSelector'
@@ -51,10 +52,13 @@ type TypeButtonProps = {
 const TypeButton = ({ family, index, selected, onPick }: TypeButtonProps): React.ReactElement => {
   const info = useInfo()
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const counts = useMemo(() => thumbnailCounts(family), [family])
+  // The picture waits until startup has settled (it is in a closed category then anyway); the button shows without it until then.
+  const ready = useAfterStartup()
+  const counts = useMemo(() => (ready ? thumbnailCounts(family) : null), [family, ready])
 
   // Repaint when the visualizer's hue moves a visible step or the Color config changes, rate limited like the shape pad.
   useEffect(() => {
+    if (!counts) return undefined
     let drawnHue = Number.NaN
     let drawnKey = ''
     let lastAt = Number.NEGATIVE_INFINITY

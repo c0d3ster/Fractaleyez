@@ -4,6 +4,8 @@
     <title>Fractaleyez</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="preload" href="/fonts/acme/acme-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+    <!-- The logo layer draws first (src/visualization/layers/layer-join.ts), so its image loads with the bundle. crossorigin matches three.js's texture request. -->
+    <link rel="preload" href="/fractaleye.png" as="image" crossorigin>
     <style>
       /* Acme by Juan Pablo del Peral, SIL Open Font License 1.1 (/fonts/acme/OFL.txt). Self-hosted so no third party sees page loads. */
       @font-face {
@@ -13,6 +15,8 @@
         font-display: swap;
         src: url('/fonts/acme/acme-latin-400-normal.woff2') format('woff2');
       }
+      /* Black from the first paint, as the canvas is when it arrives (the page was white until then). */
+      html, body { background: #000; }
     </style>
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">

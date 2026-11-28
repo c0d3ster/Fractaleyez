@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 
 import type { AudioSnapshot } from '../../audioanalysis/audio-snapshot'
+import type { LayerKey } from '../../config/configDefaults'
 import { QualityProfile } from '../../config/quality.config'
 import { stepDisplayedColor } from '../../config/displayedColor'
 import { perfProbe, startupTimeline } from '../perf'
@@ -8,6 +9,8 @@ import { ProfileRamp, RampedValues } from '../profile-ramp'
 import { QualityController } from '../quality-controller'
 import { warmInBackground } from './background-warm'
 import { LayerCompositor } from './compositor'
+import type { Layer } from './layer'
+import { LayerJoin } from './layer-join'
 import { FractalLayer } from './fractal-layer'
 import { LogoLayer } from './logo-layer'
 import { OrbitLayer } from './orbit-layer'
@@ -16,10 +19,14 @@ import { VideoLayer } from './video-layer'
 
 export type LayerPipeline = {
   render: (deltaTime: number, audio: AudioSnapshot) => void
+  /** True once every enabled layer has joined (see LayerJoin), so the look is complete apart from fades. */
+  allLayersShown: () => boolean
   /** Where the camera pad's trailing dot sits: the fractal's steering when it is the only camera-driven layer, else the orbit camera. */
   getCameraSteer: () => { x: number; y: number }
   dispose: () => void
 }
+
+const JOIN_ORDER: LayerKey[] = ['logo', 'fractal', 'orbit', 'video']
 
 /** One renderer and canvas; Video, Orbit, Fractal and Logo draw to their own targets, composed in `layers.order`, then bloom and shockwave. */
 export const createLayerPipeline = (quality: QualityController): LayerPipeline => {
@@ -38,17 +45,30 @@ export const createLayerPipeline = (quality: QualityController): LayerPipeline =
   const fractal = new FractalLayer(renderer)
   const video = new VideoLayer(renderer)
   const logo = new LogoLayer(renderer)
-  const compositor = new LayerCompositor(renderer, { orbit, fractal, video, logo })
+  // The logo comes first (it is ready soonest and is what the visitor recognizes), then the fractal and the orbit, and the video once its
+  // clip has its first frame; one per frame, each fading in.
+  const layers: Record<LayerKey, Layer> = { orbit, fractal, video, logo }
+  const join = new LayerJoin(JOIN_ORDER, (key) => {
+    if (!window.config.layers.meta[key].enabled.value) return 'off'
+    return layers[key].isReady?.() === false ? 'waiting' : 'ready'
+  })
+  const compositor = new LayerCompositor(renderer, layers, { isJoined: join.has })
+  let firstLayerShown = false
   // The center of the visual: where the fractal's steering has got to while it is drawn (the center its own shockwave
   // ring expands from, so the post-processing wave stays on it), otherwise the Orbit camera's trail.
   const getVisualCenter = (): { x: number; y: number } =>
     window.config.layers.meta.fractal.enabled.value ? fractal.getSteerPosition() : orbit.getCameraTrailPosition()
   const effects = new PostEffects(renderer, compositor.getScene(), compositor.getCamera(), getVisualCenter)
-  // Shaders that would otherwise compile the first time a layer or effect is switched on (a freeze of a few hundred ms) compile now, during startup.
+  // The fractal Type on screen compiles now; what is not on screen yet (the effect passes, with and without Glow, then the other fractal
+  // Types) compiles one piece at a time over the next few seconds, so the first frame only pays for what it draws.
   fractal.warm()
-  startupTimeline.span('warm-effects', effects.warm)
-  // The fractal Types not on screen compile one at a time over the next few seconds instead, so startup only pays for the one showing.
-  const stopBackgroundWarm = warmInBackground(fractal.warmNext)
+  const backgroundSteps: (() => boolean)[] = [effects.warmNext, fractal.warmNext]
+  const stopBackgroundWarm = warmInBackground(() => {
+    const [step] = backgroundSteps
+    if (!step) return false
+    if (!step()) backgroundSteps.shift()
+    return backgroundSteps.length > 0
+  })
 
   // The tier sets how much each layer and effect spends; it is applied now and again whenever Auto or the user changes it. What would show as
   // a jump (the fractal's and the glow's resolution, the logo's filter) moves toward the new tier over a few tenths of a second instead
@@ -76,7 +96,13 @@ export const createLayerPipeline = (quality: QualityController): LayerPipeline =
   window.addEventListener('resize', onResize)
 
   return {
+    allLayersShown: () => JOIN_ORDER.every((key) => !window.config.layers.meta[key].enabled.value || join.has(key)),
     render: (deltaTime, audio) => {
+      join.beginFrame()
+      if (!firstLayerShown && JOIN_ORDER.some(join.has)) {
+        firstLayerShown = true
+        startupTimeline.mark('first-layer')
+      }
       // The Color config's palette, saturation, phase and cycles ease over the crossfade time; every layer then draws with the same shown colors.
       stepDisplayedColor(deltaTime)
       applyRamped(ramp.step(deltaTime))

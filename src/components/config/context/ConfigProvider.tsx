@@ -6,6 +6,7 @@ import axios from 'axios'
 import { useAuth, useUser } from '@clerk/clerk-react'
 
 import { cameraStart, keepDisabledLayerSections, toStoredConfig } from '../../../config/storedConfig'
+import { bootConfig } from '../../../config/bootConfig'
 import { AppConfig, BlendMode, ConfigItem, LayerKey, ParticleConfigSection, configDefaults } from '../../../config/configDefaults'
 import { LAYER_CAP } from '../../../config/layers'
 import { mergeLayers, presentLayers } from '../../../config/mergeLayers'
@@ -336,7 +337,8 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
 
   // configDefaults is the default look (every layer on), so the first frame needs nothing from the API.
   const [config, setConfig] = useState<AppConfig>(() => {
-    const initial = structuredClone(configDefaults)
+    // The same object the visuals started on (main.ts runs before the UI mounts).
+    const initial = bootConfig()
     window.config = initial
     configStore.set(initial)
     return initial

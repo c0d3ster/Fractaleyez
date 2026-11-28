@@ -1,12 +1,20 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react'
+import React, { Suspense, lazy, useState, useEffect, useCallback, useRef } from 'react'
 import classNames from 'classnames'
 import './Sidebar.css'
 
 import { PreviewLockFrame } from '../presets/PreviewLockFrame'
 import { Presets, PresetSelection } from '../presets/Presets'
 import { SavePreset } from '../presets/SavePreset'
-import { ConfigAccordion, useOpenCategories } from '../config/ConfigAccordion'
+import { useOpenCategories } from '../config/useOpenCategories'
+import { afterStartup, useAfterStartup } from '../../utils/afterStartup'
 import { SLIDE_OUT_MS, shouldRenderConfigBody, canParkConfigBody } from './configBodyParking'
+
+// The config controls are a chunk of their own, loaded (and mounted, hidden) in idle time after startup, or at once when the sidebar opens
+// first; the UI's first mount skips them, since the sidebar starts closed.
+const loadConfigAccordion = (): Promise<{ default: typeof import('../config/ConfigAccordion').ConfigAccordion }> =>
+  import(/* webpackChunkName: "config-accordion" */ '../config/ConfigAccordion').then((module) => ({ default: module.ConfigAccordion }))
+const ConfigAccordion = lazy(loadConfigAccordion)
+void afterStartup().then(loadConfigAccordion)
 
 const SUB_ACCORDION_TITLE = '.config-sub-accordion__title'
 /** The headers that still open and close their section during a premium preview: each section's title and the Orbit column's sub-accordions. */
@@ -81,7 +89,8 @@ const SidebarInner = ({ setConfigWindow, configWindowVisible }: SidebarProps): R
     const timer = window.setTimeout(() => setBodySettled(true), SLIDE_OUT_MS)
     return () => window.clearTimeout(timer)
   }, [parkable])
-  const showConfigBody = shouldRenderConfigBody(configWindowVisible, sidebarVisible, bodySettled)
+  const startupOver = useAfterStartup()
+  const showConfigBody = (startupOver || sidebarVisible !== null) && shouldRenderConfigBody(configWindowVisible, sidebarVisible, bodySettled)
 
   const sidebarContentClasses = classNames('sidebar-content', {
     'slide-in': sidebarVisible,
@@ -127,7 +136,9 @@ const SidebarInner = ({ setConfigWindow, configWindowVisible }: SidebarProps): R
           </div>
           {showConfigBody && (
             <PreviewLockFrame peekSelector={PEEK_SELECTOR} onPeek={peekSection}>
-              <ConfigAccordion openCategories={openCategories} toggleOpen={toggleOpen} />
+              <Suspense fallback={null}>
+                <ConfigAccordion openCategories={openCategories} toggleOpen={toggleOpen} />
+              </Suspense>
             </PreviewLockFrame>
           )}
         </div>

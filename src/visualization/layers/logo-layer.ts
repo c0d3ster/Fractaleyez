@@ -190,7 +190,12 @@ export class LogoLayer implements Layer {
     this.pivot.position.z = -LOGO_DISTANCE
     this.scene.add(camera)
     this.logo.visible = false
+    // The image starts loading now rather than on the first draw, so the logo can be the first thing on screen.
+    this.syncSprite()
   }
+
+  /** Ready once the image has loaded, or when there is none to show. */
+  isReady = (): boolean => this.spriteUrl === '' || hasSize(this.texture?.image)
 
   render = (target: THREE.WebGLRenderTarget, deltaTime: number, audio: AudioSnapshot): void => {
     this.syncSprite()

@@ -11,6 +11,7 @@ import { isNearEnd, stepOpacity } from './fade'
 import { Layer } from './layer'
 import { RedrawGate } from './redraw-gate'
 import { dropShare, PlaybackCounts } from './video-drop'
+import { takePrefetchedClip } from './video-prefetch'
 
 // A longer gap between two frames of a playing clip is not counted as a stutter.
 const VIDEO_GAP_MAX_MS = 2000
@@ -117,6 +118,9 @@ export class VideoLayer implements Layer {
     const { clips } = window.config.video
     if (window.config.layers.meta.video.enabled.value && clips.length) this.createVideo(clips)
   }
+
+  /** Ready once the clip has shown its first frame (or there is no clip). */
+  isReady = (): boolean => this.endLoad === null
 
   /** The video texture is re-uploaded at most this many times a second (null: every decoded frame). The video itself keeps decoding at its own rate. */
   setUploadFps = (fps: number | null): void => {
@@ -233,9 +237,10 @@ export class VideoLayer implements Layer {
 
   /** `autoplay` false loads the clip and leaves it paused on its first frame, offset from the playing clip, until it takes over (`promoteIncoming` plays it). */
   private createSlot = (src: string, autoplay = true): VideoSlot => {
-    const video = document.createElement('video')
     const live = isLiveClip(src)
-    if (!live) video.src = clipUrl(src)
+    // The first clip may already be loading (video-prefetch.ts); a paused, prepared slot never takes it.
+    const video = (autoplay && !live ? takePrefetchedClip(src) : null) ?? document.createElement('video')
+    if (!live && !video.src) video.src = clipUrl(src)
     video.preload = 'auto'
     // Started with play() rather than the autoplay attribute: Chrome auto-pauses muted autoplay videos that
     // aren't sufficiently in view, and this one is only a 2px dot. Muted so playback is always allowed (and the clip's audio can't feed back into the mic).

@@ -27,6 +27,7 @@ export class StartupTimeline {
   private longestMs = 0
   private over50 = 0
   private resolveFirstFrame: () => void = () => undefined
+  private readonly waiting = new Map<string, { promise: Promise<void>; resolve: () => void }>()
 
   /** Resolves when the first frame is drawn, for work that can wait until something is on screen. */
   readonly firstFrame: Promise<void> = new Promise((resolve) => {
@@ -39,6 +40,23 @@ export class StartupTimeline {
   mark = (name: string): void => {
     if (this.perf.getEntriesByName(PREFIX + name, 'mark').length > 0) return
     this.perf.mark(PREFIX + name)
+    this.waiting.get(name)?.resolve()
+  }
+
+  /** When a stage was reached (performance.now() time), or null before it is. */
+  at = (name: string): number | null => this.perf.getEntriesByName(PREFIX + name, 'mark')[0]?.startTime ?? null
+
+  /** Resolves once a stage is reached (at once when it already was). */
+  reached = (name: string): Promise<void> => {
+    if (this.at(name) !== null) return Promise.resolve()
+    const existing = this.waiting.get(name)
+    if (existing) return existing.promise
+    let resolve: () => void = () => undefined
+    const promise = new Promise<void>((done) => {
+      resolve = done
+    })
+    this.waiting.set(name, { promise, resolve })
+    return promise
   }
 
   /** Runs a step and records how long it took. */

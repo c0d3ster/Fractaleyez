@@ -20,6 +20,30 @@ const fakePerformance = (): { perf: Performance; advance: (ms: number) => void }
 }
 
 describe('StartupTimeline', () => {
+  it('says when a stage was reached, and null before it is', () => {
+    const { perf, advance } = fakePerformance()
+    const timeline = new StartupTimeline(perf)
+    expect(timeline.at('video-ready')).toBeNull()
+    advance(250)
+    timeline.mark('video-ready')
+    advance(100)
+    timeline.mark('video-ready')
+    expect(timeline.at('video-ready')).toBe(250)
+  })
+
+  it('resolves a wait for a stage when it is reached, and at once after', async () => {
+    const { perf } = fakePerformance()
+    const timeline = new StartupTimeline(perf)
+    const seen: string[] = []
+    const before = timeline.reached('settled').then(() => seen.push('before'))
+    await Promise.resolve()
+    expect(seen).toEqual([])
+    timeline.mark('settled')
+    await before
+    await timeline.reached('settled').then(() => seen.push('after'))
+    expect(seen).toEqual(['before', 'after'])
+  })
+
   it('records stages once, timed steps, and the first frames', () => {
     const { perf, advance } = fakePerformance()
     const timeline = new StartupTimeline(perf)
