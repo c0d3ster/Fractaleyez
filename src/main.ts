@@ -15,7 +15,10 @@ import { qualityController } from './visualization/quality-controller'
 import { displayStutters, videoStutters } from './visualization/stutter-monitor'
 import { videoFrameSignal } from './visualization/video-frame-signal'
 import { previewLock } from './components/presets/previewLock'
-import { startTouchController } from './input/touchController'
+import { setGesturesPaused, startTouchController } from './input/touchController'
+import { startLongPressMenu } from './input/longPressMenu'
+import { getControlsMode } from './components/mobile/controlsMode'
+import { isMenuOpen, subscribeMenuOpen, subscribeOpenMenu } from './components/mobile/menuBus'
 import { isMobileShell, subscribeMobileShell } from './utils/useMobileShell'
 
 // Size of the fft transform performed on audio stream
@@ -167,6 +170,8 @@ const init = (microphone: MediaStreamAudioSourceNode | null): void => {
   window.addEventListener('resize', qualityController.disturb)
   document.addEventListener('visibilitychange', qualityController.disturb)
   startTouchGesturesOnShell(pipeline.canvas)
+  window.getControlsMode = getControlsMode
+  window.subscribeOpenMenu = subscribeOpenMenu
   // Owned here (not by a visualizer) so the frequency HUD keeps working in every layer combination.
   window.getBeatTimeline = beatMonitor.getTimeline
   window.getLastBeatTime = beatMonitor.getLastBeatTime
@@ -205,17 +210,25 @@ const init = (microphone: MediaStreamAudioSourceNode | null): void => {
 }
 
 // The touch gestures run only while the mobile shell is active, and start or stop as it turns on or off (a rotation past its width).
+// The long-press that opens the menu runs alongside them, and gestures pause while the menu sheet is open.
 const startTouchGesturesOnShell = (canvas: HTMLCanvasElement): void => {
   let stop: (() => void) | null = null
   const sync = (): void => {
-    if (isMobileShell() && !stop) stop = startTouchController(canvas)
-    else if (!isMobileShell() && stop) {
+    if (isMobileShell() && !stop) {
+      const stopGestures = startTouchController(canvas)
+      const stopLongPress = startLongPressMenu(canvas)
+      stop = () => {
+        stopLongPress()
+        stopGestures()
+      }
+    } else if (!isMobileShell() && stop) {
       stop()
       stop = null
     }
   }
   sync()
   subscribeMobileShell(sync)
+  subscribeMenuOpen(() => setGesturesPaused(isMenuOpen()))
 }
 
 const setCanvasCursor = (cursor: string): void => {

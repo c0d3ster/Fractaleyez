@@ -23,7 +23,15 @@ const READ = `(() => ({
   camera: window.getVirtualCameraPosition ? window.getVirtualCameraPosition() : null,
   gesture: window.getGesture ? window.getGesture() : null,
   shell: document.documentElement.classList.contains('mobile-shell'),
+  menuOpens: window.__menuOpens ?? 0,
+  controlsMode: window.getControlsMode ? window.getControlsMode() : null,
 }))()`
+
+// Counts the long-press's menu requests (there is no menu sheet yet to show them).
+const countMenuOpens = (page) => page.evaluate(() => {
+  window.__menuOpens = 0
+  window.subscribeOpenMenu?.(() => { window.__menuOpens += 1 })
+})
 
 // Each touch event carries its own timestamp on a clock the scenario advances, so the page sees the intended timing (a 60ms tap,
 // 120ms between double-tap taps) even when software GL keeps its main thread busy and the events arrive late. The clock starts
@@ -69,7 +77,8 @@ const W = DEVICE.viewport.width
 const H = DEVICE.viewport.height
 const C = [W / 2, H / 2]
 
-// Each scenario: what it does, and which of the read values it may change (the rest must stay put).
+// Each scenario: what it does, and which of the read values it may change (the rest must stay put). `init(ctx)` runs before the
+// page loads (an init script), `prepare(page)` after, and `run(cdp, page)` does the touches.
 const SCENARIOS = {
   steer: {
     changes: ['camera'],
@@ -80,10 +89,69 @@ const SCENARIOS = {
     run: async (cdp) => { await drag(cdp, [[W * 0.5, H * 0.5]], [[W * 0.85, H * 0.8]]) },
   },
   'long-press': {
-    // A press held past a tap's length never steers.
+    // A press held past a tap's length never steers, and opens the menu once.
     changes: [],
+    prepare: countMenuOpens,
     run: async (cdp) => { await tap(cdp, W * 0.8, H * 0.2, 700) },
+    expect: (before, after) => after.menuOpens === 1,
   },
+  'long-press-ring': {
+    // Screenshot mid-hold shows the ring partly filled around the finger (compare docs/mobile-design/NoneSwipe.html).
+    changes: [],
+    prepare: countMenuOpens,
+    run: async (cdp, page) => {
+      await touch(cdp, 'touchStart', [C])
+      // Under software GL a capture takes longer than the hold, so the ring's animations are frozen half-filled and the frame is
+      // captured straight through CDP, before the menu opens and the ring goes.
+      await page.evaluate(() => document.getAnimations().forEach((a) => { if (a.animationName?.startsWith('long-press-ring')) { a.pause(); a.currentTime = 350 } }))
+      const { data } = await cdp.send('Page.captureScreenshot', { format: 'png' })
+      fs.writeFileSync(path.join(outDir, 'long-press-ring-mid.png'), Buffer.from(data, 'base64'))
+      await sleep(600)
+      await touch(cdp, 'touchEnd', [], 750)
+    },
+    expect: (before, after) => after.menuOpens === 1,
+  },
+  'long-press-moved': {
+    // A hold that drags past the slop steers instead and never opens the menu.
+    changes: ['camera'],
+    prepare: countMenuOpens,
+    // The first move is sent right behind the press (not awaited in between): software GL takes ~0.5s per event here, so an
+    // awaited first move would land after the hold time even though the scenario's own clock says 20ms.
+    run: async (cdp) => {
+      const from = [W * 0.3, H * 0.3]
+      const to = [W * 0.7, H * 0.6]
+      await Promise.all([touch(cdp, 'touchStart', [from]), touch(cdp, 'touchMove', [[from[0] + 30, from[1] + 30]], 20)])
+      for (let i = 1; i <= 8; i++) await touch(cdp, 'touchMove', [[from[0] + (to[0] - from[0]) * i / 8, from[1] + (to[1] - from[1]) * i / 8]], 20)
+      await touch(cdp, 'touchEnd', [], 20)
+    },
+    expect: (before, after) => after.menuOpens === 0,
+  },
+  'long-press-two-finger': {
+    // A second finger cancels the long-press: a slow two-finger hold opens nothing and changes nothing.
+    changes: [],
+    prepare: countMenuOpens,
+    run: async (cdp) => {
+      await touch(cdp, 'touchStart', [[C[0] - 60, C[1]]])
+      await touch(cdp, 'touchStart', [[C[0] - 60, C[1]], [C[0] + 60, C[1]]], 40)
+      await sleep(700)
+      await touch(cdp, 'touchEnd', [], 700)
+    },
+    expect: (before, after) => after.menuOpens === 0,
+  },
+  'tap-no-menu': {
+    changes: ['camera'],
+    prepare: countMenuOpens,
+    run: async (cdp) => { await tap(cdp, W * 0.2, H * 0.25) },
+    expect: (before, after) => after.menuOpens === 0,
+  },
+  ...Object.fromEntries(['limited', 'none'].map((mode) => [`long-press-${mode}`, {
+    // The mode comes from this browser's stored mode before sign-in resolves; the long-press works the same in it.
+    changes: [],
+    init: (ctx) => ctx.addInitScript((m) => localStorage.setItem('onScreenControls', m), mode),
+    prepare: countMenuOpens,
+    run: async (cdp) => { await tap(cdp, W * 0.5, H * 0.4, 700) },
+    expect: (before, after) => before.controlsMode === mode && after.menuOpens === 1,
+  }])),
   speed: {
     changes: ['speed'],
     run: async (cdp) => { await drag(cdp, [[C[0] - 60, H * 0.7], [C[0] + 60, H * 0.7]], [[C[0] - 60, H * 0.35], [C[0] + 60, H * 0.35]]) },
@@ -125,6 +193,7 @@ const main = async () => {
     const page = await ctx.newPage()
     page.on('pageerror', (e) => console.log('pageerror', e.message.slice(0, 160)))
     // The dev server's error overlay (a Clerk key that cannot load, say) would cover the canvas and take the touches.
+    if (scenario.init) await scenario.init(ctx)
     await ctx.addInitScript(() => {
       document.addEventListener('DOMContentLoaded', () => {
         const style = document.createElement('style')
@@ -141,7 +210,7 @@ const main = async () => {
     const before = await page.evaluate(READ)
     await page.screenshot({ path: path.join(outDir, `${name}-0-before.png`) })
     clockMs = Date.now() - 2000
-    await scenario.run(cdp)
+    await scenario.run(cdp, page)
     // The camera eases toward its target; give it time to travel before the screenshot.
     await sleep(1500)
     const after = await page.evaluate(READ)
