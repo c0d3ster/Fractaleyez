@@ -890,7 +890,11 @@ function menuTabScenarios() {
       await tapVisible(cdp, page, '[data-menu-effect="switcheroo"]')
       const one = await read(page)
       await tapVisible(cdp, page, '[data-menu-effect="kaleidoscope"]')
-      return { one, two: await snap(cdp, page, 'tab-effects-toggle') }
+      const two = await snap(cdp, page, 'tab-effects-toggle')
+      // The bar is hidden under the sheet: close it to see the bar's button.
+      await tap(cdp, W * 0.5, H * 0.2)
+      await sleep(600)
+      return { one, two, closed: await read(page) }
     },
     expect: (before, after, mid) => {
       const one = tabOf(mid.one, 'effects')
@@ -898,7 +902,7 @@ function menuTabScenarios() {
       return mid.one.ui.effects.switcheroo === !before.ui.effects.switcheroo && one?.pressed.switcheroo === mid.one.ui.effects.switcheroo
         && mid.one.ui.effects.kaleidoscope === before.ui.effects.kaleidoscope
         && mid.two.ui.effects.kaleidoscope === !before.ui.effects.kaleidoscope && two?.pressed.kaleidoscope === mid.two.ui.effects.kaleidoscope
-        && mid.two.ui.effectButtons.kaleidoscope === mid.two.ui.effects.kaleidoscope
+        && mid.closed.sheet === null && mid.closed.ui.effectButtons.kaleidoscope === mid.two.ui.effects.kaleidoscope
         && ['cyclone', 'wobWob', 'colorShift', 'glow', 'shockwave'].every((key) => mid.two.ui.effects[key] === before.ui.effects[key])
     },
   }
