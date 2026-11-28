@@ -84,9 +84,10 @@ export class CameraManager {
     }
   }
 
-  updateMousePosition(event: MouseEvent): void {
-    this.mouseX = event.clientX - (window.innerWidth / 2)
-    this.mouseY = event.clientY - (window.innerHeight / 2)
+  /** Points the camera at a spot on the screen: a mouse position, or a touch on the mobile shell. */
+  updateMousePosition(point: { clientX: number; clientY: number }): void {
+    this.mouseX = point.clientX - (window.innerWidth / 2)
+    this.mouseY = point.clientY - (window.innerHeight / 2)
   }
 
   setVirtualMousePosition(x: number, y: number): void {

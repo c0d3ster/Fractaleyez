@@ -942,6 +942,14 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }): Rea
     updateConfigItem(category, item, baseItem.value)
   }, [updateConfigItem])
 
+  // Bridge for the mobile shell's double-tap reset (input/touchController.ts), which lives outside the React tree.
+  useEffect(() => {
+    window.resetConfigItem = resetConfigItem
+    return () => {
+      delete window.resetConfigItem
+    }
+  }, [resetConfigItem])
+
   // The layer's opacity and blend mode as the active preset had them. Whether it is on is left alone: that is the power button's.
   const restoreLayerLook = useCallback((key: LayerKey): void => {
     const { opacity, blendMode } = baselineRef.current.layers.meta[key]

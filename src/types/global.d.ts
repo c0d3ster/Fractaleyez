@@ -1,4 +1,6 @@
 import type { AppConfig, LayerKey } from '../config/configDefaults'
+import type { ConfigSectionKey } from '../components/config/context/ConfigProvider'
+import type { ActiveGesture } from '../input/touchController'
 import type { BeatTimeline, DrumKind, GridState, SectionSlot, SectionState, TempoReading, RhythmLabel, RhythmPattern, RollLevel } from 'beatsense'
 import type { LagEstimate } from '../audioanalysis/lag-estimate'
 import type { LagMeasurement } from '../audioanalysis/lag-probe'
@@ -30,12 +32,20 @@ declare global {
     webkitAudioContext: typeof AudioContext
     setVirtualCameraPosition?: (x: number, y: number) => void
     getVirtualCameraPosition?: () => { x: number; y: number }
+    /** Points the orbit camera at a screen position, the same path the mouse steers through (the mobile shell's touch steering). */
+    steerCameraTo?: (point: { clientX: number; clientY: number }) => void
     setCameraMouseTracking?: (enabled: boolean) => void
     setJuliaShape?: (re: number, im: number) => void
     getJuliaShape?: () => { re: number; im: number; manual: boolean; hue: number; saturation: number; targetRe: number; targetIm: number }
     clearJuliaShape?: () => void
     setLayerEnabled?: (key: LayerKey, enabled: boolean) => boolean
     updateConfigItem?: (category: string, item: string, value: string | boolean | number) => void
+    /** Restores one item to the active preset's baseline (what double-clicking its slider does). */
+    resetConfigItem?: (category: ConfigSectionKey, item: string) => void
+    /** The two-finger gesture in progress on the mobile shell and the value it has set, or null (input/touchController.ts). */
+    getGesture?: () => ActiveGesture | null
+    /** Calls `listener` whenever the gesture or its value changes; returns the unsubscribe. */
+    subscribeGesture?: (listener: () => void) => () => void
     toggleLiveVideo?: () => void
     getCameraSteer?: () => { x: number; y: number } | null
     getBeatTimeline?: () => BeatTimeline

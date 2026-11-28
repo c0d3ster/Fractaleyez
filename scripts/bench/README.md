@@ -157,3 +157,20 @@ node scripts/bench/prof.js <label> 10 30                    # self time by funct
 ```
 
 Add `--early` to `trace.js` to start tracing before the popup opens (catches animation composite failures).
+
+## Mobile gestures (`mobile-check.js`)
+
+```sh
+node scripts/bench/mobile-check.js [--scenarios=steer,speed|all] [--out=<dir>] [url]
+```
+
+Opens the app in Playwright's iPhone 13 profile (`isMobile`, `hasTouch`, so the mobile shell's `(pointer: coarse)` matches) and runs named
+touch scenarios through CDP touch events (`Input.dispatchTouchEvent`, two touch points for the two-finger gestures), each on a fresh page.
+Every event carries its own timestamp, so tap lengths and double-tap gaps stay as written even when software GL keeps the page busy. For each
+scenario it saves a screenshot before and after (`<name>-0-before.png`, `<name>-1-after.png`) and checks that the step moved only the
+settings it should (`speed`, `scaleFactor`, `rotationSpeed`, the camera target), then writes `results.json`; it exits non-zero on a failure.
+Output goes to `$BENCH_DIR/mobile`, or `scripts/bench/out/mobile` (git-ignored). The dev server's error overlay is hidden, so a dev build
+with a placeholder `CLERK_PUBLISHABLE_KEY` is enough. Every mobile issue adds its own scenarios here and attaches the screenshots to its PR.
+
+Gesture scenarios (`#360`): `steer` (tap), `steer-drag`, `long-press` (must not steer), `speed`, `scale`, `rotation`, `double-tap` (speed and
+rotation back to the preset). Emulation cannot show how the gestures feel, iOS Safari's own touch handling, or real multi-touch noise.

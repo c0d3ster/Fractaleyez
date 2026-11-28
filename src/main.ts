@@ -15,6 +15,8 @@ import { qualityController } from './visualization/quality-controller'
 import { displayStutters, videoStutters } from './visualization/stutter-monitor'
 import { videoFrameSignal } from './visualization/video-frame-signal'
 import { previewLock } from './components/presets/previewLock'
+import { startTouchController } from './input/touchController'
+import { isMobileShell, subscribeMobileShell } from './utils/useMobileShell'
 
 // Size of the fft transform performed on audio stream
 startupTimeline.mark('main')
@@ -164,6 +166,7 @@ const init = (microphone: MediaStreamAudioSourceNode | null): void => {
   // Frames around a resize or a tab coming back say nothing about load; Auto waits them out.
   window.addEventListener('resize', qualityController.disturb)
   document.addEventListener('visibilitychange', qualityController.disturb)
+  startTouchGesturesOnShell(pipeline.canvas)
   // Owned here (not by a visualizer) so the frequency HUD keeps working in every layer combination.
   window.getBeatTimeline = beatMonitor.getTimeline
   window.getLastBeatTime = beatMonitor.getLastBeatTime
@@ -199,6 +202,20 @@ const init = (microphone: MediaStreamAudioSourceNode | null): void => {
   }
   // TODO create a message modal here telling the user to click anywhere to connect mic as long as the audio capture has intialized correctly (aka permissions are good)
   analyze()
+}
+
+// The touch gestures run only while the mobile shell is active, and start or stop as it turns on or off (a rotation past its width).
+const startTouchGesturesOnShell = (canvas: HTMLCanvasElement): void => {
+  let stop: (() => void) | null = null
+  const sync = (): void => {
+    if (isMobileShell() && !stop) stop = startTouchController(canvas)
+    else if (!isMobileShell() && stop) {
+      stop()
+      stop = null
+    }
+  }
+  sync()
+  subscribeMobileShell(sync)
 }
 
 const setCanvasCursor = (cursor: string): void => {

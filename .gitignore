@@ -39,3 +39,6 @@ scripts/section-eval/__pycache__/
 # Compiled output the Vercel CLI build leaves next to the TypeScript; the server and api are TypeScript only
 server/**/*.js
 api/**/*.js
+
+# Benchmark and mobile-check output (scripts/bench, BENCH_DIR default)
+scripts/bench/out/
