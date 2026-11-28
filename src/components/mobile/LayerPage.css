@@ -136,6 +136,18 @@
   margin: 0;
 }
 
+/* A setting the desktop draws as a dial (the logo's Spin Speed): the desktop SpinDial, centered, at the Effects dial's 100px so it
+   is easy to grab. It takes its own touches (touch-action: none and pointer capture), and the sheet only drags from its head, so
+   turning it never pulls the sheet down. */
+.sheet-slider .spin-dial-wrapper {
+  margin: 0;
+}
+
+.sheet-slider .spin-dial {
+  width: 100px;
+  height: 100px;
+}
+
 /* Under the track, not pulled up into a margin the sheet does not keep. */
 .sheet-slider .slider-zone-tag {
   margin-top: 4px;

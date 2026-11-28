@@ -90,8 +90,6 @@ type ConfigSectionItemsProps = {
   name: string
   /** Render just these items (the Color section is laid out in pieces around its own controls). */
   only?: readonly string[]
-  /** Draw the rotation settings as plain sliders instead of dials (the mobile one-slider pattern). */
-  noDials?: boolean
   onChange: (category: string, item: string, value: string | boolean) => void
   resetConfigItem: ConfigContextValue['resetConfigItem']
   isSignedIn: ConfigContextValue['isSignedIn']
@@ -113,7 +111,7 @@ type SectionView = {
   fractalOn: boolean
 }
 
-const ConfigSectionItemsInner = ({ name, only, noDials = false, onChange, resetConfigItem, isSignedIn, userSettings, updateUserSettings }: ConfigSectionItemsProps): React.ReactElement => {
+const ConfigSectionItemsInner = ({ name, only, onChange, resetConfigItem, isSignedIn, userSettings, updateUserSettings }: ConfigSectionItemsProps): React.ReactElement => {
   // Reads only what this list draws, so a slider moved in another section does not render this one again.
   const selectView = useCallback((config: AppConfig): SectionView => {
     const isParticle = name === 'particle'
@@ -246,7 +244,7 @@ const ConfigSectionItemsInner = ({ name, only, noDials = false, onChange, resetC
         }
         if (type === 'slider') {
           const { min, max, step } = item as SliderItem
-          const heading = noDials ? undefined : HEADINGS[`${name}.${configItem}`]
+          const heading = HEADINGS[`${name}.${configItem}`]
           // A rotation setting is a dial, which also shows and sets which way it is pointing.
           if (heading) {
             return (
