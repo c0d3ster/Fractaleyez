@@ -9,6 +9,7 @@
 }
 
 .menu-layer-row {
+  position: relative;
   display: flex;
   align-items: stretch;
   height: 48px;
@@ -27,9 +28,10 @@
 .menu-sheet .layer-header {
   flex: 1;
   min-width: 0;
-  gap: 6px;
+  gap: 4px;
   margin: 0;
-  padding: 0 0 0 6px;
+  /* Room for the arrow, which sits over the header's right end so the opacity fill spans the whole row. */
+  padding: 0 44px 0 6px;
   border-radius: 0;
   background: transparent;
   color: #fff;
@@ -71,11 +73,20 @@
 }
 
 .menu-sheet .layer-blend--inline .layer-blend__select {
-  padding: 3px 20px 3px 8px;
+  /* A select is as wide as its longest option; size it to the chosen one where the browser can, and cap it where it can't. */
+  field-sizing: content;
+  max-width: 72px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 3px 16px 3px 7px;
   border-radius: 8px;
   background: rgba(0, 0, 0, 0.45);
   color: #EDEDED;
   font-size: 12px;
+}
+
+.menu-sheet .layer-blend--inline .layer-blend__caret {
+  right: 5px;
 }
 
 .menu-sheet .layer-blend--off {
@@ -84,7 +95,7 @@
 
 .menu-sheet .layer-header__percent {
   flex: none;
-  width: 36px;
+  width: 34px;
   text-align: right;
   font-size: 13px;
 }
@@ -96,7 +107,7 @@
 }
 
 .menu-sheet .layer-header__stepper button {
-  width: 26px;
+  width: 24px;
   height: 30px;
   padding: 0;
   color: #DDD;
@@ -114,16 +125,19 @@
 
 .menu-sheet .layer-header__reset {
   flex: none;
-  width: 30px;
+  width: 28px;
   height: 30px;
   padding: 0;
   color: #DDD;
   opacity: 1;
 }
 
-/* A 44px touch target on the row's right edge, outside the header so a press there never drags the opacity. */
+/* A 44px touch target on the row's right edge, over the header (not in it) so a press there never drags the opacity. */
 .menu-layer-row__open {
-  flex: none;
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
   display: flex;
   align-items: center;
   justify-content: center;
